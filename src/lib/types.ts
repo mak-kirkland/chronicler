@@ -1,4 +1,5 @@
-// Shared types
+// Shared TypeScript interfaces matching Rust backend
+
 export interface FileIndex {
     path: string;
     name: string;
@@ -19,4 +20,12 @@ export interface EditorState {
     content: string;
     parsed: ParsedMarkdown | null;
     showPreview: boolean;
+}
+
+export interface WorldState {
+    worldRoot: string;
+    fileIndex: FileIndex[];
+    tagIndex: Record<string, string[]>;
+    isLoading: boolean;
+    error: string | null;
 }

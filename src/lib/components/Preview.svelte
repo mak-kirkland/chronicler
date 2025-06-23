@@ -1,16 +1,17 @@
+<!-- Markdown preview with wikilink handling -->
 <script lang="ts">
-    import { processWikilinks, handleWikilinkClick } from "$lib/utils/wikilink";
-
-    // Props
-    let { content = "" } = $props();
+    import { appState } from '../state/appState.svelte';
+    import { processWikilinks, handleWikilinkClick } from '../utils/wikilink';
 
     // DOM reference
     let previewRef: HTMLDivElement;
 
-    // Process wikilinks when content changes
+    // Process content when it changes
     $effect(() => {
-        if (previewRef && content) {
-            previewRef.innerHTML = processWikilinks(content);
+        if (previewRef && appState.parsedContent) {
+            // Process wikilinks in the HTML
+            const processedHtml = processWikilinks(appState.parsedContent.html);
+            previewRef.innerHTML = processedHtml;
         }
     });
 
@@ -25,8 +26,42 @@
     });
 </script>
 
-<div class="markdown-preview" bind:this={previewRef}>
-    {@html content}
+<div class="preview-container">
+    <!-- Preview header -->
+    <div class="preview-header">
+        <h3>Preview</h3>
+        {#if appState.parsedContent}
+            <div class="preview-meta">
+                <!-- Show tags if any -->
+                {#if appState.parsedContent.tags.length > 0}
+                    <div class="tags">
+                        {#each appState.parsedContent.tags as tag}
+                            <span class="tag">#{tag}</span>
+                        {/each}
+                    </div>
+                {/if}
+
+                <!-- Show wikilinks count -->
+                {#if appState.parsedContent.wikilinks.length > 0}
+                    <div class="links-count">
+                        {appState.parsedContent.wikilinks.length} link{appState.parsedContent.wikilinks.length === 1 ? '' : 's'}
+                    </div>
+                {/if}
+            </div>
+        {/if}
+    </div>
+
+    <!-- Preview content -->
+    <div
+        bind:this={previewRef}
+        class="markdown-preview"
+    >
+        {#if !appState.activePath}
+            <div class="no-file">Select a file to see preview</div>
+        {:else if !appState.parsedContent}
+            <div class="loading">Loading preview...</div>
+        {/if}
+    </div>
 </div>
 
 <style>

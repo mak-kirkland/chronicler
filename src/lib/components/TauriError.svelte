@@ -1,8 +1,10 @@
+<!-- Error display for Tauri API issues -->
 <script lang="ts">
     let error = $state<string | null>(null);
 
+    // Check if Tauri is available on mount
     $effect(() => {
-        if (typeof window.__TAURI__ === 'undefined') {
+        if (typeof window !== 'undefined' && typeof window.__TAURI__ === 'undefined') {
             error = "Tauri API not available - running in browser mode";
         }
     });
@@ -22,5 +24,6 @@
         border-radius: 4px;
         margin: 10px 0;
         font-size: 0.9em;
+        text-align: center;
     }
 </style>

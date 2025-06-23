@@ -1,39 +1,54 @@
 // Wikilink processing utilities
-import { resolveWikilink } from "$lib/utils/tauri";
 
-// Process wikilinks in markdown content
-export function processWikilinks(content: string): string {
-    // Convert [[wikilinks]] to clickable elements
-    return content.replace(/\[\[([^\]]+)\]\]/g, (_, link) => {
-        return `<a href="wiki://${link}" class="wikilink">${link}</a>`;
-    });
+import { resolveWikilink } from './tauri';
+import { appState } from '../state/appState.svelte';
+
+/**
+ * Process wikilinks in HTML content
+ * Converts [[wikilinks]] to clickable elements
+ */
+export function processWikilinks(htmlContent: string): string {
+    // Convert wiki:// links (from markdown processing) to clickable elements
+    return htmlContent.replace(
+        /href="wiki:\/\/([^"]+)"/g,
+        'href="#" data-wikilink="$1" class="wikilink"'
+    );
 }
 
-// Handle wikilink clicks
-export function handleWikilinkClick(event: MouseEvent) {
+/**
+ * Handle wikilink clicks
+ */
+export async function handleWikilinkClick(event: MouseEvent) {
     const target = event.target as HTMLElement;
 
-    if (target.tagName === 'A' && target.classList.contains('wikilink')) {
+    if (target.tagName === 'A' && target.hasAttribute('data-wikilink')) {
         event.preventDefault();
-        const href = target.getAttribute('href');
+        const link = target.getAttribute('data-wikilink');
 
-        if (href && href.startsWith('wiki://')) {
-            const link = href.slice(7);
-            openWikilink(link);
+        if (link) {
+            await openWikilink(link);
         }
     }
 }
 
-// Open a wikilink
+/**
+ * Open a wikilink by resolving it and loading the file
+ */
 async function openWikilink(link: string) {
     try {
+        // Get current file path from app state
+        const currentPath = appState.activePath || '';
+
         // Resolve link using Rust backend
         const resolvedPath = await resolveWikilink(currentPath, link);
 
-        // Open the resolved file in the editor
-        // (Implementation depends on your state management)
-        console.log(`Opening resolved wikilink: ${resolvedPath}`);
-    } catch (err) {
-        console.error(`Failed to resolve wikilink: ${err}`);
+        // Load the resolved file
+        await appState.loadFile(resolvedPath);
+
+        console.log(`Opened wikilink: ${link} -> ${resolvedPath}`);
+    } catch (error) {
+        console.error(`Failed to open wikilink "${link}":`, error);
+        // You could show a toast notification here
+        alert(`Could not open "${link}": ${error}`);
     }
 }
