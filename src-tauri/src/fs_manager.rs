@@ -16,10 +16,61 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use twox_hash::XxHash64;
 use walkdir::WalkDir;
+
+/// Maximum file size to index (5MB)
+const MAX_FILE_SIZE: u64 = 5 * 1024 * 1024;
+/// Debounce delay - wait this long after last change before processing
+const DEBOUNCE_DELAY: Duration = Duration::from_millis(1000);
+
+/// Structure for tracking file change debouncing
+#[derive(Debug)]
+struct DebounceTracker {
+    /// Maps file paths to their last change time
+    last_change: HashMap<PathBuf, Instant>,
+    /// How long to wait after last change before processing
+    delay: Duration,
+}
+
+impl DebounceTracker {
+    fn new(delay: Duration) -> Self {
+        Self {
+            last_change: HashMap::new(),
+            delay,
+        }
+    }
+
+    /// Records a change for a file path
+    fn record_change(&mut self, path: PathBuf) {
+        self.last_change.insert(path, Instant::now());
+    }
+
+    /// Gets all files that are ready to be processed (past debounce delay)
+    fn get_ready_files(&mut self) -> Vec<PathBuf> {
+        let now = Instant::now();
+        let mut ready_files = Vec::new();
+
+        // Find files that haven't changed recently
+        self.last_change.retain(|path, &mut last_time| {
+            if now.duration_since(last_time) >= self.delay {
+                ready_files.push(path.clone());
+                false // Remove from tracking
+            } else {
+                true // Keep tracking
+            }
+        });
+
+        ready_files
+    }
+
+    /// Clears tracking for a specific file (useful for deletions)
+    fn clear_file(&mut self, path: &Path) {
+        self.last_change.remove(path);
+    }
+}
 
 /// Structure representing file metadata for indexing
 #[derive(Debug, Clone)]
@@ -53,6 +104,8 @@ pub struct FsManager {
     stop_watcher: Arc<AtomicBool>,
     /// Handle to the watcher thread
     watcher_thread: Option<thread::JoinHandle<()>>,
+    /// Debounce tracker for file changes
+    debounce_tracker: DebounceTracker,
 }
 
 impl FsManager {
@@ -72,6 +125,7 @@ impl FsManager {
             event_rx,
             stop_watcher,
             watcher_thread: Some(watcher_thread),
+            debounce_tracker: DebounceTracker::new(DEBOUNCE_DELAY),
         };
 
         // Build initial index in main thread
@@ -95,6 +149,19 @@ impl FsManager {
             .filter(|e| is_markdown_file(e.path()))
         {
             let rel_path = path_relative_to(entry.path(), &self.world_root)?;
+
+            // Check file size before indexing
+            if let Ok(metadata) = entry.metadata() {
+                if metadata.len() > MAX_FILE_SIZE {
+                    log::warn!(
+                        "Skipping large file ({}MB): {}",
+                        metadata.len() / (1024 * 1024),
+                        rel_path.display()
+                    );
+                    continue;
+                }
+            }
+
             self.update_file_index(rel_path)?;
         }
 
@@ -106,39 +173,61 @@ impl FsManager {
         Ok(())
     }
 
-    /// Checks for filesystem changes and updates index
+    /// Checks for filesystem changes and updates index with debouncing
     pub fn check_for_changes(&mut self) -> Result<()> {
+        // Process all pending events first (add them to debounce tracker)
         while let Ok(event) = self.event_rx.try_recv() {
             if is_relevant_event(&event) {
-                log::debug!("Processing filesystem event: {:?}", event);
-                self.handle_event(event)?;
+                log::debug!("Queuing filesystem event: {:?}", event);
+                self.queue_event_for_debouncing(event)?;
             }
         }
+
+        // Process files that are ready (past debounce delay)
+        let ready_files = self.debounce_tracker.get_ready_files();
+        for file_path in ready_files {
+            log::debug!("Processing debounced change: {}", file_path.display());
+
+            // Check if file still exists and process accordingly
+            let abs_path = self.world_root.join(&file_path);
+            if abs_path.exists() {
+                self.update_file_index(file_path)?;
+            } else {
+                self.remove_file(&file_path)?;
+            }
+        }
+
         Ok(())
     }
 
-    /// Handles a filesystem event
-    fn handle_event(&mut self, event: Event) -> Result<()> {
+    /// Queues an event for debounced processing
+    fn queue_event_for_debouncing(&mut self, event: Event) -> Result<()> {
         match event.kind {
             notify::EventKind::Modify(ModifyKind::Name(notify::event::RenameMode::Both)) => {
                 if event.paths.len() == 2 {
                     let old_path = path_relative_to(&event.paths[0], &self.world_root)?;
                     let new_path = path_relative_to(&event.paths[1], &self.world_root)?;
+                    // Handle renames immediately (no debouncing needed)
                     self.handle_rename(&old_path, &new_path)?;
                 }
             }
-            _ => {
+            notify::EventKind::Remove(_) => {
+                // Handle deletions immediately
                 for path in event.paths {
                     if let Ok(rel_path) = path_relative_to(&path, &self.world_root) {
                         if is_markdown_file(&path) {
-                            match event.kind {
-                                notify::EventKind::Remove(_) => {
-                                    self.remove_file(&rel_path)?;
-                                }
-                                _ => {
-                                    self.update_file_index(rel_path)?;
-                                }
-                            }
+                            self.debounce_tracker.clear_file(&rel_path);
+                            self.remove_file(&rel_path)?;
+                        }
+                    }
+                }
+            }
+            _ => {
+                // Queue other changes for debouncing
+                for path in event.paths {
+                    if let Ok(rel_path) = path_relative_to(&path, &self.world_root) {
+                        if is_markdown_file(&path) {
+                            self.debounce_tracker.record_change(rel_path);
                         }
                     }
                 }
@@ -151,11 +240,32 @@ impl FsManager {
     pub fn update_file_index(&mut self, file_path: PathBuf) -> Result<()> {
         let abs_path = self.world_root.join(&file_path);
 
+        // Check file size first
+        let metadata = match fs::metadata(&abs_path) {
+            Ok(m) => m,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // File was deleted
+                self.remove_file(&file_path)?;
+                return Ok(());
+            }
+            Err(e) => return Err(e.into()),
+        };
+
+        let file_size = metadata.len();
+        if file_size > MAX_FILE_SIZE {
+            log::warn!(
+                "Skipping large file ({}MB): {}",
+                file_size / (1024 * 1024),
+                file_path.display()
+            );
+            return Ok(());
+        }
+
         // Read file content
         let content = match fs::read_to_string(&abs_path) {
             Ok(c) => c,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                // File was deleted
+                // File was deleted between metadata check and read
                 self.remove_file(&file_path)?;
                 return Ok(());
             }
@@ -218,7 +328,11 @@ impl FsManager {
         // Store file metadata
         index.file_data.insert(file_path.clone(), new_index);
 
-        log::info!("Index updated: {}", file_path.display());
+        log::info!(
+            "Index updated: {} ({}KB)",
+            file_path.display(),
+            file_size / 1024
+        );
         Ok(())
     }
 
@@ -236,6 +350,10 @@ impl FsManager {
         if old_path == new_path {
             return Ok(());
         }
+
+        // Clear debounce tracking for both paths
+        self.debounce_tracker.clear_file(old_path);
+        self.debounce_tracker.clear_file(new_path);
 
         let mut index = self.index.lock().unwrap();
 
