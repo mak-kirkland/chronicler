@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::generate_handler;
 
+/// How often the background thread polls for file manager changes
 const POLL_INTERVAL_MS: u64 = 500;
 
 /// Gets the system's documents directory or falls back to home/current directory
@@ -55,6 +56,7 @@ fn main() -> Result<()> {
     });
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new().build())
         // Manage filesystem state
         .manage(fs_manager)
         // Register command handlers
