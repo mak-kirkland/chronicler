@@ -14,6 +14,8 @@ use tauri::generate_handler;
 
 /// How often the background thread polls for file manager changes
 const POLL_INTERVAL_MS: u64 = 500;
+/// World root directory relative to the system's documents or home directory
+const WORLD_DIR: &str = "DnDWorld";
 
 /// Gets the system's documents directory or falls back to home/current directory
 fn document_dir() -> Option<PathBuf> {
@@ -26,7 +28,7 @@ fn main() -> Result<()> {
     // Set up world root directory: ~/Documents/DnDWorld
     let world_root = document_dir()
         .ok_or("Could not locate documents directory")?
-        .join("DnDWorld");
+        .join(WORLD_DIR);
 
     // Create directory if it doesn't exist
     if !world_root.exists() {
