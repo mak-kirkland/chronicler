@@ -371,12 +371,13 @@ impl FsManager {
 
 impl Drop for FsManager {
     fn drop(&mut self) {
-        // Signal watcher thread to stop
         self.stop_watcher.store(true, Ordering::Relaxed);
 
-        // Wait for thread to finish
+        // Give thread time to cleanup
         if let Some(handle) = self.watcher_thread.take() {
-            let _ = handle.join();
+            let _: () = handle.join().unwrap_or_else(|_| {
+                log::warn!("Watcher thread didn't exit cleanly");
+            });
         }
     }
 }
