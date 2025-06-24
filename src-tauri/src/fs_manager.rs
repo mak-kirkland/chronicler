@@ -1,6 +1,7 @@
 //! Filesystem management with pure event-driven indexing
 
 use crate::{
+    debouncer::DebounceTracker,
     error::{AppError, Result},
     markdown::parse_markdown,
 };
@@ -16,7 +17,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 use twox_hash::XxHash64;
 use walkdir::WalkDir;
@@ -26,51 +27,6 @@ const MAX_FILE_SIZE: u64 = 5 * 1024 * 1024;
 /// Debounce delay - wait this long after last change before processing
 const DEBOUNCE_DELAY: Duration = Duration::from_millis(1000);
 
-/// Structure for tracking file change debouncing
-#[derive(Debug)]
-struct DebounceTracker {
-    /// Maps file paths to their last change time
-    last_change: HashMap<PathBuf, Instant>,
-    /// How long to wait after last change before processing
-    delay: Duration,
-}
-
-impl DebounceTracker {
-    fn new(delay: Duration) -> Self {
-        Self {
-            last_change: HashMap::new(),
-            delay,
-        }
-    }
-
-    /// Records a change for a file path
-    fn record_change(&mut self, path: PathBuf) {
-        self.last_change.insert(path, Instant::now());
-    }
-
-    /// Gets all files that are ready to be processed (past debounce delay)
-    fn get_ready_files(&mut self) -> Vec<PathBuf> {
-        let now = Instant::now();
-        let mut ready_files = Vec::new();
-
-        // Find files that haven't changed recently
-        self.last_change.retain(|path, &mut last_time| {
-            if now.duration_since(last_time) >= self.delay {
-                ready_files.push(path.clone());
-                false // Remove from tracking
-            } else {
-                true // Keep tracking
-            }
-        });
-
-        ready_files
-    }
-
-    /// Clears tracking for a specific file (useful for deletions)
-    fn clear_file(&mut self, path: &Path) {
-        self.last_change.remove(path);
-    }
-}
 
 /// Structure representing file metadata for indexing
 #[derive(Debug, Clone)]

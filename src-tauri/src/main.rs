@@ -1,6 +1,7 @@
 //! Main entry point for the Tauri application
 
 mod commands;
+mod debouncer;
 mod error;
 mod fs_manager;
 mod markdown;
