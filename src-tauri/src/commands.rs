@@ -1,6 +1,8 @@
 //! Tauri command handlers for filesystem operations
 
-use crate::{error::Result, fs_manager::FsManager, markdown::parse_markdown};
+use crate::{error::AppError, error::Result, fs_manager::FsManager, markdown::parse_markdown};
+use atomicwrites::{AllowOverwrite, AtomicFile};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::State;
@@ -29,7 +31,9 @@ pub async fn save_file(
     path: PathBuf,
     content: String,
 ) -> Result<()> {
-    let manager = fs_manager.lock().unwrap();
+    let manager = fs_manager
+        .lock()
+        .map_err(|e| AppError::File(e.to_string()))?;
     let abs_path = manager.world_root.join(&path);
 
     // Create parent directories if needed
@@ -37,9 +41,15 @@ pub async fn save_file(
         std::fs::create_dir_all(parent)?;
     }
 
-    // Write file
-    std::fs::write(&abs_path, &content)?;
-    log::info!("File saved: {}", path.display());
+    // Write file atomically with fsync
+    let af = AtomicFile::new(&abs_path, AllowOverwrite);
+    af.write(|f| -> Result<()> {
+        f.write_all(content.as_bytes())?;
+        f.sync_all()?;
+        Ok(())
+    })?; // Will convert via our From<atomicwrites::Error> impl
+
+    log::info!("File saved atomically: {}", path.display());
     Ok(())
 }
 

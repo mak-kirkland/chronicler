@@ -24,6 +24,9 @@ pub enum AppError {
     #[error("Path error: {0}")]
     Path(String),
 
+    #[error("File error: {0}")]
+    File(String),
+
     #[error("Invalid wikilink: {0}")]
     Wikilink(String),
 
@@ -63,5 +66,16 @@ impl From<String> for AppError {
 impl From<tauri::Error> for AppError {
     fn from(error: tauri::Error) -> Self {
         AppError::Tauri(error.to_string())
+    }
+}
+
+impl<T: std::fmt::Display> From<atomicwrites::Error<T>> for AppError {
+    fn from(error: atomicwrites::Error<T>) -> Self {
+        match error {
+            atomicwrites::Error::Internal(err) => AppError::Io(err),
+            atomicwrites::Error::User(err) => {
+                AppError::File(format!("Atomic write failed: {}", err))
+            }
+        }
     }
 }
