@@ -596,6 +596,7 @@ dependencies = [
  "dirs-next",
  "log",
  "notify",
+ "notify-debouncer-full",
  "pulldown-cmark",
  "regex",
  "serde",
@@ -606,6 +607,7 @@ dependencies = [
  "tauri-plugin-log",
  "tauri-plugin-opener",
  "thiserror 1.0.69",
+ "tokio",
  "twox-hash",
  "walkdir",
 ]
@@ -1110,6 +1112,15 @@ checksum = "38e2275cc4e4fc009b0669731a1e5ab7ebf11f469eaede2bab9309a5b4d6057f"
 dependencies = [
  "memoffset",
  "rustc_version",
+]
+
+[[package]]
+name = "file-id"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bc904b9bbefcadbd8e3a9fb0d464a9b979de6324c03b3c663e8994f46a5be36"
+dependencies = [
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2370,6 +2381,20 @@ dependencies = [
  "mio 0.8.11",
  "walkdir",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "notify-debouncer-full"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb7fd166739789c9ff169e654dc1501373db9d80a4c3f972817c8a4d7cf8f34e"
+dependencies = [
+ "crossbeam-channel",
+ "file-id",
+ "log",
+ "notify",
+ "parking_lot",
+ "walkdir",
 ]
 
 [[package]]

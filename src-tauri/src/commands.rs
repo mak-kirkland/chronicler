@@ -1,133 +1,113 @@
-//! Tauri command handlers for filesystem operations
+//! Tauri command handlers for the worldbuilding application.
+//!
+//! These commands bridge the frontend (Svelte/JavaScript) and backend (Rust) functionality.
+//! All commands are async-capable and automatically manage thread safety via Tauri's State system.
 
-use crate::{error::AppError, error::Result, fs_manager::FsManager, markdown::parse_markdown};
-use atomicwrites::{AllowOverwrite, AtomicFile};
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
-use tauri::State;
+use crate::{
+    error::Result,
+    models::{FileNode, Page},
+    world::World,
+};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
+use tauri::{command, AppHandle, State};
 
-/// Reads file content with markdown parsing
-#[tauri::command]
-pub async fn get_file_content(
-    fs_manager: State<'_, Arc<Mutex<FsManager>>>,
-    path: PathBuf,
-) -> Result<String> {
-    let manager = fs_manager.lock().unwrap(); // Blocking lock is OK
-    let abs_path = manager.world_root.join(&path);
-
-    // Read and parse markdown
-    let content = std::fs::read_to_string(&abs_path)?;
-    let parsed = parse_markdown(&content)?;
-
-    // Return JSON with parsed data
-    serde_json::to_string(&parsed).map_err(|e| format!("Serialization error: {}", e).into())
+/// Initializes the application by scanning a vault directory and starting the file watcher.
+/// This should be called once when the user selects their vault folder.
+///
+/// # Arguments
+/// * `path` - String path to the vault directory
+/// * `world` - The application state
+/// * `app_handle` - Tauri application handle for event emission
+///
+/// # Returns
+/// `Result<()>` indicating success or failure
+#[command]
+pub fn initialize(path: String, world: State<World>, app_handle: AppHandle) -> Result<()> {
+    log::info!("Initializing at: {}", path);
+    world.initialize(app_handle)
 }
 
-/// Saves content to a file
-#[tauri::command]
-pub async fn save_file(
-    fs_manager: State<'_, Arc<Mutex<FsManager>>>,
-    path: PathBuf,
-    content: String,
-) -> Result<()> {
-    let manager = fs_manager
-        .lock()
-        .map_err(|e| AppError::File(e.to_string()))?;
-    let abs_path = manager.world_root.join(&path);
+/// Returns a map of all indexed pages and their metadata.
+///
+/// # Arguments
+/// * `world` - The application state
+///
+/// # Returns
+/// `Result<HashMap<PathBuf, Page>>` where keys are file paths and values are page metadata
+#[command]
+pub fn get_all_pages(world: State<World>) -> Result<HashMap<PathBuf, Page>> {
+    world.get_all_pages()
+}
 
-    // Create parent directories if needed
-    if let Some(parent) = abs_path.parent() {
-        std::fs::create_dir_all(parent)?;
+/// Returns the tag index mapping tags to lists of pages that contain them.
+///
+/// # Arguments
+/// * `world` - The application state
+///
+/// # Returns
+/// `Result<HashMap<String, Vec<PathBuf>>>` where keys are tags and values are page paths
+#[command]
+pub fn get_all_tags(world: State<World>) -> Result<HashMap<String, Vec<PathBuf>>> {
+    world.get_all_tags()
+}
+
+/// Reads and returns the raw Markdown content of a specific page.
+/// This bypasses the index for direct filesystem access.
+///
+/// # Arguments
+/// * `path` - Absolute path to the Markdown file
+///
+/// # Returns
+/// `Result<String>` containing the file content
+#[command]
+pub fn get_page_content(path: String) -> Result<String> {
+    fs::read_to_string(path).map_err(Into::into)
+}
+
+/// Writes content to a page on disk. The file watcher will automatically
+/// detect this change and trigger a re-index.
+///
+/// # Arguments
+/// * `path` - Absolute path where the file should be written
+/// * `content` - Markdown content to write
+///
+/// # Returns
+/// `Result<()>` indicating success or failure
+#[command]
+pub fn write_page_content(path: String, content: String) -> Result<()> {
+    // Ensure parent directory exists
+    if let Some(parent) = Path::new(&path).parent() {
+        fs::create_dir_all(parent)?;
     }
-
-    // Write file atomically with fsync
-    let af = AtomicFile::new(&abs_path, AllowOverwrite);
-    af.write(|f| -> Result<()> {
-        f.write_all(content.as_bytes())?;
-        f.sync_all()?;
-        Ok(())
-    })?; // Will convert via our From<atomicwrites::Error> impl
-
-    log::info!("File saved atomically: {}", path.display());
-    Ok(())
+    fs::write(path, content).map_err(Into::into)
 }
 
-/// Gets files with a specific tag
-#[tauri::command]
-pub async fn get_tag_index(
-    fs_manager: State<'_, Arc<Mutex<FsManager>>>,
-    tag: String,
-) -> Result<Vec<PathBuf>> {
-    let manager = fs_manager.lock().unwrap();
-    Ok(manager.get_tag_files(&tag))
+/// Returns the hierarchical file tree structure of the vault.
+///
+/// # Arguments
+/// * `world` - The application state
+///
+/// # Returns
+/// `Result<FileNode>` representing the root of the file tree
+#[command]
+pub fn get_file_tree(world: State<World>) -> Result<FileNode> {
+    world.get_file_tree()
 }
 
-/// Gets backlinks for a file
-#[tauri::command]
-pub async fn get_backlinks(
-    fs_manager: State<'_, Arc<Mutex<FsManager>>>,
-    path: PathBuf,
-) -> Result<Vec<PathBuf>> {
-    let manager = fs_manager.lock().unwrap();
-    Ok(manager.get_backlinks(&path))
-}
-
-/// Creates a new directory
-#[tauri::command]
-pub async fn create_directory(
-    fs_manager: State<'_, Arc<Mutex<FsManager>>>,
-    path: PathBuf,
-) -> Result<()> {
-    let manager = fs_manager.lock().unwrap();
-    let abs_path = manager.world_root.join(&path);
-    std::fs::create_dir_all(&abs_path)?;
-    Ok(())
-}
-
-/// Lists directory contents
-#[tauri::command]
-pub async fn list_directory(
-    fs_manager: State<'_, Arc<Mutex<FsManager>>>,
-    path: PathBuf,
-) -> Result<Vec<PathBuf>> {
-    let manager = fs_manager.lock().unwrap();
-    let abs_path = manager.world_root.join(&path);
-
-    let mut contents = Vec::new();
-    for entry in std::fs::read_dir(&abs_path)? {
-        let entry = entry?;
-        let rel_path = path_relative_to(&entry.path(), &manager.world_root)?;
-        contents.push(rel_path);
-    }
-
-    Ok(contents)
-}
-
-/// Resolves a wikilink to a valid path
-#[tauri::command]
-pub async fn resolve_wikilink(
-    fs_manager: State<'_, Arc<Mutex<FsManager>>>,
-    current_path: PathBuf,
-    link: String,
-) -> Result<PathBuf> {
-    let manager = fs_manager.lock().unwrap();
-    manager.resolve_wikilink(&current_path, &link)
-}
-
-#[tauri::command]
-pub async fn get_image(
-    fs_manager: State<'_, Arc<Mutex<FsManager>>>,
-    path: PathBuf,
-) -> Result<Vec<u8>> {
-    let manager = fs_manager.lock().unwrap();
-    let abs_path = manager.world_root.join(path);
-    std::fs::read(&abs_path).map_err(|e| e.into())
-}
-
-/// Helper to get relative path
-fn path_relative_to(path: &Path, base: &Path) -> Result<PathBuf> {
-    path.strip_prefix(base)
-        .map(|p| p.to_path_buf())
-        .map_err(|_| format!("Path '{}' not in base directory", path.display()).into())
+/// Manually triggers an index update for a specific file.
+/// Typically called after programmatic file modifications.
+///
+/// # Arguments
+/// * `world` - The application state
+/// * `path` - Path to the file that needs updating
+///
+/// # Returns
+/// `Result<()>` indicating success or failure
+#[command]
+pub fn update_file(world: State<World>, path: PathBuf) -> Result<()> {
+    world.update_file(&path)
 }

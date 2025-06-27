@@ -1,44 +1,48 @@
-//! Custom error type and result handling
+// -----------------------------------------------------------------------------
+// error.rs
+// Defines a custom error type for cleaner error handling.
+// -----------------------------------------------------------------------------
 
-use notify::Error as NotifyError;
-use regex::Error as RegexError;
-use serde_yaml::Error as YamlError;
-use std::io;
+use std::path::PathBuf;
 use thiserror::Error;
 
-/// Unified error type for the application
 #[derive(Debug, Error)]
-pub enum AppError {
-    #[error("I/O error: {0}")]
-    Io(#[from] io::Error),
+pub enum ChroniclerError {
+    #[error("Tauri error: {0}")]
+    Tauri(#[from] tauri::Error),
 
-    #[error("Filesystem watcher error: {0}")]
-    Notify(#[from] NotifyError),
-
-    #[error("YAML parsing error: {0}")]
-    Yaml(#[from] YamlError),
+    #[error("IO Error: {0}")]
+    Io(#[from] std::io::Error),
 
     #[error("Regex error: {0}")]
-    Regex(#[from] RegexError),
+    Regex(#[from] regex::Error),
 
-    #[error("Path error: {0}")]
-    Path(String),
+    #[error("YAML Parsing Error: {0}")]
+    Yaml(#[from] serde_yaml::Error),
 
-    #[error("File error: {0}")]
-    File(String),
+    #[error("File Watcher Error: {0}")]
+    Watcher(#[from] notify::Error),
 
-    #[error("Invalid wikilink: {0}")]
-    Wikilink(String),
+    #[error("Path '{0}' is not a directory")]
+    NotADirectory(String),
 
-    #[error("Tauri error: {0}")]
-    Tauri(String),
+    #[error("Vault not initialized")]
+    VaultNotInitialized,
 
-    #[error("Custom error: {0}")]
-    Custom(String),
+    #[error("Could not acquire lock on application state")]
+    StateLock,
+
+    #[error("File '{path}' is too large ({size} bytes, max: {max_size} bytes)")]
+    FileTooLarge {
+        path: PathBuf,
+        size: u64,
+        max_size: u64,
+    },
 }
 
-// Implement serialization for Tauri error passing
-impl serde::Serialize for AppError {
+// We need to implement Serialize for the error type to be able to return
+// it from Tauri commands.
+impl serde::Serialize for ChroniclerError {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -47,35 +51,4 @@ impl serde::Serialize for AppError {
     }
 }
 
-/// Custom result type for the application
-pub type Result<T> = std::result::Result<T, AppError>;
-
-// Conversion helpers
-impl From<&str> for AppError {
-    fn from(value: &str) -> Self {
-        AppError::Custom(value.to_string())
-    }
-}
-
-impl From<String> for AppError {
-    fn from(value: String) -> Self {
-        AppError::Custom(value)
-    }
-}
-
-impl From<tauri::Error> for AppError {
-    fn from(error: tauri::Error) -> Self {
-        AppError::Tauri(error.to_string())
-    }
-}
-
-impl<T: std::fmt::Display> From<atomicwrites::Error<T>> for AppError {
-    fn from(error: atomicwrites::Error<T>) -> Self {
-        match error {
-            atomicwrites::Error::Internal(err) => AppError::Io(err),
-            atomicwrites::Error::User(err) => {
-                AppError::File(format!("Atomic write failed: {}", err))
-            }
-        }
-    }
-}
+pub type Result<T> = std::result::Result<T, ChroniclerError>;
