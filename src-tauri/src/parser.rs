@@ -91,12 +91,27 @@ pub fn parse_file(path: &Path) -> Result<Page> {
 }
 
 /// Splits a file's content into its YAML frontmatter and the main Markdown body.
+/// Unicode-safe.
 fn extract_frontmatter(content: &str) -> (&str, &str) {
-    if content.starts_with("---") {
-        if let Some(end_pos) = content.get(4..).and_then(|s| s.find("---")) {
-            let fm_end = end_pos + 4;
-            return (&content[3..fm_end - 3], content[fm_end..].trim_start());
+    if !content.starts_with("---\n") {
+        return ("", content);
+    }
+
+    let after_start = &content[4..];
+
+    // Look for "\n---\n" (closing delimiter with content after)
+    if let Some(end_pos) = after_start.find("\n---\n") {
+        return (&after_start[..end_pos], &after_start[end_pos + 5..]);
+    }
+
+    // Look for "\n---" at end of file or followed only by whitespace
+    if let Some(end_pos) = after_start.find("\n---") {
+        let after_closing = &after_start[end_pos + 4..];
+        if after_closing.chars().all(|c| c.is_whitespace()) {
+            return (&after_start[..end_pos], after_closing.trim_start());
         }
     }
+
+    // No valid closing delimiter found
     ("", content)
 }
