@@ -26,9 +26,9 @@ use tauri::{command, AppHandle, State};
 /// # Returns
 /// `Result<()>` indicating success or failure
 #[command]
-pub fn initialize(path: String, world: State<World>, app_handle: AppHandle) -> Result<()> {
+pub fn initialize(path: String, world: State<World>, _app_handle: AppHandle) -> Result<()> {
     log::info!("Initializing at: {}", path);
-    world.initialize(app_handle)
+    world.initialize()
 }
 
 /// Returns a map of all indexed pages and their metadata.

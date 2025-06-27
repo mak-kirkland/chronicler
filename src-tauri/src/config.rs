@@ -4,7 +4,7 @@
 
 use std::time::Duration;
 
-pub const WORLD_ROOT: &str = "DnDWorld";
+pub const WORLD_ROOT: &str = "/home/michael/DnDWorld";
 
 /// The debounce interval for file changes in milliseconds.
 /// This helps prevent multiple rapid updates from triggering too many re-indexes.
