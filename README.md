@@ -75,7 +75,7 @@ Chronicler is made for worldbuilders who believe in **local-first software**, **
 
 ## ❤️ Support the Project
 
-Want to help keep Chronicler free, open, and offline? See the [Patreon pitch below](#patreon-pitch) or support the project with coffee and code.
+Want to help keep Chronicler free, open, and offline? See the [Patreon pitch](https://patreon.com/ChroniclerWorldbuilder) below or support the project with coffee and code.
 
 ---
 
