@@ -1,3 +1,5 @@
+![Chronicler 3](https://github.com/user-attachments/assets/f2354038-baf7-41f3-865d-24f7aca63776)
+
 # 📘 Chronicler – A Markdown-Based Offline Worldbuilding App
 
 **Chronicler** is a free, open-source, standalone desktop application for fantasy worldbuilders, especially Game Masters and authors. It’s designed for full **offline use**, ensuring that **you own your data** — all files are saved locally in a standard, human-readable Markdown format using a clear folder hierarchy.
