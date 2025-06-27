@@ -1,7 +1,6 @@
-// -----------------------------------------------------------------------------
-// parser.rs
-// Handles the parsing of individual Markdown files.
-// -----------------------------------------------------------------------------
+//! Markdown content processor.
+//!
+//! Extracts metadata, links, and frontmatter from files.
 
 use crate::config::MAX_FILE_SIZE;
 use crate::error::{ChroniclerError, Result};

@@ -1,6 +1,6 @@
-//! The `World` struct represents the core state and functionality of the worldbuilding application.
-//! It encapsulates subsystems like indexing and file watching, providing a unified and thread-safe
-//! interface for Tauri commands and other parts of the application to interact with.
+//! Central application state manager.
+//!
+//! Coordinates the indexer, watcher, and frontend communication.
 
 use crate::{
     error::{ChroniclerError, Result},

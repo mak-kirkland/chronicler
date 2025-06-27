@@ -1,8 +1,6 @@
-// -----------------------------------------------------------------------------
-// main.rs
-// The entry point for the Tauri application. It sets up the shared state
-// and registers the API commands that the frontend can call.
-// -----------------------------------------------------------------------------
+//! Application entry point and Tauri initialization.
+//!
+//! Configures the shared state and registers the API commands that the frontend can call.
 
 #![cfg_attr(
     all(not(debug_assertions), target_os = "windows"),
@@ -16,13 +14,13 @@ use world::World;
 mod commands;
 mod config;
 mod error;
+mod events;
 mod indexer;
 mod models;
 mod parser;
 mod utils;
 mod watcher;
 mod world;
-mod events;
 
 fn main() {
     // The World will hold our entire backend's state. We wrap it in a Mutex

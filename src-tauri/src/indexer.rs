@@ -1,8 +1,7 @@
-// -----------------------------------------------------------------------------
-// indexer.rs
-// Event-driven indexer that maintains an in-memory index of all pages and tags.
-// The indexer processes individual file events but doesn't manage its own subscriptions.
-// -----------------------------------------------------------------------------
+//! File indexer that registers page relationships.
+//!
+//! Event-driven indexer that maintains an in-memory index of all pages and tags.
+//! The indexer processes individual file events but doesn't manage its own subscriptions.
 
 use crate::{
     error::{ChroniclerError, Result},

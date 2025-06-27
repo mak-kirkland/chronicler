@@ -1,3 +1,7 @@
+//! Shared utility functions.
+//!
+//! Common helpers used across modules.
+
 use std::path::Path;
 
 /// Helper function to check if a path points to a Markdown file.

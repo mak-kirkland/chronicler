@@ -1,3 +1,7 @@
+//! Application constants.
+//!
+//! Centralizes tunable parameters and limits.
+
 use std::time::Duration;
 
 pub const WORLD_ROOT: &str = "DnDWorld";

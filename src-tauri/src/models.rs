@@ -1,7 +1,7 @@
-// -----------------------------------------------------------------------------
-// models.rs
-// Defines the core data structures used throughout the application.
-// -----------------------------------------------------------------------------
+//! Core data structures.
+//!
+//! Defines the page and file tree representations.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;

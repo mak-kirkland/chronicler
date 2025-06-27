@@ -1,7 +1,6 @@
-// -----------------------------------------------------------------------------
-// error.rs
-// Defines a custom error type for cleaner error handling.
-// -----------------------------------------------------------------------------
+//! Unified error handling.
+//!
+//! Contains all application error variants.
 
 use std::path::PathBuf;
 use thiserror::Error;
