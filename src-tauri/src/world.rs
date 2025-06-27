@@ -13,7 +13,6 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
-use tauri::AppHandle;
 use tokio::sync::broadcast;
 
 /// The main `World` struct containing all application subsystems and state.
@@ -80,7 +79,8 @@ impl World {
 
         // --- 4. Spawn Background Event Processing Task ---
         let indexer_clone = self.indexer.clone();
-        tokio::spawn(async move {
+        // Use Tauri's async runtime instead of tokio::spawn
+        tauri::async_runtime::spawn(async move {
             Self::process_file_events(indexer_clone, event_receiver).await;
         });
 
