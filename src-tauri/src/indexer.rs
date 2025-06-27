@@ -27,6 +27,7 @@ pub struct Indexer {
     pub root_path: Option<PathBuf>,
     pub pages: HashMap<PathBuf, Page>,
     pub tags: HashMap<String, HashSet<PathBuf>>,
+    pub links: HashMap<String, PathBuf>,
 }
 
 impl Indexer {
@@ -84,6 +85,7 @@ impl Indexer {
         self.rebuild_relations();
 
         info!("Full scan completed. Indexed {} pages.", self.pages.len());
+        info!("Vault structure: {:#?}", self.get_file_tree());
         Ok(())
     }
 
@@ -149,6 +151,9 @@ impl Indexer {
             }
         };
 
+        // Update links
+        self.update_link(path);
+
         // Update tag associations
         let old_tags = old_page
             .as_ref()
@@ -172,12 +177,15 @@ impl Indexer {
         }
     }
 
-    /// Removes all relationships (tags and backlinks) for a given page.
-    fn remove_relationships(&mut self, page_to_remove: &Page) {
+    /// Removes all relationships (tags, links and backlinks) for a given page.
+    fn remove_relationships(&mut self, page: &Page) {
+        // Remove from links
+        self.remove_link(&page.path);
+
         // Remove from tag associations
-        for tag in &page_to_remove.tags {
+        for tag in &page.tags {
             if let Some(pages_with_tag) = self.tags.get_mut(tag) {
-                pages_with_tag.remove(&page_to_remove.path);
+                pages_with_tag.remove(&page.path);
                 if pages_with_tag.is_empty() {
                     self.tags.remove(tag);
                 }
@@ -185,10 +193,10 @@ impl Indexer {
         }
 
         // Remove backlinks this page created on other pages
-        for link_name in &page_to_remove.links {
+        for link_name in &page.links {
             if let Some(target_path) = self.resolve_link(link_name) {
                 if let Some(target_page) = self.pages.get_mut(&target_path) {
-                    target_page.backlinks.remove(&page_to_remove.path);
+                    target_page.backlinks.remove(&page.path);
                 }
             }
         }
@@ -246,7 +254,7 @@ impl Indexer {
         }
     }
 
-    /// Rebuilds all relationships (tags and backlinks) from scratch.
+    /// Rebuilds all relationships (tags, links and backlinks) from scratch.
     ///
     /// This is used during the initial full scan to establish all relationships
     /// after all pages have been parsed and indexed.
@@ -284,12 +292,28 @@ impl Indexer {
         for (path, page) in self.pages.iter_mut() {
             page.backlinks = new_backlinks.remove(path).unwrap_or_default();
         }
+
+        // Build link map
+        self.rebuild_link_lookup();
     }
 
-    /// Resolves a wikilink name to an absolute file path.
+    /// Rebuilds map of link names to PathBuf.
     ///
     /// This performs a case-insensitive search through all indexed pages
     /// to find a file whose stem matches the link name.
+    fn rebuild_link_lookup(&mut self) {
+        self.links.clear();
+        for path in self.pages.keys() {
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default()
+                .to_lowercase();
+            self.links.insert(stem, path.clone());
+        }
+    }
+
+    /// Resolves a wikilink name to an absolute file path.
     ///
     /// # Arguments
     /// * `link_name` - The name of the link to resolve (without [[ ]])
@@ -297,15 +321,25 @@ impl Indexer {
     /// # Returns
     /// `Some(PathBuf)` if a matching file is found, `None` otherwise
     pub fn resolve_link(&self, link_name: &str) -> Option<PathBuf> {
-        let link_lower = link_name.to_lowercase();
-        self.pages
-            .keys()
-            .find(|path| {
-                path.file_stem()
-                    .and_then(|s| s.to_str())
-                    .is_some_and(|stem| stem.to_lowercase() == link_lower)
-            })
-            .cloned()
+        self.links.get(&link_name.to_lowercase()).cloned()
+    }
+
+    fn update_link(&mut self, path: &Path) {
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        self.links.insert(stem, path.to_path_buf());
+    }
+
+    fn remove_link(&mut self, path: &Path) {
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        self.links.remove(&stem);
     }
 
     /// Generates a hierarchical file tree representation of the vault.
