@@ -4,6 +4,8 @@
 
 **Chronicler** is a free, open-source, standalone desktop application for fantasy worldbuilders, especially Game Masters and authors. It’s designed for full **offline use**, ensuring that **you own your data** — all files are saved locally in a standard, human-readable Markdown format using a clear folder hierarchy.
 
+❤️ [Join the Patreon](https://patreon.com/ChroniclerWorldbuilder) or [buy me a coffee](https://buymeacoffee.com/chronicler) and help build *Chronicler*.
+
 ---
 
 ## ✨ Features (Planned & In Progress)
@@ -14,10 +16,11 @@
 - **Frontmatter-based metadata** (YAML) for tags, infoboxes, and more
 
 ### 🔖 Tagging & Linking
-- Inline and frontmatter-based **tags** with support for **tag hierarchies**
+- Frontmatter-based **tags** with support for **tag hierarchies**
 - Internal **[[wikilinks]]** with autocomplete
 - **Backlinks** to quickly see where a page is referenced
 - **Automatic indexing**: tag pages update themselves when tags are added/removed
+- **Automatic renames**: links update themselves when files are renamed
 
 ### 🧠 Infoboxes & Templates
 - Built-in support for structured data via **infoboxes** (e.g., for characters, items, locations)
@@ -25,7 +28,7 @@
 
 ### 🌐 Navigable Hierarchies
 - Support for **multiple categorization paths** (e.g., `Characters/NPCs/Orelia` and `Factions/Eldritch Knights/Orelia`)
-- Works via symlinks or smart virtual mapping, giving multiple access paths to the same file
+- Works via smart indexing, giving multiple access paths to the same file
 
 ### 🖼️ Media Support
 - Image embedding via `![[images/filename.jpg]]`, stored locally under `images/`
@@ -40,14 +43,12 @@
 - Interactive maps and timelines
 - Visual tag graphs
 - Dice roller / encounter helper
-- System-agnostic compatibility with TTRPGs
 
 ---
 
 ## 🔧 Tech Stack (Tentative)
-- **Frontend:** Svelte (possibly Svelte 5)
-- **Backend:** Rust (Tauri for desktop)
-- **Markdown Engine:** Custom parser or integration with existing libraries like `markdown-it`, `pulldown-cmark`, or `mdast`
+- **Frontend:** Svelte 5
+- **Backend:** Rust
 - **Packaging:** Tauri for a small, native desktop app
 
 ---
@@ -57,8 +58,6 @@
 This project is in early development! Contributions are welcome:
 
 - UX/UI design
-- Markdown or YAML parsing
-- File system handling
 - Testing across OSes
 - Feature requests
 
@@ -99,7 +98,7 @@ Imagine a worldbuilding tool that doesn't tell you how to create. It just helps 
 - Zero cloud dependency  
 - Full ownership of your files and creative vision
 
-I'm building Chronicler to give creators a tool that grows with your world, not one that walls you in.
+I'm building Chronicler to give creators a tool that grows with your world, not one that walls you in behind a subscription.
 
 ---
 
@@ -122,7 +121,7 @@ I'm building Chronicler to give creators a tool that grows with your world, not 
 
 ---
 
-Together, we can build a better tool for storytelling — one that doesn’t sell your data or chain your creativity.
+Together, we can build a better tool for storytelling.
 
 👉 [Join the Patreon](https://patreon.com/ChroniclerWorldbuilder) and help build *Chronicler*.
 
