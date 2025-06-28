@@ -16,8 +16,11 @@ pub enum ChroniclerError {
     #[error("Regex error: {0}")]
     Regex(#[from] regex::Error),
 
-    #[error("YAML Parsing Error: {0}")]
-    Yaml(#[from] serde_yaml::Error),
+    #[error("YAML parsing error in file '{path}': {source}")]
+    YamlParseError {
+        source: serde_yaml::Error,
+        path: PathBuf,
+    },
 
     #[error("File Watcher Error: {0}")]
     Watcher(#[from] notify::Error),
