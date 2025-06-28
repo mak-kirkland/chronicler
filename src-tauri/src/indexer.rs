@@ -15,6 +15,7 @@ use std::{
     collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
+    time::Instant,
 };
 use walkdir::WalkDir;
 
@@ -55,6 +56,7 @@ impl Indexer {
     /// `Result<()>` indicating success or failure of the scan operation
     pub fn full_scan(&mut self, root_path: &Path) -> Result<()> {
         info!("Starting full scan of vault: {:?}", root_path);
+        let start_time = Instant::now();
 
         if !root_path.is_dir() {
             return Err(ChroniclerError::NotADirectory(
@@ -84,8 +86,14 @@ impl Indexer {
         // Second pass: Build relationships between pages
         self.rebuild_relations();
 
-        info!("Full scan completed. Indexed {} pages.", self.pages.len());
-        info!("Vault structure: {:#?}", self.get_file_tree());
+        info!(
+            "Full scan completed. Indexed {} pages (found {} tags and {} links) in {:?} seconds.",
+            self.pages.len(),
+            self.tags.len(),
+            self.links.len(),
+            start_time.elapsed().as_secs_f64()
+        );
+
         Ok(())
     }
 
