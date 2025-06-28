@@ -25,7 +25,7 @@ static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
 /// # Returns
 /// A `Result` containing the parsed `Page` or a `ChroniclerError`.
 pub fn parse_file(path: &Path) -> Result<Page> {
-    // Error if file size is too large
+    // Check file size limit
     let metadata = fs::metadata(path)?;
     if metadata.len() > MAX_FILE_SIZE {
         return Err(ChroniclerError::FileTooLarge {
@@ -38,45 +38,13 @@ pub fn parse_file(path: &Path) -> Result<Page> {
     let content = fs::read_to_string(path)?;
     let (frontmatter_str, markdown_body) = extract_frontmatter(&content);
 
-    let frontmatter = if frontmatter_str.is_empty() {
-        serde_json::Value::Null
-    } else {
-        serde_yaml::from_str(frontmatter_str)?
-    };
+    // Parse frontmatter
+    let frontmatter = parse_frontmatter(frontmatter_str, path)?;
 
-    let mut tags = HashSet::new();
-    let mut links = HashSet::new();
-
-    // Extract tags from frontmatter first
-    if let Some(frontmatter_tags) = frontmatter.get("tags") {
-        if let Some(tag_array) = frontmatter_tags.as_array() {
-            for tag in tag_array {
-                if let Some(tag_str) = tag.as_str() {
-                    tags.insert(tag_str.to_string());
-                }
-            }
-        }
-    }
-
-    // Extract links (page portion only)
-    for cap in WIKILINK_RE.captures_iter(markdown_body) {
-        if let Some(page) = cap.get(1) {
-            links.insert(page.as_str().to_string());
-        }
-        // Explicitly ignore groups 2 (header) and 3 (alias)
-    }
-
-    // Determine the page title
-    let title = frontmatter
-        .get("title")
-        .and_then(|v| v.as_str())
-        .map(String::from)
-        .unwrap_or_else(|| {
-            path.file_stem()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string()
-        });
+    // Extract metadata
+    let tags = extract_tags_from_frontmatter(&frontmatter);
+    let links = extract_wikilinks(markdown_body);
+    let title = extract_title(&frontmatter, path);
 
     debug!(
         "Page {} parsed. Tags: {:#?}, Links: {:#?}",
@@ -93,30 +61,76 @@ pub fn parse_file(path: &Path) -> Result<Page> {
     })
 }
 
-/// Splits a file's content into its YAML frontmatter and the main Markdown body.
-/// Unicode-safe.
+/// Extracts YAML frontmatter from markdown content.
+/// Returns (frontmatter, body) where frontmatter is empty if none found.
+///
+/// This function is Unicode-safe and handles multibyte characters correctly.
 fn extract_frontmatter(content: &str) -> (&str, &str) {
-    if !content.starts_with("---\n") {
+    // Must start with frontmatter delimiter
+    let Some(after_opening) = content.strip_prefix("---\n") else {
         return ("", content);
+    };
+
+    // Find closing delimiter
+    let Some(closing_pos) = after_opening.find("\n---") else {
+        return ("", content);
+    };
+
+    let frontmatter = &after_opening[..closing_pos];
+    let after_closing = &after_opening[closing_pos..].strip_prefix("\n---").unwrap();
+
+    // Closing delimiter must be followed by newline, EOF, or only whitespace
+    if after_closing.is_empty() || after_closing.starts_with('\n') {
+        let body = after_closing.strip_prefix('\n').unwrap_or(after_closing);
+        return (frontmatter, body);
     }
 
-    let after_start = &content[4..];
-
-    // Look for "\n---\n" (closing delimiter with content after)
-    if let Some(end_pos) = after_start.find("\n---\n") {
-        debug!("Found frontmatter.");
-        return (&after_start[..end_pos], &after_start[end_pos + 5..]);
-    }
-
-    // Look for "\n---" at end of file or followed only by whitespace
-    if let Some(end_pos) = after_start.find("\n---") {
-        let after_closing = &after_start[end_pos + 4..];
-        if after_closing.chars().all(|c| c.is_whitespace()) {
-            debug!("Found frontmatter.");
-            return (&after_start[..end_pos], after_closing.trim_start());
-        }
-    }
-
-    // No valid closing delimiter found
     ("", content)
+}
+
+/// Parses YAML frontmatter string into a JSON Value.
+fn parse_frontmatter(frontmatter_str: &str, path: &Path) -> Result<serde_json::Value> {
+    if frontmatter_str.is_empty() {
+        return Ok(serde_json::Value::Null);
+    }
+
+    serde_yaml::from_str(frontmatter_str).map_err(|e| ChroniclerError::YamlParseError {
+        source: e,
+        path: path.to_path_buf(),
+    })
+}
+
+/// Extracts tags from frontmatter.
+fn extract_tags_from_frontmatter(frontmatter: &serde_json::Value) -> HashSet<String> {
+    frontmatter
+        .get("tags")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(|tag| tag.as_str())
+        .map(String::from)
+        .collect()
+}
+
+/// Extracts wikilinks from markdown content.
+fn extract_wikilinks(content: &str) -> HashSet<String> {
+    WIKILINK_RE
+        .captures_iter(content)
+        .filter_map(|cap| cap.get(1))
+        .map(|m| m.as_str().to_string())
+        .collect()
+}
+
+/// Determines the page title from frontmatter or filename.
+fn extract_title(frontmatter: &serde_json::Value, path: &Path) -> String {
+    frontmatter
+        .get("title")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .unwrap_or_else(|| {
+            path.file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        })
 }
