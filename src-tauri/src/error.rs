@@ -31,9 +31,6 @@ pub enum ChroniclerError {
     #[error("Vault not initialized")]
     VaultNotInitialized,
 
-    #[error("Could not acquire lock on application state")]
-    StateLock,
-
     #[error("File '{path}' is too large ({size} bytes, max: {max_size} bytes)")]
     FileTooLarge {
         path: PathBuf,

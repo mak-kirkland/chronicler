@@ -8,7 +8,7 @@
 )]
 
 use crate::config::WORLD_ROOT;
-use std::{path::Path, sync::Mutex};
+use std::path::Path;
 use tauri::Manager;
 use world::World;
 
@@ -27,9 +27,9 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
         .setup(|app| {
-            // The World will hold our entire backend's state. We wrap it in a Mutex
-            // to ensure that only one thread (like a command or the file watcher) can
-            // access it at a time, preventing data races.
+            // The World will hold our entire backend's state. We've moved the lock
+            // inside the World struct to protect just the Indexer, which is the part
+            // that requires concurrent access management.
             let world = World::new(Path::new(WORLD_ROOT));
 
             // Initialize with logging
@@ -40,8 +40,9 @@ fn main() {
             })?;
             log::info!("World initialized successfully");
 
-            // Make it available to commands
-            app.manage(Mutex::new(world));
+            // The RwLock inside World handles the synchronization.
+            // Tauri's State<World> will manage access from commands.
+            app.manage(world);
 
             Ok(())
         })

@@ -35,3 +35,4 @@ twox-hash = "1.6"
 atomicwrites = "0"
 notify-debouncer-full = "0.3"
 tokio = { version = "1", features = ["sync"] }
+parking_lot = "0.12"

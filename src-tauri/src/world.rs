@@ -3,15 +3,16 @@
 //! Coordinates the indexer, watcher, and frontend communication.
 
 use crate::{
-    error::{ChroniclerError, Result},
+    error::Result,
     indexer::Indexer,
     models::{FileNode, Page},
     watcher::Watcher,
 };
+use parking_lot::{Mutex, RwLock};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 use tokio::sync::broadcast;
 
@@ -23,14 +24,14 @@ use tokio::sync::broadcast;
 ///
 /// # Fields
 /// * `root_path`: The root directory of the worldbuilding vault.
-/// * `indexer`: Thread-safe, shared access to the vault indexer. An `Arc<Mutex<>>` is used
-///   so the indexer can be safely accessed by both the `World`'s methods and the event processing
-///   task that runs in the background.
+/// * `indexer`: Thread-safe, shared access to the vault indexer. An `Arc<RwLock<>>` is used
+///   so the indexer can be safely accessed by both the `World`'s methods (readers) and the event
+///   processing task (writer) that runs in the background.
 /// * `watcher`: The application's file system watcher.
 #[derive(Debug)]
 pub struct World {
     root_path: PathBuf,
-    indexer: Arc<Mutex<Indexer>>,
+    indexer: Arc<RwLock<Indexer>>,
     watcher: Mutex<Watcher>,
 }
 
@@ -45,8 +46,8 @@ impl World {
     pub fn new(root_path: &Path) -> Self {
         Self {
             root_path: root_path.to_path_buf(),
-            indexer: Arc::new(Mutex::new(Indexer::new(root_path))),
-            watcher: Mutex::new(Watcher::new()),
+            indexer: Arc::new(RwLock::new(Indexer::new(root_path))),
+            watcher: parking_lot::Mutex::new(Watcher::new()),
         }
     }
 
@@ -60,18 +61,12 @@ impl World {
         // --- 1. Perform Initial Scan ---
         // Lock the indexer to perform the initial, potentially long-running, full scan.
         {
-            let mut indexer = self
-                .indexer
-                .lock()
-                .map_err(|_| ChroniclerError::StateLock)?;
+            let mut indexer = self.indexer.write();
             indexer.full_scan(&self.root_path)?;
         }
 
         // --- 2. Start File Watcher ---
-        let mut watcher = self
-            .watcher
-            .lock()
-            .map_err(|_| ChroniclerError::StateLock)?;
+        let mut watcher = self.watcher.lock();
         watcher.start(&self.root_path)?;
 
         // --- 3. Subscribe to File Events ---
@@ -97,7 +92,7 @@ impl World {
     /// * `indexer` - Shared reference to the indexer
     /// * `mut event_receiver` - Receiver for file change events
     async fn process_file_events(
-        indexer: Arc<Mutex<Indexer>>,
+        indexer: Arc<RwLock<Indexer>>,
         mut event_receiver: broadcast::Receiver<crate::events::FileEvent>,
     ) {
         log::info!("Starting file event processing task");
@@ -105,16 +100,8 @@ impl World {
         loop {
             match event_receiver.recv().await {
                 Ok(event) => {
-                    // Process the event with the indexer
-                    match indexer.lock() {
-                        Ok(mut indexer) => {
-                            indexer.handle_file_event(&event);
-                        }
-                        Err(e) => {
-                            log::error!("Failed to lock indexer for event processing: {}", e);
-                            // Continue processing other events
-                        }
-                    }
+                    let mut indexer = indexer.write();
+                    indexer.handle_file_event(&event);
                 }
 
                 Err(broadcast::error::RecvError::Closed) => {
@@ -141,19 +128,13 @@ impl World {
     /// This clones the underlying HashMap, which is O(n) but acceptable for small-to-medium vaults.
     /// For very large vaults, consider returning a read guard or implementing pagination.
     pub fn get_all_pages(&self) -> Result<HashMap<PathBuf, Page>> {
-        let indexer = self
-            .indexer
-            .lock()
-            .map_err(|_| ChroniclerError::StateLock)?;
+        let indexer = self.indexer.read();
         Ok(indexer.pages.clone())
     }
 
     /// Returns all tags and the pages that reference them.
     pub fn get_all_tags(&self) -> Result<HashMap<String, Vec<PathBuf>>> {
-        let indexer = self
-            .indexer
-            .lock()
-            .map_err(|_| ChroniclerError::StateLock)?;
+        let indexer = self.indexer.read();
 
         // Convert the HashMap<String, HashSet<PathBuf>> to HashMap<String, Vec<PathBuf>>
         // for easier consumption by the frontend (JSON serialization).
@@ -166,22 +147,13 @@ impl World {
 
     /// Returns the file tree structure of the vault for frontend display.
     pub fn get_file_tree(&self) -> Result<FileNode> {
-        let indexer = self
-            .indexer
-            .lock()
-            .map_err(|_| ChroniclerError::StateLock)?;
-
+        let indexer = self.indexer.read();
         indexer.get_file_tree()
     }
 
     /// Manually triggers an index update for a single file.
-    /// This is useful for commands that modify files programmatically.
     pub fn update_file(&self, path: &Path) -> Result<()> {
-        let mut indexer = self
-            .indexer
-            .lock()
-            .map_err(|_| ChroniclerError::StateLock)?;
-
+        let mut indexer = self.indexer.write();
         indexer.update_file(path);
         Ok(())
     }
