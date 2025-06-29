@@ -58,7 +58,7 @@ impl World {
     /// # Arguments
     /// * `_app_handle` - A handle to the Tauri application (unused in current implementation but
     ///   kept for future frontend event emission)
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(skip(self))]
     pub fn initialize(&self) -> Result<()> {
         // --- 1. Perform Initial Scan ---
         // Lock the indexer to perform the initial, potentially long-running, full scan.
