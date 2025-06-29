@@ -79,7 +79,6 @@ impl World {
             Self::process_file_events(indexer_clone, event_receiver).await;
         });
 
-        log::info!("World initialized successfully");
         Ok(())
     }
 

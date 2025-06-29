@@ -8,6 +8,7 @@
 )]
 
 use crate::config::WORLD_ROOT;
+use std::env;
 use std::path::Path;
 use tauri::Manager;
 use world::World;
@@ -24,8 +25,15 @@ mod watcher;
 mod world;
 
 fn main() {
+    // Determine the log level based on the presence of a "--debug" flag.
+    let log_level = if env::args().any(|arg| arg == "--debug") {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
+
     tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(tauri_plugin_log::Builder::new().level(log_level).build())
         .setup(|app| {
             // The World will hold our entire backend's state. We've moved the lock
             // inside the World struct to protect just the Indexer, which is the part
