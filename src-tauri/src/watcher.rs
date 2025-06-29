@@ -20,6 +20,7 @@ use notify_debouncer_full::{
 };
 use std::path::Path;
 use tokio::sync::broadcast;
+use tracing::{error, info, instrument};
 
 /// Manages the application's file system watcher and event broadcasting.
 ///
@@ -74,6 +75,7 @@ impl Watcher {
     /// - The debouncer cannot be created
     /// - The filesystem watcher cannot be started
     /// - The root path is invalid or inaccessible
+    #[instrument(level = "debug", skip(self))]
     pub fn start(&mut self, root_path: &Path) -> Result<()> {
         // Clone the sender for use in the callback closure
         let event_sender = self.event_sender.clone();
@@ -88,7 +90,7 @@ impl Watcher {
                 }
                 Err(errors) => {
                     for error in errors {
-                        log::error!("File watcher error: {:?}", error);
+                        error!("File watcher error: {:?}", error);
                     }
                 }
             },
@@ -99,8 +101,6 @@ impl Watcher {
 
         // Store the debouncer to keep the watcher alive
         self.debouncer = Some(debouncer);
-
-        log::info!("File watcher started for path: {:?}", root_path);
         Ok(())
     }
 
@@ -128,9 +128,10 @@ impl Drop for Watcher {
     /// The debouncer will automatically stop its thread and clean up resources.
     /// The broadcast channel will be closed, causing all subscribers to receive
     /// a `RecvError::Closed` when they next try to receive.
+    #[instrument(level = "debug")]
     fn drop(&mut self) {
         if self.debouncer.is_some() {
-            log::info!("Shutting down file watcher and closing event channel");
+            info!("Shutting down file watcher and closing event channel");
             // The debouncer's Drop implementation handles thread cleanup
         }
     }
@@ -145,13 +146,14 @@ impl Drop for Watcher {
 /// # Arguments
 /// * `event_sender` - The broadcast sender to publish events to
 /// * `events` - Raw debounced events from the filesystem watcher
+#[instrument(level = "debug", skip(event_sender, events))]
 fn handle_debounced_events(
     event_sender: &broadcast::Sender<FileEvent>,
     events: Vec<DebouncedEvent>,
 ) {
     for event in events {
         // Convert raw filesystem events to our FileEvent enum
-        let file_events = match event.kind {
+        let file_events: Vec<FileEvent> = match event.kind {
             // TODO: is clone() acceptable?
             EventKind::Create(CreateKind::File) => event
                 .paths
@@ -197,7 +199,7 @@ fn handle_debounced_events(
 
         // Publish each file event to subscribers
         for file_event in file_events {
-            log::info!(
+            info!(
                 "Publishing file event: {} - {:?}",
                 file_event.event_type(),
                 file_event.path()

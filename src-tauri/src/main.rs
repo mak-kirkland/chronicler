@@ -8,9 +8,10 @@
 )]
 
 use crate::config::WORLD_ROOT;
-use std::env;
+use clap::Parser;
 use std::path::Path;
 use tauri::Manager;
+use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 use world::World;
 
 mod commands;
@@ -24,29 +25,30 @@ mod utils;
 mod watcher;
 mod world;
 
+/// Command-line arguments for Chronicler
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Enable debug logging
+    #[arg(short, long)]
+    debug: bool,
+}
+
 fn main() {
-    // Determine the log level based on the presence of a "--debug" flag.
-    let log_level = if env::args().any(|arg| arg == "--debug") {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Info
-    };
+    let args = Args::parse();
+    setup_tracing(&args);
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().level(log_level).build())
         .setup(|app| {
             // The World will hold our entire backend's state. We've moved the lock
             // inside the World struct to protect just the Indexer, which is the part
             // that requires concurrent access management.
             let world = World::new(Path::new(WORLD_ROOT));
 
-            // Initialize with logging
-            log::info!("Initializing world...");
             world.initialize().map_err(|e| {
-                log::error!("Failed to initialize world: {}", e);
+                tracing::error!("Failed to initialize world: {}", e);
                 e
             })?;
-            log::info!("World initialized successfully");
 
             // The RwLock inside World handles the synchronization.
             // Tauri's State<World> will manage access from commands.
@@ -66,4 +68,24 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);
+}
+
+/// Sets up the tracing subscriber for logging.
+fn setup_tracing(args: &Args) {
+    let log_level = if args.debug { "debug" } else { "info" };
+
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| format!("chronicler={}", log_level).into());
+
+    let formatter = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_timer(tracing_subscriber::fmt::time::LocalTime::rfc_3339())
+        .with_span_events(FmtSpan::CLOSE);
+
+    // Use a more human-readable format for debug builds
+    if cfg!(debug_assertions) {
+        formatter.pretty().init();
+    } else {
+        formatter.init();
+    }
 }
