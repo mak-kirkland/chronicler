@@ -5,7 +5,7 @@
 
 use crate::{
     error::Result,
-    models::{FileNode, Page},
+    models::{FileNode, PageHeader},
     world::World,
 };
 use std::{
@@ -31,15 +31,15 @@ pub fn initialize(path: String, world: State<World>, _app_handle: AppHandle) -> 
     world.initialize()
 }
 
-/// Returns a map of all indexed pages and their metadata.
+/// Returns a lightweight list of all indexed pages (title and path).
 ///
 /// # Arguments
 /// * `world` - The application state
 ///
 /// # Returns
-/// `Result<HashMap<PathBuf, Page>>` where keys are file paths and values are page metadata
+/// `Result<Vec<PageHeader>>` containing the title to path mappings
 #[command]
-pub fn get_all_pages(world: State<World>) -> Result<HashMap<PathBuf, Page>> {
+pub fn get_all_pages(world: State<World>) -> Result<Vec<PageHeader>> {
     world.get_all_pages()
 }
 

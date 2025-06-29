@@ -5,7 +5,7 @@
 use crate::{
     error::Result,
     indexer::Indexer,
-    models::{FileNode, Page},
+    models::{FileNode, PageHeader},
     watcher::Watcher,
 };
 use parking_lot::{Mutex, RwLock};
@@ -122,14 +122,18 @@ impl World {
         log::info!("File event processing task stopped");
     }
 
-    /// Returns a map of all indexed pages and their metadata.
-    ///
-    /// # Performance
-    /// This clones the underlying HashMap, which is O(n) but acceptable for small-to-medium vaults.
-    /// For very large vaults, consider returning a read guard or implementing pagination.
-    pub fn get_all_pages(&self) -> Result<HashMap<PathBuf, Page>> {
+    /// Returns a lightweight list of all indexed pages (title and path).
+    pub fn get_all_pages(&self) -> Result<Vec<PageHeader>> {
         let indexer = self.indexer.read();
-        Ok(indexer.pages.clone())
+        let headers = indexer
+            .pages
+            .values()
+            .map(|page| PageHeader {
+                title: page.title.clone(),
+                path: page.path.clone(),
+            })
+            .collect();
+        Ok(headers)
     }
 
     /// Returns all tags and the pages that reference them.

@@ -65,3 +65,11 @@ pub struct FileNode {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<FileNode>>,
 }
+
+/// A lightweight representation of a page containing only the data needed for list views.
+/// This is used to efficiently send lists of pages to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PageHeader {
+    pub title: String,
+    pub path: PathBuf,
+}
