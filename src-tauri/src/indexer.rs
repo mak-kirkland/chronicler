@@ -6,7 +6,7 @@
 use crate::{
     error::{ChroniclerError, Result},
     events::FileEvent,
-    models::{FileNode, Link, Page},
+    models::{FileNode, Link, Page, PageHeader},
     parser,
     utils::is_markdown_file,
 };
@@ -236,6 +236,35 @@ impl Indexer {
     /// Resolves a wikilink to an absolute file path using the resolver map.
     pub fn resolve_link(&self, link: &Link) -> Option<PathBuf> {
         self.link_resolver.get(&link.target.to_lowercase()).cloned()
+    }
+
+    /// Returns a lightweight list of all indexed pages (title and path).
+    #[instrument(level = "debug", skip(self))]
+    pub fn get_all_pages(&self) -> Result<Vec<PageHeader>> {
+        let headers = self
+            .pages
+            .values()
+            .map(|page| PageHeader {
+                title: page.title.clone(),
+                path: page.path.clone(),
+            })
+            .collect();
+        Ok(headers)
+    }
+
+    /// Returns all tags and the pages that reference them.
+    #[instrument(level = "debug", skip(self))]
+    pub fn get_all_tags(&self) -> Result<HashMap<String, Vec<PathBuf>>> {
+        Ok(self
+            .tags
+            .iter()
+            .map(|(tag, paths)| {
+                // Convert the unordered HashSet to an ordered Vec for consistent display
+                let mut sorted_paths: Vec<_> = paths.iter().cloned().collect();
+                sorted_paths.sort();
+                (tag.clone(), sorted_paths)
+            })
+            .collect())
     }
 
     /// Generates a hierarchical file tree representation of the vault.
