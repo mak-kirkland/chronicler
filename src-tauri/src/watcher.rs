@@ -157,7 +157,7 @@ fn handle_debounced_events(
                 .paths
                 .clone()
                 .into_iter()
-                .filter(|path| is_markdown_file(path))
+                .filter(|path| is_valid_file(path))
                 .map(FileEvent::Created)
                 .collect::<Vec<_>>(),
 
@@ -165,7 +165,7 @@ fn handle_debounced_events(
                 .paths
                 .clone()
                 .into_iter()
-                .filter(|path| is_markdown_file(path))
+                .filter(|path| is_valid_file(path))
                 .map(FileEvent::Modified)
                 .collect::<Vec<_>>(),
 
@@ -173,7 +173,7 @@ fn handle_debounced_events(
                 .paths
                 .clone()
                 .into_iter()
-                .filter(|path| is_markdown_file(path))
+                .filter(|path| is_valid_file(path))
                 .map(FileEvent::Deleted)
                 .collect::<Vec<_>>(),
 
@@ -209,4 +209,15 @@ fn handle_debounced_events(
             let _ = event_sender.send(file_event);
         }
     }
+}
+
+/// Checks if a path points to a valid file that should be processed.
+/// This ignores temporary/lock files (like .#file.md) and non-markdown files.
+fn is_valid_file(path: &Path) -> bool {
+    let is_temp_file = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .is_some_and(|s| s.starts_with(".#"));
+
+    !is_temp_file && is_markdown_file(path)
 }
