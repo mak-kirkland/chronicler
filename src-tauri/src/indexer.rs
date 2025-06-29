@@ -10,13 +10,13 @@ use crate::{
     parser,
     utils::is_markdown_file,
 };
-use log::{debug, info, warn};
 use std::{
     collections::{HashMap, HashSet},
     fs, mem,
     path::{Path, PathBuf},
     time::Instant,
 };
+use tracing::{info, instrument, warn};
 use walkdir::WalkDir;
 
 /// The main Indexer struct holds the entire knowledge base of the vault.
@@ -61,7 +61,7 @@ impl Indexer {
     /// # Returns
     /// `Result<()>` indicating success or failure of the scan operation
     pub fn full_scan(&mut self, root_path: &Path) -> Result<()> {
-        info!("Starting full scan of vault: {:?}", root_path);
+        info!(path = %root_path.display(), "Starting full vault scan");
         let start_time = Instant::now();
 
         if !root_path.is_dir() {
@@ -91,12 +91,19 @@ impl Indexer {
         // Second pass: Build relationships between pages
         self.rebuild_relations();
 
+        let links_found = self
+            .link_graph
+            .values()
+            .flat_map(|targets| targets.values())
+            .map(|links| links.len())
+            .sum::<usize>();
+
         info!(
-            "Full scan completed. Indexed {} pages (found {} tags and {} links) in {:?} seconds.",
-            self.pages.len(),
-            self.tags.len(),
-            self.link_graph.values().count(),
-            start_time.elapsed().as_secs_f64()
+            pages_indexed = self.pages.len(),
+            tags_found = self.tags.len(),
+            links_found,
+            duration_ms = start_time.elapsed().as_millis(),
+            "Full scan completed"
         );
 
         Ok(())
@@ -110,6 +117,7 @@ impl Indexer {
     ///
     /// # Arguments
     /// * `event` - The file event to process
+    #[instrument(level = "debug", skip(self))]
     pub fn handle_file_event(&mut self, event: &FileEvent) {
         match event {
             FileEvent::Created(path) => {
@@ -135,10 +143,8 @@ impl Indexer {
     /// Updates the index for a single file that has been created or modified.
     /// This simplified approach removes all old data and rebuilds relationships,
     /// ensuring consistency without complex incremental logic.
+    #[instrument(level = "debug", skip(self))]
     pub fn update_file(&mut self, path: &Path) {
-        debug!("Updating file {:?}", path);
-        let start_time = Instant::now();
-
         // Remove any existing page data
         self.pages.remove(path);
 
@@ -154,14 +160,10 @@ impl Indexer {
 
         // Always rebuild relations to clean up old data and establish new relationships.
         self.rebuild_relations();
-        debug!(
-            "File {:?} updated in {:?} seconds.",
-            path,
-            start_time.elapsed().as_secs_f64()
-        );
     }
 
     /// Removes a file and all its relationships from the index.
+    #[instrument(level = "debug", skip(self))]
     fn remove_file(&mut self, path: &Path) {
         if self.pages.remove(path).is_some() {
             // After removing the page, rebuild relations to clean up dangling links/backlinks.
@@ -170,6 +172,7 @@ impl Indexer {
     }
 
     /// Rebuilds all relationships (tags, graph, backlinks) from scratch.
+    #[instrument(level = "debug", skip(self))]
     fn rebuild_relations(&mut self) {
         // Rebuilding the resolver is a prerequisite for resolving links.
         self.rebuild_link_resolver();
@@ -220,6 +223,7 @@ impl Indexer {
     }
 
     /// Rebuilds the map for resolving link names to file paths.
+    #[instrument(level = "debug", skip(self))]
     fn rebuild_link_resolver(&mut self) {
         self.link_resolver.clear();
         for path in self.pages.keys() {
@@ -238,6 +242,7 @@ impl Indexer {
     ///
     /// # Returns
     /// `Result<FileNode>` representing the root of the file tree
+    #[instrument(level = "debug", skip(self))]
     pub fn get_file_tree(&self) -> Result<FileNode> {
         let root = self
             .root_path
@@ -253,6 +258,7 @@ impl Indexer {
     }
 
     /// Recursively builds the file tree structure.
+    #[instrument(level = "debug")]
     fn build_tree_recursive(path: &Path, name: &str) -> Result<FileNode> {
         let mut children = Vec::new();
 

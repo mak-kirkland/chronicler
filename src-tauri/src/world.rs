@@ -15,6 +15,7 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::broadcast;
+use tracing::instrument;
 
 /// The main `World` struct containing all application subsystems and state.
 ///
@@ -57,6 +58,7 @@ impl World {
     /// # Arguments
     /// * `_app_handle` - A handle to the Tauri application (unused in current implementation but
     ///   kept for future frontend event emission)
+    #[instrument(level = "debug", skip(self))]
     pub fn initialize(&self) -> Result<()> {
         // --- 1. Perform Initial Scan ---
         // Lock the indexer to perform the initial, potentially long-running, full scan.
@@ -90,12 +92,11 @@ impl World {
     /// # Arguments
     /// * `indexer` - Shared reference to the indexer
     /// * `mut event_receiver` - Receiver for file change events
+    #[instrument(level = "debug", skip(indexer, event_receiver))]
     async fn process_file_events(
         indexer: Arc<RwLock<Indexer>>,
         mut event_receiver: broadcast::Receiver<crate::events::FileEvent>,
     ) {
-        log::info!("Starting file event processing task");
-
         loop {
             match event_receiver.recv().await {
                 Ok(event) => {
@@ -104,12 +105,12 @@ impl World {
                 }
 
                 Err(broadcast::error::RecvError::Closed) => {
-                    log::info!("Event channel closed, stopping file event processing");
+                    tracing::info!("Event channel closed, stopping file event processing");
                     break;
                 }
 
                 Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                    log::warn!(
+                    tracing::warn!(
                         "File event processing fell behind, skipped {} events",
                         skipped
                     );
@@ -118,7 +119,7 @@ impl World {
             }
         }
 
-        log::info!("File event processing task stopped");
+        tracing::info!("File event processing task stopped");
     }
 
     /// Returns a lightweight list of all indexed pages (title and path).

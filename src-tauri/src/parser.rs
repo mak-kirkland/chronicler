@@ -5,12 +5,12 @@
 use crate::config::MAX_FILE_SIZE;
 use crate::error::{ChroniclerError, Result};
 use crate::models::{Link, LinkPosition, Page};
-use log::debug;
 use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::sync::LazyLock;
+use tracing::instrument;
 
 // Captures: 1: target, 2: section (optional), 3: alias (optional)
 static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -24,6 +24,7 @@ static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
 ///
 /// # Returns
 /// A `Result` containing the parsed `Page` or a `ChroniclerError`.
+#[instrument(skip(path), fields(path = %path.display()), level = "debug", ret(level = "debug"))]
 pub fn parse_file(path: &Path) -> Result<Page> {
     // Check file size limit
     let metadata = fs::metadata(path)?;
@@ -45,11 +46,6 @@ pub fn parse_file(path: &Path) -> Result<Page> {
     let tags = extract_tags_from_frontmatter(&frontmatter);
     let links = extract_wikilinks(&content, markdown_body);
     let title = extract_title(&frontmatter, path);
-
-    debug!(
-        "Page {} parsed. Tags: {:#?}, Links: {:#?}",
-        title, tags, links
-    );
 
     Ok(Page {
         path: path.to_path_buf(),
