@@ -125,28 +125,13 @@ impl World {
     /// Returns a lightweight list of all indexed pages (title and path).
     pub fn get_all_pages(&self) -> Result<Vec<PageHeader>> {
         let indexer = self.indexer.read();
-        let headers = indexer
-            .pages
-            .values()
-            .map(|page| PageHeader {
-                title: page.title.clone(),
-                path: page.path.clone(),
-            })
-            .collect();
-        Ok(headers)
+        indexer.get_all_pages()
     }
 
     /// Returns all tags and the pages that reference them.
     pub fn get_all_tags(&self) -> Result<HashMap<String, Vec<PathBuf>>> {
         let indexer = self.indexer.read();
-
-        // Convert the HashMap<String, HashSet<PathBuf>> to HashMap<String, Vec<PathBuf>>
-        // for easier consumption by the frontend (JSON serialization).
-        Ok(indexer
-            .tags
-            .iter()
-            .map(|(tag, paths)| (tag.clone(), paths.iter().cloned().collect()))
-            .collect())
+        indexer.get_all_tags()
     }
 
     /// Returns the file tree structure of the vault for frontend display.
