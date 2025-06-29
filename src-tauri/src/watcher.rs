@@ -154,29 +154,25 @@ fn handle_debounced_events(
     for event in events {
         // Convert raw filesystem events to our FileEvent enum
         let file_events: Vec<FileEvent> = match event.kind {
-            // TODO: is clone() acceptable?
             EventKind::Create(CreateKind::File) => event
                 .paths
-                .clone()
-                .into_iter()
+                .iter()
                 .filter(|path| is_valid_file(path))
-                .map(FileEvent::Created)
+                .map(|path| FileEvent::Created(path.clone()))
                 .collect::<Vec<_>>(),
 
             EventKind::Modify(ModifyKind::Data(_)) | EventKind::Modify(ModifyKind::Any) => event
                 .paths
-                .clone()
-                .into_iter()
+                .iter()
                 .filter(|path| is_valid_file(path))
-                .map(FileEvent::Modified)
+                .map(|path| FileEvent::Modified(path.clone()))
                 .collect::<Vec<_>>(),
 
             EventKind::Remove(RemoveKind::File) => event
                 .paths
-                .clone()
-                .into_iter()
+                .iter()
                 .filter(|path| is_valid_file(path))
-                .map(FileEvent::Deleted)
+                .map(|path| FileEvent::Deleted(path.clone()))
                 .collect::<Vec<_>>(),
 
             EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
