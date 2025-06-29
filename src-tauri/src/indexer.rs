@@ -6,11 +6,11 @@
 use crate::{
     error::{ChroniclerError, Result},
     events::FileEvent,
-    models::{FileNode, Page},
+    models::{FileNode, Link, Page},
     parser,
     utils::is_markdown_file,
 };
-use log::{info, warn};
+use log::{debug, info, warn};
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -28,7 +28,13 @@ pub struct Indexer {
     pub root_path: Option<PathBuf>,
     pub pages: HashMap<PathBuf, Page>,
     pub tags: HashMap<String, HashSet<PathBuf>>,
-    pub links: HashMap<String, PathBuf>,
+
+    /// Fast lookup for resolving a normalized link name (String) to a file path.
+    pub link_resolver: HashMap<String, PathBuf>,
+
+    /// Stores the complete link graph: Source Path -> Target Path -> Vec<Link>.
+    /// The Vec<Link> captures every link instance, to calculate link strength.
+    pub link_graph: HashMap<PathBuf, HashMap<PathBuf, Vec<Link>>>,
 }
 
 impl Indexer {
@@ -66,7 +72,6 @@ impl Indexer {
 
         self.root_path = Some(root_path.to_path_buf());
         self.pages.clear();
-        self.tags.clear();
 
         // First pass: Parse all markdown files and populate the pages map
         for entry in WalkDir::new(root_path)
@@ -90,7 +95,7 @@ impl Indexer {
             "Full scan completed. Indexed {} pages (found {} tags and {} links) in {:?} seconds.",
             self.pages.len(),
             self.tags.len(),
-            self.links.len(),
+            self.link_graph.values().count(),
             start_time.elapsed().as_secs_f64()
         );
 
@@ -111,20 +116,16 @@ impl Indexer {
                 info!("Handling file creation: {:?}", path);
                 self.update_file(path);
             }
-
             FileEvent::Modified(path) => {
                 info!("Handling file modification: {:?}", path);
                 self.update_file(path);
             }
-
             FileEvent::Deleted(path) => {
                 info!("Handling file deletion: {:?}", path);
                 self.remove_file(path);
             }
-
             FileEvent::Renamed { from, to } => {
                 info!("Handling file rename: {:?} -> {:?}", from, to);
-                // Handle rename as a delete followed by a create
                 self.remove_file(from);
                 self.update_file(to);
             }
@@ -132,222 +133,101 @@ impl Indexer {
     }
 
     /// Updates the index for a single file that has been created or modified.
-    ///
-    /// This method handles the complex logic of maintaining relationships
-    /// between pages when a file changes, including updating backlinks and
-    /// tag associations.
+    /// This simplified approach removes all old data and rebuilds relationships,
+    /// ensuring consistency without complex incremental logic.
     pub fn update_file(&mut self, path: &Path) {
-        // Remove any existing page data to get ownership
-        let old_page = self.pages.remove(path);
+        debug!("Updating file {:?}", path);
+        let start_time = Instant::now();
 
-        // Parse the file to get its current state
-        let new_page = match parser::parse_file(path) {
-            Ok(mut page) => {
-                // Preserve old backlinks temporarily - they'll be recalculated
-                if let Some(ref old) = old_page {
-                    page.backlinks = old.backlinks.clone();
-                }
-                page
+        // Remove any existing page data
+        self.pages.remove(path);
+
+        match parser::parse_file(path) {
+            Ok(new_page) => {
+                // Add the newly parsed page to the index.
+                self.pages.insert(path.to_path_buf(), new_page);
             }
             Err(e) => {
                 warn!("Could not parse file for update {:?}: {}", path, e);
-                // If parsing fails, ensure old data is cleaned up
-                if let Some(page) = old_page {
-                    self.remove_relationships(&page);
-                }
-                return;
             }
         };
 
-        // Update links
-        self.update_link(path);
-
-        // Update tag associations
-        let old_tags = old_page
-            .as_ref()
-            .map_or_else(HashSet::new, |p| p.tags.clone());
-        self.update_tags_incrementally(path, &old_tags, &new_page.tags);
-
-        // Update backlink relationships
-        let old_links = old_page
-            .as_ref()
-            .map_or_else(HashSet::new, |p| p.links.clone());
-        self.update_backlinks_incrementally(path, &old_links, &new_page.links);
-
-        // Store the updated page in the index
-        self.pages.insert(path.to_path_buf(), new_page);
+        // Always rebuild relations to clean up old data and establish new relationships.
+        self.rebuild_relations();
+        debug!(
+            "File {:?} updated in {:?} seconds.",
+            path,
+            start_time.elapsed().as_secs_f64()
+        );
     }
 
     /// Removes a file and all its relationships from the index.
     fn remove_file(&mut self, path: &Path) {
-        if let Some(removed_page) = self.pages.remove(path) {
-            self.remove_relationships(&removed_page);
+        if self.pages.remove(path).is_some() {
+            // After removing the page, rebuild relations to clean up dangling links/backlinks.
+            self.rebuild_relations();
         }
     }
 
-    /// Removes all relationships (tags, links and backlinks) for a given page.
-    fn remove_relationships(&mut self, page: &Page) {
-        // Remove from links
-        self.remove_link(&page.path);
-
-        // Remove from tag associations
-        for tag in &page.tags {
-            if let Some(pages_with_tag) = self.tags.get_mut(tag) {
-                pages_with_tag.remove(&page.path);
-                if pages_with_tag.is_empty() {
-                    self.tags.remove(tag);
-                }
-            }
-        }
-
-        // Remove backlinks this page created on other pages
-        for link_name in &page.links {
-            if let Some(target_path) = self.resolve_link(link_name) {
-                if let Some(target_page) = self.pages.get_mut(&target_path) {
-                    target_page.backlinks.remove(&page.path);
-                }
-            }
-        }
-    }
-
-    /// Incrementally updates tag associations for a file.
-    fn update_tags_incrementally(
-        &mut self,
-        path: &Path,
-        old_tags: &HashSet<String>,
-        new_tags: &HashSet<String>,
-    ) {
-        // Remove tags that are no longer present
-        for tag in old_tags.difference(new_tags) {
-            if let Some(pages_with_tag) = self.tags.get_mut(tag) {
-                pages_with_tag.remove(path);
-                if pages_with_tag.is_empty() {
-                    self.tags.remove(tag);
-                }
-            }
-        }
-
-        // Add new tags
-        for tag in new_tags.difference(old_tags) {
-            self.tags
-                .entry(tag.clone())
-                .or_default()
-                .insert(path.to_path_buf());
-        }
-    }
-
-    /// Incrementally updates backlink relationships for a file.
-    fn update_backlinks_incrementally(
-        &mut self,
-        path: &Path,
-        old_links: &HashSet<String>,
-        new_links: &HashSet<String>,
-    ) {
-        // Remove backlinks for links that no longer exist
-        for link_name in old_links.difference(new_links) {
-            if let Some(target_path) = self.resolve_link(link_name) {
-                if let Some(target_page) = self.pages.get_mut(&target_path) {
-                    target_page.backlinks.remove(path);
-                }
-            }
-        }
-
-        // Add backlinks for new links
-        for link_name in new_links.difference(old_links) {
-            if let Some(target_path) = self.resolve_link(link_name) {
-                if let Some(target_page) = self.pages.get_mut(&target_path) {
-                    target_page.backlinks.insert(path.to_path_buf());
-                }
-            }
-        }
-    }
-
-    /// Rebuilds all relationships (tags, links and backlinks) from scratch.
-    ///
-    /// This is used during the initial full scan to establish all relationships
-    /// after all pages have been parsed and indexed.
+    /// Rebuilds all relationships (tags, graph, backlinks) from scratch.
     fn rebuild_relations(&mut self) {
-        let mut new_tags: HashMap<String, HashSet<PathBuf>> = HashMap::new();
+        // Rebuilding the resolver is a prerequisite for resolving links.
+        self.rebuild_link_resolver();
+
+        self.tags.clear();
+        self.link_graph.clear();
         let mut new_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
 
-        // Create a snapshot of current pages to avoid borrow checker issues
         let pages_clone = self.pages.clone();
 
-        for (path, page) in &pages_clone {
+        for (source_path, page) in &pages_clone {
             // Rebuild tag associations
             for tag in &page.tags {
-                new_tags
+                self.tags
                     .entry(tag.clone())
                     .or_default()
-                    .insert(path.clone());
+                    .insert(source_path.clone());
             }
 
-            // Calculate backlinks
-            for link_name in &page.links {
-                if let Some(target_path) = self.resolve_link(link_name) {
+            // Rebuild the link graph and calculate backlinks
+            for link in &page.links {
+                if let Some(target_path) = self.resolve_link(link) {
+                    // Add the link to the graph.
+                    self.link_graph
+                        .entry(source_path.clone())
+                        .or_default()
+                        .entry(target_path.clone())
+                        .or_default()
+                        .push(link.clone());
+
+                    // Register a backlink on the target page.
                     new_backlinks
                         .entry(target_path)
                         .or_default()
-                        .insert(path.clone());
+                        .insert(source_path.clone());
                 }
             }
         }
 
-        // Update the index with new relationships
-        self.tags = new_tags;
-
-        // Apply backlinks to all pages
+        // Apply the newly calculated backlinks to all pages.
         for (path, page) in self.pages.iter_mut() {
             page.backlinks = new_backlinks.remove(path).unwrap_or_default();
         }
-
-        // Build link map
-        self.rebuild_link_lookup();
     }
 
-    /// Rebuilds map of link names to PathBuf.
-    ///
-    /// This performs a case-insensitive search through all indexed pages
-    /// to find a file whose stem matches the link name.
-    fn rebuild_link_lookup(&mut self) {
-        self.links.clear();
+    /// Rebuilds the map for resolving link names to file paths.
+    fn rebuild_link_resolver(&mut self) {
+        self.link_resolver.clear();
         for path in self.pages.keys() {
-            let stem = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or_default()
-                .to_lowercase();
-            self.links.insert(stem, path.clone());
+            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                self.link_resolver.insert(stem.to_lowercase(), path.clone());
+            }
         }
     }
 
-    /// Resolves a wikilink name to an absolute file path.
-    ///
-    /// # Arguments
-    /// * `link_name` - The name of the link to resolve (without [[ ]])
-    ///
-    /// # Returns
-    /// `Some(PathBuf)` if a matching file is found, `None` otherwise
-    pub fn resolve_link(&self, link_name: &str) -> Option<PathBuf> {
-        self.links.get(&link_name.to_lowercase()).cloned()
-    }
-
-    fn update_link(&mut self, path: &Path) {
-        let stem = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or_default()
-            .to_lowercase();
-        self.links.insert(stem, path.to_path_buf());
-    }
-
-    fn remove_link(&mut self, path: &Path) {
-        let stem = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or_default()
-            .to_lowercase();
-        self.links.remove(&stem);
+    /// Resolves a wikilink to an absolute file path using the resolver map.
+    pub fn resolve_link(&self, link: &Link) -> Option<PathBuf> {
+        self.link_resolver.get(&link.target.to_lowercase()).cloned()
     }
 
     /// Generates a hierarchical file tree representation of the vault.

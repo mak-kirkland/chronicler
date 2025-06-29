@@ -6,6 +6,31 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+/// Represents the location of a link within a source file.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct LinkPosition {
+    pub line: usize,
+    pub column: usize,
+}
+
+/// Represents a wikilink within a page.
+///
+/// This structure holds the parsed components of a link like `[[target#section|alias]]`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct Link {
+    /// The target page name of the link (e.g., "My Page").
+    pub target: String,
+    /// The optional header section of the link (e.g., "Some Header").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
+    /// The optional alias (display text) of the link.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alias: Option<String>,
+    /// The position of the link in the source file.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position: Option<LinkPosition>,
+}
+
 /// Represents a single Markdown file (a "page") in the vault.
 /// This struct holds all the metadata we extract from a file, which is
 /// then used to power features like linking, tagging, and infoboxes.
@@ -18,8 +43,9 @@ pub struct Page {
     /// A set of all tags found in the file (e.g., "#character").
     /// Using a HashSet prevents duplicate tags.
     pub tags: HashSet<String>,
-    /// A set of all outgoing links from this page to other pages (e.g., "[[Another Page]]").
-    pub links: HashSet<String>,
+    /// A vector of all outgoing links from this page to other pages (e.g., "[[Another Page]]").
+    /// Using a Vec allows for duplicate links, which can be used to determine link "strength".
+    pub links: Vec<Link>,
     /// A set of all incoming links (backlinks) from other pages.
     /// This is calculated by the Indexer, not read from the file itself.
     pub backlinks: HashSet<PathBuf>,
