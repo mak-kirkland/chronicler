@@ -13,7 +13,7 @@ use crate::{
 use log::{debug, info, warn};
 use std::{
     collections::{HashMap, HashSet},
-    fs,
+    fs, mem,
     path::{Path, PathBuf},
     time::Instant,
 };
@@ -174,16 +174,15 @@ impl Indexer {
         // Rebuilding the resolver is a prerequisite for resolving links.
         self.rebuild_link_resolver();
 
-        self.tags.clear();
-        self.link_graph.clear();
+        // Create local state to build into
+        let mut new_tags: HashMap<String, HashSet<PathBuf>> = HashMap::new();
+        let mut new_link_graph: HashMap<PathBuf, HashMap<PathBuf, Vec<Link>>> = HashMap::new();
         let mut new_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
 
-        let pages_clone = self.pages.clone();
-
-        for (source_path, page) in &pages_clone {
+        for (source_path, page) in &self.pages {
             // Rebuild tag associations
             for tag in &page.tags {
-                self.tags
+                new_tags
                     .entry(tag.clone())
                     .or_default()
                     .insert(source_path.clone());
@@ -193,7 +192,7 @@ impl Indexer {
             for link in &page.links {
                 if let Some(target_path) = self.resolve_link(link) {
                     // Add the link to the graph.
-                    self.link_graph
+                    new_link_graph
                         .entry(source_path.clone())
                         .or_default()
                         .entry(target_path.clone())
@@ -211,8 +210,13 @@ impl Indexer {
 
         // Apply the newly calculated backlinks to all pages.
         for (path, page) in self.pages.iter_mut() {
+            // Use .remove() for efficiency, as we don't need the new_backlinks map afterwards.
             page.backlinks = new_backlinks.remove(path).unwrap_or_default();
         }
+
+        // Atomically swap the new state into place
+        let _ = mem::replace(&mut self.tags, new_tags);
+        let _ = mem::replace(&mut self.link_graph, new_link_graph);
     }
 
     /// Rebuilds the map for resolving link names to file paths.
