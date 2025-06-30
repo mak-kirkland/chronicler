@@ -336,3 +336,168 @@ impl Indexer {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::events::FileEvent;
+    use std::{collections::HashSet, fs, path::PathBuf};
+    use tempfile::tempdir;
+
+    /// Helper function to set up a temporary vault with some files
+    fn setup_test_vault() -> (tempfile::TempDir, PathBuf, PathBuf, PathBuf) {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+
+        let page1_path = root.join("Page One.md");
+        fs::write(
+            &page1_path,
+            r#"---
+title: "First Page"
+tags: ["alpha", "beta"]
+---
+This page links to [[Page Two]].
+"#,
+        )
+        .unwrap();
+
+        let page2_path = root.join("Page Two.md");
+        fs::write(
+            &page2_path,
+            r#"---
+title: "Second Page"
+tags: ["beta", "gamma"]
+---
+This page links back to [[Page One]] and also to [[Page Three|a different name]].
+"#,
+        )
+        .unwrap();
+
+        let page3_path = root.join("Page Three.md");
+        fs::write(
+            &page3_path,
+            r#"---
+title: "Third Page"
+tags: ["gamma"]
+---
+No outgoing links here.
+"#,
+        )
+        .unwrap();
+
+        (dir, page1_path, page2_path, page3_path)
+    }
+
+    #[test]
+    fn test_indexer_full_scan() {
+        let (_dir, page1_path, page2_path, page3_path) = setup_test_vault();
+        let root = _dir.path();
+        let mut indexer = Indexer::new(root);
+
+        indexer.full_scan(root).unwrap();
+
+        // Test pages count
+        assert_eq!(indexer.pages.len(), 3);
+
+        // Test tags
+        assert_eq!(indexer.tags.len(), 3);
+        assert_eq!(
+            indexer.tags.get("alpha").unwrap(),
+            &HashSet::from([page1_path.clone()])
+        );
+        assert_eq!(
+            indexer.tags.get("beta").unwrap(),
+            &HashSet::from([page1_path.clone(), page2_path.clone()])
+        );
+        assert_eq!(
+            indexer.tags.get("gamma").unwrap(),
+            &HashSet::from([page2_path.clone(), page3_path.clone()])
+        );
+
+        // Test link graph and backlinks
+        let page1 = indexer.pages.get(&page1_path).unwrap();
+        let page2 = indexer.pages.get(&page2_path).unwrap();
+        let page3 = indexer.pages.get(&page3_path).unwrap();
+
+        // Page 1 has an outgoing link to Page 2, so Page 2 should have a backlink from Page 1.
+        assert_eq!(page1.links.len(), 1);
+        assert!(page2.backlinks.contains(&page1_path));
+
+        // Page 2 links to Page 1 and Page 3.
+        assert_eq!(page2.links.len(), 2);
+        assert!(page1.backlinks.contains(&page2_path));
+        assert!(page3.backlinks.contains(&page2_path));
+
+        // Test link resolver
+        assert_eq!(indexer.resolve_link(&page1.links[0]).unwrap(), page2_path);
+        assert_eq!(indexer.resolve_link(&page2.links[0]).unwrap(), page1_path);
+        assert_eq!(indexer.resolve_link(&page2.links[1]).unwrap(), page3_path);
+    }
+
+    #[test]
+    fn test_indexer_file_events() {
+        let (_dir, page1_path, page2_path, page3_path) = setup_test_vault();
+        let root = _dir.path();
+        let mut indexer = Indexer::new(root);
+        indexer.full_scan(root).unwrap();
+
+        // --- Test Deletion ---
+        indexer.handle_file_event(&FileEvent::Deleted(page1_path.clone()));
+
+        assert_eq!(indexer.pages.len(), 2);
+        assert!(!indexer.tags.contains_key("alpha")); // alpha tag should be gone
+
+        // The link from page 2 to the now-deleted page 1 will be dangling,
+        // but the backlink *from* page 1 on other pages should be removed.
+        // Let's re-fetch Page 3 to check its backlinks.
+        let page3 = indexer.pages.get(&page3_path).unwrap();
+        assert!(page3.backlinks.contains(&page2_path)); // This should still be there.
+
+        let page2_after_delete = indexer.pages.get(&page2_path).unwrap();
+        assert!(page2_after_delete.backlinks.is_empty()); // Backlink from page1 is gone.
+
+        // --- Test Creation ---
+        let new_page_path = root.join("New Page.md");
+        fs::write(
+            &new_page_path,
+            r#"---
+tags: ["new", "alpha"]
+---
+Linking to [[Page Two]]
+"#,
+        )
+        .unwrap();
+        indexer.handle_file_event(&FileEvent::Created(new_page_path.clone()));
+
+        assert_eq!(indexer.pages.len(), 3);
+        assert!(indexer.tags.contains_key("new"));
+        assert!(indexer.tags.contains_key("alpha")); // alpha is back
+        let page2 = indexer.pages.get(&page2_path).unwrap();
+        // Page 2 should now have a backlink from New Page
+        assert!(page2.backlinks.contains(&new_page_path));
+        assert_eq!(page2.backlinks.len(), 1);
+
+        // --- Test Modification ---
+        fs::write(
+            &page3_path,
+            r#"---
+title: "Third Page Modified"
+tags: ["gamma", "modified"]
+---
+Now I link to [[Page Two]]!
+"#,
+        )
+        .unwrap();
+        indexer.handle_file_event(&FileEvent::Modified(page3_path.clone()));
+        let page3 = indexer.pages.get(&page3_path).unwrap();
+        assert_eq!(page3.title, "Third Page Modified");
+        assert!(page3.tags.contains("modified"));
+        assert_eq!(page3.links.len(), 1);
+
+        let page2 = indexer.pages.get(&page2_path).unwrap();
+        // Page 2 should now have backlinks from both New Page and Page 3
+        assert_eq!(page2.backlinks.len(), 2);
+        assert!(page2.backlinks.contains(&new_page_path));
+        assert!(page2.backlinks.contains(&page3_path));
+    }
+}

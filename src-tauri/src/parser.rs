@@ -171,3 +171,145 @@ fn extract_title(frontmatter: &serde_json::Value, path: &Path) -> String {
                 .to_string()
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*; // Import everything from the parent module (parser)
+    use std::collections::HashSet;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_parse_file_with_full_frontmatter() -> Result<()> {
+        let content = r#"---
+title: "My Test Page"
+tags:
+  - character
+  - location
+---
+Hello, this is the body. It contains a [[Link To Another Page]].
+"#;
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_page.md");
+        fs::write(&file_path, content).unwrap();
+
+        let page = parse_file(&file_path).unwrap();
+
+        assert_eq!(page.title, "My Test Page");
+        assert_eq!(
+            page.tags,
+            HashSet::from(["character".to_string(), "location".to_string()])
+        );
+        assert_eq!(page.links.len(), 1);
+        assert_eq!(page.links[0].target, "Link To Another Page");
+        assert!(page.frontmatter.get("title").is_some());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_file_no_frontmatter() -> Result<()> {
+        let content = r#"
+This page has no frontmatter.
+It just has a [[Simple Link]].
+"#;
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("no_frontmatter.md");
+        fs::write(&file_path, content).unwrap();
+
+        let page = parse_file(&file_path).unwrap();
+
+        // Title should fall back to the file stem
+        assert_eq!(page.title, "no_frontmatter");
+        // Tags should be empty
+        assert!(page.tags.is_empty());
+        // Link should still be parsed
+        assert_eq!(page.links.len(), 1);
+        assert_eq!(page.links[0].target, "Simple Link");
+        // Frontmatter should be JSON null
+        assert!(page.frontmatter.is_null());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extract_wikilinks_all_variants() {
+        let content = r#"
+This file tests various link formats.
+- A standard link: [[Target Page]]
+- A link with an alias: [[Another Page|Display Text]]
+- A link to a section: [[Third Page#Section Header]]
+- A link with both: [[Fourth Page#Some Section|Alias Text]]
+- A link in the middle of a sentence [[Fifth Page]] like this.
+"#;
+        // Here we can call the private function `extract_wikilinks`
+        let (_frontmatter_str, body) = extract_frontmatter(content);
+        let links = extract_wikilinks(content, body);
+
+        assert_eq!(links.len(), 5);
+
+        // Corrected column numbers
+        assert_eq!(
+            links[0],
+            Link {
+                target: "Target Page".to_string(),
+                section: None,
+                alias: None,
+                position: Some(LinkPosition {
+                    line: 3,
+                    column: 20
+                })
+            }
+        );
+
+        assert_eq!(
+            links[1],
+            Link {
+                target: "Another Page".to_string(),
+                section: None,
+                alias: Some("Display Text".to_string()),
+                position: Some(LinkPosition {
+                    line: 4,
+                    column: 25
+                })
+            }
+        );
+
+        assert_eq!(
+            links[2],
+            Link {
+                target: "Third Page".to_string(),
+                section: Some("Section Header".to_string()),
+                alias: None,
+                position: Some(LinkPosition {
+                    line: 5,
+                    column: 24
+                })
+            }
+        );
+
+        assert_eq!(
+            links[3],
+            Link {
+                target: "Fourth Page".to_string(),
+                section: Some("Some Section".to_string()),
+                alias: Some("Alias Text".to_string()),
+                position: Some(LinkPosition {
+                    line: 6,
+                    column: 21
+                })
+            }
+        );
+        assert_eq!(
+            links[4],
+            Link {
+                target: "Fifth Page".to_string(),
+                section: None,
+                alias: None,
+                position: Some(LinkPosition {
+                    line: 7,
+                    column: 38
+                })
+            }
+        );
+    }
+}
