@@ -5,7 +5,8 @@
 use crate::{
     error::Result,
     indexer::Indexer,
-    models::{FileNode, PageHeader},
+    models::{FileNode, PageHeader, RenderedPage},
+    renderer::Renderer, // Import the new Renderer
     watcher::Watcher,
 };
 use parking_lot::{Mutex, RwLock};
@@ -25,30 +26,34 @@ use tracing::instrument;
 ///
 /// # Fields
 /// * `root_path`: The root directory of the worldbuilding vault.
-/// * `indexer`: Thread-safe, shared access to the vault indexer. An `Arc<RwLock<>>` is used
-///   so the indexer can be safely accessed by both the `World`'s methods (readers) and the event
-///   processing task (writer) that runs in the background.
+/// * `indexer`: Thread-safe, shared access to the vault indexer.
 /// * `watcher`: The application's file system watcher.
+/// * `renderer`: The application's Markdown renderer.
 #[derive(Debug)]
 pub struct World {
     root_path: PathBuf,
-    indexer: Arc<RwLock<Indexer>>,
+    pub indexer: Arc<RwLock<Indexer>>,
     watcher: Mutex<Watcher>,
+    pub renderer: Renderer,
 }
 
 impl World {
     /// Creates a new `World` instance.
     ///
-    /// This initializes the `Indexer` and `Watcher` but does not perform any scans or start
+    /// This initializes the `Indexer`, `Watcher`, and `Renderer` but does not perform any scans or start
     /// the watcher. The `initialize` method should be called for that.
     ///
     /// # Arguments
     /// * `root_path` - Path to the root directory of the worldbuilding vault.
     pub fn new(root_path: &Path) -> Self {
+        let indexer = Arc::new(RwLock::new(Indexer::new(root_path)));
+        let renderer = Renderer::new(indexer.clone()); // Create the renderer with the indexer
+
         Self {
             root_path: root_path.to_path_buf(),
-            indexer: Arc::new(RwLock::new(Indexer::new(root_path))),
+            indexer,
             watcher: parking_lot::Mutex::new(Watcher::new()),
+            renderer,
         }
     }
 
@@ -103,12 +108,10 @@ impl World {
                     let mut indexer = indexer.write();
                     indexer.handle_file_event(&event);
                 }
-
                 Err(broadcast::error::RecvError::Closed) => {
                     tracing::info!("Event channel closed, stopping file event processing");
                     break;
                 }
-
                 Err(broadcast::error::RecvError::Lagged(skipped)) => {
                     tracing::warn!(
                         "File event processing fell behind, skipped {} events",
@@ -118,7 +121,6 @@ impl World {
                 }
             }
         }
-
         tracing::info!("File event processing task stopped");
     }
 
@@ -145,5 +147,10 @@ impl World {
         let mut indexer = self.indexer.write();
         indexer.update_file(path);
         Ok(())
+    }
+
+    /// Processes raw markdown content and returns the fully rendered page data.
+    pub fn get_rendered_page(&self, content: &str) -> Result<RenderedPage> {
+        self.renderer.process_page_content(content)
     }
 }

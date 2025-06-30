@@ -24,7 +24,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 regex = "1.10"
-# pulldown-cmark = { version = "0.10", features = ["serde"] }
+pulldown-cmark = { version = "0.10", features = ["serde"] }
 walkdir = "2.3"
 notify = "6.1"
 thiserror = "1.0"

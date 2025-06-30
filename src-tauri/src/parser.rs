@@ -61,7 +61,7 @@ pub fn parse_file(path: &Path) -> Result<Page> {
 /// Returns (frontmatter, body) where frontmatter is empty if none found.
 ///
 /// This function is Unicode-safe and handles multibyte characters correctly.
-fn extract_frontmatter(content: &str) -> (&str, &str) {
+pub fn extract_frontmatter(content: &str) -> (&str, &str) {
     // Must start with frontmatter delimiter
     let Some(after_opening) = content.strip_prefix("---\n") else {
         return ("", content);
@@ -85,7 +85,7 @@ fn extract_frontmatter(content: &str) -> (&str, &str) {
 }
 
 /// Parses YAML frontmatter string into a JSON Value.
-fn parse_frontmatter(frontmatter_str: &str, path: &Path) -> Result<serde_json::Value> {
+pub fn parse_frontmatter(frontmatter_str: &str, path: &Path) -> Result<serde_json::Value> {
     if frontmatter_str.is_empty() {
         return Ok(serde_json::Value::Null);
     }

@@ -21,6 +21,7 @@ mod events;
 mod indexer;
 mod models;
 mod parser;
+mod renderer;
 mod utils;
 mod watcher;
 mod world;
@@ -62,6 +63,7 @@ fn main() {
             commands::get_all_pages,
             commands::get_all_tags,
             commands::get_page_content,
+            commands::get_rendered_page,
             commands::write_page_content,
             commands::get_file_tree,
             commands::update_file,

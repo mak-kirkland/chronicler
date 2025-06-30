@@ -16,3 +16,9 @@ export interface FileNode {
 export interface TagMap {
 	[tag: string]: string[]; // Map of tag name to list of page paths
 }
+
+export interface RenderedPage {
+    processed_frontmatter: any; // This is a JSON object
+    rendered_html: string;
+    infobox_image_path?: string; // The optional raw image path
+}

@@ -3,6 +3,7 @@
 //! Defines the page and file tree representations.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -72,4 +73,16 @@ pub struct FileNode {
 pub struct PageHeader {
     pub title: String,
     pub path: PathBuf,
+}
+
+/// A structure containing the fully processed data for a page, ready for frontend display.
+#[derive(Debug, Serialize, Clone)]
+pub struct RenderedPage {
+    /// The frontmatter, with any wikilinks inside its values replaced by HTML tags.
+    pub processed_frontmatter: Value,
+    /// The body of the page, fully rendered from Markdown to HTML.
+    pub rendered_html: String,
+    /// The raw, unprocessed path for the infobox image, if one exists.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub infobox_image_path: Option<String>,
 }
