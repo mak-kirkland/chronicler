@@ -1,20 +1,27 @@
 import type { FileNode, PageHeader } from './bindings';
 import { writable, type Writable } from 'svelte/store';
 
-// Using Svelte 5 runes, we can export signals directly.
-// We'll use a writable store for compatibility with older patterns if needed,
-// but prefer direct signal usage in Svelte 5 components.
+/**
+ * A type for the data needed to render the tag index page.
+ */
+export type TagIndexData = {
+	name: string;
+	pages: PageHeader[];
+};
 
 /**
- * The currently selected file to be displayed in the editor.
- * It's a `PageHeader` object which contains the title and path.
+ * A union type to represent the possible states of the main view.
  */
-export const currentFile: Writable<PageHeader | null> = writable(null);
+export type ViewState =
+	| { type: 'welcome' }
+	| { type: 'tag'; data: TagIndexData }
+	| { type: 'file'; data: PageHeader | null };
 
 /**
- * The raw Markdown content of the currently opened file.
+ * This store manages what is currently displayed in the main content area.
+ * It defaults to the 'welcome' screen.
  */
-export const editorContent: Writable<string> = writable('');
+export const currentView: Writable<ViewState> = writable({ type: 'welcome' });
 
 /**
  * The file tree structure of the vault.
@@ -22,6 +29,6 @@ export const editorContent: Writable<string> = writable('');
 export const fileTree: Writable<FileNode | null> = writable(null);
 
 /**
- * A map of all tags and the pages they are on.
+ * A list of all tags and the pages they appear on.
  */
 export const tags: Writable<[string, string[]][]> = writable([]);

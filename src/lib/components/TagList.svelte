@@ -1,10 +1,32 @@
 <script lang="ts">
-	import { tags } from '$lib/stores';
+	import { tags, currentView } from '$lib/stores';
+	import type { PageHeader } from '$lib/bindings';
+
+	function viewTag(tagName: string, pagePaths: string[]) {
+		// Create an array of PageHeader objects from the list of paths.
+		const pages: PageHeader[] = pagePaths.map((path) => ({
+			path,
+			title: path.split(/[\\/]/).pop() || 'Untitled'
+		}));
+
+	        //  Sort the pages alphabetically by title.
+                // TODO: We are sorting by PathBuf in the backend, which now seems pointless
+		pages.sort((a, b) => a.title.localeCompare(b.title));
+
+		// Set the main view to show the tag index page.
+		currentView.set({
+			type: 'tag',
+			data: {
+				name: tagName,
+				pages: pages
+			}
+		});
+	}
 </script>
 
 <div class="tag-list">
 	{#each $tags as [tag, pages]}
-		<div class="tag-group">
+		<div class="tag-group" onclick={() => viewTag(tag, pages)} onkeydown={(e) => e.key === 'Enter' && viewTag(tag, pages)} role="button" tabindex="0">
 			<span class="tag-name">#{tag}</span>
 			<span class="tag-count">({pages.length})</span>
 		</div>
@@ -24,8 +46,9 @@
 		display: flex;
 		justify-content: space-between;
 	}
-	.tag-group:hover {
+	.tag-group:hover, .tag-group:focus {
 		background-color: rgba(0, 0, 0, 0.08);
+		outline: none;
 	}
 	.tag-name {
 		font-weight: bold;

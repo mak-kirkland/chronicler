@@ -260,6 +260,7 @@ impl Indexer {
             .iter()
             .map(|(tag, paths)| {
                 // Convert the unordered HashSet of paths to a sorted Vec
+                // TODO: We are sorting by path, but the frontend re-sorts by title
                 let mut sorted_paths: Vec<_> = paths.iter().cloned().collect();
                 sorted_paths.sort();
                 (tag.clone(), sorted_paths)

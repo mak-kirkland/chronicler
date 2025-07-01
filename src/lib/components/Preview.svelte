@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Infobox from './Infobox.svelte';
-	import { currentFile } from '$lib/stores';
+	import { currentView } from '$lib/stores';
 	import { convertFileSrc } from '@tauri-apps/api/core';
 	import { resolve, dirname } from '@tauri-apps/api/path';
 	import { invoke } from '@tauri-apps/api/core';
@@ -12,19 +12,18 @@
 	let renderedHtml = $state('');
 	let imageUrl = $state<string | null>(null);
 
-	// This function handles clicks on the rendered content to navigate to linked pages.
-	function handleLinkClick(event: MouseEvent) {
+	function handleLinkClick(event: Event) {
 		const target = event.target as HTMLElement;
 		const link = target.closest('a.internal-link');
 
 		if (link && link.hasAttribute('data-path')) {
-			event.preventDefault(); // Stop the browser from following the '#' href
+			event.preventDefault();
 			const path = link.getAttribute('data-path')!;
 			const targetPage: PageHeader = {
 				path: path,
 				title: link.textContent || 'Unknown Page'
 			};
-			currentFile.set(targetPage);
+			currentView.set({ type: 'file', data: targetPage });
 		}
 	}
 
@@ -36,16 +35,19 @@
 				imageUrl = null;
 				return;
 			}
-
 			try {
 				const pageData = await invoke<RenderedPage>('get_rendered_page', { content });
 				frontmatter = pageData.processed_frontmatter;
 				renderedHtml = pageData.rendered_html;
 
 				let imgUrl: string | null = null;
-				if (pageData.infobox_image_path && $currentFile?.path) {
+				if (
+					pageData.infobox_image_path &&
+					$currentView.type === 'file' &&
+					$currentView.data?.path
+				) {
 					try {
-						const dir = await dirname($currentFile.path);
+						const dir = await dirname($currentView.data.path);
 						const imagePath = await resolve(dir, pageData.infobox_image_path);
 						imgUrl = convertFileSrc(imagePath);
 					} catch (e) {
@@ -64,7 +66,7 @@
 	});
 </script>
 
-<div class="preview-wrapper" onclick={handleLinkClick}>
+<div class="preview-wrapper" onclick={handleLinkClick} onkeydown={handleLinkClick} role="document">
 	{#if frontmatter && typeof frontmatter === 'object'}
 		<Infobox data={frontmatter} {imageUrl} />
 	{/if}
@@ -74,7 +76,6 @@
 </div>
 
 <style>
-	/* All styles remain the same, just the h2 is gone from the template */
 	.preview-wrapper {
 		display: flex;
 		flex-direction: column;

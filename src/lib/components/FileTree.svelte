@@ -1,31 +1,25 @@
 <script lang="ts">
 	import type { FileNode, PageHeader } from '$lib/bindings';
-	import { currentFile } from '$lib/stores';
+	import { currentView } from '$lib/stores';
 	import FileTree from './FileTree.svelte';
 
 	let { node } = $props<{ node: FileNode }>();
 	let expanded = $state(true);
 
-	// This function now only needs to set the current file.
-	// The page component will handle fetching the content.
 	function openFile(file: PageHeader) {
-		currentFile.set(file);
-	}
-
-	function isDirectory(node: FileNode): boolean {
-		return node.children !== undefined && node.children !== null;
+		currentView.set({ type: 'file', data: file });
 	}
 </script>
 
 <div class="file-node">
-	{#if isDirectory(node)}
-		<div class="directory" onclick={() => (expanded = !expanded)}>
+	{#if node.children}
+		<div class="directory" onclick={() => (expanded = !expanded)} onkeydown={e => e.key === 'Enter' && (expanded = !expanded)} role="button" tabindex="0">
 			<span class="icon">{expanded ? '▼' : '►'}</span>
 			<span>{node.name}</span>
 		</div>
 		{#if expanded}
 			<div class="children">
-				{#each node.children ?? [] as child}
+				{#each node.children as child}
 					<FileTree node={child} />
 				{/each}
 			</div>
@@ -33,8 +27,11 @@
 	{:else}
 		<div
 			class="file"
-			class:active={$currentFile?.path === node.path}
+			class:active={$currentView.type === 'file' && $currentView.data?.path === node.path}
 			onclick={() => openFile({ title: node.name, path: node.path })}
+			onkeydown={e => e.key === 'Enter' && openFile({ title: node.name, path: node.path })}
+			role="button"
+			tabindex="0"
 		>
 			<span class="icon">📜</span>
 			<span>{node.name.replace('.md', '')}</span>

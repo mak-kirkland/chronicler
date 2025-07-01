@@ -2,7 +2,8 @@
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import Editor from '$lib/components/Editor.svelte';
 	import Preview from '$lib/components/Preview.svelte';
-	import { currentFile } from '$lib/stores';
+	import TagIndexView from '$lib/components/TagIndexView.svelte';
+	import { currentView } from '$lib/stores';
 	import { invoke } from '@tauri-apps/api/core';
 	import { onDestroy } from 'svelte';
 
@@ -13,50 +14,52 @@
 	let pristineContent = $state<string | undefined>(undefined);
 	let saveTimeout: number;
 
-	// --- NEW: State to manage the view mode for a file ---
 	let fileViewMode: 'preview' | 'split' = $state('preview');
 
-	// This effect handles LOADING a new file from the backend.
 	$effect(() => {
-		const file = $currentFile;
-		if (file) {
-			// --- NEW: Reset to preview-only mode whenever a new file is loaded ---
-			fileViewMode = 'preview';
+		const view = $currentView;
+		fileViewMode = 'preview'; // Reset to preview mode on any view change
 
+		// If the new view is a file, load its content
+		if (view.type === 'file' && view.data) {
 			pageContent = undefined;
 			pristineContent = undefined;
-			invoke<string>('get_page_content', { path: file.path })
+			invoke<string>('get_page_content', { path: view.data.path })
 				.then((content) => {
 					pageContent = content;
 					pristineContent = content;
 				})
 				.catch((e) => {
 					console.error('Failed to get page content:', e);
-					const errorContent = `# Error\n\nCould not load file: ${file.path}`;
+					const errorContent = `# Error\n\nCould not load file: ${view.data?.path}`;
 					pageContent = errorContent;
 					pristineContent = errorContent;
 				});
 		} else {
-			pageContent = '';
-			pristineContent = '';
+			// Clear content for other views
+			pageContent = undefined;
+			pristineContent = undefined;
 		}
 	});
 
-	// This effect handles SAVING the file.
 	$effect(() => {
-		if (pageContent === undefined || !$currentFile || pageContent === pristineContent) {
+		const view = $currentView;
+		if (
+			pageContent === undefined ||
+			view.type !== 'file' ||
+			!view.data ||
+			pageContent === pristineContent
+		) {
 			return;
 		}
 
 		clearTimeout(saveTimeout);
-		const path = $currentFile.path;
+		const path = view.data.path;
 		const contentToSave = pageContent;
 
-		console.log('Change detected, scheduling save...');
 		saveTimeout = window.setTimeout(() => {
 			invoke('write_page_content', { path, content: contentToSave })
 				.then(() => {
-					console.log(`File saved successfully: ${path}`);
 					pristineContent = contentToSave;
 				})
 				.catch((e) => console.error('Failed to save content:', e));
@@ -101,11 +104,22 @@
 	></div>
 
 	<main class="main-content" style="--sidebar-width: {sidebarWidth}px">
-		{#if $currentFile}
+		{#if $currentView.type === 'welcome'}
+			<div class="welcome-screen">
+				<img src="/compass.svg" alt="Compass" class="welcome-icon" />
+				<h1 class="welcome-title">Chronicler</h1>
+				<p class="welcome-text">Select a page from the sidebar to begin your journey.</p>
+			</div>
+		{:else if $currentView.type === 'tag'}
+			<div class="tag-view-pane">
+				<TagIndexView data={$currentView.data} />
+			</div>
+		{:else if $currentView.type === 'file' && $currentView.data}
 			{#if fileViewMode === 'split'}
+				<!-- Split View: Editor + Preview -->
 				<div class="editor-pane">
 					{#if pageContent !== undefined}
-						<Editor bind:content={pageContent} title={$currentFile.title} />
+						<Editor bind:content={pageContent} title={$currentView.data.title} />
 					{/if}
 				</div>
 				<div class="preview-pane">
@@ -115,6 +129,7 @@
 					<Preview content={pageContent} />
 				</div>
 			{:else}
+				<!-- Preview-Only View -->
 				<div class="preview-pane full-width">
 					<button class="mode-toggle-btn" onclick={() => (fileViewMode = 'split')}>
 						✏️ Edit
@@ -122,18 +137,11 @@
 					<Preview content={pageContent} />
 				</div>
 			{/if}
-		{:else}
-			<div class="welcome-screen">
-				<img src="/compass.svg" alt="Compass" class="welcome-icon" />
-				<h1 class="welcome-title">Chronicler</h1>
-				<p class="welcome-text">Select a page from the sidebar to begin your journey.</p>
-			</div>
 		{/if}
 	</main>
 </div>
 
 <style>
-	/* Styles remain the same */
 	.chronicler-app {
 		display: flex;
 		height: 100vh;
@@ -175,7 +183,7 @@
 	.editor-pane {
 		border-right: 1px solid #d3c7b3;
 	}
-	.preview-pane.full-width {
+	.preview-pane.full-width, .tag-view-pane {
 		flex-basis: 100%;
 	}
 	.welcome-screen {
@@ -201,8 +209,6 @@
 	.welcome-text {
 		font-size: 1.2rem;
 	}
-
-	/* --- NEW: Styles for the toggle button --- */
 	.mode-toggle-btn {
 		position: absolute;
 		top: 1rem;
