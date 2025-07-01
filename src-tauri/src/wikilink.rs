@@ -36,20 +36,15 @@ fn offset_to_line_col(content: &str, byte_offset: usize) -> LinkPosition {
     LinkPosition { line, column }
 }
 
-// TODO: maybe extract them _before_ the YAML frontmatter to allow links in the infobox
 /// Extracts wikilinks from markdown content.
-pub fn extract_wikilinks(full_content: &str, body: &str) -> Vec<Link> {
-    // Calculate the byte offset where the body starts within full_content
-    let body_start_offset = full_content.len() - body.len();
-
+pub fn extract_wikilinks(content: &str) -> Vec<Link> {
     WIKILINK_RE
-        .captures_iter(body)
+        .captures_iter(content)
         .map(|cap| {
             // The match for the whole pattern `[[...]]` is at index 0.
             let full_match = cap.get(0).unwrap();
-            // Adjust the offset to be relative to full_content instead of body
-            let absolute_offset = body_start_offset + full_match.start();
-            let position = Some(offset_to_line_col(full_content, absolute_offset));
+            let offset = full_match.start();
+            let position = Some(offset_to_line_col(content, offset));
             let target = cap.get(1).unwrap().as_str().to_string();
             let section = cap.get(2).map(|m| m.as_str().to_string());
             let alias = cap.get(3).map(|m| m.as_str().to_string());
@@ -77,7 +72,7 @@ This file tests various link formats.
 - A link with both: [[Fourth Page#Some Section|Alias Text]]
 - A link in the middle of a sentence [[Fifth Page]] like this.
 "#;
-        let links = extract_wikilinks(content, content);
+        let links = extract_wikilinks(content);
 
         assert_eq!(links.len(), 5);
 

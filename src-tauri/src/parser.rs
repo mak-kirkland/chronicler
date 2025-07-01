@@ -31,14 +31,14 @@ pub fn parse_file(path: &Path) -> Result<Page> {
     }
 
     let content = fs::read_to_string(path)?;
-    let (frontmatter_str, markdown_body) = extract_frontmatter(&content);
+    let (frontmatter_str, _markdown_body) = extract_frontmatter(&content);
 
     // Parse frontmatter
     let frontmatter = parse_frontmatter(frontmatter_str, path)?;
 
     // Extract metadata
     let tags = extract_tags_from_frontmatter(&frontmatter);
-    let links = extract_wikilinks(&content, markdown_body);
+    let links = extract_wikilinks(&content);
     let title = extract_title(&frontmatter, path);
 
     Ok(Page {
