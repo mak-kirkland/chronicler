@@ -53,8 +53,6 @@
 
 <style>
 	.preview-wrapper {
-		display: flex;
-		flex-direction: column;
 		height: 100%;
 	}
 	.preview-content {
