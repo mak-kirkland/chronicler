@@ -1,11 +1,14 @@
 //! Markdown and Wikilink rendering engine.
 
+use crate::error::ChroniclerError;
+use crate::models::{FullPageData, PageHeader};
 use crate::wikilink::WIKILINK_RE;
 use crate::{error::Result, indexer::Indexer, models::RenderedPage, parser};
 use parking_lot::RwLock;
 use pulldown_cmark::{html, Options, Parser};
 use regex::Captures;
 use serde_json::Value;
+use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -97,5 +100,35 @@ impl Renderer {
         html::push_html(&mut html_output, parser);
 
         html_output
+    }
+
+    pub fn get_page_data_for_view(&self, path: &str) -> Result<FullPageData> {
+        let raw_content = fs::read_to_string(path)?;
+        let rendered_page = self.process_page_content(&raw_content)?;
+
+        let indexer = self.indexer.read();
+        let page_path = Path::new(path);
+
+        let page = indexer
+            .pages
+            .get(page_path)
+            .ok_or(ChroniclerError::FileNotFound(page_path.to_path_buf()))?;
+
+        let backlinks = page
+            .backlinks
+            .iter()
+            .filter_map(|backlink_path| {
+                indexer.pages.get(backlink_path).map(|p| PageHeader {
+                    title: p.title.clone(),
+                    path: p.path.clone(),
+                })
+            })
+            .collect();
+
+        Ok(FullPageData {
+            raw_content,
+            rendered_page,
+            backlinks,
+        })
     }
 }

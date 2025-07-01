@@ -5,7 +5,7 @@
 use crate::{
     error::Result,
     indexer::Indexer,
-    models::{FileNode, PageHeader, RenderedPage},
+    models::{FileNode, FullPageData, PageHeader, RenderedPage},
     renderer::Renderer,
     watcher::Watcher,
 };
@@ -161,5 +161,9 @@ impl World {
     /// Processes raw markdown content and returns the fully rendered page data.
     pub fn get_rendered_page(&self, content: &str) -> Result<RenderedPage> {
         self.renderer.process_page_content(content)
+    }
+
+    pub fn get_page_data_for_view(&self, path: &str) -> Result<FullPageData> {
+        self.renderer.get_page_data_for_view(path)
     }
 }

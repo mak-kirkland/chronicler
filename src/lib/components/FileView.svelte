@@ -2,81 +2,112 @@
 	import Editor from '$lib/components/Editor.svelte';
 	import Preview from '$lib/components/Preview.svelte';
 	import { invoke } from '@tauri-apps/api/core';
-	import type { PageHeader } from '$lib/bindings';
+	import type { PageHeader, FullPageData, RenderedPage } from '$lib/bindings';
 	import { onDestroy } from 'svelte';
-	import { fileViewMode } from '$lib/stores';
+	import { fileViewMode, currentView } from '$lib/stores';
+	import { onMount } from 'svelte';
+	import { listen } from '@tauri-apps/api/event';
 
-	// This component receives the file to display as a prop.
 	let { file } = $props<{ file: PageHeader }>();
-	let pageContent = $state<string | undefined>(undefined);
+
+	// We now have a single state object to hold all the data for the view.
+	let pageData = $state<FullPageData | null>(null);
 	let pristineContent = $state<string | undefined>(undefined);
 	let saveTimeout: number;
 
-	// This effect handles loading the file content whenever the 'file' prop changes.
+	// This effect calls the new, efficient command to get all data at once.
 	$effect(() => {
-		// Reset page content when a new file is loaded.
-		pageContent = undefined;
+		// Reset state for the new file
+		pageData = null;
 		pristineContent = undefined;
 
-		invoke<string>('get_page_content', { path: file.path })
-			.then((content) => {
-				pageContent = content;
-				pristineContent = content;
+		invoke<FullPageData>('get_page_data_for_view', { path: file.path })
+			.then((data) => {
+				pageData = data;
+				pristineContent = data.raw_content;
 			})
 			.catch((e) => {
-				console.error('Failed to get page content:', e);
-				const errorContent = `# Error\n\nCould not load file: ${file.path}`;
-				pageContent = errorContent;
-				pristineContent = errorContent;
+				console.error('Failed to get page data:', e);
+				const errorHtml = `<div class="error-box">Error loading page: ${e}</div>`;
+				pageData = {
+					raw_content: `# Error\n\nCould not load file: ${file.path}`,
+					rendered_page: {
+						processed_frontmatter: null,
+						rendered_html: errorHtml,
+						infobox_image_path: undefined
+					},
+					backlinks: []
+				};
+				pristineContent = pageData.raw_content;
 			});
 	});
 
-	// This effect handles debounced auto-saving when the content changes.
+	// The autosave effect now re-renders the preview after a successful save.
 	$effect(() => {
-		if (pageContent === undefined || pageContent === pristineContent) {
+		if (!pageData || pageData.raw_content === pristineContent) {
 			return;
 		}
 
 		clearTimeout(saveTimeout);
 		const path = file.path;
-		const contentToSave = pageContent;
+		const contentToSave = pageData.raw_content;
 
 		saveTimeout = window.setTimeout(() => {
 			invoke('write_page_content', { path, content: contentToSave })
 				.then(() => {
 					pristineContent = contentToSave;
-					console.log(`Saved changes to ${path}`);
+					// After saving, re-render the content to update the preview.
+					// We only need the rendered part, not the full page data again.
+					return invoke<RenderedPage>('get_rendered_page', { content: contentToSave });
 				})
-				.catch((e) => console.error('Failed to save content:', e));
+				.then((newlyRenderedData) => {
+					if (pageData) {
+						pageData.rendered_page = newlyRenderedData;
+					}
+				})
+				.catch((e) => console.error('Failed to save or re-render content:', e));
 		}, 500);
 	});
 
-	// Ensure the timeout is cleared if the component is destroyed.
+	onMount(() => {
+		const unlistenPromise = listen('index-updated', async () => {
+			try {
+				const allPaths = await invoke<string[]>('get_all_page_paths');
+				if (!allPaths.includes(file.path)) {
+					currentView.set({ type: 'welcome' });
+				}
+			} catch (e) {
+				console.error('Failed to check for deleted file:', e);
+			}
+		});
+
+		return () => {
+			unlistenPromise.then((unlistenFn) => unlistenFn());
+		};
+	});
+
 	onDestroy(() => {
 		clearTimeout(saveTimeout);
 	});
 </script>
 
-<!-- The markup reads from and writes to the global $fileViewMode store -->
-{#if $fileViewMode === 'split'}
-	<!-- Split View: Editor + Preview -->
-	<div class="editor-pane">
-		{#if pageContent !== undefined}
-			<Editor bind:content={pageContent} title={file.title} />
-		{/if}
-	</div>
-	<div class="preview-pane">
-		<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'preview')}>
-			📖 Preview Only
-		</button>
-		<Preview content={pageContent} />
-	</div>
-{:else}
-	<!-- Preview-Only View -->
-	<div class="preview-pane full-width">
-		<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'split')}> ✏️ Edit </button>
-		<Preview content={pageContent} />
-	</div>
+{#if pageData}
+	{#if $fileViewMode === 'split'}
+		<div class="editor-pane">
+			<Editor bind:content={pageData.raw_content} title={file.title} />
+		</div>
+		<div class="preview-pane">
+			<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'preview')}>
+				📖 Preview Only
+			</button>
+			<Preview renderedData={pageData.rendered_page} backlinks={pageData.backlinks} />
+		</div>
+	{:else}
+		<div class="preview-pane full-width">
+			<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'split')}> ✏️ Edit </button>
+			<Preview renderedData={pageData.rendered_page} backlinks={pageData.backlinks} />
+		</div>
+	{/if}
 {/if}
 
 <style>
@@ -87,17 +118,14 @@
 		padding: 2rem;
 		height: 100%;
 		box-sizing: border-box;
-		position: relative; /* For the button */
+		position: relative;
 	}
-
 	.editor-pane {
 		border-right: 1px solid var(--border-color);
 	}
-
 	.preview-pane.full-width {
 		flex-basis: 100%;
 	}
-
 	.mode-toggle-btn {
 		position: absolute;
 		top: 1rem;
@@ -113,7 +141,6 @@
 		font-size: 0.9rem;
 		transition: background-color 0.2s;
 	}
-
 	.mode-toggle-btn:hover {
 		background-color: var(--ink);
 	}

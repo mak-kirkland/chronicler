@@ -3,15 +3,17 @@
 	import { currentView } from '$lib/stores';
 	import { convertFileSrc } from '@tauri-apps/api/core';
 	import { resolve, dirname } from '@tauri-apps/api/path';
-	import { invoke } from '@tauri-apps/api/core';
 	import type { PageHeader, RenderedPage } from '$lib/bindings';
 
-	let { content } = $props<{ content: string | undefined }>();
+	// This component now receives the fully rendered data and the backlinks.
+	let { renderedData, backlinks = [] } = $props<{
+		renderedData: RenderedPage | null;
+		backlinks?: PageHeader[];
+	}>();
 
-	let frontmatter = $state<any>(null);
-	let renderedHtml = $state('');
 	let imageUrl = $state<string | null>(null);
 
+	// The handleLinkClick function now sets the view directly, which is simpler.
 	function handleLinkClick(event: Event) {
 		const target = event.target as HTMLElement;
 		const link = target.closest('a.internal-link');
@@ -27,39 +29,19 @@
 		}
 	}
 
+	// This effect still handles resolving the image path.
 	$effect(() => {
 		(async () => {
-			if (content === undefined || content === null) {
-				frontmatter = null;
-				renderedHtml = '';
+			if (!renderedData?.infobox_image_path || $currentView.type !== 'file' || !$currentView.data?.path) {
 				imageUrl = null;
 				return;
 			}
 			try {
-				const pageData = await invoke<RenderedPage>('get_rendered_page', { content });
-				frontmatter = pageData.processed_frontmatter;
-				renderedHtml = pageData.rendered_html;
-
-				let imgUrl: string | null = null;
-				if (
-					pageData.infobox_image_path &&
-					$currentView.type === 'file' &&
-					$currentView.data?.path
-				) {
-					try {
-						const dir = await dirname($currentView.data.path);
-						const imagePath = await resolve(dir, pageData.infobox_image_path);
-						imgUrl = convertFileSrc(imagePath);
-					} catch (e) {
-						console.error("Image Path Error:", e);
-					}
-				}
-				imageUrl = imgUrl;
-
+				const dir = await dirname($currentView.data.path);
+				const imagePath = await resolve(dir, renderedData.infobox_image_path);
+				imageUrl = convertFileSrc(imagePath);
 			} catch (e) {
-				console.error("Failed to render page:", e);
-				renderedHtml = `<div class="error-box">Error rendering page: ${e}</div>`;
-				frontmatter = null;
+				console.error('Image Path Error:', e);
 				imageUrl = null;
 			}
 		})();
@@ -67,12 +49,27 @@
 </script>
 
 <div class="preview-wrapper" onclick={handleLinkClick} onkeydown={handleLinkClick} role="document">
-	{#if frontmatter && typeof frontmatter === 'object'}
-		<Infobox data={frontmatter} {imageUrl} />
+	{#if renderedData}
+		<Infobox data={renderedData.processed_frontmatter} {imageUrl} />
+		<div class="preview-content">
+			{@html renderedData.rendered_html}
+		</div>
+
+		{#if backlinks && backlinks.length > 0}
+			<div class="backlinks-section">
+				<h3>Backlinks</h3>
+				<ul>
+					{#each backlinks as link (link.path)}
+						<li>
+							<a href="#" class="internal-link" data-path={link.path}>
+								{link.title.replace('.md', '')}
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 	{/if}
-	<div class="preview-content">
-		{@html renderedHtml}
-	</div>
 </div>
 
 <style>
@@ -139,5 +136,24 @@
 		padding: 1em;
 		border-radius: 4px;
 		overflow-x: auto;
+	}
+	/* NEW: Styles for the backlink section */
+	.backlinks-section {
+		margin-top: 3rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid var(--border-color);
+	}
+	.backlinks-section h3 {
+		font-family: 'Uncial Antiqua', cursive;
+		color: var(--ink-light);
+		margin-top: 0;
+		font-size: 1.2rem;
+	}
+	.backlinks-section ul {
+		list-style: disc;
+		padding-left: 1.5rem;
+	}
+	.backlinks-section li {
+		margin-bottom: 0.5rem;
 	}
 </style>

@@ -3,6 +3,7 @@
 //! These commands bridge the frontend (Svelte/JavaScript) and backend (Rust) functionality.
 //! All commands are async-capable and automatically manage thread safety via Tauri's State system.
 
+use crate::models::FullPageData;
 use crate::{
     error::Result,
     models::{FileNode, PageHeader, RenderedPage},
@@ -36,19 +37,18 @@ pub fn get_all_tags(world: State<World>) -> Result<Vec<(String, Vec<PathBuf>)>> 
     world.get_all_tags()
 }
 
-/// Reads and returns the raw Markdown content of a specific page.
-#[command]
-#[instrument]
-pub fn get_page_content(path: String) -> Result<String> {
-    fs::read_to_string(path).map_err(Into::into)
-}
-
 /// Processes raw markdown content, renders it to HTML with wikilinks resolved,
 /// and returns a structured object for the frontend preview.
 #[command]
 #[instrument(skip(content, world))]
 pub fn get_rendered_page(content: String, world: State<World>) -> Result<RenderedPage> {
     world.get_rendered_page(&content)
+}
+
+#[command]
+#[instrument(skip(world))]
+pub fn get_page_data_for_view(path: String, world: State<World>) -> Result<FullPageData> {
+    world.get_page_data_for_view(&path)
 }
 
 /// Writes content to a page on disk.

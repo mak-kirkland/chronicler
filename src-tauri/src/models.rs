@@ -86,3 +86,14 @@ pub struct RenderedPage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub infobox_image_path: Option<String>,
 }
+
+// A comprehensive data structure for the file view. This is a "View Model"
+// that combines data from the indexer and the renderer into a single package
+// for the frontend.
+#[derive(Debug, Serialize, Clone)]
+pub struct FullPageData {
+    pub raw_content: String,
+    pub rendered_page: RenderedPage,
+    // We send backlink data as PageHeaders so the frontend has both the path and title.
+    pub backlinks: Vec<PageHeader>,
+}

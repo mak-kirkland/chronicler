@@ -37,6 +37,9 @@ pub enum ChroniclerError {
         size: u64,
         max_size: u64,
     },
+
+    #[error("File not found: {0:?}")]
+    FileNotFound(PathBuf),
 }
 
 // We need to implement Serialize for the error type to be able to return
