@@ -13,10 +13,16 @@
 	let pristineContent = $state<string | undefined>(undefined);
 	let saveTimeout: number;
 
+	// --- NEW: State to manage the view mode for a file ---
+	let fileViewMode: 'preview' | 'split' = $state('preview');
+
 	// This effect handles LOADING a new file from the backend.
 	$effect(() => {
 		const file = $currentFile;
 		if (file) {
+			// --- NEW: Reset to preview-only mode whenever a new file is loaded ---
+			fileViewMode = 'preview';
+
 			pageContent = undefined;
 			pristineContent = undefined;
 			invoke<string>('get_page_content', { path: file.path })
@@ -46,7 +52,7 @@
 		const path = $currentFile.path;
 		const contentToSave = pageContent;
 
-		console.log("Change detected, scheduling save...");
+		console.log('Change detected, scheduling save...');
 		saveTimeout = window.setTimeout(() => {
 			invoke('write_page_content', { path, content: contentToSave })
 				.then(() => {
@@ -96,18 +102,26 @@
 
 	<main class="main-content" style="--sidebar-width: {sidebarWidth}px">
 		{#if $currentFile}
-			<div class="editor-pane">
-				{#if pageContent !== undefined}
-					<!--
-						**THE FIX:** The `bind:content` directive now correctly works
-						with the updated Editor component, restoring the two-way data flow.
-					-->
-					<Editor bind:content={pageContent} />
-				{/if}
-			</div>
-			<div class="preview-pane">
-				<Preview content={pageContent} />
-			</div>
+			{#if fileViewMode === 'split'}
+				<div class="editor-pane">
+					{#if pageContent !== undefined}
+						<Editor bind:content={pageContent} title={$currentFile.title} />
+					{/if}
+				</div>
+				<div class="preview-pane">
+					<button class="mode-toggle-btn" onclick={() => (fileViewMode = 'preview')}>
+						📖 Preview Only
+					</button>
+					<Preview content={pageContent} />
+				</div>
+			{:else}
+				<div class="preview-pane full-width">
+					<button class="mode-toggle-btn" onclick={() => (fileViewMode = 'split')}>
+						✏️ Edit
+					</button>
+					<Preview content={pageContent} />
+				</div>
+			{/if}
 		{:else}
 			<div class="welcome-screen">
 				<img src="/compass.svg" alt="Compass" class="welcome-icon" />
@@ -156,9 +170,13 @@
 		padding: 2rem;
 		height: 100%;
 		box-sizing: border-box;
+		position: relative; /* For the button */
 	}
 	.editor-pane {
 		border-right: 1px solid #d3c7b3;
+	}
+	.preview-pane.full-width {
+		flex-basis: 100%;
 	}
 	.welcome-screen {
 		display: flex;
@@ -182,5 +200,25 @@
 	}
 	.welcome-text {
 		font-size: 1.2rem;
+	}
+
+	/* --- NEW: Styles for the toggle button --- */
+	.mode-toggle-btn {
+		position: absolute;
+		top: 1rem;
+		right: 2rem;
+		z-index: 10;
+		padding: 0.5rem 1rem;
+		background-color: rgba(74, 63, 53, 0.8);
+		color: var(--parchment);
+		border: 1px solid rgba(211, 199, 179, 0.5);
+		border-radius: 6px;
+		cursor: pointer;
+		font-family: 'IM Fell English', serif;
+		font-size: 0.9rem;
+		transition: background-color 0.2s;
+	}
+	.mode-toggle-btn:hover {
+		background-color: var(--ink);
 	}
 </style>
