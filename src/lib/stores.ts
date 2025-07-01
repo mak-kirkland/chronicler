@@ -35,6 +35,9 @@ export const tags: Writable<[string, string[]][]> = writable([]);
 
 /**
  * This store manages the view mode (split or preview) for files.
- * It's global so the mode can persist when navigating between files.
  */
 export const fileViewMode: Writable<'preview' | 'split'> = writable('preview');
+
+// Stores for the right-hand metadata panel (for backlinks, etc.)
+export const isRightSidebarVisible = writable(false);
+export const activeBacklinks = writable<PageHeader[]>([]);

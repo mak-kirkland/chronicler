@@ -4,27 +4,27 @@
 	import { invoke } from '@tauri-apps/api/core';
 	import type { PageHeader, FullPageData, RenderedPage } from '$lib/bindings';
 	import { onDestroy } from 'svelte';
-	import { fileViewMode, currentView } from '$lib/stores';
+	import { fileViewMode, currentView, isRightSidebarVisible, activeBacklinks } from '$lib/stores';
 	import { onMount } from 'svelte';
 	import { listen } from '@tauri-apps/api/event';
 
 	let { file } = $props<{ file: PageHeader }>();
 
-	// We now have a single state object to hold all the data for the view.
 	let pageData = $state<FullPageData | null>(null);
 	let pristineContent = $state<string | undefined>(undefined);
 	let saveTimeout: number;
 
-	// This effect calls the new, efficient command to get all data at once.
 	$effect(() => {
 		// Reset state for the new file
 		pageData = null;
 		pristineContent = undefined;
+		activeBacklinks.set([]); // Clear backlinks for the new page
 
 		invoke<FullPageData>('get_page_data_for_view', { path: file.path })
 			.then((data) => {
 				pageData = data;
 				pristineContent = data.raw_content;
+				activeBacklinks.set(data.backlinks); // Set backlinks for the new page
 			})
 			.catch((e) => {
 				console.error('Failed to get page data:', e);
@@ -42,7 +42,7 @@
 			});
 	});
 
-	// The autosave effect now re-renders the preview after a successful save.
+	// The autosave effect re-renders the preview after a successful save.
 	$effect(() => {
 		if (!pageData || pageData.raw_content === pristineContent) {
 			return;
@@ -97,15 +97,39 @@
 			<Editor bind:content={pageData.raw_content} title={file.title} />
 		</div>
 		<div class="preview-pane">
-			<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'preview')}>
-				📖 Preview Only
-			</button>
-			<Preview renderedData={pageData.rendered_page} backlinks={pageData.backlinks} />
+			<div class="pane-header">
+				{#if $activeBacklinks.length > 0}
+					<button
+						class="pane-header-btn"
+						onclick={() => isRightSidebarVisible.set(!$isRightSidebarVisible)}
+						title="Toggle Backlinks"
+					>
+						🔗 {$activeBacklinks.length}
+					</button>
+				{/if}
+				<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'preview')}>
+					📖 Preview Only
+				</button>
+			</div>
+			<Preview renderedData={pageData.rendered_page} />
 		</div>
 	{:else}
 		<div class="preview-pane full-width">
-			<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'split')}> ✏️ Edit </button>
-			<Preview renderedData={pageData.rendered_page} backlinks={pageData.backlinks} />
+			<div class="pane-header">
+				{#if $activeBacklinks.length > 0}
+					<button
+						class="pane-header-btn"
+						onclick={() => isRightSidebarVisible.set(!$isRightSidebarVisible)}
+						title="Toggle Backlinks"
+					>
+						🔗 {$activeBacklinks.length}
+					</button>
+				{/if}
+				<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'split')}>
+					✏️ Edit
+				</button>
+			</div>
+			<Preview renderedData={pageData.rendered_page} />
 		</div>
 	{/if}
 {/if}
@@ -116,6 +140,7 @@
 		flex: 1;
 		overflow-y: auto;
 		padding: 2rem;
+		padding-top: 4rem; /* Add space for the header */
 		height: 100%;
 		box-sizing: border-box;
 		position: relative;
@@ -126,11 +151,16 @@
 	.preview-pane.full-width {
 		flex-basis: 100%;
 	}
-	.mode-toggle-btn {
+	.pane-header {
 		position: absolute;
 		top: 1rem;
 		right: 2rem;
+		display: flex;
+		gap: 0.5rem;
 		z-index: 10;
+	}
+	.mode-toggle-btn,
+	.pane-header-btn {
 		padding: 0.5rem 1rem;
 		background-color: rgba(74, 63, 53, 0.8);
 		color: var(--parchment);
@@ -141,7 +171,8 @@
 		font-size: 0.9rem;
 		transition: background-color 0.2s;
 	}
-	.mode-toggle-btn:hover {
+	.mode-toggle-btn:hover,
+	.pane-header-btn:hover {
 		background-color: var(--ink);
 	}
 </style>

@@ -4,16 +4,11 @@
 	import { convertFileSrc } from '@tauri-apps/api/core';
 	import { resolve, dirname } from '@tauri-apps/api/path';
 	import type { PageHeader, RenderedPage } from '$lib/bindings';
+	import { navigateToTag } from '$lib/actions';
 
-	// This component now receives the fully rendered data and the backlinks.
-	let { renderedData, backlinks = [] } = $props<{
-		renderedData: RenderedPage | null;
-		backlinks?: PageHeader[];
-	}>();
-
+	let { renderedData } = $props<{ renderedData: RenderedPage | null }>();
 	let imageUrl = $state<string | null>(null);
 
-	// The handleLinkClick function now sets the view directly, which is simpler.
 	function handleLinkClick(event: Event) {
 		const target = event.target as HTMLElement;
 		const link = target.closest('a.internal-link');
@@ -29,7 +24,6 @@
 		}
 	}
 
-	// This effect still handles resolving the image path.
 	$effect(() => {
 		(async () => {
 			if (!renderedData?.infobox_image_path || $currentView.type !== 'file' || !$currentView.data?.path) {
@@ -54,21 +48,6 @@
 		<div class="preview-content">
 			{@html renderedData.rendered_html}
 		</div>
-
-		{#if backlinks && backlinks.length > 0}
-			<div class="backlinks-section">
-				<h3>Backlinks</h3>
-				<ul>
-					{#each backlinks as link (link.path)}
-						<li>
-							<a href="#" class="internal-link" data-path={link.path}>
-								{link.title.replace('.md', '')}
-							</a>
-						</li>
-					{/each}
-				</ul>
-			</div>
-		{/if}
 	{/if}
 </div>
 
@@ -136,24 +115,5 @@
 		padding: 1em;
 		border-radius: 4px;
 		overflow-x: auto;
-	}
-	/* NEW: Styles for the backlink section */
-	.backlinks-section {
-		margin-top: 3rem;
-		padding-top: 1.5rem;
-		border-top: 1px solid var(--border-color);
-	}
-	.backlinks-section h3 {
-		font-family: 'Uncial Antiqua', cursive;
-		color: var(--ink-light);
-		margin-top: 0;
-		font-size: 1.2rem;
-	}
-	.backlinks-section ul {
-		list-style: disc;
-		padding-left: 1.5rem;
-	}
-	.backlinks-section li {
-		margin-bottom: 0.5rem;
 	}
 </style>

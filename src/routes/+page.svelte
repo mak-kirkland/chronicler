@@ -2,7 +2,8 @@
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import TagIndexView from '$lib/components/TagIndexView.svelte';
 	import FileView from '$lib/components/FileView.svelte';
-	import { currentView, tags, fileViewMode } from '$lib/stores';
+	import BacklinksPanel from '$lib/components/BacklinksPanel.svelte';
+	import { currentView, tags, fileViewMode, isRightSidebarVisible } from '$lib/stores';
 	import type { PageHeader, TagMap } from '$lib/bindings';
 
 	let sidebarWidth = $state(300);
@@ -49,6 +50,7 @@
 	$effect(() => {
 		if ($currentView.type !== 'file') {
 			$fileViewMode = 'preview';
+			isRightSidebarVisible.set(false); // Close right sidebar when leaving file view
 		}
 	});
 
@@ -100,6 +102,10 @@
 			<FileView file={$currentView.data} />
 		{/if}
 	</main>
+
+	{#if $isRightSidebarVisible}
+		<BacklinksPanel />
+	{/if}
 </div>
 
 <style>
