@@ -9,10 +9,6 @@
 			title: path.split(/[\\/]/).pop() || 'Untitled'
 		}));
 
-	        //  Sort the pages alphabetically by title.
-                // TODO: We are sorting by PathBuf in the backend, which now seems pointless
-		pages.sort((a, b) => a.title.localeCompare(b.title));
-
 		// Set the main view to show the tag index page.
 		currentView.set({
 			type: 'tag',
