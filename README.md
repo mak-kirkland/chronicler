@@ -8,6 +8,12 @@
 
 ---
 
+### 🚧 Current State
+
+![Screenshot 2](https://github.com/user-attachments/assets/26e151b9-a92a-476c-94f5-88205bb24b96)
+
+---
+
 ## ✨ Features (Planned & In Progress)
 
 ### 📂 File Structure & Markdown Rendering
@@ -42,7 +48,6 @@
 - Search and filter by tag combinations
 - Interactive maps and timelines
 - Visual tag graphs
-- Dice roller / encounter helper
 
 ---
 
