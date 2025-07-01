@@ -13,9 +13,7 @@ export interface FileNode {
 	children?: FileNode[];
 }
 
-export interface TagMap {
-	[tag: string]: string[]; // Map of tag name to list of page paths
-}
+export type TagMap = [string, string[]][];
 
 export interface RenderedPage {
     processed_frontmatter: any; // This is a JSON object

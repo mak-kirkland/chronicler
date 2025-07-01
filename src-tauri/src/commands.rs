@@ -9,7 +9,6 @@ use crate::{
     world::World,
 };
 use std::{
-    collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -33,7 +32,7 @@ pub fn get_all_pages(world: State<World>) -> Result<Vec<PageHeader>> {
 /// Returns the tag index mapping tags to lists of pages that contain them.
 #[command]
 #[instrument(skip(world))]
-pub fn get_all_tags(world: State<World>) -> Result<HashMap<String, Vec<PathBuf>>> {
+pub fn get_all_tags(world: State<World>) -> Result<Vec<(String, Vec<PathBuf>)>> {
     world.get_all_tags()
 }
 

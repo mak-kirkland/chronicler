@@ -254,17 +254,22 @@ impl Indexer {
 
     /// Returns all tags and the pages that reference them.
     #[instrument(level = "debug", skip(self))]
-    pub fn get_all_tags(&self) -> Result<HashMap<String, Vec<PathBuf>>> {
-        Ok(self
+    pub fn get_all_tags(&self) -> Result<Vec<(String, Vec<PathBuf>)>> {
+        let mut sorted_tags: Vec<_> = self
             .tags
             .iter()
             .map(|(tag, paths)| {
-                // Convert the unordered HashSet to an ordered Vec for consistent display
+                // Convert the unordered HashSet of paths to a sorted Vec
                 let mut sorted_paths: Vec<_> = paths.iter().cloned().collect();
                 sorted_paths.sort();
                 (tag.clone(), sorted_paths)
             })
-            .collect())
+            .collect();
+
+        // Sort the entire list of tags alphabetically by the tag name
+        sorted_tags.sort_by(|a, b| a.0.cmp(&b.0));
+
+        Ok(sorted_tags)
     }
 
     /// Generates a hierarchical file tree representation of the vault.

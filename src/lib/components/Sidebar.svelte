@@ -6,7 +6,7 @@
 	import TagList from './TagList.svelte';
 	import { onMount } from 'svelte';
 
-	let { width } = $props();
+	let { width = $bindable() } = $props();
 	let activeTab = $state<'files' | 'tags'>('files');
 
 	async function loadInitialData() {
@@ -14,15 +14,17 @@
 			const tree: FileNode = await invoke('get_file_tree');
 			fileTree.set(tree);
 
-			const tagMap: TagMap = await invoke('get_all_tags');
-			// Convert map to array for easier rendering
-			tags.set(Object.entries(tagMap));
+			const sortedTags: TagMap = await invoke('get_all_tags');
+			tags.set(sortedTags);
+
 		} catch (e) {
 			console.error('Failed to load initial data:', e);
 		}
 	}
 
 	onMount(() => {
+		// Initialize the backend and load data
+		invoke('initialize').catch((e) => console.error('Failed to initialize backend:', e));
 		loadInitialData();
 	});
 </script>
@@ -64,25 +66,21 @@
 		flex-direction: column;
 		z-index: 50;
 	}
-
 	.sidebar-header {
 		padding: 1rem;
 		text-align: center;
 		border-bottom: 1px solid var(--border-color);
 	}
-
 	.title {
 		font-family: 'Uncial Antiqua', cursive;
 		margin: 0;
 		font-size: 2rem;
 		color: var(--ink-light);
 	}
-
 	.tab-navigation {
 		display: flex;
 		border-bottom: 1px solid var(--border-color);
 	}
-
 	.tab-navigation button {
 		flex: 1;
 		padding: 0.75rem;
@@ -94,13 +92,11 @@
 		color: var(--ink-light);
 		border-bottom: 2px solid transparent;
 	}
-
 	.tab-navigation button.active {
 		border-bottom-color: var(--accent-color);
 		font-weight: bold;
 		color: var(--ink);
 	}
-
 	.sidebar-content {
 		flex-grow: 1;
 		overflow-y: auto;
