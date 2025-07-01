@@ -2,13 +2,14 @@
 	import { invoke } from '@tauri-apps/api/core';
 	import { fileTree, tags } from '$lib/stores';
 	import type { FileNode, TagMap } from '$lib/bindings';
-	import FileTree from './FileTree.svelte';
+	import FileExplorer from './FileExplorer.svelte';
 	import TagList from './TagList.svelte';
 	import { onMount } from 'svelte';
 	import { listen } from '@tauri-apps/api/event';
 
 	let { width = $bindable() } = $props();
 	let activeTab = $state<'files' | 'tags'>('files');
+	let searchTerm = $state('');
 
 	async function loadSidebarData() {
 		try {
@@ -47,12 +48,26 @@
 			}
 		};
 	});
+
+	const filteredTags = $derived(
+		$tags.filter(([tag]) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+	);
 </script>
 
 <aside style="width: {width}px;">
 	<div class="sidebar-header">
 		<h1 class="title">Chronicler</h1>
 	</div>
+
+	<div class="search-container">
+		<input
+			type="search"
+			bind:value={searchTerm}
+			placeholder={activeTab === 'files' ? 'Search files...' : 'Search tags...'}
+			class="search-input"
+		/>
+	</div>
+
 	<div class="tab-navigation">
 		<button class:active={activeTab === 'files'} onclick={() => (activeTab = 'files')}>
 			Files
@@ -63,13 +78,9 @@
 	</div>
 	<div class="sidebar-content">
 		{#if activeTab === 'files'}
-			{#if $fileTree}
-				<FileTree node={$fileTree} />
-			{:else}
-				<p>Loading files...</p>
-			{/if}
+			<FileExplorer {searchTerm} />
 		{:else if activeTab === 'tags'}
-			<TagList />
+			<TagList tags={filteredTags} />
 		{/if}
 	</div>
 </aside>
@@ -96,6 +107,24 @@
 		margin: 0;
 		font-size: 2rem;
 		color: var(--ink-light);
+	}
+	.search-container {
+		padding: 0.75rem;
+		border-bottom: 1px solid var(--border-color);
+	}
+	.search-input {
+		width: 100%;
+		padding: 0.5rem 0.75rem;
+		border-radius: 6px;
+		border: 1px solid var(--border-color);
+		background-color: var(--parchment);
+		color: var(--ink);
+		font-family: 'IM Fell English', serif;
+		font-size: 0.95rem;
+	}
+	.search-input:focus {
+		outline: 1px solid var(--accent-color);
+		border-color: var(--accent-color);
 	}
 	.tab-navigation {
 		display: flex;

@@ -1,24 +1,31 @@
 <script lang="ts">
-	import { tags } from '$lib/stores';
-	import { navigateToTag } from '$lib/actions'; // Import the new centralized action
+	import { navigateToTag } from '$lib/actions';
+	import type { TagMap } from '$lib/bindings';
+	import { tags as allTagsStore } from '$lib/stores';
 
-	// The local `viewTag` function has been removed.
+	// Provide a standard default value for the optional prop.
+	// You cannot use the $state rune as a default value for a prop.
+	let { tags = [] } = $props<{ tags?: TagMap }>();
 </script>
 
 <div class="tag-list">
-	{#each $tags as [tag, pages] (tag)}
-		<!-- The onclick handler now calls the imported navigateToTag function -->
-		<div
-			class="tag-group"
-			onclick={() => navigateToTag(tag, $tags)}
-			onkeydown={(e) => e.key === 'Enter' && navigateToTag(tag, $tags)}
-			role="button"
-			tabindex="0"
-		>
-			<span class="tag-name">#{tag}</span>
-			<span class="tag-count">({pages.length})</span>
-		</div>
-	{/each}
+	{#if tags.length > 0}
+		<!-- The #each block iterates over the 'tags' prop passed from the parent -->
+		{#each tags as [tag, pages] (tag)}
+			<div
+				class="tag-group"
+				onclick={() => navigateToTag(tag, $allTagsStore)}
+				onkeydown={(e) => e.key === 'Enter' && navigateToTag(tag, $allTagsStore)}
+				role="button"
+				tabindex="0"
+			>
+				<span class="tag-name">#{tag}</span>
+				<span class="tag-count">({pages.length})</span>
+			</div>
+		{/each}
+	{:else}
+		<p class="no-results">No tags found.</p>
+	{/if}
 </div>
 
 <style>
@@ -45,5 +52,10 @@
 	}
 	.tag-count {
 		color: var(--ink-light);
+	}
+	.no-results {
+		color: var(--ink-light);
+		text-align: center;
+		font-style: italic;
 	}
 </style>
