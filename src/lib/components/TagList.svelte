@@ -1,28 +1,20 @@
 <script lang="ts">
-	import { tags, currentView } from '$lib/stores';
-	import type { PageHeader } from '$lib/bindings';
+	import { tags } from '$lib/stores';
+	import { navigateToTag } from '$lib/actions'; // Import the new centralized action
 
-	function viewTag(tagName: string, pagePaths: string[]) {
-		// Create an array of PageHeader objects from the list of paths.
-		const pages: PageHeader[] = pagePaths.map((path) => ({
-			path,
-			title: path.split(/[\\/]/).pop() || 'Untitled'
-		}));
-
-		// Set the main view to show the tag index page.
-		currentView.set({
-			type: 'tag',
-			data: {
-				name: tagName,
-				pages: pages
-			}
-		});
-	}
+	// The local `viewTag` function has been removed.
 </script>
 
 <div class="tag-list">
-	{#each $tags as [tag, pages]}
-		<div class="tag-group" onclick={() => viewTag(tag, pages)} onkeydown={(e) => e.key === 'Enter' && viewTag(tag, pages)} role="button" tabindex="0">
+	{#each $tags as [tag, pages] (tag)}
+		<!-- The onclick handler now calls the imported navigateToTag function -->
+		<div
+			class="tag-group"
+			onclick={() => navigateToTag(tag, $tags)}
+			onkeydown={(e) => e.key === 'Enter' && navigateToTag(tag, $tags)}
+			role="button"
+			tabindex="0"
+		>
 			<span class="tag-name">#{tag}</span>
 			<span class="tag-count">({pages.length})</span>
 		</div>
@@ -42,7 +34,8 @@
 		display: flex;
 		justify-content: space-between;
 	}
-	.tag-group:hover, .tag-group:focus {
+	.tag-group:hover,
+	.tag-group:focus {
 		background-color: rgba(0, 0, 0, 0.08);
 		outline: none;
 	}
