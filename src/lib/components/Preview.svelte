@@ -96,7 +96,6 @@
         flex-grow: 1;
         overflow-y: auto;
         line-height: 1.7;
-        white-space: pre-wrap;
     }
 
     .preview-content :global(h1),
@@ -106,6 +105,16 @@
         color: var(--ink-light);
         border-bottom: 1px solid var(--border-color);
         padding-bottom: 0.3em;
+        /* Add some margin to headings for better spacing */
+        margin-top: 1.5em;
+        margin-bottom: 0.3em;
+    }
+
+    /* Remove extra margin from paragraphs that immediately follow a heading */
+    .preview-content :global(h1 + p),
+    .preview-content :global(h2 + p),
+    .preview-content :global(h3 + p) {
+        margin-top: 0;
     }
 
     .preview-wrapper :global(a.internal-link) {
