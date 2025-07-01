@@ -1,73 +1,55 @@
 <script lang="ts">
 	import Sidebar from '$lib/components/Sidebar.svelte';
-	import Editor from '$lib/components/Editor.svelte';
-	import Preview from '$lib/components/Preview.svelte';
 	import TagIndexView from '$lib/components/TagIndexView.svelte';
-	import { currentView } from '$lib/stores';
-	import { invoke } from '@tauri-apps/api/core';
-	import { onDestroy } from 'svelte';
+	import FileView from '$lib/components/FileView.svelte';
+	import { currentView, tags, fileViewMode } from '$lib/stores';
+	import type { PageHeader, TagMap } from '$lib/bindings';
 
 	let sidebarWidth = $state(300);
 	let isResizing = $state(false);
 
-	let pageContent = $state<string | undefined>(undefined);
-	let pristineContent = $state<string | undefined>(undefined);
-	let saveTimeout: number;
-
-	let fileViewMode: 'preview' | 'split' = $state('preview');
-
+	// This effect keeps the TagIndexView reactive to backend changes.
 	$effect(() => {
 		const view = $currentView;
-		fileViewMode = 'preview'; // Reset to preview mode on any view change
+		const allTags: TagMap = $tags;
 
-		// If the new view is a file, load its content
-		if (view.type === 'file' && view.data) {
-			pageContent = undefined;
-			pristineContent = undefined;
-			invoke<string>('get_page_content', { path: view.data.path })
-				.then((content) => {
-					pageContent = content;
-					pristineContent = content;
-				})
-				.catch((e) => {
-					console.error('Failed to get page content:', e);
-					const errorContent = `# Error\n\nCould not load file: ${view.data?.path}`;
-					pageContent = errorContent;
-					pristineContent = errorContent;
-				});
-		} else {
-			// Clear content for other views
-			pageContent = undefined;
-			pristineContent = undefined;
+		if (view.type === 'tag' && view.data) {
+			const currentTagName = view.data.name;
+			const latestTagData = allTags.find(([name]) => name === currentTagName);
+
+			if (latestTagData) {
+				const newPagePaths = new Set(latestTagData[1]);
+				const currentPagePaths = new Set(view.data.pages.map((p) => p.path));
+
+				if (
+					newPagePaths.size !== currentPagePaths.size ||
+					![...newPagePaths].every((path) => currentPagePaths.has(path))
+				) {
+					const freshPages: PageHeader[] = latestTagData[1].map((path) => ({
+						path,
+						title: path.split(/[\\/]/).pop() || 'Untitled'
+					}));
+
+					currentView.set({
+						type: 'tag',
+						data: {
+							name: currentTagName,
+							pages: freshPages
+						}
+					});
+				}
+			} else {
+				currentView.set({ type: 'welcome' });
+			}
 		}
 	});
 
+	// This effect resets the file view mode to 'preview' whenever the user
+	// navigates away from the file view (e.g., to the welcome screen or a tag index).
 	$effect(() => {
-		const view = $currentView;
-		if (
-			pageContent === undefined ||
-			view.type !== 'file' ||
-			!view.data ||
-			pageContent === pristineContent
-		) {
-			return;
+		if ($currentView.type !== 'file') {
+			$fileViewMode = 'preview';
 		}
-
-		clearTimeout(saveTimeout);
-		const path = view.data.path;
-		const contentToSave = pageContent;
-
-		saveTimeout = window.setTimeout(() => {
-			invoke('write_page_content', { path, content: contentToSave })
-				.then(() => {
-					pristineContent = contentToSave;
-				})
-				.catch((e) => console.error('Failed to save content:', e));
-		}, 500);
-	});
-
-	onDestroy(() => {
-		clearTimeout(saveTimeout);
 	});
 
 	function startResize(event: MouseEvent) {
@@ -115,28 +97,7 @@
 				<TagIndexView data={$currentView.data} />
 			</div>
 		{:else if $currentView.type === 'file' && $currentView.data}
-			{#if fileViewMode === 'split'}
-				<!-- Split View: Editor + Preview -->
-				<div class="editor-pane">
-					{#if pageContent !== undefined}
-						<Editor bind:content={pageContent} title={$currentView.data.title} />
-					{/if}
-				</div>
-				<div class="preview-pane">
-					<button class="mode-toggle-btn" onclick={() => (fileViewMode = 'preview')}>
-						📖 Preview Only
-					</button>
-					<Preview content={pageContent} />
-				</div>
-			{:else}
-				<!-- Preview-Only View -->
-				<div class="preview-pane full-width">
-					<button class="mode-toggle-btn" onclick={() => (fileViewMode = 'split')}>
-						✏️ Edit
-					</button>
-					<Preview content={pageContent} />
-				</div>
-			{/if}
+			<FileView file={$currentView.data} />
 		{/if}
 	</main>
 </div>
@@ -171,20 +132,11 @@
 	.resizer:hover {
 		background: #00000040;
 	}
-	.editor-pane,
-	.preview-pane {
-		flex: 1;
-		overflow-y: auto;
+	.tag-view-pane {
+		flex-basis: 100%;
 		padding: 2rem;
 		height: 100%;
 		box-sizing: border-box;
-		position: relative; /* For the button */
-	}
-	.editor-pane {
-		border-right: 1px solid #d3c7b3;
-	}
-	.preview-pane.full-width, .tag-view-pane {
-		flex-basis: 100%;
 	}
 	.welcome-screen {
 		display: flex;
@@ -208,23 +160,5 @@
 	}
 	.welcome-text {
 		font-size: 1.2rem;
-	}
-	.mode-toggle-btn {
-		position: absolute;
-		top: 1rem;
-		right: 2rem;
-		z-index: 10;
-		padding: 0.5rem 1rem;
-		background-color: rgba(74, 63, 53, 0.8);
-		color: var(--parchment);
-		border: 1px solid rgba(211, 199, 179, 0.5);
-		border-radius: 6px;
-		cursor: pointer;
-		font-family: 'IM Fell English', serif;
-		font-size: 0.9rem;
-		transition: background-color 0.2s;
-	}
-	.mode-toggle-btn:hover {
-		background-color: var(--ink);
 	}
 </style>

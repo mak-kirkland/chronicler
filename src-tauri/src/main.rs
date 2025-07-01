@@ -24,8 +24,8 @@ mod parser;
 mod renderer;
 mod utils;
 mod watcher;
-mod world;
 mod wikilink;
+mod world;
 
 /// Command-line arguments for Chronicler
 #[derive(Parser, Debug)]
@@ -47,7 +47,7 @@ fn main() {
             // that requires concurrent access management.
             let world = World::new(Path::new(WORLD_ROOT));
 
-            world.initialize().map_err(|e| {
+            world.initialize(app.handle().clone()).map_err(|e| {
                 tracing::error!("Failed to initialize world: {}", e);
                 e
             })?;

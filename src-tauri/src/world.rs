@@ -6,7 +6,7 @@ use crate::{
     error::Result,
     indexer::Indexer,
     models::{FileNode, PageHeader, RenderedPage},
-    renderer::Renderer, // Import the new Renderer
+    renderer::Renderer,
     watcher::Watcher,
 };
 use parking_lot::{Mutex, RwLock};
@@ -14,6 +14,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tauri::{AppHandle, Emitter};
 use tokio::sync::broadcast;
 use tracing::instrument;
 
@@ -60,10 +61,9 @@ impl World {
     /// the file watcher with event processing. This should be called once during application startup.
     ///
     /// # Arguments
-    /// * `_app_handle` - A handle to the Tauri application (unused in current implementation but
-    ///   kept for future frontend event emission)
+    /// * `_app_handle` - A handle to the Tauri application
     #[instrument(skip(self))]
-    pub fn initialize(&self) -> Result<()> {
+    pub fn initialize(&self, app_handle: AppHandle) -> Result<()> {
         // --- 1. Perform Initial Scan ---
         // Lock the indexer to perform the initial, potentially long-running, full scan.
         {
@@ -82,7 +82,7 @@ impl World {
         let indexer_clone = self.indexer.clone();
         // Use Tauri's async runtime instead of tokio::spawn
         tauri::async_runtime::spawn(async move {
-            Self::process_file_events(indexer_clone, event_receiver).await;
+            Self::process_file_events(app_handle, indexer_clone, event_receiver).await;
         });
 
         Ok(())
@@ -94,18 +94,28 @@ impl World {
     /// It continues until the event channel is closed or an unrecoverable error occurs.
     ///
     /// # Arguments
+    /// * `app_handle` - A handle to the Tauri application
     /// * `indexer` - Shared reference to the indexer
     /// * `mut event_receiver` - Receiver for file change events
-    #[instrument(level = "debug", skip(indexer, event_receiver))]
+    #[instrument(level = "debug", skip(app_handle, indexer, event_receiver))]
     async fn process_file_events(
+        app_handle: AppHandle,
         indexer: Arc<RwLock<Indexer>>,
         mut event_receiver: broadcast::Receiver<crate::events::FileEvent>,
     ) {
         loop {
             match event_receiver.recv().await {
                 Ok(event) => {
-                    let mut indexer = indexer.write();
-                    indexer.handle_file_event(&event);
+                    // Scope the write lock to release it before emitting the event
+                    {
+                        let mut indexer = indexer.write();
+                        indexer.handle_file_event(&event);
+                    } // Lock is released here
+
+                    // Emit an event to notify the frontend that the index has changed
+                    if let Err(e) = app_handle.emit("index-updated", ()) {
+                        tracing::error!("Failed to emit index-updated event: {}", e);
+                    }
                 }
                 Err(broadcast::error::RecvError::Closed) => {
                     tracing::info!("Event channel closed, stopping file event processing");

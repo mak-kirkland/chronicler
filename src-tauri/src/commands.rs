@@ -17,9 +17,9 @@ use tracing::instrument;
 
 /// Initializes the application by scanning a vault directory and starting the file watcher.
 #[command]
-#[instrument(skip(world, _app_handle))]
-pub fn initialize(path: String, world: State<World>, _app_handle: AppHandle) -> Result<()> {
-    world.initialize()
+#[instrument(skip(world, app_handle))]
+pub fn initialize(world: State<World>, app_handle: AppHandle) -> Result<()> {
+    world.initialize(app_handle)
 }
 
 /// Returns a lightweight list of all indexed pages (title and path).

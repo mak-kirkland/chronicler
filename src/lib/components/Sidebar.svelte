@@ -5,27 +5,47 @@
 	import FileTree from './FileTree.svelte';
 	import TagList from './TagList.svelte';
 	import { onMount } from 'svelte';
+	import { listen } from '@tauri-apps/api/event';
 
 	let { width = $bindable() } = $props();
 	let activeTab = $state<'files' | 'tags'>('files');
 
-	async function loadInitialData() {
+	async function loadSidebarData() {
 		try {
-			const tree: FileNode = await invoke('get_file_tree');
+			// Fetch both concurrently for a small performance boost
+			const [tree, sortedTags] = await Promise.all([
+				invoke<FileNode>('get_file_tree'),
+				invoke<TagMap>('get_all_tags')
+			]);
 			fileTree.set(tree);
-
-			const sortedTags: TagMap = await invoke('get_all_tags');
 			tags.set(sortedTags);
-
 		} catch (e) {
-			console.error('Failed to load initial data:', e);
+			console.error('Failed to load sidebar data:', e);
 		}
 	}
 
 	onMount(() => {
-		// Initialize the backend and load data
-		invoke('initialize').catch((e) => console.error('Failed to initialize backend:', e));
-		loadInitialData();
+		let unlistenFn: () => void;
+
+		// Load initial data when the component mounts
+		loadSidebarData();
+
+		// Set up the listener for backend updates
+		const setupListener = async () => {
+			unlistenFn = await listen('index-updated', () => {
+				console.log('Index update received from backend, refreshing sidebar data...');
+				loadSidebarData();
+			});
+		};
+
+		setupListener();
+
+		// Svelte's onMount can return a cleanup function, which is equivalent to onDestroy
+		return () => {
+			if (unlistenFn) {
+				unlistenFn();
+			}
+		};
 	});
 </script>
 
