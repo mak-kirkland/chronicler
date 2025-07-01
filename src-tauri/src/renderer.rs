@@ -1,15 +1,13 @@
 //! Markdown and Wikilink rendering engine.
 
+use crate::wikilink::WIKILINK_RE;
 use crate::{error::Result, indexer::Indexer, models::RenderedPage, parser};
 use parking_lot::RwLock;
 use pulldown_cmark::{html, Options, Parser};
-use regex::{Captures, Regex};
+use regex::Captures;
 use serde_json::Value;
 use std::path::Path;
-use std::sync::{Arc, LazyLock};
-
-static WIKILINK_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\[\[([^|\]]+)(?:\|([^\]]+))?\]\]").unwrap());
+use std::sync::Arc;
 
 /// A struct responsible for rendering Markdown content.
 #[derive(Debug)]
@@ -69,7 +67,7 @@ impl Renderer {
         WIKILINK_RE
             .replace_all(text, |caps: &Captures| {
                 let target = caps.get(1).map_or("", |m| m.as_str()).trim();
-                let alias = caps.get(2).map(|m| m.as_str().trim()).unwrap_or(target);
+                let alias = caps.get(3).map(|m| m.as_str().trim()).unwrap_or(target);
                 let normalized_target = target.to_lowercase();
 
                 if let Some(path) = indexer.link_resolver.get(&normalized_target) {

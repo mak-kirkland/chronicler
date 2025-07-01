@@ -25,6 +25,7 @@ mod renderer;
 mod utils;
 mod watcher;
 mod world;
+mod wikilink;
 
 /// Command-line arguments for Chronicler
 #[derive(Parser, Debug)]

@@ -4,18 +4,12 @@
 
 use crate::config::MAX_FILE_SIZE;
 use crate::error::{ChroniclerError, Result};
-use crate::models::{Link, LinkPosition, Page};
-use regex::Regex;
+use crate::models::Page;
+use crate::wikilink::extract_wikilinks;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-use std::sync::LazyLock;
 use tracing::instrument;
-
-// Captures: 1: target, 2: section (optional), 3: alias (optional)
-static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[\[([^\[\]\|#]+)(?:#([^\[\]\|]+))?(?:\|([^\[\]]+))?\]\]").unwrap()
-});
 
 /// Parses a single Markdown file to extract its metadata (frontmatter, tags, links).
 ///
@@ -108,56 +102,6 @@ fn extract_tags_from_frontmatter(frontmatter: &serde_json::Value) -> HashSet<Str
         .collect()
 }
 
-/// A helper to convert a byte offset to a 1-based line and column number.
-fn offset_to_line_col(content: &str, byte_offset: usize) -> LinkPosition {
-    let mut line = 1;
-    let mut line_start_byte_offset = 0;
-
-    // Iterate through character boundaries to handle multi-byte UTF-8 chars correctly
-    for (char_byte_offset, ch) in content.char_indices() {
-        if char_byte_offset >= byte_offset {
-            break;
-        }
-        if ch == '\n' {
-            line += 1;
-            line_start_byte_offset = char_byte_offset + ch.len_utf8();
-        }
-    }
-
-    // Calculate column by counting characters (not bytes) from start of line
-    let line_content = &content[line_start_byte_offset..byte_offset];
-    let column = line_content.chars().count() + 1;
-
-    LinkPosition { line, column }
-}
-
-// TODO: maybe extract them _before_ the YAML frontmatter to allow links in the infobox
-/// Extracts wikilinks from markdown content.
-fn extract_wikilinks(full_content: &str, body: &str) -> Vec<Link> {
-    // Calculate the byte offset where the body starts within full_content
-    let body_start_offset = full_content.len() - body.len();
-
-    WIKILINK_RE
-        .captures_iter(body)
-        .map(|cap| {
-            // The match for the whole pattern `[[...]]` is at index 0.
-            let full_match = cap.get(0).unwrap();
-            // Adjust the offset to be relative to full_content instead of body
-            let absolute_offset = body_start_offset + full_match.start();
-            let position = Some(offset_to_line_col(full_content, absolute_offset));
-            let target = cap.get(1).unwrap().as_str().to_string();
-            let section = cap.get(2).map(|m| m.as_str().to_string());
-            let alias = cap.get(3).map(|m| m.as_str().to_string());
-            Link {
-                target,
-                section,
-                alias,
-                position,
-            }
-        })
-        .collect()
-}
-
 /// Determines the page title from frontmatter or filename.
 fn extract_title(frontmatter: &serde_json::Value, path: &Path) -> String {
     frontmatter
@@ -229,87 +173,5 @@ It just has a [[Simple Link]].
         assert!(page.frontmatter.is_null());
 
         Ok(())
-    }
-
-    #[test]
-    fn test_extract_wikilinks_all_variants() {
-        let content = r#"
-This file tests various link formats.
-- A standard link: [[Target Page]]
-- A link with an alias: [[Another Page|Display Text]]
-- A link to a section: [[Third Page#Section Header]]
-- A link with both: [[Fourth Page#Some Section|Alias Text]]
-- A link in the middle of a sentence [[Fifth Page]] like this.
-"#;
-        // Here we can call the private function `extract_wikilinks`
-        let (_frontmatter_str, body) = extract_frontmatter(content);
-        let links = extract_wikilinks(content, body);
-
-        assert_eq!(links.len(), 5);
-
-        // Corrected column numbers
-        assert_eq!(
-            links[0],
-            Link {
-                target: "Target Page".to_string(),
-                section: None,
-                alias: None,
-                position: Some(LinkPosition {
-                    line: 3,
-                    column: 20
-                })
-            }
-        );
-
-        assert_eq!(
-            links[1],
-            Link {
-                target: "Another Page".to_string(),
-                section: None,
-                alias: Some("Display Text".to_string()),
-                position: Some(LinkPosition {
-                    line: 4,
-                    column: 25
-                })
-            }
-        );
-
-        assert_eq!(
-            links[2],
-            Link {
-                target: "Third Page".to_string(),
-                section: Some("Section Header".to_string()),
-                alias: None,
-                position: Some(LinkPosition {
-                    line: 5,
-                    column: 24
-                })
-            }
-        );
-
-        assert_eq!(
-            links[3],
-            Link {
-                target: "Fourth Page".to_string(),
-                section: Some("Some Section".to_string()),
-                alias: Some("Alias Text".to_string()),
-                position: Some(LinkPosition {
-                    line: 6,
-                    column: 21
-                })
-            }
-        );
-        assert_eq!(
-            links[4],
-            Link {
-                target: "Fifth Page".to_string(),
-                section: None,
-                alias: None,
-                position: Some(LinkPosition {
-                    line: 7,
-                    column: 38
-                })
-            }
-        );
     }
 }
