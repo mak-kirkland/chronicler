@@ -14,9 +14,6 @@ importers:
       '@tauri-apps/plugin-dialog':
         specifier: ~2.3.0
         version: 2.3.0
-      '@tauri-apps/plugin-opener':
-        specifier: ^2
-        version: 2.3.0
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.0
@@ -550,9 +547,6 @@ packages:
 
   '@tauri-apps/plugin-dialog@2.3.0':
     resolution: {integrity: sha512-ylSBvYYShpGlKKh732ZuaHyJ5Ie1JR71QCXewCtsRLqGdc8Is4xWdz6t43rzXyvkItM9syNPMvFVcvjgEy+/GA==}
-
-  '@tauri-apps/plugin-opener@2.3.0':
-    resolution: {integrity: sha512-yAbauwp8BCHIhhA48NN8rEf6OtfZBPCgTOCa10gmtoVCpmic5Bq+1Ba7C+NZOjogedkSiV7hAotjYnnbUVmYrw==}
 
   '@types/cookie@0.6.0':
     resolution: {integrity: sha512-4Kh9a6B2bQciAhf7FSuMRRkUWecJgJu9nPnx3yzpsfXX/c50REIqpHY4C82bXP90qrLtXtkDxTZosYO3UpOwlA==}
@@ -1274,10 +1268,6 @@ snapshots:
   '@tauri-apps/plugin-dialog@2.3.0':
     dependencies:
       '@tauri-apps/api': 2.6.0
-
-  '@tauri-apps/plugin-opener@2.3.0':
-    dependencies:
-      '@tauri-apps/api': 2.5.0
 
   '@types/cookie@0.6.0': {}
 
