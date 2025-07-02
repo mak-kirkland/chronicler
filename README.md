@@ -2,133 +2,106 @@
 
 # 📘 Chronicler – A Markdown-Based Offline Worldbuilding App
 
-**Chronicler** is a free, open-source, standalone desktop application for fantasy worldbuilders, especially Game Masters and authors. It’s designed for full **offline use**, ensuring that **you own your data** — all files are saved locally in a standard, human-readable Markdown format using a clear folder hierarchy.
+**Chronicler** is a free, open-source desktop app for worldbuilders, storytellers, and creative minds. It saves your notes as plain Markdown files on your computer — no subscriptions, no logins, and no internet required. Your world stays in your hands.
 
-❤️ [Join the Patreon](https://patreon.com/ChroniclerWorldbuilder) or [buy me a coffee](https://buymeacoffee.com/chronicler) and help build *Chronicler*.
-
----
-
-### 🚧 Current State
-
-![Screenshot 2](https://github.com/user-attachments/assets/26e151b9-a92a-476c-94f5-88205bb24b96)
+❤️ [Support on Patreon](https://patreon.com/ChroniclerWorldbuilder) or [Buy Me a Coffee](https://buymeacoffee.com/chronicler) to help fund development.
 
 ---
 
 ## ✨ Features (Planned & In Progress)
 
-### 📂 File Structure & Markdown Rendering
-- Organizes your world with simple **folders and Markdown files**, like Obsidian
-- Real-time **Markdown rendering**
-- Editor with auto-save
+### ✍️ Writing & Markdown
 
-### 🔖 Tagging & Linking
-- **tags** with support for **tag hierarchies**
+- Uses simple **Markdown files and folders**, like Obsidian
+- Clean editor with **auto-save** and **live preview**
+
+### 🔗 Linking & Organization
+
+- **Tags** with **hierarchies**
 - Internal **[[wikilinks]]** with autocomplete
-- **Backlinks** to quickly see where a page is referenced
-- **Automatic indexing**: tags and links update themselves when pages are edited
-- **Automatic renames**: links update themselves when files are renamed
+- **Backlinks** to see where pages are referenced
+- Smart **auto-indexing** and **link updates** on rename  
 
-### 🧠 Infoboxes & Templates
-- Built-in support for structured data via **infoboxes** (e.g., for characters, items, locations)
-- Easily define your own templates
+### 📇 Templates & Infoboxes
 
-### 🌐 Navigable Hierarchies
-- Support for **multiple categorization paths** (e.g., `Characters/NPCs/Orelia` and `Factions/Eldritch Knights/Orelia`)
-- Works via smart indexing, giving multiple access paths to the same file
+- Add structure with optional **infoboxes** (e.g., characters, places, items)
+- Define your own reusable **templates**
+
+### 🗂️ Hierarchies & Categorization
+
+- Multiple ways to access the same note (e.g., by faction and by location)
+- Smart indexing supports flexible categorization
 
 ### 🖼️ Media Support
-- Image embedding via `![[images/filename.jpg]]`, stored locally under `images/`
-- Drag-and-drop support for attaching media
 
-### 🔐 Offline and Private
-- 100% offline. No cloud, no lock-in.
-- Files are Markdown + YAML — readable and portable forever.
+- Embed local images via `![[images/file.jpg]]`
+- Drag-and-drop support
 
-### 📚 Future Ideas
-- Import from MediaWiki
-- Organize into folders by tag rules
-- Search and filter by tag combinations
-- Interactive maps and timelines
-- Visual tag graphs
+### 🔐 Private & Offline
 
----
-
-## 🔧 Tech Stack
-- **Frontend:** Svelte 5
-- **Backend:** Rust
-- **Packaging:** Tauri v2 for a small, native desktop app
-
----
-
-## 🚀 Contributing
-
-This project is in early development! Contributions are welcome:
-
-- UX/UI design
-- Testing across OSes
-- Feature requests
+- 100% offline; **no cloud**, no vendor lock-in
+- Files are just **Markdown + YAML**, readable forever
 
 ---
 
 ## 🧭 Philosophy
 
-> Your world. Your files. Your rules.  
-> No cloud sync. No vendor lock-in. No subscriptions.
+> Your world. Your files. Your rules.
 
-Chronicler is made for worldbuilders who believe in **local-first software**, **creative freedom**, and **future-proof files**. It’s everything you wish your notebook or wiki was — but built for fantasy.
-
----
-
-## ❤️ Support the Project
-
-Want to help keep Chronicler free, open, and offline? See the [Patreon pitch](https://patreon.com/ChroniclerWorldbuilder) below or support the project with coffee and code.
+Chronicler is made for creators who believe in **ownership**, **privacy**, and **freedom**. It helps you build your world your way — free from platform restrictions.  
 
 ---
 
-## 📫 Contact & Community
+![Screenshot 4](https://github.com/user-attachments/assets/9b266b2b-ecaf-46af-9ffb-b669f6907231)
 
-- GitHub Issues – Feature requests, bugs
-- Discord (Coming soon)
-- Email: mak.kirkland@proton.me
+## 🧙‍♂️ Patreon Pitch
 
----
+Imagine a worldbuilding app that doesn't gatekeep your imagination.
 
-# 🪙 Patreon Pitch: Support *Chronicler*
+**Chronicler** is a labor of love — a tool that helps storytellers **write, link, and explore** their worlds without limits.
 
-## 🧙‍♂️ Chronicler: A Worldbuilding App Built by Worldbuilders
+### Why Support?
 
-Imagine a worldbuilding tool that doesn't tell you how to create. It just helps you **organize** and **explore** the world you imagine — offline, markdown-based, 100% yours.
+- No subscriptions
+- No cloud dependency
+- Total creative ownership
 
-**Chronicler** is a labor of love — an open-source app for worldbuilders and GMs who want:
+Your support funds:
 
-- Zero subscription fees  
-- Zero cloud dependency  
-- Full ownership of your files and creative vision
-
-I'm building Chronicler to give creators a tool that grows with your world, not one that walls you in behind a subscription.
-
----
-
-### 🚧 Where Your Support Goes
-
-- Core development time (Rust + Svelte)
-- Cross-platform support (Windows, macOS, Linux)
-- UI/UX improvements
-- Infobox and tagging engine
-- Drag-and-drop image and media support
-- Maps, timelines, graphs
-
----
+- Core dev time (Rust + Svelte)
+- UX and feature design
+- Cross-platform builds
 
 ### 🎁 Patreon Tiers
 
-- **€3/month** – *The Scribe*: Help keep development alive.
-- **€7/month** – *The Archivist*: Vote on features.
-- **€15/month** – *The Loremaster*: Help shape the app direction, Discord access, get early updates and builds.
+- **€3/month** — *Scribe*: Support development
+- **€7/month** — *Archivist*: Vote on features
+- **€15/month** — *Loremaster*: Early builds, Discord access, help shape direction
+
+👉 [Join on Patreon](https://patreon.com/ChroniclerWorldbuilder) or [Buy Me a Coffee](https://buymeacoffee.com/chronicler) to help fund development.
 
 ---
 
-Together, we can build a better tool for storytelling.
+## 📫 Contact
 
-👉 [Join the Patreon](https://patreon.com/ChroniclerWorldbuilder) and help build *Chronicler*.
+- GitHub Issues: Feedback, bugs, requests
+- Email: [mak.kirkland@proton.me](mailto:mak.kirkland@proton.me)
+- Discord: (Coming soon!)
 
+---
+
+## 🤝 Contributing
+
+The project is early-stage and contributions are welcome!
+
+- UX/UI design
+- Cross-platform testing
+- Feature requests and feedback
+
+---
+
+## 🚀 Tech Stack
+
+- **Frontend**: Svelte 5
+- **Backend**: Rust
+- **Packaging**: Tauri v2 for native performance
