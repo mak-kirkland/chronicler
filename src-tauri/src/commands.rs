@@ -29,7 +29,7 @@ pub fn get_vault_path(app_handle: AppHandle) -> Result<Option<String>> {
 /// This requires a write lock because it modifies the World state.
 #[command]
 #[instrument(skip(world, app_handle))]
-pub fn set_vault_path_and_initialize(
+pub fn initialize_vault(
     path: String,
     world: State<RwLock<World>>,
     app_handle: AppHandle,

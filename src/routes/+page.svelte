@@ -40,7 +40,7 @@
 		$appStatus = 'loading';
 		errorMessage = null;
 		try {
-			await invoke('set_vault_path_and_initialize', { path });
+			await invoke('initialize_vault', { path });
 			$appStatus = 'ready';
 		} catch (e) {
 			console.error(`Failed to initialize vault at ${path}:`, e);

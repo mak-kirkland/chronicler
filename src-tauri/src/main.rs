@@ -49,7 +49,7 @@ fn main() {
         // Register all our `#[tauri::command]` functions.
         .invoke_handler(tauri::generate_handler![
             commands::get_vault_path,
-            commands::set_vault_path_and_initialize,
+            commands::initialize_vault,
             commands::get_all_tags,
             commands::get_rendered_page,
             commands::get_page_data_for_view,
