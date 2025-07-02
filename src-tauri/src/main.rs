@@ -56,7 +56,6 @@ fn main() {
             commands::get_page_data_for_view,
             commands::write_page_content,
             commands::get_file_tree,
-            commands::update_file,
             commands::create_new_file,
             commands::get_all_directory_paths,
         ])

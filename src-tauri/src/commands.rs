@@ -84,14 +84,6 @@ pub fn get_file_tree(world: State<RwLock<World>>) -> Result<FileNode> {
     world.read().get_file_tree()
 }
 
-/// Manually triggers an index update for a specific file.
-#[command]
-#[instrument(skip(_world, _path))]
-pub fn update_file(_world: State<RwLock<World>>, _path: PathBuf) -> Result<()> {
-    // This command might need re-evaluation. For now, we assume index is updated via watcher.
-    Ok(())
-}
-
 /// Creates a new, empty markdown file and synchronously updates the index.
 #[command]
 #[instrument(skip(world))]
