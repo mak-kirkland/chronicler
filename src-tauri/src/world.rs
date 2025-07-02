@@ -141,11 +141,6 @@ impl World {
         tracing::info!("File event processing task stopped");
     }
 
-    /// Returns a lightweight list of all indexed pages (title and path).
-    pub fn get_all_pages(&self) -> Result<Vec<PageHeader>> {
-        self.indexer.read().get_all_pages()
-    }
-
     /// Returns all tags and the pages that reference them.
     pub fn get_all_tags(&self) -> Result<Vec<(String, Vec<PathBuf>)>> {
         self.indexer.read().get_all_tags()

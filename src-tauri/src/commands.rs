@@ -37,13 +37,6 @@ pub fn set_vault_path_and_initialize(
     world.write().change_vault(path, app_handle)
 }
 
-/// Returns a lightweight list of all indexed pages (title and path).
-#[command]
-#[instrument(skip(world))]
-pub fn get_all_pages(world: State<RwLock<World>>) -> Result<Vec<PageHeader>> {
-    world.read().get_all_pages()
-}
-
 /// Returns the tag index mapping tags to lists of pages that contain them.
 #[command]
 #[instrument(skip(world))]

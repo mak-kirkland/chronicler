@@ -238,20 +238,6 @@ impl Indexer {
         self.link_resolver.get(&link.target.to_lowercase()).cloned()
     }
 
-    /// Returns a lightweight list of all indexed pages (title and path).
-    #[instrument(level = "debug", skip(self))]
-    pub fn get_all_pages(&self) -> Result<Vec<PageHeader>> {
-        let headers = self
-            .pages
-            .values()
-            .map(|page| PageHeader {
-                title: page.title.clone(),
-                path: page.path.clone(),
-            })
-            .collect();
-        Ok(headers)
-    }
-
     /// Returns all tags and the pages that reference them.
     #[instrument(level = "debug", skip(self))]
     pub fn get_all_tags(&self) -> Result<Vec<(String, Vec<PathBuf>)>> {

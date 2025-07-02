@@ -50,7 +50,6 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::get_vault_path,
             commands::set_vault_path_and_initialize,
-            commands::get_all_pages,
             commands::get_all_tags,
             commands::get_rendered_page,
             commands::get_page_data_for_view,
