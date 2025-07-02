@@ -1,7 +1,8 @@
 //! Application configuration management.
 //!
-//! Handles loading and saving of application settings, such as the vault path.
-//! The configuration is stored in a JSON file in the app's config directory.
+//! Handles application-wide constants, loading and saving of user
+//! settings, such as the vault path.  The configuration is stored in
+//! a JSON file in the app's config directory.
 
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
