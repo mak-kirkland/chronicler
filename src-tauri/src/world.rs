@@ -170,4 +170,12 @@ impl World {
             .ok_or(crate::error::ChroniclerError::VaultNotInitialized)?
             .get_page_data_for_view(path)
     }
+
+    pub fn create_new_file(&self, parent_dir: String, file_name: String) -> Result<PageHeader> {
+        self.indexer.write().create_new_file(parent_dir, file_name)
+    }
+
+    pub fn get_all_directory_paths(&self) -> Result<Vec<PathBuf>> {
+        self.indexer.read().get_all_directory_paths()
+    }
 }

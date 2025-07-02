@@ -57,6 +57,8 @@ fn main() {
             commands::write_page_content,
             commands::get_file_tree,
             commands::update_file,
+            commands::create_new_file,
+            commands::get_all_directory_paths,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);

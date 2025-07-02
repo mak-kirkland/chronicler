@@ -43,6 +43,9 @@ pub enum ChroniclerError {
 
     #[error("JSON serialization/deserialization error: {0}")]
     Json(#[from] serde_json::Error),
+
+    #[error("File already exists: {0:?}")]
+    FileAlreadyExists(PathBuf),
 }
 
 // We need to implement Serialize for the error type to be able to return

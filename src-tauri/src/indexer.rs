@@ -350,6 +350,70 @@ impl Indexer {
             },
         })
     }
+
+    /// Creates a new, empty markdown file and synchronously updates the index.
+    #[instrument(skip(self))]
+    pub fn create_new_file(&mut self, parent_dir: String, file_name: String) -> Result<PageHeader> {
+        let trimmed_name = file_name.trim();
+        let mut clean_name = trimmed_name.to_string();
+        if !clean_name.to_lowercase().ends_with(".md") {
+            clean_name.push_str(".md");
+        }
+
+        let path = Path::new(&parent_dir).join(&clean_name);
+
+        if path.exists() {
+            return Err(ChroniclerError::FileAlreadyExists(path));
+        }
+
+        // Create the file with some default frontmatter for a better user experience.
+        let default_content = format!(
+            r#"---
+title: "{}"
+tags:
+  - add
+  - your
+  - tags
+---
+
+"#,
+            trimmed_name
+        );
+
+        fs::write(&path, default_content)?;
+
+        // Manually and synchronously update the index for the new file before returning.
+        // This prevents the race condition where the frontend tries to access the file
+        // before the watcher has processed it.
+        self.update_file(&path);
+
+        Ok(PageHeader {
+            title: clean_name,
+            path,
+        })
+    }
+
+    /// Returns a list of all directory paths in the vault.
+    pub fn get_all_directory_paths(&self) -> Result<Vec<PathBuf>> {
+        let root_node = self.get_file_tree()?;
+        let mut dirs = Vec::new();
+        // Add the root directory itself
+        dirs.push(root_node.path.clone());
+        Self::collect_dirs_recursive(&root_node, &mut dirs);
+        Ok(dirs)
+    }
+
+    /// Helper function to recursively collect directory paths.
+    fn collect_dirs_recursive(node: &FileNode, dirs: &mut Vec<PathBuf>) {
+        if let Some(children) = &node.children {
+            for child in children {
+                if child.children.is_some() {
+                    dirs.push(child.path.clone());
+                    Self::collect_dirs_recursive(child, dirs);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

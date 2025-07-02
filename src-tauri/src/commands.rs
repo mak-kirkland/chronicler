@@ -91,3 +91,21 @@ pub fn update_file(_world: State<RwLock<World>>, _path: PathBuf) -> Result<()> {
     // This command might need re-evaluation. For now, we assume index is updated via watcher.
     Ok(())
 }
+
+/// Creates a new, empty markdown file and synchronously updates the index.
+#[command]
+#[instrument(skip(world))]
+pub fn create_new_file(
+    world: State<RwLock<World>>,
+    parent_dir: String,
+    file_name: String,
+) -> Result<PageHeader> {
+    world.read().create_new_file(parent_dir, file_name)
+}
+
+/// Returns a list of all directory paths in the vault.
+#[command]
+#[instrument(skip(world))]
+pub fn get_all_directory_paths(world: State<RwLock<World>>) -> Result<Vec<PathBuf>> {
+    world.read().get_all_directory_paths()
+}

@@ -1,17 +1,19 @@
 <script lang="ts">
 	import { invoke } from '@tauri-apps/api/core';
-	import { fileTree, tags, appStatus, resetAllStores } from '$lib/stores';
-	import type { FileNode, TagMap } from '$lib/bindings';
+	import { fileTree, tags, appStatus, resetAllStores, currentView } from '$lib/stores';
+	import type { FileNode, TagMap, PageHeader } from '$lib/bindings';
 	import FileExplorer from './FileExplorer.svelte';
 	import TagList from './TagList.svelte';
 	import { onMount } from 'svelte';
 	import { listen } from '@tauri-apps/api/event';
 	import SettingsModal from './SettingsModal.svelte';
+	import CreateFileModal from './CreateFileModal.svelte';
 
 	let { width = $bindable() } = $props();
 	let activeTab = $state<'files' | 'tags'>('files');
 	let searchTerm = $state('');
 	let showSettings = $state(false);
+	let showCreateFile = $state(false);
 
 	async function loadSidebarData() {
 		try {
@@ -57,6 +59,13 @@
 		appStatus.set('selecting_vault');
 	}
 
+	function handleFileCreated(page: PageHeader) {
+		showCreateFile = false;
+		// The file watcher will eventually update the file tree, but for
+		// immediate feedback, we can navigate to the new file right away.
+		currentView.set({ type: 'file', data: page });
+	}
+
 	const filteredTags = $derived(
 		$tags.filter(([tag]) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
 	);
@@ -64,6 +73,13 @@
 
 {#if showSettings}
 	<SettingsModal onClose={() => (showSettings = false)} onChangeVault={handleChangeVault} />
+{/if}
+
+{#if showCreateFile}
+	<CreateFileModal
+		onClose={() => (showCreateFile = false)}
+		onFileCreated={handleFileCreated}
+	/>
 {/if}
 
 <aside style="width: {width}px;">
@@ -97,6 +113,9 @@
 	</div>
 
 	<div class="sidebar-footer">
+		<button class="action-btn" title="New Page" onclick={() => (showCreateFile = true)}>
+			+ New Page
+		</button>
 		<button class="settings-btn" title="Settings" onclick={() => (showSettings = true)}>
 			⚙️
 		</button>
@@ -170,10 +189,12 @@
 		padding: 1rem;
 	}
 	.sidebar-footer {
-		padding: 0.5rem;
+		padding: 0.75rem;
 		border-top: 1px solid var(--border-color);
 		display: flex;
-		justify-content: flex-end;
+		justify-content: space-between;
+		align-items: center;
+		gap: 0.5rem;
 	}
 	.settings-btn {
 		background: none;
@@ -183,8 +204,24 @@
 		color: var(--ink-light);
 		opacity: 0.7;
 		transition: opacity 0.2s;
+		padding: 0.25rem;
 	}
 	.settings-btn:hover {
 		opacity: 1;
+	}
+	.action-btn {
+		flex-grow: 1;
+		padding: 0.5rem 1rem;
+		background-color: rgba(74, 63, 53, 0.8);
+		color: var(--parchment);
+		border: 1px solid rgba(211, 199, 179, 0.5);
+		border-radius: 6px;
+		cursor: pointer;
+		font-family: 'IM Fell English', serif;
+		font-size: 0.9rem;
+		transition: background-color 0.2s;
+	}
+	.action-btn:hover {
+		background-color: var(--ink);
 	}
 </style>
