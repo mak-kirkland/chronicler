@@ -2,11 +2,9 @@
 	import Editor from '$lib/components/Editor.svelte';
 	import Preview from '$lib/components/Preview.svelte';
 	import { invoke } from '@tauri-apps/api/core';
-	import type { PageHeader, FullPageData, RenderedPage } from '$lib/bindings';
+	import type { PageHeader, FullPageData, RenderedPage, FileNode } from '$lib/bindings';
 	import { onDestroy } from 'svelte';
-	import { fileViewMode, currentView, isRightSidebarVisible, activeBacklinks } from '$lib/stores';
-	import { onMount } from 'svelte';
-	import { listen } from '@tauri-apps/api/event';
+	import { fileViewMode, currentView, isRightSidebarVisible, activeBacklinks, fileTree } from '$lib/stores';
 
 	let { file } = $props<{ file: PageHeader }>();
 
@@ -14,6 +12,22 @@
 	let pristineContent = $state<string | undefined>(undefined);
 	let saveTimeout: number;
 
+	// Helper function to check if a file path exists in the file tree.
+	function findFileInTree(node: FileNode | null, path: string): boolean {
+		if (!node) return false;
+		if (node.path === path) return true;
+		if (node.children) {
+			// Use a for...of loop for better performance and readability
+			for (const child of node.children) {
+				if (findFileInTree(child, path)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	// This effect fetches the page data whenever the file prop changes.
 	$effect(() => {
 		// Reset state for the new file
 		pageData = null;
@@ -69,21 +83,17 @@
 		}, 500);
 	});
 
-	onMount(() => {
-		const unlistenPromise = listen('index-updated', async () => {
-			try {
-				const allPaths = await invoke<string[]>('get_all_page_paths');
-				if (!allPaths.includes(file.path)) {
-					currentView.set({ type: 'welcome' });
-				}
-			} catch (e) {
-				console.error('Failed to check for deleted file:', e);
-			}
-		});
-
-		return () => {
-			unlistenPromise.then((unlistenFn) => unlistenFn());
-		};
+	// This reactive effect runs whenever the fileTree store changes.
+	// It checks if the current file has been deleted/renamed and closes the view if so.
+	$effect(() => {
+		// Create a dependency on the $fileTree store.
+		const tree = $fileTree;
+		if (tree && !findFileInTree(tree, file.path)) {
+			console.log(
+				`Current file ${file.path} not found in tree after update. Closing view.`
+			);
+			currentView.set({ type: 'welcome' });
+		}
 	});
 
 	onDestroy(() => {
