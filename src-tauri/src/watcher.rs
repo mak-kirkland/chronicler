@@ -13,7 +13,7 @@ use crate::{
 use notify_debouncer_full::{
     new_debouncer,
     notify::{
-        event::{CreateKind, ModifyKind, RemoveKind, RenameMode},
+        event::{CreateKind, ModifyKind, RenameMode},
         EventKind, RecommendedWatcher, RecursiveMode,
     },
     DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
@@ -168,7 +168,7 @@ fn handle_debounced_events(
                 .map(|path| FileEvent::Modified(path.clone()))
                 .collect::<Vec<_>>(),
 
-            EventKind::Remove(RemoveKind::File) => event
+            EventKind::Remove(_) => event
                 .paths
                 .iter()
                 .filter(|path| is_valid_file(path))
