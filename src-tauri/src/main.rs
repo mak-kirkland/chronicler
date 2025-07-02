@@ -41,6 +41,7 @@ fn main() {
     setup_tracing(&args);
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // The World will hold our entire backend's state. We've moved the lock
             // inside the World struct to protect just the Indexer, which is the part
