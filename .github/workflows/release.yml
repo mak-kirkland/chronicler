@@ -1,0 +1,100 @@
+# This GitHub Actions workflow is triggered when a new tag is pushed to the repository.
+# It can also be triggered manually from the GitHub Actions UI.
+# It builds the Tauri application for multiple targets, creates a GitHub Release,
+# and uploads the compiled application artifacts to that release.
+
+name: Release
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push events, but only for tags that match the pattern 'v*.*.*'
+  # e.g., v1.0.0, v1.2.3, v0.1.0-beta.1
+  push:
+    tags:
+      - 'v*.*.*'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  # The main job that builds and releases the application for multiple platforms
+  release-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-13' # Intel Mac
+            target: 'x86_64-apple-darwin'
+          - platform: 'macos-14' # Apple Silicon Mac
+            target: 'aarch64-apple-darwin'
+          - platform: 'ubuntu-22.04' # For x86_64 .deb, .AppImage, and .rpm
+            target: 'x86_64-unknown-linux-gnu'
+          - platform: 'windows-latest'
+            target: 'x86_64-pc-windows-msvc'
+
+    # The type of runner that the job will run on
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      # Step 1: Check out the repository's code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install Linux-specific dependencies (only on Linux runners)
+      - name: Install dependencies (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      # Step 3: Setup pnpm
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      # Step 4: Install Tauri CLI globally
+      - name: Install Tauri CLI
+        run: pnpm add -g @tauri-apps/cli
+
+      # Step 5: Install frontend dependencies
+      - name: Install Dependencies
+        run: pnpm install
+
+      # Step 6: Sync SvelteKit to generate necessary files
+      # It ensures .svelte-kit/tsconfig.json exists before the build starts.
+      - name: Sync SvelteKit
+        run: pnpm svelte-kit sync
+
+      # Step 7: Build the Tauri application and create the release
+      - name: Build and Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          # This token is provided by GitHub Actions for authentication.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Pass the target triple to the build command
+          args: --target ${{ matrix.target }}
+
+          # The tag name that will be used for the release.
+          tagName: ${{ github.ref_name }}
+
+          # The name of the release, using the git tag directly.
+          releaseName: 'Chronicler ${{ github.ref_name }}'
+
+          # An updated description for the release body with install instructions.
+          releaseBody: |
+            See the assets below to download the latest version of Chronicler!
+
+            ---
+
+            ### Installation
+
+            - **💻 Windows**: Download the `.msi` file to install.
+            - **🍎 macOS**: Download the `.dmg` file. Open it and drag the app to your Applications folder.
+            - **🐧 Linux**: Download the `.AppImage` (for most distributions) or the `.deb` / `.rpm` file for your package manager.
+
+          # Set to 'true' if you want to create a draft release instead of a published one.
+          releaseDraft: true
