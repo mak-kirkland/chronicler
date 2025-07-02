@@ -18,14 +18,14 @@
 
 ### 📂 File Structure & Markdown Rendering
 - Organizes your world with simple **folders and Markdown files**, like Obsidian
-- Real-time **Markdown rendering**, including images and code blocks
-- **Frontmatter-based metadata** (YAML) for tags, infoboxes, and more
+- Real-time **Markdown rendering**
+- Editor with auto-save
 
 ### 🔖 Tagging & Linking
-- Frontmatter-based **tags** with support for **tag hierarchies**
+- **tags** with support for **tag hierarchies**
 - Internal **[[wikilinks]]** with autocomplete
 - **Backlinks** to quickly see where a page is referenced
-- **Automatic indexing**: tag pages update themselves when tags are added/removed
+- **Automatic indexing**: tags and links update themselves when pages are edited
 - **Automatic renames**: links update themselves when files are renamed
 
 ### 🧠 Infoboxes & Templates
@@ -45,16 +45,18 @@
 - Files are Markdown + YAML — readable and portable forever.
 
 ### 📚 Future Ideas
+- Import from MediaWiki
+- Organize into folders by tag rules
 - Search and filter by tag combinations
 - Interactive maps and timelines
 - Visual tag graphs
 
 ---
 
-## 🔧 Tech Stack (Tentative)
+## 🔧 Tech Stack
 - **Frontend:** Svelte 5
 - **Backend:** Rust
-- **Packaging:** Tauri for a small, native desktop app
+- **Packaging:** Tauri v2 for a small, native desktop app
 
 ---
 
