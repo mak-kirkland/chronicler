@@ -40,6 +40,9 @@ pub enum ChroniclerError {
 
     #[error("File not found: {0:?}")]
     FileNotFound(PathBuf),
+
+    #[error("JSON serialization/deserialization error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 // We need to implement Serialize for the error type to be able to return

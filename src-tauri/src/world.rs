@@ -3,6 +3,7 @@
 //! Coordinates the indexer, watcher, and frontend communication.
 
 use crate::{
+    config,
     error::Result,
     indexer::Indexer,
     models::{FileNode, FullPageData, PageHeader, RenderedPage},
@@ -16,7 +17,7 @@ use std::{
 };
 use tauri::{AppHandle, Emitter};
 use tokio::sync::broadcast;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 /// The main `World` struct containing all application subsystems and state.
 ///
@@ -29,54 +30,48 @@ use tracing::instrument;
 /// * `indexer`: Thread-safe, shared access to the vault indexer.
 /// * `watcher`: The application's file system watcher.
 /// * `renderer`: The application's Markdown renderer.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct World {
-    root_path: PathBuf,
+    root_path: Option<PathBuf>,
     pub indexer: Arc<RwLock<Indexer>>,
-    watcher: Mutex<Watcher>,
-    pub renderer: Renderer,
+    watcher: Option<Mutex<Watcher>>,
+    pub renderer: Option<Renderer>,
 }
 
 impl World {
-    /// Creates a new `World` instance.
-    ///
-    /// This initializes the `Indexer`, `Watcher`, and `Renderer` but does not perform any scans or start
-    /// the watcher. The `initialize` method should be called for that.
-    ///
-    /// # Arguments
-    /// * `root_path` - Path to the root directory of the worldbuilding vault.
-    pub fn new(root_path: &Path) -> Self {
-        let indexer = Arc::new(RwLock::new(Indexer::new(root_path)));
-        let renderer = Renderer::new(indexer.clone()); // Create the renderer with the indexer
-
-        Self {
-            root_path: root_path.to_path_buf(),
-            indexer,
-            watcher: parking_lot::Mutex::new(Watcher::new()),
-            renderer,
-        }
+    /// Creates a new, uninitialized `World` instance.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Initializes the world by performing a full scan of the vault directory and starting
-    /// the file watcher with event processing. This should be called once during application startup.
-    ///
-    /// # Arguments
-    /// * `_app_handle` - A handle to the Tauri application
-    #[instrument(skip(self))]
-    pub fn initialize(&self, app_handle: AppHandle) -> Result<()> {
-        // --- 1. Perform Initial Scan ---
-        // Lock the indexer to perform the initial, potentially long-running, full scan.
-        {
-            let mut indexer = self.indexer.write();
-            indexer.full_scan(&self.root_path)?;
+    /// the file watcher. This is an internal method called by `change_vault`.
+    fn initialize(&mut self, root_path: &Path, app_handle: AppHandle) -> Result<()> {
+        info!(path = %root_path.display(), "Initializing or changing vault.");
+
+        // If a watcher exists, its Drop implementation will stop the old thread.
+        if self.watcher.is_some() {
+            info!("Shutting down existing watcher for vault change.");
+            self.watcher = None;
         }
 
+        self.root_path = Some(root_path.to_path_buf());
+
+        // Re-initialize the indexer and renderer
+        let new_indexer = Arc::new(RwLock::new(Indexer::new(root_path)));
+        self.renderer = Some(Renderer::new(new_indexer.clone()));
+        self.indexer = new_indexer;
+
+        // --- 1. Perform Initial Scan ---
+        self.indexer.write().full_scan(root_path)?;
+
         // --- 2. Start File Watcher ---
-        let mut watcher = self.watcher.lock();
-        watcher.start(&self.root_path)?;
+        let mut new_watcher = Watcher::new();
+        new_watcher.start(root_path)?;
 
         // --- 3. Subscribe to File Events ---
-        let event_receiver = watcher.subscribe();
+        let event_receiver = new_watcher.subscribe();
+        self.watcher = Some(Mutex::new(new_watcher));
 
         // --- 4. Spawn Background Event Processing Task ---
         let indexer_clone = self.indexer.clone();
@@ -85,7 +80,20 @@ impl World {
             Self::process_file_events(app_handle, indexer_clone, event_receiver).await;
         });
 
+        info!(
+            "World initialized successfully for path: {}",
+            root_path.display()
+        );
         Ok(())
+    }
+
+    /// Changes the vault path, saves the configuration, and re-initializes the world.
+    pub fn change_vault(&mut self, path: String, app_handle: AppHandle) -> Result<()> {
+        // 1. Save the new path to the configuration file.
+        config::set_vault_path(path.clone(), &app_handle)?;
+
+        // 2. Initialize the world with the new path.
+        self.initialize(Path::new(&path), app_handle)
     }
 
     /// Background task that processes file events and updates the indexer.
@@ -135,35 +143,31 @@ impl World {
 
     /// Returns a lightweight list of all indexed pages (title and path).
     pub fn get_all_pages(&self) -> Result<Vec<PageHeader>> {
-        let indexer = self.indexer.read();
-        indexer.get_all_pages()
+        self.indexer.read().get_all_pages()
     }
 
     /// Returns all tags and the pages that reference them.
     pub fn get_all_tags(&self) -> Result<Vec<(String, Vec<PathBuf>)>> {
-        let indexer = self.indexer.read();
-        indexer.get_all_tags()
+        self.indexer.read().get_all_tags()
     }
 
     /// Returns the file tree structure of the vault for frontend display.
     pub fn get_file_tree(&self) -> Result<FileNode> {
-        let indexer = self.indexer.read();
-        indexer.get_file_tree()
-    }
-
-    /// Manually triggers an index update for a single file.
-    pub fn update_file(&self, path: &Path) -> Result<()> {
-        let mut indexer = self.indexer.write();
-        indexer.update_file(path);
-        Ok(())
+        self.indexer.read().get_file_tree()
     }
 
     /// Processes raw markdown content and returns the fully rendered page data.
     pub fn get_rendered_page(&self, content: &str) -> Result<RenderedPage> {
-        self.renderer.process_page_content(content)
+        self.renderer
+            .as_ref()
+            .ok_or(crate::error::ChroniclerError::VaultNotInitialized)?
+            .process_page_content(content)
     }
 
     pub fn get_page_data_for_view(&self, path: &str) -> Result<FullPageData> {
-        self.renderer.get_page_data_for_view(path)
+        self.renderer
+            .as_ref()
+            .ok_or(crate::error::ChroniclerError::VaultNotInitialized)?
+            .get_page_data_for_view(path)
     }
 }

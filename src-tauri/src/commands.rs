@@ -5,10 +5,12 @@
 
 use crate::models::FullPageData;
 use crate::{
+    config,
     error::Result,
     models::{FileNode, PageHeader, RenderedPage},
     world::World,
 };
+use parking_lot::RwLock;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -16,42 +18,56 @@ use std::{
 use tauri::{command, AppHandle, State};
 use tracing::instrument;
 
-/// Initializes the application by scanning a vault directory and starting the file watcher.
+/// Retrieves the stored vault path from the configuration file.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn get_vault_path(app_handle: AppHandle) -> Result<Option<String>> {
+    config::get_vault_path(&app_handle)
+}
+
+/// Sets the vault path, saves it to config, and initializes the world state.
+/// This requires a write lock because it modifies the World state.
 #[command]
 #[instrument(skip(world, app_handle))]
-pub fn initialize(world: State<World>, app_handle: AppHandle) -> Result<()> {
-    world.initialize(app_handle)
+pub fn set_vault_path_and_initialize(
+    path: String,
+    world: State<RwLock<World>>,
+    app_handle: AppHandle,
+) -> Result<()> {
+    world.write().change_vault(path, app_handle)
 }
 
 /// Returns a lightweight list of all indexed pages (title and path).
 #[command]
 #[instrument(skip(world))]
-pub fn get_all_pages(world: State<World>) -> Result<Vec<PageHeader>> {
-    world.get_all_pages()
+pub fn get_all_pages(world: State<RwLock<World>>) -> Result<Vec<PageHeader>> {
+    world.read().get_all_pages()
 }
 
 /// Returns the tag index mapping tags to lists of pages that contain them.
 #[command]
 #[instrument(skip(world))]
-pub fn get_all_tags(world: State<World>) -> Result<Vec<(String, Vec<PathBuf>)>> {
-    world.get_all_tags()
+pub fn get_all_tags(world: State<RwLock<World>>) -> Result<Vec<(String, Vec<PathBuf>)>> {
+    world.read().get_all_tags()
 }
 
 /// Processes raw markdown content, renders it to HTML with wikilinks resolved,
 /// and returns a structured object for the frontend preview.
 #[command]
 #[instrument(skip(content, world))]
-pub fn get_rendered_page(content: String, world: State<World>) -> Result<RenderedPage> {
-    world.get_rendered_page(&content)
+pub fn get_rendered_page(content: String, world: State<RwLock<World>>) -> Result<RenderedPage> {
+    world.read().get_rendered_page(&content)
 }
 
+/// Gets all data needed for the file view.
 #[command]
 #[instrument(skip(world))]
-pub fn get_page_data_for_view(path: String, world: State<World>) -> Result<FullPageData> {
-    world.get_page_data_for_view(&path)
+pub fn get_page_data_for_view(path: String, world: State<RwLock<World>>) -> Result<FullPageData> {
+    world.read().get_page_data_for_view(&path)
 }
 
-/// Writes content to a page on disk.
+/// Writes content to a page on disk. This does not modify the World state directly,
+/// so it doesn't need a lock on the World. The file watcher will pick up the change.
 #[command]
 #[instrument]
 pub fn write_page_content(path: String, content: String) -> Result<()> {
@@ -64,13 +80,14 @@ pub fn write_page_content(path: String, content: String) -> Result<()> {
 /// Returns the hierarchical file tree structure of the vault.
 #[command]
 #[instrument(skip(world))]
-pub fn get_file_tree(world: State<World>) -> Result<FileNode> {
-    world.get_file_tree()
+pub fn get_file_tree(world: State<RwLock<World>>) -> Result<FileNode> {
+    world.read().get_file_tree()
 }
 
 /// Manually triggers an index update for a specific file.
 #[command]
-#[instrument(skip(world))]
-pub fn update_file(world: State<World>, path: PathBuf) -> Result<()> {
-    world.update_file(&path)
+#[instrument(skip(_world, _path))]
+pub fn update_file(_world: State<RwLock<World>>, _path: PathBuf) -> Result<()> {
+    // This command might need re-evaluation. For now, we assume index is updated via watcher.
+    Ok(())
 }

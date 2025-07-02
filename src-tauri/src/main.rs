@@ -7,9 +7,8 @@
     windows_subsystem = "windows"
 )]
 
-use crate::config::WORLD_ROOT;
 use clap::Parser;
-use std::path::Path;
+use parking_lot::RwLock;
 use tauri::Manager;
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 use world::World;
@@ -43,25 +42,14 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            // The World will hold our entire backend's state. We've moved the lock
-            // inside the World struct to protect just the Indexer, which is the part
-            // that requires concurrent access management.
-            let world = World::new(Path::new(WORLD_ROOT));
-
-            world.initialize(app.handle().clone()).map_err(|e| {
-                tracing::error!("Failed to initialize world: {}", e);
-                e
-            })?;
-
-            // The RwLock inside World handles the synchronization.
-            // Tauri's State<World> will manage access from commands.
-            app.manage(world);
-
+            // The World is wrapped in an RwLock to allow concurrent reads.
+            app.manage(RwLock::new(World::new()));
             Ok(())
         })
         // Register all our `#[tauri::command]` functions.
         .invoke_handler(tauri::generate_handler![
-            commands::initialize,
+            commands::get_vault_path,
+            commands::set_vault_path_and_initialize,
             commands::get_all_pages,
             commands::get_all_tags,
             commands::get_rendered_page,

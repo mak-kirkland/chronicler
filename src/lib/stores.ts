@@ -2,6 +2,16 @@ import type { FileNode, PageHeader } from './bindings';
 import { writable, type Writable } from 'svelte/store';
 
 /**
+ * Represents the overall status of the application, determining which main view to show.
+ */
+export type AppStatus = 'selecting_vault' | 'loading' | 'ready' | 'error';
+
+/**
+ * Manages the application's current status.
+ */
+export const appStatus = writable<AppStatus>('selecting_vault');
+
+/**
  * A type for the data needed to render the tag index page.
  */
 export type TagIndexData = {
@@ -41,3 +51,16 @@ export const fileViewMode: Writable<'preview' | 'split'> = writable('preview');
 // Stores for the right-hand metadata panel (for backlinks, etc.)
 export const isRightSidebarVisible = writable(false);
 export const activeBacklinks = writable<PageHeader[]>([]);
+
+/**
+ * Resets all data stores to their initial state.
+ * This is useful when changing vaults.
+ */
+export function resetAllStores() {
+	currentView.set({ type: 'welcome' });
+	fileTree.set(null);
+	tags.set([]);
+	fileViewMode.set('preview');
+	isRightSidebarVisible.set(false);
+	activeBacklinks.set([]);
+}

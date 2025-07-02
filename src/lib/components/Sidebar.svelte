@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { invoke } from '@tauri-apps/api/core';
-	import { fileTree, tags } from '$lib/stores';
+	import { fileTree, tags, appStatus, resetAllStores } from '$lib/stores';
 	import type { FileNode, TagMap } from '$lib/bindings';
 	import FileExplorer from './FileExplorer.svelte';
 	import TagList from './TagList.svelte';
 	import { onMount } from 'svelte';
 	import { listen } from '@tauri-apps/api/event';
+	import SettingsModal from './SettingsModal.svelte';
 
 	let { width = $bindable() } = $props();
 	let activeTab = $state<'files' | 'tags'>('files');
 	let searchTerm = $state('');
+	let showSettings = $state(false);
 
 	async function loadSidebarData() {
 		try {
@@ -49,10 +51,20 @@
 		};
 	});
 
+	function handleChangeVault() {
+		showSettings = false;
+		resetAllStores();
+		appStatus.set('selecting_vault');
+	}
+
 	const filteredTags = $derived(
 		$tags.filter(([tag]) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
 	);
 </script>
+
+{#if showSettings}
+	<SettingsModal onClose={() => (showSettings = false)} onChangeVault={handleChangeVault} />
+{/if}
 
 <aside style="width: {width}px;">
 	<div class="sidebar-header">
@@ -82,6 +94,12 @@
 		{:else if activeTab === 'tags'}
 			<TagList tags={filteredTags} />
 		{/if}
+	</div>
+
+	<div class="sidebar-footer">
+		<button class="settings-btn" title="Settings" onclick={() => (showSettings = true)}>
+			⚙️
+		</button>
 	</div>
 </aside>
 
@@ -150,5 +168,23 @@
 		flex-grow: 1;
 		overflow-y: auto;
 		padding: 1rem;
+	}
+	.sidebar-footer {
+		padding: 0.5rem;
+		border-top: 1px solid var(--border-color);
+		display: flex;
+		justify-content: flex-end;
+	}
+	.settings-btn {
+		background: none;
+		border: none;
+		font-size: 1.5rem;
+		cursor: pointer;
+		color: var(--ink-light);
+		opacity: 0.7;
+		transition: opacity 0.2s;
+	}
+	.settings-btn:hover {
+		opacity: 1;
 	}
 </style>
