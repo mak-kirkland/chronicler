@@ -1,13 +1,8 @@
 <script lang="ts">
-	// The component no longer imports from stores.
-
-	// It now accepts 'content' (bindable) and 'title' as props.
-	let { content = $bindable(), title = '' } = $props<{ content?: string; title?: string }>();
+	let { content = $bindable() } = $props<{ content?: string }>();
 </script>
 
 <div class="editor-wrapper">
-	<h2>{title.replace('.md', '')}</h2>
-
 	<textarea
 		bind:value={content}
 		placeholder="Let your story unfold..."
@@ -15,7 +10,6 @@
 </div>
 
 <style>
-	/* All styles remain the same */
 	.editor-wrapper {
 		display: flex;
 		flex-direction: column;

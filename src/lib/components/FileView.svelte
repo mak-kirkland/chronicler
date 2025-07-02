@@ -91,13 +91,15 @@
 	});
 </script>
 
-{#if pageData}
-	{#if $fileViewMode === 'split'}
-		<div class="editor-pane">
-			<Editor bind:content={pageData.raw_content} title={file.title} />
-		</div>
-		<div class="preview-pane">
-			<div class="pane-header">
+<div class="file-view-container">
+	{#if pageData}
+		<!-- A single header for all modes, positioned absolutely -->
+		<div class="view-header">
+			<h2 class="view-title" title={file.title.replace('.md', '')}>
+				{file.title.replace('.md', '')}
+			</h2>
+
+			<div class="view-actions">
 				{#if $activeBacklinks.length > 0}
 					<button
 						class="pane-header-btn"
@@ -107,58 +109,109 @@
 						🔗 {$activeBacklinks.length}
 					</button>
 				{/if}
-				<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'preview')}>
-					📖 Preview Only
-				</button>
-			</div>
-			<Preview renderedData={pageData.rendered_page} />
-		</div>
-	{:else}
-		<div class="preview-pane full-width">
-			<div class="pane-header">
-				{#if $activeBacklinks.length > 0}
-					<button
-						class="pane-header-btn"
-						onclick={() => isRightSidebarVisible.set(!$isRightSidebarVisible)}
-						title="Toggle Backlinks"
-					>
-						🔗 {$activeBacklinks.length}
+
+				{#if $fileViewMode === 'split'}
+					<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'preview')}>
+						📖 Preview Only
+					</button>
+				{:else}
+					<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'split')}>
+						✏️ Edit
 					</button>
 				{/if}
-				<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'split')}>
-					✏️ Edit
-				</button>
 			</div>
-			<Preview renderedData={pageData.rendered_page} />
+		</div>
+
+		<!-- Content panes below the header -->
+		<div class="content-panes">
+			{#if $fileViewMode === 'split'}
+				<div class="editor-pane">
+					<Editor bind:content={pageData.raw_content} />
+				</div>
+				<div class="preview-pane">
+					<Preview renderedData={pageData.rendered_page} />
+				</div>
+			{:else}
+				<div class="preview-pane full-width">
+					<Preview renderedData={pageData.rendered_page} />
+				</div>
+			{/if}
 		</div>
 	{/if}
-{/if}
+</div>
 
 <style>
+	.file-view-container {
+		position: relative; /* Needed for absolute positioning of the header */
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		height: 100%;
+	}
+
+	.view-header {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0 2rem;
+		background-color: rgba(253, 246, 227, 0.85); /* Semi-transparent parchment */
+		backdrop-filter: blur(4px);
+		-webkit-backdrop-filter: blur(4px);
+		border-bottom: 1px solid var(--border-color);
+		z-index: 20; /* Ensure it's above content */
+		height: 60px; /* Give it a fixed height */
+		box-sizing: border-box;
+	}
+
+	.view-title {
+		font-family: 'Uncial Antiqua', cursive;
+		color: var(--ink-light);
+		margin: 0;
+		font-size: 1.5rem;
+		flex-shrink: 1;
+		flex-grow: 1;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		padding-right: 1rem;
+	}
+
+	.view-actions {
+		display: flex;
+		gap: 0.5rem;
+		flex-shrink: 0;
+	}
+
+	.content-panes {
+		display: flex;
+		flex-grow: 1;
+		padding-top: 60px; /* Match header height */
+		height: 100%;
+		box-sizing: border-box;
+		overflow: hidden;
+	}
+
 	.editor-pane,
 	.preview-pane {
 		flex: 1;
 		overflow-y: auto;
 		padding: 2rem;
-		padding-top: 4rem; /* Add space for the header */
 		height: 100%;
 		box-sizing: border-box;
-		position: relative;
 	}
+
 	.editor-pane {
 		border-right: 1px solid var(--border-color);
 	}
+
 	.preview-pane.full-width {
 		flex-basis: 100%;
 	}
-	.pane-header {
-		position: absolute;
-		top: 1rem;
-		right: 2rem;
-		display: flex;
-		gap: 0.5rem;
-		z-index: 10;
-	}
+
 	.mode-toggle-btn,
 	.pane-header-btn {
 		padding: 0.5rem 1rem;
