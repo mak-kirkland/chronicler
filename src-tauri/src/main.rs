@@ -51,7 +51,7 @@ fn main() {
             commands::get_vault_path,
             commands::initialize_vault,
             commands::get_all_tags,
-            commands::get_rendered_page,
+            commands::render_page_preview,
             commands::get_page_data_for_view,
             commands::write_page_content,
             commands::get_file_tree,

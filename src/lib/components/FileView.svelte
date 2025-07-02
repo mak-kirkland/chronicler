@@ -58,7 +58,7 @@
 					pristineContent = contentToSave;
 					// After saving, re-render the content to update the preview.
 					// We only need the rendered part, not the full page data again.
-					return invoke<RenderedPage>('get_rendered_page', { content: contentToSave });
+					return invoke<RenderedPage>('render_page_preview', { content: contentToSave });
 				})
 				.then((newlyRenderedData) => {
 					if (pageData) {

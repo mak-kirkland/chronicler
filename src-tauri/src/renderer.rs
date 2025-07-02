@@ -25,7 +25,7 @@ impl Renderer {
     }
 
     /// Processes raw markdown content into a structured, rendered page object.
-    pub fn process_page_content(&self, content: &str) -> Result<RenderedPage> {
+    pub fn render_page_preview(&self, content: &str) -> Result<RenderedPage> {
         // 1. Separate frontmatter from the body
         let (frontmatter_str, body) = parser::extract_frontmatter(content);
         let mut frontmatter_json = parser::parse_frontmatter(frontmatter_str, Path::new(""))?;
@@ -104,7 +104,7 @@ impl Renderer {
 
     pub fn get_page_data_for_view(&self, path: &str) -> Result<FullPageData> {
         let raw_content = fs::read_to_string(path)?;
-        let rendered_page = self.process_page_content(&raw_content)?;
+        let rendered_page = self.render_page_preview(&raw_content)?;
 
         let indexer = self.indexer.read();
         let page_path = Path::new(path);

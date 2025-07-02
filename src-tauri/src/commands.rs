@@ -48,8 +48,8 @@ pub fn get_all_tags(world: State<RwLock<World>>) -> Result<Vec<(String, Vec<Path
 /// and returns a structured object for the frontend preview.
 #[command]
 #[instrument(skip(content, world))]
-pub fn get_rendered_page(content: String, world: State<RwLock<World>>) -> Result<RenderedPage> {
-    world.read().get_rendered_page(&content)
+pub fn render_page_preview(content: String, world: State<RwLock<World>>) -> Result<RenderedPage> {
+    world.read().render_page_preview(&content)
 }
 
 /// Gets all data needed for the file view.

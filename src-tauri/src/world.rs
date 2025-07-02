@@ -152,11 +152,11 @@ impl World {
     }
 
     /// Processes raw markdown content and returns the fully rendered page data.
-    pub fn get_rendered_page(&self, content: &str) -> Result<RenderedPage> {
+    pub fn render_page_preview(&self, content: &str) -> Result<RenderedPage> {
         self.renderer
             .as_ref()
             .ok_or(crate::error::ChroniclerError::VaultNotInitialized)?
-            .process_page_content(content)
+            .render_page_preview(content)
     }
 
     pub fn get_page_data_for_view(&self, path: &str) -> Result<FullPageData> {
