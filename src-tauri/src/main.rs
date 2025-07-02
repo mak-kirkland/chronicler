@@ -52,7 +52,7 @@ fn main() {
             commands::initialize_vault,
             commands::get_all_tags,
             commands::render_page_preview,
-            commands::get_page_data_for_view,
+            commands::build_page_view,
             commands::write_page_content,
             commands::get_file_tree,
             commands::create_new_file,

@@ -159,11 +159,11 @@ impl World {
             .render_page_preview(content)
     }
 
-    pub fn get_page_data_for_view(&self, path: &str) -> Result<FullPageData> {
+    pub fn build_page_view(&self, path: &str) -> Result<FullPageData> {
         self.renderer
             .as_ref()
             .ok_or(crate::error::ChroniclerError::VaultNotInitialized)?
-            .get_page_data_for_view(path)
+            .build_page_view(path)
     }
 
     pub fn create_new_file(&self, parent_dir: String, file_name: String) -> Result<PageHeader> {

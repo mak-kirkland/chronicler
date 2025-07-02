@@ -34,7 +34,7 @@
 		pristineContent = undefined;
 		activeBacklinks.set([]); // Clear backlinks for the new page
 
-		invoke<FullPageData>('get_page_data_for_view', { path: file.path })
+		invoke<FullPageData>('build_page_view', { path: file.path })
 			.then((data) => {
 				pageData = data;
 				pristineContent = data.raw_content;

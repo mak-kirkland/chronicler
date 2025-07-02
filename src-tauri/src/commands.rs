@@ -52,11 +52,12 @@ pub fn render_page_preview(content: String, world: State<RwLock<World>>) -> Resu
     world.read().render_page_preview(&content)
 }
 
-/// Gets all data needed for the file view.
+/// Parses the file on disk, renders the markdown to HTML, and returns a composed
+/// object containing the raw content, and the rendered preview.
 #[command]
 #[instrument(skip(world))]
-pub fn get_page_data_for_view(path: String, world: State<RwLock<World>>) -> Result<FullPageData> {
-    world.read().get_page_data_for_view(&path)
+pub fn build_page_view(path: String, world: State<RwLock<World>>) -> Result<FullPageData> {
+    world.read().build_page_view(&path)
 }
 
 /// Writes content to a page on disk. This does not modify the World state directly,

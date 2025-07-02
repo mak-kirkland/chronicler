@@ -102,7 +102,7 @@ impl Renderer {
         html_output
     }
 
-    pub fn get_page_data_for_view(&self, path: &str) -> Result<FullPageData> {
+    pub fn build_page_view(&self, path: &str) -> Result<FullPageData> {
         let raw_content = fs::read_to_string(path)?;
         let rendered_page = self.render_page_preview(&raw_content)?;
 
