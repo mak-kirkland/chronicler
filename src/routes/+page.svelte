@@ -105,7 +105,8 @@
 
 	function startResize(event: MouseEvent) {
 		isResizing = true;
-		window.addEventListener('mousemove', doResize);
+		// Add the passive option for better scroll performance during resize.
+		window.addEventListener('mousemove', doResize, { passive: true });
 		window.addEventListener('mouseup', stopResize);
 	}
 	function doResize(event: MouseEvent) {
@@ -137,7 +138,7 @@
 		<button class="select-button" onclick={handleTryAgain}>Select a Different Folder</button>
 	</div>
 {:else if $appStatus === 'ready'}
-	<div class="chronicler-app">
+	<div class="chronicler-app" style="--sidebar-width: {sidebarWidth}px">
 		<Sidebar bind:width={sidebarWidth} />
 
 		<div
@@ -150,7 +151,7 @@
 			aria-valuemax={600}
 		></div>
 
-		<main class="main-content" style="--sidebar-width: {sidebarWidth}px">
+		<main class="main-content">
 			{#if $currentView.type === 'welcome'}
 				<div class="welcome-screen">
 					<img src="/compass.svg" alt="Compass" class="welcome-icon" />
