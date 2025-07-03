@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { invoke } from '@tauri-apps/api/core';
 	import type { PageHeader } from '$lib/bindings';
+	import Modal from './Modal.svelte';
 
 	let {
 		onClose = () => {},
@@ -57,101 +58,40 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events -->
-<div class="modal-backdrop" onclick={onClose}>
-	<div class="modal-content" onclick={(event) => event.stopPropagation()}>
-		<div class="modal-header">
-			<h3>New Page</h3>
-			<button class="close-btn" onclick={onClose}>&times;</button>
+<Modal title="New Page" {onClose}>
+	{#if isLoading}
+		<p>Loading directories...</p>
+	{:else}
+		<div class="form-group">
+			<label for="filename">Page Name</label>
+			<input
+				id="filename"
+				type="text"
+				bind:value={fileName}
+				placeholder="My New Article"
+				class="text-input"
+			/>
 		</div>
-		<div class="modal-body">
-			{#if isLoading}
-				<p>Loading directories...</p>
-			{:else}
-				<div class="form-group">
-					<label for="filename">Page Name</label>
-					<input
-						id="filename"
-						type="text"
-						bind:value={fileName}
-						placeholder="My New Article"
-						class="text-input"
-					/>
-				</div>
-				<div class="form-group">
-					<label for="directory">Location</label>
-					<select id="directory" bind:value={selectedDir} class="select-input">
-						{#each directories as dir, i}
-							<option value={vaultRoot + dir}>
-								{dir === '' ? '/' : dir}
-							</option>
-						{/each}
-					</select>
-				</div>
-
-				{#if errorMessage}
-					<p class="error-text">{errorMessage}</p>
-				{/if}
-
-				<div class="modal-actions">
-					<button class="action-button" onclick={handleCreateFile}> Create </button>
-				</div>
-			{/if}
+		<div class="form-group">
+			<label for="directory">Location</label>
+			<select id="directory" bind:value={selectedDir} class="select-input">
+				{#each directories as dir}
+					<option value={vaultRoot + dir}>{dir === '' ? '/' : dir}</option>
+				{/each}
+			</select>
 		</div>
-	</div>
-</div>
+
+		{#if errorMessage}
+			<p class="error-text">{errorMessage}</p>
+		{/if}
+
+		<div class="modal-actions">
+			<button class="action-button" onclick={handleCreateFile}> Create </button>
+		</div>
+	{/if}
+</Modal>
 
 <style>
-	.modal-backdrop {
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(0, 0, 0, 0.5);
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		z-index: 1000;
-	}
-	.modal-content {
-		background-image: url('/parchment.jpg');
-		background-color: #fdf6e3;
-		background-size: cover;
-		padding: 2rem;
-		border-radius: 8px;
-		border: 2px solid var(--border-color);
-		width: 100%;
-		max-width: 500px;
-		box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-		color: var(--ink);
-	}
-	.modal-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		border-bottom: 1px solid var(--border-color);
-		padding-bottom: 1rem;
-		margin-bottom: 1rem;
-	}
-	.modal-header h3 {
-		font-family: 'Uncial Antiqua', cursive;
-		font-size: 1.5rem;
-		color: var(--ink-light);
-		margin: 0;
-	}
-	.close-btn {
-		background: none;
-		border: none;
-		font-size: 2rem;
-		color: var(--ink-light);
-		cursor: pointer;
-	}
-	.modal-body {
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-	}
 	.form-group {
 		display: flex;
 		flex-direction: column;
