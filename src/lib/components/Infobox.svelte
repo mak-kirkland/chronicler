@@ -1,25 +1,40 @@
 <script lang="ts">
 	import { tags } from '$lib/stores';
-	import { navigateToTag } from '$lib/actions'; // Import the new centralized action
+	import { navigateToTag } from '$lib/actions';
 	import ErrorBox from './ErrorBox.svelte';
 
-	// The props and local state remain the same
-	let { data, imageUrl } = $props<{ data: any; imageUrl: string | null }>();
+	// Define a more specific type for the 'data' prop for better type safety and clarity.
+	type InfoboxData = {
+		title?: string;
+		image?: string;
+		infobox?: string;
+		error?: string;
+		details?: string;
+		tags?: string[];
+		[key: string]: any; // Allow other dynamic properties from frontmatter
+	};
+
+	// Destructuring props. This is the idiomatic way in Svelte 5.
+	// The 'data' prop now uses the more specific InfoboxData type.
+	let { data, imageUrl } = $props<{ data: InfoboxData | null; imageUrl: string | null }>();
+
 	let imageError = $state(false);
 	let filteredData = $state<[string, any][]>([]);
 
 	$effect(() => {
-		// This effect for filtering data remains the same
 		imageError = false;
 
+		// The check for null or non-object data is now even more robust with the new type.
 		if (!data || typeof data !== 'object') {
 			filteredData = [];
 			return;
 		}
 
+		// These keys are handled separately in the template, so we filter them out.
 		const excludedKeys = ['title', 'tags', 'infobox', 'image', 'error', 'details'];
 
 		try {
+			// Get all other key-value pairs from the data object to display in the list.
 			const entries = Object.entries(data).filter(([key]) => !excludedKeys.includes(key));
 			filteredData = entries;
 		} catch (e) {
@@ -27,22 +42,20 @@
 			filteredData = [];
 		}
 	});
-
-	// The local `viewTag` function has been removed.
 </script>
 
 <div class="infobox">
 	{#if imageUrl && !imageError}
 		<img
 			src={imageUrl}
-			alt={data.name || 'Infobox image'}
+			alt={data?.title || 'Infobox image'}
 			class="infobox-image"
 			onerror={() => (imageError = true)}
 		/>
 	{/if}
 
 	{#if imageError}
-		<ErrorBox title="Image Error">Could not load image: "{data.image}"</ErrorBox>
+		<ErrorBox title="Image Error">Could not load image: "{data?.image}"</ErrorBox>
 	{/if}
 
 	{#if data?.error}
@@ -80,7 +93,6 @@
 			<dt>Tags</dt>
 			<dd class="tag-container">
 				{#each data.tags as tag (tag)}
-					<!-- The onclick handler now calls the imported navigateToTag function -->
 					<button class="tag-link" onclick={() => navigateToTag(tag, $tags)}> #{tag} </button>
 				{/each}
 			</dd>
