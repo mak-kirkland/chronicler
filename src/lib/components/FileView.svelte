@@ -2,6 +2,7 @@
 	import Editor from '$lib/components/Editor.svelte';
 	import Preview from '$lib/components/Preview.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import ErrorBox from '$lib/components/ErrorBox.svelte';
 	import { invoke } from '@tauri-apps/api/core';
 	import type { PageHeader, FullPageData, RenderedPage, FileNode } from '$lib/bindings';
 	import { onDestroy } from 'svelte';
@@ -10,6 +11,7 @@
 	let { file } = $props<{ file: PageHeader }>();
 
 	let pageData = $state<FullPageData | null>(null);
+	let error = $state<string | null>(null);
 	let pristineContent = $state<string | undefined>(undefined);
 	let saveTimeout: number;
 
@@ -28,6 +30,7 @@
 
 	$effect(() => {
 		pageData = null;
+		error = null;
 		pristineContent = undefined;
 		activeBacklinks.set([]);
 
@@ -39,17 +42,7 @@
 			})
 			.catch((e) => {
 				console.error('Failed to get page data:', e);
-				const errorHtml = `<div class="error-box">Error loading page: ${e}</div>`;
-				pageData = {
-					raw_content: `# Error\n\nCould not load file: ${file.path}`,
-					rendered_page: {
-						processed_frontmatter: null,
-						rendered_html: errorHtml,
-						infobox_image_path: undefined
-					},
-					backlinks: []
-				};
-				pristineContent = pageData.raw_content;
+				error = `Could not load file: ${e}`;
 			});
 	});
 
@@ -91,7 +84,11 @@
 </script>
 
 <div class="file-view-container">
-	{#if pageData}
+	{#if error}
+		<div class="error-container">
+			<ErrorBox title="File Error">{error}</ErrorBox>
+		</div>
+	{:else if pageData}
 		<div class="view-header">
 			<h2 class="view-title" title={file.title.replace('.md', '')}>
 				{file.title.replace('.md', '')}
@@ -207,5 +204,10 @@
 
 	.preview-pane.full-width {
 		flex-basis: 100%;
+	}
+
+	.error-container {
+		padding: 2rem;
+		width: 100%;
 	}
 </style>

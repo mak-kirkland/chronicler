@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tags } from '$lib/stores';
 	import { navigateToTag } from '$lib/actions'; // Import the new centralized action
+	import ErrorBox from './ErrorBox.svelte';
 
 	// The props and local state remain the same
 	let { data, imageUrl } = $props<{ data: any; imageUrl: string | null }>();
@@ -41,14 +42,13 @@
 	{/if}
 
 	{#if imageError}
-		<div class="error-box">Could not load image: "{data.image}"</div>
+		<ErrorBox title="Image Error">Could not load image: "{data.image}"</ErrorBox>
 	{/if}
 
 	{#if data?.error}
-		<div class="error-box">
-			<strong>YAML Parse Error:</strong>
+		<ErrorBox title="YAML Parse Error">
 			{data.details || data.error}
-		</div>
+		</ErrorBox>
 	{/if}
 
 	{#if data?.infobox}
@@ -89,7 +89,7 @@
 </div>
 
 <style>
-	/* All styles remain exactly the same */
+	/* All styles remain exactly the same, except for the removed .error-box */
 	.infobox {
 		background-color: rgba(0, 0, 0, 0.03);
 		border: 1px solid var(--border-color);
@@ -103,15 +103,6 @@
 		border-radius: 4px;
 		margin-bottom: 1rem;
 		border: 1px solid var(--border-color);
-	}
-	.error-box {
-		background-color: rgba(139, 0, 0, 0.1);
-		color: darkred;
-		padding: 0.75rem;
-		border-radius: 4px;
-		margin-bottom: 1rem;
-		font-size: 0.85rem;
-		border: 1px solid rgba(139, 0, 0, 0.2);
 	}
 	.no-fields-message {
 		font-style: italic;
