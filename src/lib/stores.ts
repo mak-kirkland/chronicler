@@ -62,15 +62,15 @@ async function loadSidebarData() {
 }
 
 export async function initializeSidebar() {
-    if (sidebarInitialized) return;
-    sidebarInitialized = true;
+	if (sidebarInitialized) return;
+	sidebarInitialized = true;
 
-    await loadSidebarData();
+	await loadSidebarData();
 
-    unlisten = await listen('index-updated', () => {
-        console.log('Index update received from backend, refreshing sidebar data...');
-        loadSidebarData();
-    });
+	unlisten = await listen('index-updated', () => {
+		console.log('Index update received from backend, refreshing sidebar data...');
+		loadSidebarData();
+	});
 }
 
 /**
@@ -105,8 +105,8 @@ export function resetAllStores() {
 	fileViewMode.set('preview');
 	rightSidebar.set(initialRightSidebarState);
 	sidebarInitialized = false;
-	if(unlisten) {
-          unlisten();
-          unlisten = null;
-        }
+	if (unlisten) {
+		unlisten();
+		unlisten = null;
+	}
 }
