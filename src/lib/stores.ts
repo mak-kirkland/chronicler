@@ -1,5 +1,7 @@
-import type { FileNode, PageHeader } from './bindings';
 import { writable, type Writable } from 'svelte/store';
+import type { FileNode, PageHeader, TagMap } from './bindings';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 /**
  * Represents the overall status of the application, determining which main view to show.
@@ -36,12 +38,40 @@ export const currentView: Writable<ViewState> = writable({ type: 'welcome' });
 /**
  * The file tree structure of the vault.
  */
-export const fileTree: Writable<FileNode | null> = writable(null);
+export const fileTree = writable<FileNode | null>(null);
 
 /**
  * A list of all tags and the pages they appear on.
  */
-export const tags: Writable<[string, string[]][]> = writable([]);
+export const tags = writable<TagMap>([]);
+
+let sidebarInitialized = false;
+let unlisten: (() => void) | null = null;
+
+async function loadSidebarData() {
+	try {
+		const [tree, sortedTags] = await Promise.all([
+			invoke<FileNode>('get_file_tree'),
+			invoke<TagMap>('get_all_tags')
+		]);
+		fileTree.set(tree);
+		tags.set(sortedTags);
+	} catch (e) {
+		console.error('Failed to load sidebar data:', e);
+	}
+}
+
+export async function initializeSidebar() {
+    if (sidebarInitialized) return;
+    sidebarInitialized = true;
+
+    await loadSidebarData();
+
+    unlisten = await listen('index-updated', () => {
+        console.log('Index update received from backend, refreshing sidebar data...');
+        loadSidebarData();
+    });
+}
 
 /**
  * This store manages the view mode (split or preview) for files.
@@ -63,4 +93,9 @@ export function resetAllStores() {
 	fileViewMode.set('preview');
 	isRightSidebarVisible.set(false);
 	activeBacklinks.set([]);
+	sidebarInitialized = false;
+	if(unlisten) {
+          unlisten();
+          unlisten = null;
+        }
 }

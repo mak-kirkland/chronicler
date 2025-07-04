@@ -1,11 +1,9 @@
 <script lang="ts">
-	import { invoke } from '@tauri-apps/api/core';
-	import { fileTree, tags, appStatus, resetAllStores, currentView } from '$lib/stores';
+	import { fileTree, tags, appStatus, resetAllStores, currentView, initializeSidebar } from '$lib/stores';
 	import type { FileNode, TagMap, PageHeader } from '$lib/bindings';
 	import FileExplorer from './FileExplorer.svelte';
 	import TagList from './TagList.svelte';
 	import { onMount } from 'svelte';
-	import { listen } from '@tauri-apps/api/event';
 	import SettingsModal from './SettingsModal.svelte';
 	import CreateFileModal from './CreateFileModal.svelte';
 	import Button from './Button.svelte';
@@ -17,34 +15,8 @@
 	let showSettings = $state(false);
 	let showCreateFile = $state(false);
 
-	async function loadSidebarData() {
-		try {
-			const [tree, sortedTags] = await Promise.all([
-				invoke<FileNode>('get_file_tree'),
-				invoke<TagMap>('get_all_tags')
-			]);
-			fileTree.set(tree);
-			tags.set(sortedTags);
-		} catch (e) {
-			console.error('Failed to load sidebar data:', e);
-		}
-	}
-
 	onMount(() => {
-		let unlistenFn: () => void;
-		loadSidebarData();
-		const setupListener = async () => {
-			unlistenFn = await listen('index-updated', () => {
-				console.log('Index update received from backend, refreshing sidebar data...');
-				loadSidebarData();
-			});
-		};
-		setupListener();
-		return () => {
-			if (unlistenFn) {
-				unlistenFn();
-			}
-		};
+		initializeSidebar();
 	});
 
 	function handleChangeVault() {
