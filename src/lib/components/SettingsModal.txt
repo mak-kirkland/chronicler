@@ -1,9 +1,9 @@
 <script lang="ts">
 	import Modal from './Modal.svelte';
 	import Button from './Button.svelte';
-	import { invoke } from '@tauri-apps/api/core';
 	import { open } from '@tauri-apps/plugin-dialog';
-	import { appStatus, initializeSidebar } from '$lib/stores';
+	import { initializeSidebar } from '$lib/stores';
+	import { isPandocInstalled, downloadPandoc, importDocxFiles } from '$lib/commands';
 
 	let {
 		onClose = () => {},
@@ -18,8 +18,8 @@
 	let importMessage = $state<string | null>(null);
 
 	$effect(() => {
-		invoke('is_pandoc_installed').then((installed) => {
-			pandocInstalled = installed as boolean;
+		isPandocInstalled().then((installed) => {
+			pandocInstalled = installed;
 		}).catch(err => {
 			console.error("Failed to check pandoc status:", err);
 			pandocInstalled = false;
@@ -38,7 +38,7 @@
 		isInstalling = true;
 		importMessage = 'Downloading and setting up Pandoc...';
 		try {
-			await invoke('download_pandoc');
+			await downloadPandoc();
 			pandocInstalled = true;
 			importMessage = 'Pandoc installed successfully! You can now import files.';
 		} catch (e) {
@@ -52,6 +52,7 @@
 	async function importFiles() {
 		if (!pandocInstalled) {
 			await installPandoc();
+			// If installation was successful, the user can click again to import.
 			return;
 		}
 
@@ -63,9 +64,7 @@
 
 			if (Array.isArray(selected) && selected.length > 0) {
 				importMessage = `Importing ${selected.length} file(s)...`;
-				await invoke('import_docx_files', {
-					docxPaths: selected
-				});
+				await importDocxFiles(selected);
 
 				// Manually trigger a sidebar refresh after import
 				await initializeSidebar();
