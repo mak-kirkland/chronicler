@@ -46,6 +46,28 @@ pub enum ChroniclerError {
 
     #[error("File already exists: {0:?}")]
     FileAlreadyExists(PathBuf),
+
+    // Importer Errors
+    #[error("Pandoc conversion failed for file: {0}")]
+    PandocConversionFailed(String),
+
+    #[error("Unsupported architecture for Pandoc download: {0}")]
+    UnsupportedPandocArch(String),
+
+    #[error("Invalid path provided: {0:?}")]
+    InvalidPath(PathBuf),
+
+    #[error("Network request failed: {0}")]
+    Network(#[from] reqwest::Error),
+
+    #[error("Archive extraction failed: {0}")]
+    ArchiveExtractionFailed(String),
+
+    #[error("Could not find the pandoc executable in the expected directory.")]
+    PandocNotFound,
+
+    #[error("Glob pattern error: {0}")]
+    Glob(#[from] glob::PatternError),
 }
 
 // We need to implement Serialize for the error type to be able to return

@@ -7,6 +7,7 @@ use crate::models::FullPageData;
 use crate::{
     config,
     error::Result,
+    importer,
     models::{FileNode, PageHeader, RenderedPage},
     world::World,
 };
@@ -94,4 +95,26 @@ pub fn create_new_file(
 #[instrument(skip(world))]
 pub fn get_all_directory_paths(world: State<RwLock<World>>) -> Result<Vec<PathBuf>> {
     world.read().get_all_directory_paths()
+}
+
+#[command]
+#[instrument(skip(app_handle))]
+pub fn is_pandoc_installed(app_handle: AppHandle) -> Result<bool> {
+    importer::is_pandoc_installed(&app_handle)
+}
+
+#[command]
+#[instrument(skip(app_handle))]
+pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
+    importer::download_pandoc(app_handle).await
+}
+
+#[command]
+#[instrument(skip(world, app_handle))]
+pub fn import_docx_files(
+    world: State<RwLock<World>>,
+    app_handle: AppHandle,
+    docx_paths: Vec<PathBuf>,
+) -> Result<Vec<PathBuf>> {
+    world.write().import_docx_files(&app_handle, docx_paths)
 }

@@ -5,6 +5,7 @@
 use crate::{
     config,
     error::Result,
+    importer,
     indexer::Indexer,
     models::{FileNode, FullPageData, PageHeader, RenderedPage},
     renderer::Renderer,
@@ -139,6 +140,28 @@ impl World {
             }
         }
         tracing::info!("File event processing task stopped");
+    }
+
+    /// Converts docx files and adds them to the vault, then updates the index.
+    pub fn import_docx_files(
+        &mut self,
+        app_handle: &AppHandle,
+        docx_paths: Vec<PathBuf>,
+    ) -> Result<Vec<PathBuf>> {
+        let output_dir = self
+            .root_path
+            .clone()
+            .ok_or(crate::error::ChroniclerError::VaultNotInitialized)?;
+
+        let converted_paths =
+            importer::convert_docx_to_markdown(app_handle, docx_paths, output_dir)?;
+
+        let mut indexer = self.indexer.write();
+        for path in &converted_paths {
+            indexer.update_file(path);
+        }
+
+        Ok(converted_paths)
     }
 
     /// Returns all tags and the pages that reference them.

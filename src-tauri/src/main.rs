@@ -17,6 +17,7 @@ mod commands;
 mod config;
 mod error;
 mod events;
+mod importer;
 mod indexer;
 mod models;
 mod parser;
@@ -57,6 +58,9 @@ fn main() {
             commands::get_file_tree,
             commands::create_new_file,
             commands::get_all_directory_paths,
+            commands::is_pandoc_installed,
+            commands::download_pandoc,
+            commands::import_docx_files,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);
