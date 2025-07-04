@@ -9,6 +9,7 @@
 	import SettingsModal from './SettingsModal.svelte';
 	import CreateFileModal from './CreateFileModal.svelte';
 	import Button from './Button.svelte';
+	import SearchInput from './SearchInput.svelte';
 
 	let { width = $bindable() } = $props();
 	let activeTab = $state<'files' | 'tags'>('files');
@@ -75,14 +76,10 @@
 		<h1 class="title">Chronicler</h1>
 	</div>
 
-	<div class="search-container">
-		<input
-			type="search"
-			bind:value={searchTerm}
-			placeholder={activeTab === 'files' ? 'Search files...' : 'Search tags...'}
-			class="search-input"
-		/>
-	</div>
+	<SearchInput
+		bind:value={searchTerm}
+		placeholder={activeTab === 'files' ? 'Search files...' : 'Search tags...'}
+	/>
 
 	<div class="tab-navigation">
 		<button class:active={activeTab === 'files'} onclick={() => (activeTab = 'files')}>
@@ -132,24 +129,6 @@
 		margin: 0;
 		font-size: 2rem;
 		color: var(--ink-light);
-	}
-	.search-container {
-		padding: 0.75rem;
-		border-bottom: 1px solid var(--border-color);
-	}
-	.search-input {
-		width: 100%;
-		padding: 0.5rem 0.75rem;
-		border-radius: 6px;
-		border: 1px solid var(--border-color);
-		background-color: var(--parchment);
-		color: var(--ink);
-		font-family: 'IM Fell English', serif;
-		font-size: 0.95rem;
-	}
-	.search-input:focus {
-		outline: 1px solid var(--accent-color);
-		border-color: var(--accent-color);
 	}
 	.tab-navigation {
 		display: flex;
