@@ -2,14 +2,16 @@
 	import Editor from '$lib/components/Editor.svelte';
 	import Preview from '$lib/components/Preview.svelte';
 	import Button from '$lib/components/Button.svelte';
+	import ErrorBox from '$lib/components/ErrorBox.svelte';
 	import { invoke } from '@tauri-apps/api/core';
 	import type { PageHeader, FullPageData, RenderedPage, FileNode } from '$lib/bindings';
 	import { onDestroy } from 'svelte';
-	import { fileViewMode, currentView, isRightSidebarVisible, activeBacklinks, fileTree } from '$lib/stores';
+	import { fileViewMode, currentView, rightSidebar, fileTree } from '$lib/stores';
 
 	let { file } = $props<{ file: PageHeader }>();
 
 	let pageData = $state<FullPageData | null>(null);
+	let error = $state<string | null>(null);
 	let pristineContent = $state<string | undefined>(undefined);
 	let saveTimeout: number;
 
@@ -28,28 +30,21 @@
 
 	$effect(() => {
 		pageData = null;
+		error = null;
 		pristineContent = undefined;
-		activeBacklinks.set([]);
+		// Reset backlinks when navigating to a new file
+		rightSidebar.update((state) => ({ ...state, backlinks: [] }));
 
 		invoke<FullPageData>('build_page_view', { path: file.path })
 			.then((data) => {
 				pageData = data;
 				pristineContent = data.raw_content;
-				activeBacklinks.set(data.backlinks);
+				// Update the backlinks in the store
+				rightSidebar.update((state) => ({ ...state, backlinks: data.backlinks }));
 			})
 			.catch((e) => {
 				console.error('Failed to get page data:', e);
-				const errorHtml = `<div class="error-box">Error loading page: ${e}</div>`;
-				pageData = {
-					raw_content: `# Error\n\nCould not load file: ${file.path}`,
-					rendered_page: {
-						processed_frontmatter: null,
-						rendered_html: errorHtml,
-						infobox_image_path: undefined
-					},
-					backlinks: []
-				};
-				pristineContent = pageData.raw_content;
+				error = `Could not load file: ${e}`;
 			});
 	});
 
@@ -91,20 +86,24 @@
 </script>
 
 <div class="file-view-container">
-	{#if pageData}
+	{#if error}
+		<div class="error-container">
+			<ErrorBox title="File Error">{error}</ErrorBox>
+		</div>
+	{:else if pageData}
 		<div class="view-header">
 			<h2 class="view-title" title={file.title.replace('.md', '')}>
 				{file.title.replace('.md', '')}
 			</h2>
 
 			<div class="view-actions">
-				{#if $activeBacklinks.length > 0}
+				{#if $rightSidebar.backlinks.length > 0}
 					<Button
 						size="small"
-						on:click={() => isRightSidebarVisible.set(!$isRightSidebarVisible)}
+						on:click={() => rightSidebar.update((state) => ({ ...state, isVisible: !state.isVisible }))}
 						title="Toggle Backlinks"
 					>
-						🔗 {$activeBacklinks.length}
+						🔗 {$rightSidebar.backlinks.length}
 					</Button>
 				{/if}
 
@@ -207,5 +206,10 @@
 
 	.preview-pane.full-width {
 		flex-basis: 100%;
+	}
+
+	.error-container {
+		padding: 2rem;
+		width: 100%;
 	}
 </style>

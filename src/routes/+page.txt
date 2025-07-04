@@ -1,10 +1,5 @@
 <script lang="ts">
-	import {
-		currentView,
-		tags,
-		fileViewMode,
-		isRightSidebarVisible
-	} from '$lib/stores';
+	import { currentView, tags, fileViewMode, rightSidebar } from '$lib/stores';
 	import type { PageHeader, TagMap } from '$lib/bindings';
 	import TagIndexView from '$lib/components/TagIndexView.svelte';
 	import FileView from '$lib/components/FileView.svelte';
@@ -46,12 +41,12 @@
 		}
 	});
 
-	// This effect resets the file view mode to 'preview' whenever the user
-	// navigates away from the file view (e.g., to the welcome screen or a tag index).
+	// This effect resets the file view mode and hides the right sidebar
+	// whenever the user navigates away from the file view.
 	$effect(() => {
 		if ($currentView.type !== 'file') {
 			$fileViewMode = 'preview';
-			isRightSidebarVisible.set(false); // Close right sidebar when leaving file view
+			rightSidebar.update((state) => ({ ...state, isVisible: false }));
 		}
 	});
 </script>
@@ -70,10 +65,9 @@
 	<FileView file={$currentView.data} />
 {/if}
 
-{#if $isRightSidebarVisible}
+{#if $rightSidebar.isVisible}
 	<BacklinksPanel />
 {/if}
-
 
 <style>
 	.tag-view-pane {

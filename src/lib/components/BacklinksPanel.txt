@@ -1,24 +1,26 @@
 <script lang="ts">
-	import { activeBacklinks, currentView, isRightSidebarVisible } from '$lib/stores';
+	import { rightSidebar, currentView } from '$lib/stores';
 	import type { PageHeader } from '$lib/bindings';
 
 	function handleLinkClick(file: PageHeader) {
 		// When a backlink is clicked, navigate to that file.
 		currentView.set({ type: 'file', data: file });
 	}
+
+	function closePanel() {
+		rightSidebar.update((state) => ({ ...state, isVisible: false }));
+	}
 </script>
 
 <aside class="right-sidebar">
 	<div class="sidebar-header">
 		<h3>Backlinks</h3>
-		<button class="close-btn" onclick={() => isRightSidebarVisible.set(false)} title="Close Panel">
-			&times;
-		</button>
+		<button class="close-btn" onclick={closePanel} title="Close Panel"> &times; </button>
 	</div>
 	<div class="sidebar-content">
-		{#if $activeBacklinks.length > 0}
+		{#if $rightSidebar.backlinks.length > 0}
 			<ul>
-				{#each $activeBacklinks as link (link.path)}
+				{#each $rightSidebar.backlinks as link (link.path)}
 					<li>
 						<button class="link-button" onclick={() => handleLinkClick(link)}>
 							{link.title.replace('.md', '')}

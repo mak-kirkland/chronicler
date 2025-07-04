@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { invoke } from '@tauri-apps/api/core';
 	import { appStatus, resetAllStores } from '$lib/stores';
+	import { initializeVault } from '$lib/actions';
 	import VaultSelector from '$lib/components/VaultSelector.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import '../app.css';
@@ -11,6 +12,7 @@
 	let errorMessage = $state<string | null>(null);
 
 	onMount(async () => {
+		errorMessage = null;
 		try {
 			const path = await invoke<string | null>('get_vault_path');
 			if (path) {
@@ -18,28 +20,21 @@
 			} else {
 				$appStatus = 'selecting_vault';
 			}
-		} catch (e) {
-			console.error('Failed to get vault path on startup:', e);
-			errorMessage = `Failed to read configuration: ${e}`;
+		} catch (e: any) {
+			console.error('Failed during startup initialization:', e);
+			errorMessage = e.message || `Failed to read configuration: ${e}`;
 			$appStatus = 'error';
 		}
 	});
 
-	async function initializeVault(path: string) {
-		$appStatus = 'loading';
+	async function handleVaultSelected(path: string) {
 		errorMessage = null;
 		try {
-			await invoke('initialize_vault', { path });
-			$appStatus = 'ready';
-		} catch (e) {
-			console.error(`Failed to initialize vault at ${path}:`, e);
-			errorMessage = `Could not open vault at "${path}". Please ensure it is a valid directory. Error: ${e}`;
+			await initializeVault(path);
+		} catch (e: any) {
+			errorMessage = e.message;
 			$appStatus = 'error';
 		}
-	}
-
-	function handleVaultSelected(path: string) {
-		initializeVault(path);
 	}
 
 	function handleTryAgain() {
@@ -48,9 +43,9 @@
 	}
 
 	function startResize(event: MouseEvent) {
-	        isResizing = true;
-                // Add the passive option for better scroll performance during resize.
-	        window.addEventListener('mousemove', doResize, { passive: true });
+		isResizing = true;
+		// Add the passive option for better scroll performance during resize.
+		window.addEventListener('mousemove', doResize, { passive: true });
 		window.addEventListener('mouseup', stopResize);
 	}
 

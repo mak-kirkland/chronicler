@@ -1,14 +1,13 @@
 <script lang="ts">
-	import { invoke } from '@tauri-apps/api/core';
-	import { fileTree, tags, appStatus, resetAllStores, currentView } from '$lib/stores';
+	import { fileTree, tags, appStatus, resetAllStores, currentView, initializeSidebar } from '$lib/stores';
 	import type { FileNode, TagMap, PageHeader } from '$lib/bindings';
 	import FileExplorer from './FileExplorer.svelte';
 	import TagList from './TagList.svelte';
 	import { onMount } from 'svelte';
-	import { listen } from '@tauri-apps/api/event';
 	import SettingsModal from './SettingsModal.svelte';
 	import CreateFileModal from './CreateFileModal.svelte';
 	import Button from './Button.svelte';
+	import SearchInput from './SearchInput.svelte';
 
 	let { width = $bindable() } = $props();
 	let activeTab = $state<'files' | 'tags'>('files');
@@ -16,34 +15,8 @@
 	let showSettings = $state(false);
 	let showCreateFile = $state(false);
 
-	async function loadSidebarData() {
-		try {
-			const [tree, sortedTags] = await Promise.all([
-				invoke<FileNode>('get_file_tree'),
-				invoke<TagMap>('get_all_tags')
-			]);
-			fileTree.set(tree);
-			tags.set(sortedTags);
-		} catch (e) {
-			console.error('Failed to load sidebar data:', e);
-		}
-	}
-
 	onMount(() => {
-		let unlistenFn: () => void;
-		loadSidebarData();
-		const setupListener = async () => {
-			unlistenFn = await listen('index-updated', () => {
-				console.log('Index update received from backend, refreshing sidebar data...');
-				loadSidebarData();
-			});
-		};
-		setupListener();
-		return () => {
-			if (unlistenFn) {
-				unlistenFn();
-			}
-		};
+		initializeSidebar();
 	});
 
 	function handleChangeVault() {
@@ -75,14 +48,10 @@
 		<h1 class="title">Chronicler</h1>
 	</div>
 
-	<div class="search-container">
-		<input
-			type="search"
-			bind:value={searchTerm}
-			placeholder={activeTab === 'files' ? 'Search files...' : 'Search tags...'}
-			class="search-input"
-		/>
-	</div>
+	<SearchInput
+		bind:value={searchTerm}
+		placeholder={activeTab === 'files' ? 'Search files...' : 'Search tags...'}
+	/>
 
 	<div class="tab-navigation">
 		<button class:active={activeTab === 'files'} onclick={() => (activeTab = 'files')}>
@@ -132,24 +101,6 @@
 		margin: 0;
 		font-size: 2rem;
 		color: var(--ink-light);
-	}
-	.search-container {
-		padding: 0.75rem;
-		border-bottom: 1px solid var(--border-color);
-	}
-	.search-input {
-		width: 100%;
-		padding: 0.5rem 0.75rem;
-		border-radius: 6px;
-		border: 1px solid var(--border-color);
-		background-color: var(--parchment);
-		color: var(--ink);
-		font-family: 'IM Fell English', serif;
-		font-size: 0.95rem;
-	}
-	.search-input:focus {
-		outline: 1px solid var(--accent-color);
-		border-color: var(--accent-color);
 	}
 	.tab-navigation {
 		display: flex;
