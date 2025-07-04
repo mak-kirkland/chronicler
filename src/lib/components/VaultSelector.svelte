@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from './Button.svelte';
 	import { open } from '@tauri-apps/plugin-dialog';
 
 	let { onVaultSelected = (path: string) => {} } = $props<{
@@ -25,7 +26,9 @@
 	<img src="/compass.svg" alt="Compass" class="welcome-icon" />
 	<h1 class="welcome-title">Chronicler</h1>
 	<p class="welcome-text">Please select a folder to use as your worldbuilding vault.</p>
-	<button class="select-button" onclick={selectVault}> Choose Vault Folder </button>
+	<Button on:click={selectVault}>
+		Change Vault Folder
+	</Button>
 </div>
 
 <style>
@@ -56,22 +59,5 @@
 	.welcome-text {
 		font-size: 1.2rem;
 		margin-bottom: 2rem;
-	}
-	.select-button {
-		padding: 0.75rem 1.5rem;
-		background-color: var(--accent-color);
-		color: var(--parchment);
-		border: 1px solid rgba(211, 199, 179, 0.5);
-		border-radius: 6px;
-		cursor: pointer;
-		font-family: 'IM Fell English', serif;
-		font-size: 1.1rem;
-		transition: all 0.2s;
-		box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-	}
-	.select-button:hover {
-		background-color: #a0522d; /* Slightly lighter accent */
-		transform: translateY(-2px);
-		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 	}
 </style>
