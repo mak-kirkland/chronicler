@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { invoke } from '@tauri-apps/api/core';
 	import type { PageHeader } from '$lib/bindings';
 	import Modal from './Modal.svelte';
 	import Button from './Button.svelte';
+	import { createNewFile, getAllDirectoryPaths, getVaultPath } from '$lib/commands';
 
 	let {
 		onClose = () => {},
@@ -22,14 +22,17 @@
 
 	onMount(async () => {
 		try {
-			const dirs = await invoke<string[]>('get_all_directory_paths');
-			const root = await invoke<string | null>('get_vault_path');
+			const dirs = await getAllDirectoryPaths();
+			const root = await getVaultPath();
 			if (root) {
 				vaultRoot = root;
+				// Normalize paths for display and set initial selection
 				directories = dirs
 					.map((d) => d.replace(root, '').replaceAll('\\', '/'))
 					.sort((a, b) => a.localeCompare(b));
-				selectedDir = dirs[0];
+				if (dirs.length > 0) {
+					selectedDir = dirs[0];
+				}
 			}
 		} catch (e) {
 			errorMessage = `Failed to load directories: ${e}`;
@@ -45,10 +48,7 @@
 		}
 		errorMessage = null;
 		try {
-			const newPage = await invoke<PageHeader>('create_new_file', {
-				parentDir: selectedDir,
-				fileName: fileName
-			});
+			const newPage = await createNewFile(selectedDir, fileName);
 			onFileCreated(newPage);
 			onClose();
 		} catch (e) {
@@ -75,7 +75,7 @@
 		<div class="form-group">
 			<label for="directory">Location</label>
 			<select id="directory" bind:value={selectedDir} class="select-input">
-				{#each directories as dir}
+				{#each directories as dir, i}
 					<option value={vaultRoot + dir}>{dir === '' ? '/' : dir}</option>
 				{/each}
 			</select>

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { invoke } from '@tauri-apps/api/core';
 	import { appStatus, resetAllStores } from '$lib/stores';
 	import { initializeVault } from '$lib/actions';
+	import { getVaultPath } from '$lib/commands';
 	import VaultSelector from '$lib/components/VaultSelector.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import '../app.css';
@@ -14,7 +14,7 @@
 	onMount(async () => {
 		errorMessage = null;
 		try {
-			const path = await invoke<string | null>('get_vault_path');
+			const path = await getVaultPath();
 			if (path) {
 				await initializeVault(path);
 			} else {

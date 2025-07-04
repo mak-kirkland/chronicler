@@ -1,13 +1,12 @@
-import { currentView, tags, appStatus } from '$lib/stores';
+import { currentView, appStatus } from '$lib/stores';
 import type { PageHeader, TagMap } from '$lib/bindings';
 import type { ViewState } from '$lib/stores';
-import { invoke } from '@tauri-apps/api/core';
+import { initializeVault as invokeInitializeVault } from './commands';
 
 /**
  * Navigates to the tag index view for the selected tag.
  * This is a centralized action to ensure consistent navigation behavior
- * from anywhere in the app. It takes the tag name and the full tag map
- * (which components can get reactively from the `$tags` store).
+ * from anywhere in the app.
  *
  * @param tagName The name of the tag to navigate to.
  * @param allTags The complete map of all tags and their associated page paths.
@@ -48,7 +47,7 @@ export function navigateToTag(tagName: string, allTags: TagMap) {
 export async function initializeVault(path: string) {
 	appStatus.set('loading');
 	try {
-		await invoke('initialize_vault', { path });
+		await invokeInitializeVault(path);
 		appStatus.set('ready');
 	} catch (e) {
 		console.error(`Failed to initialize vault at ${path}:`, e);

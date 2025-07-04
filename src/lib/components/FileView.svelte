@@ -3,10 +3,10 @@
 	import Preview from '$lib/components/Preview.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import ErrorBox from '$lib/components/ErrorBox.svelte';
-	import { invoke } from '@tauri-apps/api/core';
-	import type { PageHeader, FullPageData, RenderedPage, FileNode } from '$lib/bindings';
 	import { onDestroy } from 'svelte';
 	import { fileViewMode, currentView, rightSidebar, fileTree } from '$lib/stores';
+	import { buildPageView, writePageContent, renderPagePreview } from '$lib/commands';
+	import type { PageHeader, FullPageData, RenderedPage, FileNode } from '$lib/bindings';
 
 	let { file } = $props<{ file: PageHeader }>();
 
@@ -35,7 +35,7 @@
 		// Reset backlinks when navigating to a new file
 		rightSidebar.update((state) => ({ ...state, backlinks: [] }));
 
-		invoke<FullPageData>('build_page_view', { path: file.path })
+		buildPageView(file.path)
 			.then((data) => {
 				pageData = data;
 				pristineContent = data.raw_content;
@@ -58,10 +58,10 @@
 		const contentToSave = pageData.raw_content;
 
 		saveTimeout = window.setTimeout(() => {
-			invoke('write_page_content', { path, content: contentToSave })
+			writePageContent(path, contentToSave)
 				.then(() => {
 					pristineContent = contentToSave;
-					return invoke<RenderedPage>('render_page_preview', { content: contentToSave });
+					return renderPagePreview(contentToSave);
 				})
 				.then((newlyRenderedData) => {
 					if (pageData) {
@@ -74,6 +74,8 @@
 
 	$effect(() => {
 		const tree = $fileTree;
+		// If the file is deleted or renamed, it will no longer be in the tree.
+		// In that case, navigate back to the welcome screen.
 		if (tree && !findFileInTree(tree, file.path)) {
 			console.log(`Current file ${file.path} not found in tree after update. Closing view.`);
 			currentView.set({ type: 'welcome' });

@@ -1,7 +1,7 @@
 import { writable, type Writable } from 'svelte/store';
 import type { FileNode, PageHeader, TagMap } from './bindings';
-import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getFileTree, getAllTags } from './commands';
 
 /**
  * Represents the overall status of the application, determining which main view to show.
@@ -51,8 +51,8 @@ let unlisten: (() => void) | null = null;
 async function loadSidebarData() {
 	try {
 		const [tree, sortedTags] = await Promise.all([
-			invoke<FileNode>('get_file_tree'),
-			invoke<TagMap>('get_all_tags')
+			getFileTree(),
+			getAllTags()
 		]);
 		fileTree.set(tree);
 		tags.set(sortedTags);
@@ -67,6 +67,7 @@ export async function initializeSidebar() {
 
 	await loadSidebarData();
 
+	// Listen for backend events that signal the index has been updated
 	unlisten = await listen('index-updated', () => {
 		console.log('Index update received from backend, refreshing sidebar data...');
 		loadSidebarData();
