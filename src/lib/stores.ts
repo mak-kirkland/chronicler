@@ -78,9 +78,21 @@ export async function initializeSidebar() {
  */
 export const fileViewMode: Writable<'preview' | 'split'> = writable('preview');
 
-// Stores for the right-hand metadata panel (for backlinks, etc.)
-export const isRightSidebarVisible = writable(false);
-export const activeBacklinks = writable<PageHeader[]>([]);
+// --- Store for the Right Sidebar ---
+interface RightSidebarState {
+	isVisible: boolean;
+	backlinks: PageHeader[];
+}
+
+const initialRightSidebarState: RightSidebarState = {
+	isVisible: false,
+	backlinks: []
+};
+
+/**
+ * Manages the state of the right-hand metadata panel (for backlinks, etc.).
+ */
+export const rightSidebar = writable<RightSidebarState>(initialRightSidebarState);
 
 /**
  * Resets all data stores to their initial state.
@@ -91,8 +103,7 @@ export function resetAllStores() {
 	fileTree.set(null);
 	tags.set([]);
 	fileViewMode.set('preview');
-	isRightSidebarVisible.set(false);
-	activeBacklinks.set([]);
+	rightSidebar.set(initialRightSidebarState);
 	sidebarInitialized = false;
 	if(unlisten) {
           unlisten();

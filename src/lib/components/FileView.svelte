@@ -6,7 +6,7 @@
 	import { invoke } from '@tauri-apps/api/core';
 	import type { PageHeader, FullPageData, RenderedPage, FileNode } from '$lib/bindings';
 	import { onDestroy } from 'svelte';
-	import { fileViewMode, currentView, isRightSidebarVisible, activeBacklinks, fileTree } from '$lib/stores';
+	import { fileViewMode, currentView, rightSidebar, fileTree } from '$lib/stores';
 
 	let { file } = $props<{ file: PageHeader }>();
 
@@ -32,13 +32,15 @@
 		pageData = null;
 		error = null;
 		pristineContent = undefined;
-		activeBacklinks.set([]);
+		// Reset backlinks when navigating to a new file
+		rightSidebar.update((state) => ({ ...state, backlinks: [] }));
 
 		invoke<FullPageData>('build_page_view', { path: file.path })
 			.then((data) => {
 				pageData = data;
 				pristineContent = data.raw_content;
-				activeBacklinks.set(data.backlinks);
+				// Update the backlinks in the store
+				rightSidebar.update((state) => ({ ...state, backlinks: data.backlinks }));
 			})
 			.catch((e) => {
 				console.error('Failed to get page data:', e);
@@ -95,13 +97,13 @@
 			</h2>
 
 			<div class="view-actions">
-				{#if $activeBacklinks.length > 0}
+				{#if $rightSidebar.backlinks.length > 0}
 					<Button
 						size="small"
-						on:click={() => isRightSidebarVisible.set(!$isRightSidebarVisible)}
+						on:click={() => rightSidebar.update((state) => ({ ...state, isVisible: !state.isVisible }))}
 						title="Toggle Backlinks"
 					>
-						🔗 {$activeBacklinks.length}
+						🔗 {$rightSidebar.backlinks.length}
 					</Button>
 				{/if}
 
