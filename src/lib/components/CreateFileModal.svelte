@@ -3,6 +3,7 @@
 	import { invoke } from '@tauri-apps/api/core';
 	import type { PageHeader } from '$lib/bindings';
 	import Modal from './Modal.svelte';
+	import Button from './Button.svelte';
 
 	let {
 		onClose = () => {},
@@ -25,11 +26,10 @@
 			const root = await invoke<string | null>('get_vault_path');
 			if (root) {
 				vaultRoot = root;
-				// Sort and set directories, making them relative for display
 				directories = dirs
 					.map((d) => d.replace(root, '').replaceAll('\\', '/'))
 					.sort((a, b) => a.localeCompare(b));
-				selectedDir = dirs[0]; // Default to the root
+				selectedDir = dirs[0];
 			}
 		} catch (e) {
 			errorMessage = `Failed to load directories: ${e}`;
@@ -86,7 +86,7 @@
 		{/if}
 
 		<div class="modal-actions">
-			<button class="action-button" onclick={handleCreateFile}> Create </button>
+			<Button on:click={handleCreateFile}> Create </Button>
 		</div>
 	{/if}
 </Modal>
@@ -121,19 +121,6 @@
 		display: flex;
 		justify-content: flex-end;
 		margin-top: 1rem;
-	}
-	.action-button {
-		padding: 0.5rem 1.5rem;
-		background-color: var(--accent-color);
-		color: var(--parchment);
-		border: 1px solid rgba(211, 199, 179, 0.5);
-		border-radius: 6px;
-		cursor: pointer;
-		font-family: inherit;
-		font-size: 1rem;
-	}
-	.action-button:hover {
-		background-color: #a0522d;
 	}
 	.error-text {
 		color: darkred;

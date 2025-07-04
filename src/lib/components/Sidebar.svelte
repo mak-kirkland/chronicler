@@ -8,6 +8,7 @@
 	import { listen } from '@tauri-apps/api/event';
 	import SettingsModal from './SettingsModal.svelte';
 	import CreateFileModal from './CreateFileModal.svelte';
+	import Button from './Button.svelte';
 
 	let { width = $bindable() } = $props();
 	let activeTab = $state<'files' | 'tags'>('files');
@@ -17,7 +18,6 @@
 
 	async function loadSidebarData() {
 		try {
-			// Fetch both concurrently for a small performance boost
 			const [tree, sortedTags] = await Promise.all([
 				invoke<FileNode>('get_file_tree'),
 				invoke<TagMap>('get_all_tags')
@@ -31,21 +31,14 @@
 
 	onMount(() => {
 		let unlistenFn: () => void;
-
-		// Load initial data when the component mounts
 		loadSidebarData();
-
-		// Set up the listener for backend updates
 		const setupListener = async () => {
 			unlistenFn = await listen('index-updated', () => {
 				console.log('Index update received from backend, refreshing sidebar data...');
 				loadSidebarData();
 			});
 		};
-
 		setupListener();
-
-		// Svelte's onMount can return a cleanup function, which is equivalent to onDestroy
 		return () => {
 			if (unlistenFn) {
 				unlistenFn();
@@ -61,8 +54,6 @@
 
 	function handleFileCreated(page: PageHeader) {
 		showCreateFile = false;
-		// The file watcher will eventually update the file tree, but for
-		// immediate feedback, we can navigate to the new file right away.
 		currentView.set({ type: 'file', data: page });
 	}
 
@@ -76,10 +67,7 @@
 {/if}
 
 {#if showCreateFile}
-	<CreateFileModal
-		onClose={() => (showCreateFile = false)}
-		onFileCreated={handleFileCreated}
-	/>
+	<CreateFileModal onClose={() => (showCreateFile = false)} onFileCreated={handleFileCreated} />
 {/if}
 
 <aside style="width: {width}px;">
@@ -113,12 +101,12 @@
 	</div>
 
 	<div class="sidebar-footer">
-		<button class="action-btn" title="New Page" onclick={() => (showCreateFile = true)}>
+		<Button size="small" class="flex-grow" title="New Page" on:click={() => (showCreateFile = true)}>
 			+ New Page
-		</button>
-		<button class="settings-btn" title="Settings" onclick={() => (showSettings = true)}>
+		</Button>
+		<Button variant="ghost" title="Settings" on:click={() => (showSettings = true)}>
 			⚙️
-		</button>
+		</Button>
 	</div>
 </aside>
 
@@ -196,32 +184,7 @@
 		align-items: center;
 		gap: 0.5rem;
 	}
-	.settings-btn {
-		background: none;
-		border: none;
-		font-size: 1.5rem;
-		cursor: pointer;
-		color: var(--ink-light);
-		opacity: 0.7;
-		transition: opacity 0.2s;
-		padding: 0.25rem;
-	}
-	.settings-btn:hover {
-		opacity: 1;
-	}
-	.action-btn {
+	:global(.sidebar-footer .flex-grow) {
 		flex-grow: 1;
-		padding: 0.5rem 1rem;
-		background-color: rgba(74, 63, 53, 0.8);
-		color: var(--parchment);
-		border: 1px solid rgba(211, 199, 179, 0.5);
-		border-radius: 6px;
-		cursor: pointer;
-		font-family: 'IM Fell English', serif;
-		font-size: 0.9rem;
-		transition: background-color 0.2s;
-	}
-	.action-btn:hover {
-		background-color: var(--ink);
 	}
 </style>

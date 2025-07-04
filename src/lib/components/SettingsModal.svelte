@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Modal from './Modal.svelte';
+	import Button from './Button.svelte';
 
 	let {
 		onClose = () => {},
@@ -11,27 +12,22 @@
 </script>
 
 <Modal title="Settings" {onClose}>
-	<p>Manage your application settings here.</p>
-	<button class="action-button" onclick={onChangeVault}>
-		Change Vault Folder
-	</button>
+	<div class="setting-item">
+		<p>Change the root folder for your notes.</p>
+		<Button on:click={onChangeVault}>
+			Change Vault Folder
+		</Button>
+	</div>
 </Modal>
 
 <style>
-	p {
-		margin-bottom: 0; /* Adjusted from 1.5rem to look better with the new layout */
+	.setting-item {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
-	.action-button {
-		padding: 0.5rem 1rem;
-		background-color: var(--accent-color);
-		color: var(--parchment);
-		border: 1px solid rgba(211, 199, 179, 0.5);
-		border-radius: 6px;
-		cursor: pointer;
-		font-family: inherit;
-		font-size: 1rem;
-	}
-	.action-button:hover {
-		background-color: #a0522d;
+	.setting-item p {
+		margin: 0;
+		color: var(--ink-light);
 	}
 </style>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Editor from '$lib/components/Editor.svelte';
 	import Preview from '$lib/components/Preview.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import { invoke } from '@tauri-apps/api/core';
 	import type { PageHeader, FullPageData, RenderedPage, FileNode } from '$lib/bindings';
 	import { onDestroy } from 'svelte';
@@ -12,12 +13,10 @@
 	let pristineContent = $state<string | undefined>(undefined);
 	let saveTimeout: number;
 
-	// Helper function to check if a file path exists in the file tree.
 	function findFileInTree(node: FileNode | null, path: string): boolean {
 		if (!node) return false;
 		if (node.path === path) return true;
 		if (node.children) {
-			// Use a for...of loop for better performance and readability
 			for (const child of node.children) {
 				if (findFileInTree(child, path)) {
 					return true;
@@ -27,18 +26,16 @@
 		return false;
 	}
 
-	// This effect fetches the page data whenever the file prop changes.
 	$effect(() => {
-		// Reset state for the new file
 		pageData = null;
 		pristineContent = undefined;
-		activeBacklinks.set([]); // Clear backlinks for the new page
+		activeBacklinks.set([]);
 
 		invoke<FullPageData>('build_page_view', { path: file.path })
 			.then((data) => {
 				pageData = data;
 				pristineContent = data.raw_content;
-				activeBacklinks.set(data.backlinks); // Set backlinks for the new page
+				activeBacklinks.set(data.backlinks);
 			})
 			.catch((e) => {
 				console.error('Failed to get page data:', e);
@@ -56,7 +53,6 @@
 			});
 	});
 
-	// The autosave effect re-renders the preview after a successful save.
 	$effect(() => {
 		if (!pageData || pageData.raw_content === pristineContent) {
 			return;
@@ -70,8 +66,6 @@
 			invoke('write_page_content', { path, content: contentToSave })
 				.then(() => {
 					pristineContent = contentToSave;
-					// After saving, re-render the content to update the preview.
-					// We only need the rendered part, not the full page data again.
 					return invoke<RenderedPage>('render_page_preview', { content: contentToSave });
 				})
 				.then((newlyRenderedData) => {
@@ -83,15 +77,10 @@
 		}, 500);
 	});
 
-	// This reactive effect runs whenever the fileTree store changes.
-	// It checks if the current file has been deleted/renamed and closes the view if so.
 	$effect(() => {
-		// Create a dependency on the $fileTree store.
 		const tree = $fileTree;
 		if (tree && !findFileInTree(tree, file.path)) {
-			console.log(
-				`Current file ${file.path} not found in tree after update. Closing view.`
-			);
+			console.log(`Current file ${file.path} not found in tree after update. Closing view.`);
 			currentView.set({ type: 'welcome' });
 		}
 	});
@@ -103,7 +92,6 @@
 
 <div class="file-view-container">
 	{#if pageData}
-		<!-- A single header for all modes, positioned absolutely -->
 		<div class="view-header">
 			<h2 class="view-title" title={file.title.replace('.md', '')}>
 				{file.title.replace('.md', '')}
@@ -111,28 +99,27 @@
 
 			<div class="view-actions">
 				{#if $activeBacklinks.length > 0}
-					<button
-						class="pane-header-btn"
-						onclick={() => isRightSidebarVisible.set(!$isRightSidebarVisible)}
+					<Button
+						size="small"
+						on:click={() => isRightSidebarVisible.set(!$isRightSidebarVisible)}
 						title="Toggle Backlinks"
 					>
 						🔗 {$activeBacklinks.length}
-					</button>
+					</Button>
 				{/if}
 
 				{#if $fileViewMode === 'split'}
-					<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'preview')}>
+					<Button size="small" on:click={() => ($fileViewMode = 'preview')}>
 						📖 Preview Only
-					</button>
+					</Button>
 				{:else}
-					<button class="mode-toggle-btn" onclick={() => ($fileViewMode = 'split')}>
+					<Button size="small" on:click={() => ($fileViewMode = 'split')}>
 						✏️ Edit
-					</button>
+					</Button>
 				{/if}
 			</div>
 		</div>
 
-		<!-- Content panes below the header -->
 		<div class="content-panes">
 			{#if $fileViewMode === 'split'}
 				<div class="editor-pane">
@@ -152,7 +139,7 @@
 
 <style>
 	.file-view-container {
-		position: relative; /* Needed for absolute positioning of the header */
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		width: 100%;
@@ -168,12 +155,12 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 0 2rem;
-		background-color: rgba(253, 246, 227, 0.85); /* Semi-transparent parchment */
+		background-color: rgba(253, 246, 227, 0.85);
 		backdrop-filter: blur(4px);
 		-webkit-backdrop-filter: blur(4px);
 		border-bottom: 1px solid var(--border-color);
-		z-index: 20; /* Ensure it's above content */
-		height: 60px; /* Give it a fixed height */
+		z-index: 20;
+		height: 60px;
 		box-sizing: border-box;
 	}
 
@@ -199,7 +186,7 @@
 	.content-panes {
 		display: flex;
 		flex-grow: 1;
-		padding-top: 60px; /* Match header height */
+		padding-top: 60px;
 		height: 100%;
 		box-sizing: border-box;
 		overflow: hidden;
@@ -220,22 +207,5 @@
 
 	.preview-pane.full-width {
 		flex-basis: 100%;
-	}
-
-	.mode-toggle-btn,
-	.pane-header-btn {
-		padding: 0.5rem 1rem;
-		background-color: rgba(74, 63, 53, 0.8);
-		color: var(--parchment);
-		border: 1px solid rgba(211, 199, 179, 0.5);
-		border-radius: 6px;
-		cursor: pointer;
-		font-family: 'IM Fell English', serif;
-		font-size: 0.9rem;
-		transition: background-color 0.2s;
-	}
-	.mode-toggle-btn:hover,
-	.pane-header-btn:hover {
-		background-color: var(--ink);
 	}
 </style>
