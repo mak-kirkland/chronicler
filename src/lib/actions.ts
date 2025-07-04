@@ -1,6 +1,7 @@
-import { currentView, tags } from '$lib/stores';
+import { currentView, tags, appStatus } from '$lib/stores';
 import type { PageHeader, TagMap } from '$lib/bindings';
 import type { ViewState } from '$lib/stores';
+import { invoke } from '@tauri-apps/api/core';
 
 /**
  * Navigates to the tag index view for the selected tag.
@@ -11,7 +12,7 @@ import type { ViewState } from '$lib/stores';
  * @param tagName The name of the tag to navigate to.
  * @param allTags The complete map of all tags and their associated page paths.
  */
-export function navigateToTag(tagName:string, allTags: TagMap) {
+export function navigateToTag(tagName: string, allTags: TagMap) {
 	const tagData = allTags.find(([name]) => name === tagName);
 
 	if (!tagData) {
@@ -36,4 +37,22 @@ export function navigateToTag(tagName:string, allTags: TagMap) {
 	};
 
 	currentView.set(newView);
+}
+
+/**
+ * Initializes the vault at the given path.
+ * This sets the app status, calls the backend, and handles success/error states.
+ * On failure, it throws an error to be caught by the calling component.
+ * @param path The absolute path to the vault folder.
+ */
+export async function initializeVault(path: string) {
+	appStatus.set('loading');
+	try {
+		await invoke('initialize_vault', { path });
+		appStatus.set('ready');
+	} catch (e) {
+		console.error(`Failed to initialize vault at ${path}:`, e);
+		// Re-throw the error so the calling component can handle it (e.g., display a message)
+		throw new Error(`Could not open vault at "${path}". Please ensure it is a valid directory. Error: ${e}`);
+	}
 }
