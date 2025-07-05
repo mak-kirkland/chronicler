@@ -4,7 +4,6 @@
 	import { convertFileSrc } from '@tauri-apps/api/core';
 	import { resolve, dirname } from '@tauri-apps/api/path';
 	import type { PageHeader, RenderedPage } from '$lib/bindings';
-	import { navigateToTag } from '$lib/actions';
 
 	let { renderedData } = $props<{ renderedData: RenderedPage | null }>();
 	let imageUrl = $state<string | null>(null);
