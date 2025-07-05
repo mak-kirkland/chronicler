@@ -2,6 +2,7 @@ import { currentView, appStatus } from '$lib/stores';
 import type { PageHeader, TagMap } from '$lib/bindings';
 import type { ViewState } from '$lib/stores';
 import { initializeVault as invokeInitializeVault } from './commands';
+import { getTitleFromPath } from './utils';
 
 /**
  * Navigates to the tag index view for the selected tag.
@@ -21,10 +22,9 @@ export function navigateToTag(tagName: string, allTags: TagMap) {
 
 	const pagePaths = tagData[1];
 
-	// Create PageHeader objects from the paths for the view
 	const pages: PageHeader[] = pagePaths.map((path) => ({
 		path,
-		title: path.split(/[\\/]/).pop() || 'Untitled'
+		title: getTitleFromPath(path)
 	}));
 
 	const newView: ViewState = {

@@ -18,7 +18,7 @@
 		{#each data.pages as page (page.path)}
 			<li>
 				<button onclick={() => openFile(page)}>
-					{page.title.replace('.md', '')}
+					{page.title}
 				</button>
 			</li>
 		{/each}

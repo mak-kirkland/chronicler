@@ -23,7 +23,7 @@
 				{#each $rightSidebar.backlinks as link (link.path)}
 					<li>
 						<button class="link-button" onclick={() => handleLinkClick(link)}>
-							{link.title.replace('.md', '')}
+							{link.title}
 						</button>
 					</li>
 				{/each}

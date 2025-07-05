@@ -8,7 +8,7 @@ use crate::{
     events::FileEvent,
     models::{FileNode, Link, Page, PageHeader},
     parser,
-    utils::is_markdown_file,
+    utils::{is_markdown_file, path_to_stem_string},
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -306,8 +306,9 @@ impl Indexer {
                     if path.is_dir() {
                         children.push(Self::build_tree_recursive(&path, file_name)?);
                     } else if is_markdown_file(&path) {
+                        let display_name = path_to_stem_string(&path);
                         children.push(FileNode {
-                            name: file_name.to_string(),
+                            name: display_name,
                             path: path.clone(),
                             children: None,
                         });
@@ -373,10 +374,8 @@ tags:
         // before the watcher has processed it.
         self.update_file(&path);
 
-        Ok(PageHeader {
-            title: clean_name,
-            path,
-        })
+        let title = path_to_stem_string(&path);
+        Ok(PageHeader { title, path })
     }
 
     /// Returns a list of all directory paths in the vault.

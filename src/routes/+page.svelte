@@ -5,6 +5,7 @@
 	import TagIndexView from '$lib/components/TagIndexView.svelte';
 	import FileView from '$lib/components/FileView.svelte';
 	import BacklinksPanel from '$lib/components/BacklinksPanel.svelte';
+	import { getTitleFromPath } from '$lib/utils';
 
 	// This effect keeps the TagIndexView reactive to backend changes.
 	$effect(() => {
@@ -25,7 +26,7 @@
 				) {
 					const freshPages: PageHeader[] = latestTagData[1].map((path) => ({
 						path,
-						title: path.split(/[\\/]/).pop() || 'Untitled'
+						title: getTitleFromPath(path)
 					}));
 
 					currentView.set({

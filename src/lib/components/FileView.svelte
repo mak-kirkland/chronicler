@@ -95,8 +95,8 @@
 		</div>
 	{:else if pageData}
 		<div class="view-header">
-			<h2 class="view-title" title={file.title.replace('.md', '')}>
-				{file.title.replace('.md', '')}
+			<h2 class="view-title" title={file.title}>
+				{file.title}
 			</h2>
 
 			<div class="view-actions">
