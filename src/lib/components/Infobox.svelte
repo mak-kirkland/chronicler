@@ -91,7 +91,9 @@
 			<dt>Tags</dt>
 			<dd class="tag-container">
 				{#each data.tags as tag (tag)}
-					<button class="tag-link" onclick={() => navigateToTag(tag, $tags)}> #{tag} </button>
+					<button class="tag-link" onclick={() => navigateToTag(tag, $tags)}>
+						#{tag}
+					</button>
 				{/each}
 			</dd>
 		{/if}

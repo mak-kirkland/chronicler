@@ -18,12 +18,14 @@
 	let importMessage = $state<string | null>(null);
 
 	$effect(() => {
-		isPandocInstalled().then((installed) => {
-			pandocInstalled = installed;
-		}).catch(err => {
-			console.error("Failed to check pandoc status:", err);
-			pandocInstalled = false;
-		});
+		isPandocInstalled()
+			.then((installed) => {
+				pandocInstalled = installed;
+			})
+			.catch((err) => {
+				console.error('Failed to check pandoc status:', err);
+				pandocInstalled = false;
+			});
 	});
 
 	async function installPandoc() {
@@ -63,13 +65,14 @@
 			});
 
 			if (Array.isArray(selected) && selected.length > 0) {
-				importMessage = `Importing ${selected.length} file(s)...`;
-				await importDocxFiles(selected);
+				const paths = selected;
+				importMessage = `Importing ${paths.length} file(s)...`;
+				await importDocxFiles(paths);
 
 				// Manually trigger a refresh after import
 				await world.initialize();
 
-				alert(`${selected.length} file(s) imported successfully!`);
+				alert(`${paths.length} file(s) imported successfully!`);
 				onClose();
 			}
 		} catch (e) {
@@ -83,9 +86,7 @@
 	<div class="setting-item">
 		<h4>Change Vault</h4>
 		<p>Change the root folder for your notes.</p>
-		<Button on:click={onChangeVault}>
-			Change Vault Folder
-		</Button>
+		<Button on:click={onChangeVault}> Change Vault Folder </Button>
 	</div>
 
 	<div class="setting-item">

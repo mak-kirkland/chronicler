@@ -15,14 +15,14 @@
 	let showSettings = $state(false);
 	let showCreateFile = $state(false);
 
-	function handleChangeVault() {
+	function onChangeVault() {
 		showSettings = false;
 		world.destroy();
 		resetAllStores();
 		appStatus.set('selecting_vault');
 	}
 
-	function handleFileCreated(page: PageHeader) {
+	function onFileCreated(page: PageHeader) {
 		showCreateFile = false;
 		currentView.set({ type: 'file', data: page });
 	}
@@ -33,11 +33,11 @@
 </script>
 
 {#if showSettings}
-	<SettingsModal onClose={() => (showSettings = false)} onChangeVault={handleChangeVault} />
+	<SettingsModal onClose={() => (showSettings = false)} {onChangeVault} />
 {/if}
 
 {#if showCreateFile}
-	<CreateFileModal onClose={() => (showCreateFile = false)} onFileCreated={handleFileCreated} />
+	<CreateFileModal onClose={() => (showCreateFile = false)} {onFileCreated} />
 {/if}
 
 <aside style="width: {width}px;">
