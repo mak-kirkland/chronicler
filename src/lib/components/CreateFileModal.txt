@@ -34,7 +34,7 @@
 					selectedDir = dirs[0];
 				}
 			}
-		} catch (e) {
+		} catch (e: any) {
 			errorMessage = `Failed to load directories: ${e}`;
 		} finally {
 			isLoading = false;
@@ -51,7 +51,7 @@
 			const newPage = await createNewFile(selectedDir, fileName);
 			onFileCreated(newPage);
 			onClose();
-		} catch (e) {
+		} catch (e: any) {
 			console.error('Failed to create file:', e);
 			errorMessage = `${e}`;
 		}

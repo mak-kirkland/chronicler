@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { navigateToTag } from '$lib/actions';
 	import type { TagMap } from '$lib/bindings';
-	import { tags as allTagsStore } from '$lib/stores';
+	import { tags as allTagsStore } from '$lib/worldStore';
 
 	// Provide a standard default value for the optional prop.
 	// You cannot use the $state rune as a default value for a prop.

@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { currentView, tags, fileViewMode, rightSidebar } from '$lib/stores';
-	import type { PageHeader, TagMap } from '$lib/bindings';
+	import { currentView, fileViewMode, rightSidebar } from '$lib/stores';
+	import { tags } from '$lib/worldStore';
+	import type { PageHeader } from '$lib/bindings';
 	import TagIndexView from '$lib/components/TagIndexView.svelte';
 	import FileView from '$lib/components/FileView.svelte';
 	import BacklinksPanel from '$lib/components/BacklinksPanel.svelte';
@@ -8,7 +9,7 @@
 	// This effect keeps the TagIndexView reactive to backend changes.
 	$effect(() => {
 		const view = $currentView;
-		const allTags: TagMap = $tags;
+		const allTags = $tags;
 
 		if (view.type === 'tag' && view.data) {
 			const currentTagName = view.data.name;
@@ -24,7 +25,7 @@
 				) {
 					const freshPages: PageHeader[] = latestTagData[1].map((path) => ({
 						path,
-						title: path.split(/[\\/]/).pop() || 'Untitled'
+						title: path.split(/[\\/]/).pop()?.replace('.md', '') || 'Untitled'
 					}));
 
 					currentView.set({
@@ -41,8 +42,6 @@
 		}
 	});
 
-	// This effect resets the file view mode and hides the right sidebar
-	// whenever the user navigates away from the file view.
 	$effect(() => {
 		if ($currentView.type !== 'file') {
 			$fileViewMode = 'preview';
@@ -57,7 +56,7 @@
 		<h1 class="welcome-title">Chronicler</h1>
 		<p class="welcome-text">Select a page from the sidebar to begin your journey.</p>
 	</div>
-{:else if $currentView.type === 'tag'}
+{:else if $currentView.type === 'tag' && $currentView.data}
 	<div class="tag-view-pane">
 		<TagIndexView data={$currentView.data} />
 	</div>
