@@ -9,6 +9,11 @@
 	let imageUrl = $state<string | null>(null);
 
 	function handleLinkClick(event: Event) {
+		// For keyboard events, only activate the link on "Enter" or "Space"
+		if (event instanceof KeyboardEvent && event.key !== 'Enter' && event.key !== ' ') {
+			return; // Do nothing, allowing default behavior (like tabbing)
+		}
+
 		const target = event.target as HTMLElement;
 		const link = target.closest('a.internal-link');
 
@@ -41,7 +46,14 @@
 	});
 </script>
 
-<div class="preview-wrapper" onclick={handleLinkClick} onkeydown={handleLinkClick} role="document">
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex -->
+<div
+	class="preview-wrapper"
+	onclick={handleLinkClick}
+	onkeydown={handleLinkClick}
+	role="document"
+	tabindex="0"
+>
 	{#if renderedData}
 		<Infobox data={renderedData.processed_frontmatter} {imageUrl} />
 		<div class="preview-content">

@@ -67,6 +67,18 @@
 		window.removeEventListener('mousemove', doResize);
 		window.removeEventListener('mouseup', stopResize);
 	}
+
+	function handleKeyResize(event: KeyboardEvent) {
+		if (event.key === 'ArrowLeft') {
+			event.preventDefault();
+			const newWidth = Math.max(200, sidebarWidth - 10);
+			sidebarWidth = newWidth;
+		} else if (event.key === 'ArrowRight') {
+			event.preventDefault();
+			const newWidth = Math.min(600, sidebarWidth + 10);
+			sidebarWidth = newWidth;
+		}
+	}
 </script>
 
 {#if $appStatus === 'selecting_vault'}
@@ -89,11 +101,15 @@
 		<div
 			class="resizer"
 			onmousedown={startResize}
-			role="separator"
+			onkeydown={handleKeyResize}
+			role="slider"
+			tabindex="0"
+			aria-label="Resize sidebar"
 			aria-orientation="vertical"
 			aria-valuenow={sidebarWidth}
 			aria-valuemin={200}
 			aria-valuemax={600}
+			style="left: {sidebarWidth - 2.5}px;"
 		></div>
 
 		<main class="main-content">
@@ -157,12 +173,13 @@
 		position: fixed;
 		top: 0;
 		bottom: 0;
-		left: var(--sidebar-width);
 		z-index: 100;
 		transition: background-color 0.2s;
 	}
-	.resizer:hover {
+	.resizer:hover,
+	.resizer:focus {
 		background: #00000040;
+		outline: none;
 	}
 	.welcome-icon {
 		width: 150px;

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+
 	let {
 		children,
 		title = 'Modal Title',
@@ -8,14 +10,41 @@
 		title?: string;
 		onClose?: () => void;
 	}>();
+
+	let modalElement: HTMLDivElement;
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			onClose();
+		}
+	}
+
+	onMount(() => {
+		window.addEventListener('keydown', handleKeydown);
+		// Focus the modal itself when it's mounted
+		if (modalElement) {
+			modalElement.focus();
+		}
+	});
+
+	onDestroy(() => {
+		window.removeEventListener('keydown', handleKeydown);
+	});
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 <div class="modal-backdrop" onclick={onClose}>
-	<div class="modal-content" onclick={(event) => event.stopPropagation()}>
+	<div
+		bind:this={modalElement}
+		class="modal-content"
+		role="dialog"
+		aria-modal="true"
+		tabindex="-1"
+		onclick={(event) => event.stopPropagation()}
+	>
 		<div class="modal-header">
 			<h3>{title}</h3>
-			<button class="close-btn" onclick={onClose}>&times;</button>
+			<button class="close-btn" onclick={onClose} aria-label="Close modal">&times;</button>
 		</div>
 		<div class="modal-body">
 			{@render children()}
@@ -47,6 +76,9 @@
 		max-width: 500px;
 		box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 		color: var(--ink);
+	}
+	.modal-content:focus {
+		outline: 2px solid var(--accent-color);
 	}
 	.modal-header {
 		display: flex;
