@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { appStatus, resetAllStores } from '$lib/stores';
+	import { world } from '$lib/worldStore';
 	import { initializeVault } from '$lib/actions';
 	import { getVaultPath } from '$lib/commands';
 	import VaultSelector from '$lib/components/VaultSelector.svelte';
@@ -16,7 +17,7 @@
 		try {
 			const path = await getVaultPath();
 			if (path) {
-				await initializeVault(path);
+				await handleVaultSelected(path);
 			} else {
 				$appStatus = 'selecting_vault';
 			}
@@ -31,6 +32,7 @@
 		errorMessage = null;
 		try {
 			await initializeVault(path);
+			await world.initialize();
 		} catch (e: any) {
 			errorMessage = e.message;
 			$appStatus = 'error';
@@ -38,6 +40,7 @@
 	}
 
 	function handleTryAgain() {
+		world.destroy();
 		resetAllStores();
 		$appStatus = 'selecting_vault';
 	}

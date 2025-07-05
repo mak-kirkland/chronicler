@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tags } from '$lib/stores';
+	import { tags } from '$lib/worldStore';
 	import { navigateToTag } from '$lib/actions';
 	import ErrorBox from './ErrorBox.svelte';
 
@@ -14,8 +14,6 @@
 		[key: string]: any; // Allow other dynamic properties from frontmatter
 	};
 
-	// Destructuring props. This is the idiomatic way in Svelte 5.
-	// The 'data' prop now uses the more specific InfoboxData type.
 	let { data, imageUrl } = $props<{ data: InfoboxData | null; imageUrl: string | null }>();
 
 	let imageError = $state(false);
@@ -101,7 +99,6 @@
 </div>
 
 <style>
-	/* All styles remain exactly the same, except for the removed .error-box */
 	.infobox {
 		background-color: rgba(0, 0, 0, 0.03);
 		border: 1px solid var(--border-color);

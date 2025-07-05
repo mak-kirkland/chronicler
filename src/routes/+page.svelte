@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { currentView, tags, fileViewMode, rightSidebar } from '$lib/stores';
-	import type { PageHeader, TagMap } from '$lib/bindings';
+	import { currentView, fileViewMode, rightSidebar } from '$lib/stores';
+	import { tags } from '$lib/worldStore';
+	import type { PageHeader } from '$lib/bindings';
 	import TagIndexView from '$lib/components/TagIndexView.svelte';
 	import FileView from '$lib/components/FileView.svelte';
 	import BacklinksPanel from '$lib/components/BacklinksPanel.svelte';
@@ -8,7 +9,7 @@
 	// This effect keeps the TagIndexView reactive to backend changes.
 	$effect(() => {
 		const view = $currentView;
-		const allTags: TagMap = $tags;
+		const allTags = $tags;
 
 		if (view.type === 'tag' && view.data) {
 			const currentTagName = view.data.name;

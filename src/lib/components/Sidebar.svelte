@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { fileTree, tags, appStatus, resetAllStores, currentView, initializeSidebar } from '$lib/stores';
-	import type { FileNode, TagMap, PageHeader } from '$lib/bindings';
+	import { appStatus, resetAllStores, currentView } from '$lib/stores';
+	import { world, tags } from '$lib/worldStore';
+	import type { PageHeader } from '$lib/bindings';
 	import FileExplorer from './FileExplorer.svelte';
 	import TagList from './TagList.svelte';
-	import { onMount } from 'svelte';
 	import SettingsModal from './SettingsModal.svelte';
 	import CreateFileModal from './CreateFileModal.svelte';
 	import Button from './Button.svelte';
@@ -15,12 +15,9 @@
 	let showSettings = $state(false);
 	let showCreateFile = $state(false);
 
-	onMount(() => {
-		initializeSidebar();
-	});
-
 	function handleChangeVault() {
 		showSettings = false;
+		world.destroy();
 		resetAllStores();
 		appStatus.set('selecting_vault');
 	}

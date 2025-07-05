@@ -1,7 +1,10 @@
 import { writable, type Writable } from 'svelte/store';
-import type { FileNode, PageHeader, TagMap } from './bindings';
-import { listen } from '@tauri-apps/api/event';
-import { getFileTree, getAllTags } from './commands';
+import type { PageHeader } from './bindings';
+
+// This file only contains stores related to UI state and navigation,
+// not the core application data which is managed by worldStore.ts.
+
+// --- Application Status & View Management ---
 
 /**
  * Represents the overall status of the application, determining which main view to show.
@@ -36,50 +39,12 @@ export type ViewState =
 export const currentView: Writable<ViewState> = writable({ type: 'welcome' });
 
 /**
- * The file tree structure of the vault.
- */
-export const fileTree = writable<FileNode | null>(null);
-
-/**
- * A list of all tags and the pages they appear on.
- */
-export const tags = writable<TagMap>([]);
-
-let sidebarInitialized = false;
-let unlisten: (() => void) | null = null;
-
-async function loadSidebarData() {
-	try {
-		const [tree, sortedTags] = await Promise.all([
-			getFileTree(),
-			getAllTags()
-		]);
-		fileTree.set(tree);
-		tags.set(sortedTags);
-	} catch (e) {
-		console.error('Failed to load sidebar data:', e);
-	}
-}
-
-export async function initializeSidebar() {
-	if (sidebarInitialized) return;
-	sidebarInitialized = true;
-
-	await loadSidebarData();
-
-	// Listen for backend events that signal the index has been updated
-	unlisten = await listen('index-updated', () => {
-		console.log('Index update received from backend, refreshing sidebar data...');
-		loadSidebarData();
-	});
-}
-
-/**
  * This store manages the view mode (split or preview) for files.
  */
 export const fileViewMode: Writable<'preview' | 'split'> = writable('preview');
 
-// --- Store for the Right Sidebar ---
+// --- Right Sidebar State ---
+
 interface RightSidebarState {
 	isVisible: boolean;
 	backlinks: PageHeader[];
@@ -96,18 +61,11 @@ const initialRightSidebarState: RightSidebarState = {
 export const rightSidebar = writable<RightSidebarState>(initialRightSidebarState);
 
 /**
- * Resets all data stores to their initial state.
+ * Resets all UI-related data stores to their initial state.
  * This is useful when changing vaults.
  */
 export function resetAllStores() {
 	currentView.set({ type: 'welcome' });
-	fileTree.set(null);
-	tags.set([]);
 	fileViewMode.set('preview');
 	rightSidebar.set(initialRightSidebarState);
-	sidebarInitialized = false;
-	if (unlisten) {
-		unlisten();
-		unlisten = null;
-	}
 }

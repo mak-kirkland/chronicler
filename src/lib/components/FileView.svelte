@@ -4,7 +4,8 @@
 	import Button from '$lib/components/Button.svelte';
 	import ErrorBox from '$lib/components/ErrorBox.svelte';
 	import { onDestroy } from 'svelte';
-	import { fileViewMode, currentView, rightSidebar, fileTree } from '$lib/stores';
+	import { fileViewMode, currentView, rightSidebar } from '$lib/stores';
+	import { files, isWorldLoaded } from '$lib/worldStore';
 	import { buildPageView, writePageContent, renderPagePreview } from '$lib/commands';
 	import type { PageHeader, FullPageData, RenderedPage, FileNode } from '$lib/bindings';
 
@@ -73,10 +74,10 @@
 	});
 
 	$effect(() => {
-		const tree = $fileTree;
 		// If the file is deleted or renamed, it will no longer be in the tree.
 		// In that case, navigate back to the welcome screen.
-		if (tree && !findFileInTree(tree, file.path)) {
+		const tree = $files;
+		if ($isWorldLoaded && tree && !findFileInTree(tree, file.path)) {
 			console.log(`Current file ${file.path} not found in tree after update. Closing view.`);
 			currentView.set({ type: 'welcome' });
 		}

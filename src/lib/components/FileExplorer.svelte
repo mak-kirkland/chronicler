@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fileTree } from '$lib/stores';
+	import { files, isWorldLoaded } from '$lib/worldStore';
 	import type { FileNode } from '$lib/bindings';
 	import FileTree from './FileTree.svelte';
 
@@ -33,13 +33,15 @@
 
 	// Create a derived value for the filtered file tree.
 	// This will automatically re-calculate whenever the fileTree store or searchTerm changes.
-	const filteredNode = $derived(filterFileTree($fileTree, searchTerm));
+	const filteredNode = $derived(filterFileTree($files, searchTerm));
 </script>
 
 {#if filteredNode}
 	<FileTree node={filteredNode} />
 {:else if searchTerm}
 	<p class="no-results">No files found.</p>
+{:else if $isWorldLoaded}
+	<p class="no-results">Your vault is empty.</p>
 {:else}
 	<p>Loading files...</p>
 {/if}

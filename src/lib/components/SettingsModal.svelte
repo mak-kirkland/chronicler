@@ -2,7 +2,7 @@
 	import Modal from './Modal.svelte';
 	import Button from './Button.svelte';
 	import { open } from '@tauri-apps/plugin-dialog';
-	import { initializeSidebar } from '$lib/stores';
+	import { world } from '$lib/worldStore';
 	import { isPandocInstalled, downloadPandoc, importDocxFiles } from '$lib/commands';
 
 	let {
@@ -66,8 +66,8 @@
 				importMessage = `Importing ${selected.length} file(s)...`;
 				await importDocxFiles(selected);
 
-				// Manually trigger a sidebar refresh after import
-				await initializeSidebar();
+				// Manually trigger a refresh after import
+				await world.initialize();
 
 				alert(`${selected.length} file(s) imported successfully!`);
 				onClose();
