@@ -86,13 +86,13 @@
 	<div class="setting-item">
 		<h4>Change Vault</h4>
 		<p>Change the root folder for your notes.</p>
-		<Button on:click={onChangeVault}> Change Vault Folder </Button>
+		<Button onclick={onChangeVault}> Change Vault Folder </Button>
 	</div>
 
 	<div class="setting-item">
 		<h4>Import</h4>
 		<p>Import .docx files as new Markdown pages in your vault's root directory.</p>
-		<Button on:click={importFiles} disabled={isInstalling}>
+		<Button onclick={importFiles} disabled={isInstalling}>
 			{#if isInstalling}
 				Installing Pandoc...
 			{:else if !pandocInstalled}

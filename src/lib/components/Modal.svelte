@@ -1,5 +1,10 @@
 <script lang="ts">
-	let { title = 'Modal Title', onClose = () => {} } = $props<{
+	let {
+		children,
+		title = 'Modal Title',
+		onClose = () => {}
+	} = $props<{
+		children: any;
 		title?: string;
 		onClose?: () => void;
 	}>();
@@ -13,7 +18,7 @@
 			<button class="close-btn" onclick={onClose}>&times;</button>
 		</div>
 		<div class="modal-body">
-			<slot />
+			{@render children()}
 		</div>
 	</div>
 </div>

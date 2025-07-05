@@ -26,7 +26,7 @@
 	<img src="/compass.svg" alt="Compass" class="welcome-icon" />
 	<h1 class="welcome-title">Chronicler</h1>
 	<p class="welcome-text">Please select a folder to use as your worldbuilding vault.</p>
-	<Button on:click={selectVault}>
+	<Button onclick={selectVault}>
 		Change Vault Folder
 	</Button>
 </div>

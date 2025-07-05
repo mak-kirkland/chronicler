@@ -8,6 +8,7 @@
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import '../app.css';
 
+	let { children } = $props();
 	let sidebarWidth = $state(300);
 	let isResizing = $state(false);
 	let errorMessage = $state<string | null>(null);
@@ -96,11 +97,7 @@
 		></div>
 
 		<main class="main-content">
-                  <!--
-                      The <slot /> tag is required by SvelteKit. It will render the
-                      content from src/routes/+page.svelte.
-                    -->
-			<slot />
+			{@render children()}
 		</main>
 	</div>
 {/if}

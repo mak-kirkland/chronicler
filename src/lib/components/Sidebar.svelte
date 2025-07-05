@@ -67,10 +67,10 @@
 	</div>
 
 	<div class="sidebar-footer">
-		<Button size="small" class="flex-grow" title="New Page" on:click={() => (showCreateFile = true)}>
+		<Button size="small" class="flex-grow" title="New Page" onclick={() => (showCreateFile = true)}>
 			+ New Page
 		</Button>
-		<Button variant="ghost" title="Settings" on:click={() => (showSettings = true)}>
+		<Button variant="ghost" title="Settings" onclick={() => (showSettings = true)}>
 			⚙️
 		</Button>
 	</div>

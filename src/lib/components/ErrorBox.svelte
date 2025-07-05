@@ -1,14 +1,14 @@
 <script lang="ts">
 	// This component displays a consistently styled error message.
 	// It accepts an optional title and uses a slot for the error content.
-	let { title = 'Error' } = $props<{ title?: string }>();
+	let { children, title = 'Error' } = $props<{ children: any; title?: string }>();
 </script>
 
 <div class="error-box">
 	{#if title}
 		<strong>{title}:</strong>
 	{/if}
-	<slot />
+	{@render children()}
 </div>
 
 <style>

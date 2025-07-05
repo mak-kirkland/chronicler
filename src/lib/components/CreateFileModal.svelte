@@ -86,7 +86,7 @@
 		{/if}
 
 		<div class="modal-actions">
-			<Button on:click={handleCreateFile}> Create </Button>
+			<Button onclick={handleCreateFile}> Create </Button>
 		</div>
 	{/if}
 </Modal>

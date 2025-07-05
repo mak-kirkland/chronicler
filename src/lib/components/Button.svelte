@@ -1,5 +1,6 @@
 <script lang="ts">
 	let {
+		children,
 		variant = 'primary',
 		size = 'normal',
 		class: className = '',
@@ -7,6 +8,7 @@
 		disabled = false,
 		...rest
 	} = $props<{
+		children: any;
 		variant?: 'primary' | 'ghost';
 		size?: 'small' | 'normal' | 'large';
 		class?: string;
@@ -16,8 +18,8 @@
 	}>();
 </script>
 
-<button class="btn {variant} {size} {className}" {disabled} on:click {...rest}>
-	<slot />
+<button class="btn {variant} {size} {className}" {disabled} {onclick} {...rest}>
+	{@render children()}
 </button>
 
 <style>

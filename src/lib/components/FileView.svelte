@@ -91,7 +91,7 @@
 				{#if $rightSidebar.backlinks.length > 0}
 					<Button
 						size="small"
-						on:click={() => rightSidebar.update((state) => ({ ...state, isVisible: !state.isVisible }))}
+						onclick={() => rightSidebar.update((state) => ({ ...state, isVisible: !state.isVisible }))}
 						title="Toggle Backlinks"
 					>
 						🔗 {$rightSidebar.backlinks.length}
@@ -99,11 +99,11 @@
 				{/if}
 
 				{#if $fileViewMode === 'split'}
-					<Button size="small" on:click={() => ($fileViewMode = 'preview')}>
+					<Button size="small" onclick={() => ($fileViewMode = 'preview')}>
 						📖 Preview Only
 					</Button>
 				{:else}
-					<Button size="small" on:click={() => ($fileViewMode = 'split')}>
+					<Button size="small" onclick={() => ($fileViewMode = 'split')}>
 						✏️ Edit
 					</Button>
 				{/if}
