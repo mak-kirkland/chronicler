@@ -87,15 +87,6 @@
 		border-bottom: 1px dotted #b04a4a;
 		cursor: help;
 	}
-	.error-box {
-		background-color: rgba(139, 0, 0, 0.1);
-		color: darkred;
-		padding: 0.75rem;
-		border-radius: 4px;
-		margin-bottom: 1rem;
-		font-size: 0.85rem;
-		border: 1px solid rgba(139, 0, 0, 0.2);
-	}
 	.preview-content :global(blockquote) {
 		border-left: 3px solid var(--border-color);
 		padding-left: 1em;

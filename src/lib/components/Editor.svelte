@@ -15,13 +15,6 @@
 		flex-direction: column;
 		height: 100%;
 	}
-	h2 {
-		font-family: 'Uncial Antiqua', cursive;
-		color: var(--ink-light);
-		margin-top: 0;
-		padding-bottom: 0.5rem;
-		border-bottom: 1px solid var(--border-color);
-	}
 	textarea {
 		flex-grow: 1;
 		width: 100%;
