@@ -58,7 +58,7 @@
 		<h1 class="welcome-title">Chronicler</h1>
 		<p class="welcome-text">Select a page from the sidebar to begin your journey.</p>
 	</div>
-{:else if $currentView.type === 'tag'}
+{:else if $currentView.type === 'tag' && $currentView.data}
 	<div class="tag-view-pane">
 		<TagIndexView data={$currentView.data} />
 	</div>
