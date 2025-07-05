@@ -7,7 +7,8 @@
 	import { fileViewMode, currentView, rightSidebar } from '$lib/stores';
 	import { files, isWorldLoaded } from '$lib/worldStore';
 	import { buildPageView, writePageContent, renderPagePreview } from '$lib/commands';
-	import type { PageHeader, FullPageData, RenderedPage, FileNode } from '$lib/bindings';
+	import type { PageHeader, FullPageData, RenderedPage } from '$lib/bindings';
+	import { findFileInTree } from '$lib/utils';
 
 	let { file } = $props<{ file: PageHeader }>();
 
@@ -15,19 +16,6 @@
 	let error = $state<string | null>(null);
 	let pristineContent = $state<string | undefined>(undefined);
 	let saveTimeout: number;
-
-	function findFileInTree(node: FileNode | null, path: string): boolean {
-		if (!node) return false;
-		if (node.path === path) return true;
-		if (node.children) {
-			for (const child of node.children) {
-				if (findFileInTree(child, path)) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
 
 	$effect(() => {
 		pageData = null;
