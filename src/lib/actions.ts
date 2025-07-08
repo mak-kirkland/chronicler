@@ -1,5 +1,5 @@
-import { currentView, appStatus, fileViewMode } from "$lib/stores";
-import type { PageHeader } from "$lib/bindings";
+import { currentView, appStatus, fileViewMode } from "./stores";
+import type { PageHeader } from "./bindings";
 // Import all commands under a 'commands' namespace to prevent naming conflicts.
 import * as commands from "./commands";
 import { getTitleFromPath } from "./utils";
