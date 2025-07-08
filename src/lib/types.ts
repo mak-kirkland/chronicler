@@ -4,7 +4,6 @@
  */
 
 import type { FileNode } from "./bindings";
-import type { Component } from "svelte";
 
 // --- Context Menu Types ---
 

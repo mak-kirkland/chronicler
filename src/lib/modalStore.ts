@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import type { ModalData } from "$lib/types";
+import type { Component } from "svelte";
 
 /**
  * Defines the contract for opening a modal.
