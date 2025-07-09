@@ -1,5 +1,21 @@
 # Changelog
 
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+### [0.1.3](https://github.com/mak-kirkland/chronicler/compare/v0.1.2-alpha...v0.1.3) (2025-07-09)
+
+
+### Features
+
+* Display images in the infobox ([66244fd](https://github.com/mak-kirkland/chronicler/commit/66244fd15e213f52b4dc82b6e423922211e311a7))
+
+
+### Bug Fixes
+
+* Move import to correct file ([ad3ad00](https://github.com/mak-kirkland/chronicler/commit/ad3ad007ed816a267140889d1e3fd3734eacd7e4))
+
+# Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
