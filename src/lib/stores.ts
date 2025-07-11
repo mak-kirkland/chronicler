@@ -1,8 +1,10 @@
+/**
+ * @file This file contains stores related to UI state and navigation,
+ * not the core application data, which is managed by worldStore.ts.
+ */
+
 import { writable, type Writable } from "svelte/store";
 import type { PageHeader } from "./bindings";
-
-// This file only contains stores related to UI state and navigation,
-// not the core application data which is managed by worldStore.ts.
 
 // --- Application Status & View Management ---
 

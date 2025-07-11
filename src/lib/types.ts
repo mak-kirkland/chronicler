@@ -1,6 +1,9 @@
 /**
- * This file contains shared TypeScript type definitions used across multiple
- * Svelte components in the application.
+ * @file This file contains shared TypeScript type definitions used across multiple
+ * Svelte components in the application, particularly for UI elements like the
+ * context menu. It helps ensure consistency for complex, shared data structures.
+ *
+ * For types that mirror backend data structures, see `bindings.ts`.
  */
 
 import type { FileNode } from "./bindings";
@@ -9,16 +12,16 @@ import type { FileNode } from "./bindings";
 
 /** A standard action item in the context menu. */
 export type MenuAction = {
-    label: string;
-    handler: () => void;
-    isSeparator?: undefined;
+	label: string;
+	handler: () => void;
+	isSeparator?: undefined;
 };
 
 /** A separator line in the context menu. */
 export type MenuSeparator = {
-    isSeparator: true;
-    label?: undefined;
-    handler?: undefined;
+	isSeparator: true;
+	label?: undefined;
+	handler?: undefined;
 };
 
 /** A union type representing any possible item in the context menu. */

@@ -1,3 +1,10 @@
+/**
+ * @file This module centralizes all logic related to application updates.
+ * It uses the Tauri Updater plugin to check for new versions, handle platform-specific
+ * installation requirements (like for Linux .deb/.rpm packages), and trigger the
+ * installation process.
+ */
+
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { platform } from "@tauri-apps/plugin-os";
@@ -12,43 +19,43 @@ import { getLinuxInstallType } from "./commands";
  * - If the install is not an AppImage, it directs the user to update manually.
  */
 export async function checkForAppUpdates() {
-    try {
-        console.log("Checking for update...");
-        const update = await check();
+	try {
+		console.log("Checking for update...");
+		const update = await check();
 
-        if (update) {
-            const platformName = platform();
-            let manualUpdateRequired = false;
+		if (update) {
+			const platformName = platform();
+			let manualUpdateRequired = false;
 
-            if (platformName === "linux") {
-                const installType = await getLinuxInstallType();
-                if (installType !== "appimage") {
-                    manualUpdateRequired = true;
-                }
-            }
+			if (platformName === "linux") {
+				const installType = await getLinuxInstallType();
+				if (installType !== "appimage") {
+					manualUpdateRequired = true;
+				}
+			}
 
-            console.log(`Update found: ${update.version}`);
-            openModal({
-                component: UpdateModal,
-                props: {
-                    update,
-                    manualUpdateRequired,
-                    onClose: closeModal,
-                },
-            });
-        } else {
-            console.log("No update available.");
-        }
-    } catch (error) {
-        console.error("Update check failed:", error);
-    }
+			console.log(`Update found: ${update.version}`);
+			openModal({
+				component: UpdateModal,
+				props: {
+					update,
+					manualUpdateRequired,
+					onClose: closeModal,
+				},
+			});
+		} else {
+			console.log("No update available.");
+		}
+	} catch (error) {
+		console.error("Update check failed:", error);
+	}
 }
 
 /**
  * Opens the latest release page in the user's browser.
  */
 export function openReleasePage() {
-    openUrl("https://github.com/mak-kirkland/chronicler/releases/latest");
+	openUrl("https://github.com/mak-kirkland/chronicler/releases/latest");
 }
 
 /**
@@ -56,6 +63,6 @@ export function openReleasePage() {
  * @param {Update} update - The update object from the `check` function.
  */
 export async function installUpdate(update: Update) {
-    await update.downloadAndInstall();
-    await relaunch();
+	await update.downloadAndInstall();
+	await relaunch();
 }

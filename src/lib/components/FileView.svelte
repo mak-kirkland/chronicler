@@ -31,6 +31,7 @@
 
     // This effect handles loading the page data whenever the `file` prop changes.
     $effect(() => {
+        // --- State Reset ---
         isLoading = true;
         pageData = null;
         error = null;
@@ -39,11 +40,12 @@
         lastSaveTime = null; // Reset last save time for the new file
         rightSidebar.update((state) => ({ ...state, backlinks: [] })); // Reset backlinks
 
+        // --- Data Fetching ---
         buildPageView(file.path)
             .then((data) => {
                 pageData = data;
                 pristineContent = data.raw_content;
-                // Update the backlinks in the store
+                // Update the backlinks in the store for the right sidebar.
                 rightSidebar.update((state) => ({
                     ...state,
                     backlinks: data.backlinks,
@@ -57,7 +59,7 @@
                 isLoading = false;
             });
 
-        // Cleanup function clears all timers when the file changes or component unmounts.
+        // Cleanup function clears any pending save timeouts when the file changes or component unmounts.
         return () => {
             clearTimeout(saveTimeout);
         };
@@ -87,6 +89,7 @@
                     saveStatus = "idle"; // Return to idle after a successful save
                     lastSaveTime = new Date(); // Set the timestamp of the successful save
 
+                    // Re-render the preview with the new content.
                     return renderPagePreview(contentToSave);
                 })
                 .then((newlyRenderedData) => {
@@ -99,6 +102,7 @@
         }, AUTOSAVE_DEBOUNCE_MS);
     });
 
+    // This effect resolves the local asset URL for the infobox image.
     $effect(() => {
         (async () => {
             if (!pageData?.rendered_page.infobox_image_path || !$vaultPath) {

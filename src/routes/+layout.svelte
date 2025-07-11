@@ -21,14 +21,17 @@
     let isResizing = $state(false);
     let errorMessage = $state<string | null>(null);
 
+    // This onMount hook handles the application's startup sequence.
     onMount(async () => {
-        // --- Initialize Vault ---
         errorMessage = null;
         try {
+            // Check if a vault path is already stored in the config.
             const path = await getVaultPath();
             if (path) {
+                // If a path exists, initialize the vault with it.
                 await handleVaultSelected(path);
             } else {
+                // Otherwise, show the vault selector screen.
                 $appStatus = "selecting_vault";
             }
         } catch (e: any) {
@@ -38,10 +41,17 @@
         }
     });
 
+    /**
+     * Handles the logic after a vault path has been selected by the user,
+     * either on startup or through the VaultSelector component.
+     * @param path The absolute path to the selected vault.
+     */
     async function handleVaultSelected(path: string) {
         errorMessage = null;
         try {
+            // This initializes the backend and performs the initial file scan.
             await initializeVault(path);
+            // This initializes the frontend stores with data from the backend.
             await world.initialize();
 
             // After the app is ready, check for updates in the background.
@@ -52,19 +62,24 @@
         }
     }
 
+    /** Resets the application state to allow the user to select a new vault. */
     function handleTryAgain() {
         world.destroy();
         resetAllStores();
         $appStatus = "selecting_vault";
     }
 
+    // --- Sidebar Resizing Logic ---
+
+    /** Initiates the sidebar resizing drag operation. */
     function startResize() {
         isResizing = true;
-        // Add the passive option for better scroll performance during resize.
+        // Add passive option for better scroll performance during resize.
         window.addEventListener("mousemove", doResize, { passive: true });
-        window.addEventListener("mouseup", stopResize);
+        window.addEventListener("mouseup", stopResize); // Ensure it only fires once
     }
 
+    /** Performs the resize operation based on mouse movement. */
     function doResize(event: MouseEvent) {
         if (isResizing) {
             const newWidth = event.clientX;
@@ -74,12 +89,14 @@
         }
     }
 
+    /** Stops the resizing drag operation and cleans up event listeners. */
     function stopResize() {
         isResizing = false;
         window.removeEventListener("mousemove", doResize);
         window.removeEventListener("mouseup", stopResize);
     }
 
+    /** Handles resizing the sidebar using the keyboard for accessibility. */
     function handleKeyResize(event: KeyboardEvent) {
         if (event.key === "ArrowLeft") {
             event.preventDefault();

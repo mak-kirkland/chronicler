@@ -1,3 +1,11 @@
+/**
+ * @file This file implements a centralized store for managing all modals in the application.
+ * Instead of each component tracking its own modal's visibility, this store provides a
+ * single source of truth (`activeModal`). Any component can request to open a modal
+ * by providing a component to render and its props, which simplifies state management
+ * and ensures only one modal can be active at a time.
+ */
+
 import { writable } from "svelte/store";
 import type { Component } from "svelte";
 
@@ -6,8 +14,8 @@ import type { Component } from "svelte";
  * It specifies the component to render and the props to pass to it.
  */
 export interface ModalData {
-    component: Component<any>;
-    props: Record<string, unknown>;
+	component: Component<any>;
+	props: Record<string, unknown>;
 }
 
 /**
@@ -30,12 +38,12 @@ export const activeModal = writable<ModalData | null>(null);
  * `ModalData` interface.
  */
 export function openModal(data: ModalData) {
-    activeModal.set(data);
+	activeModal.set(data);
 }
 
 /**
  * A convenience function to close any currently active modal by resetting the store to null.
  */
 export function closeModal() {
-    activeModal.set(null);
+	activeModal.set(null);
 }

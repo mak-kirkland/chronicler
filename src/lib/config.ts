@@ -1,5 +1,7 @@
 /**
- * This file contains global configuration constants for the frontend application.
+ * @file This file contains global configuration constants for the frontend application.
+ * Centralizing these values makes it easy to adjust application-wide behavior, such
+ * as UI timings and layout constraints, from a single location.
  */
 
 // --- Editor & Saving ---

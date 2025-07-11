@@ -1,3 +1,17 @@
+/**
+ * @file Manages the core application state derived from the backend.
+ *
+ * This file acts as the single source of truth for all data related to the
+ * user's vault (files, tags, etc.). It uses a factory function (`createWorldStore`)
+ * to create a managed store that handles:
+ * - Asynchronous data fetching from the Rust backend.
+ * - Real-time updates by listening to Tauri events (`index-updated`).
+ * - Centralized error handling for data loading.
+ * - A clear lifecycle (initialize, destroy) for managing the vault session.
+ *
+ * For UI-specific state (like view modes or modal visibility), see `stores.ts`.
+ */
+
 import { writable, derived } from "svelte/store";
 import { listen } from "@tauri-apps/api/event";
 import { getFileTree, getAllTags, getVaultPath } from "./commands";
