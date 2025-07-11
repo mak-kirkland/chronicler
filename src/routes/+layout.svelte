@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { browser } from "$app/environment";
     import { checkForAppUpdates } from "$lib/updater";
     import { appStatus, resetAllStores } from "$lib/stores";
     import { world } from "$lib/worldStore";
