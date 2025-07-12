@@ -85,9 +85,9 @@ pub struct RenderedPage {
     pub rendered_html: String,
 }
 
-// A comprehensive data structure for the file view. This is a "View Model"
-// that combines data from the indexer and the renderer into a single package
-// for the frontend.
+/// A comprehensive data structure for the file view. This is a "View Model"
+/// that combines data from the indexer and the renderer into a single package
+/// for the frontend.
 #[derive(Debug, Serialize, Clone)]
 pub struct FullPageData {
     pub raw_content: String,

@@ -25,17 +25,15 @@ use tracing::{info, instrument};
 /// This struct acts as the single source of truth for the backend. It is wrapped in a `tauri::State`
 /// managed `Mutex` in `main.rs`, ensuring that all access to it from frontend commands is sequential
 /// and safe.
-///
-/// # Fields
-/// * `root_path`: The root directory of the worldbuilding vault.
-/// * `indexer`: Thread-safe, shared access to the vault indexer.
-/// * `watcher`: The application's file system watcher.
-/// * `renderer`: The application's Markdown renderer.
 #[derive(Debug, Default)]
 pub struct World {
+    /// The root directory of the worldbuilding vault.
     root_path: Option<PathBuf>,
+    /// Thread-safe, shared access to the vault indexer.
     pub indexer: Arc<RwLock<Indexer>>,
+    /// The application's file system watcher.
     watcher: Option<Mutex<Watcher>>,
+    /// The application's Markdown renderer.
     pub renderer: Option<Renderer>,
 }
 
@@ -166,7 +164,7 @@ impl World {
 
     // --- Data Accessors ---
 
-    /// Returns all tags and the pages that reference them.
+    /// Returns all tags and the pages that reference them, sorted alphabetically.
     pub fn get_all_tags(&self) -> Result<Vec<(String, Vec<PageHeader>)>> {
         self.indexer.read().get_all_tags()
     }
@@ -208,20 +206,24 @@ impl World {
 
     // --- File System Operations ---
 
+    /// Creates a new, empty markdown file and synchronously updates the index.
     pub fn create_new_file(&self, parent_dir: String, file_name: String) -> Result<PageHeader> {
         self.indexer.write().create_new_file(parent_dir, file_name)
     }
 
+    /// Creates a new, empty folder.
     pub fn create_new_folder(&self, parent_dir: String, folder_name: String) -> Result<()> {
         self.indexer
             .write()
             .create_new_folder(parent_dir, folder_name)
     }
 
+    /// Renames a file or folder and synchronously updates the index.
     pub fn rename_path(&self, path: PathBuf, new_name: String) -> Result<()> {
         self.indexer.write().rename_path(path, new_name)
     }
 
+    /// Deletes a file or folder and synchronously updates the index.
     pub fn delete_path(&self, path: PathBuf) -> Result<()> {
         self.indexer.write().delete_path(path)
     }

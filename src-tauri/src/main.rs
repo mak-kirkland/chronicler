@@ -36,6 +36,11 @@ struct Args {
     debug: bool,
 }
 
+/// The main entry point for the Chronicler application.
+///
+/// This function initializes the logger, parses command-line arguments,
+/// and configures and runs the Tauri application, setting up the
+/// necessary state and command handlers.
 fn main() {
     let args = Args::parse();
     setup_tracing(&args);

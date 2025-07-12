@@ -42,7 +42,7 @@ pub fn initialize_vault(
 
 // --- Data Retrieval ---
 
-/// Returns the tag index mapping tags to lists of pages that contain them.
+/// Returns the tag index, mapping tags to lists of pages that contain them.
 #[command]
 #[instrument(skip(world))]
 pub fn get_all_tags(world: State<RwLock<World>>) -> Result<Vec<(String, Vec<PageHeader>)>> {
@@ -145,18 +145,21 @@ pub fn delete_path(world: State<RwLock<World>>, path: String) -> Result<()> {
 
 // --- Importer ---
 
+/// Checks if Pandoc is installed in the application's config directory.
 #[command]
 #[instrument(skip(app_handle))]
 pub fn is_pandoc_installed(app_handle: AppHandle) -> Result<bool> {
     importer::is_pandoc_installed(&app_handle)
 }
 
+/// Downloads and extracts Pandoc to the application's config directory.
 #[command]
 #[instrument(skip(app_handle))]
 pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
     importer::download_pandoc(app_handle).await
 }
 
+/// Imports a list of .docx files, converting them to Markdown.
 #[command]
 #[instrument(skip(world, app_handle))]
 pub fn import_docx_files(
@@ -167,8 +170,8 @@ pub fn import_docx_files(
     world.read().import_docx_files(&app_handle, docx_paths)
 }
 
-// This command checks for the "APPIMAGE" environment variable, which is a reliable
-// way to determine if the application is running as an AppImage on Linux.
+/// Checks for the "APPIMAGE" environment variable to determine if the
+/// application is running as an AppImage on Linux.
 #[command]
 #[instrument]
 pub fn get_linux_install_type() -> String {
