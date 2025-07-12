@@ -8,7 +8,7 @@
         node: FileNode;
         onContextMenu: ContextMenuHandler;
     }>();
-    let expanded = $state(true);
+    let expanded = $state(false);
 
     function openFile(file: PageHeader) {
         currentView.set({ type: "file", data: file });

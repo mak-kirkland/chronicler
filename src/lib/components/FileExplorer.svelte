@@ -38,8 +38,15 @@
 {/if}
 
 <div class="explorer-container">
-    {#if filteredNode}
-        <FileTree node={filteredNode} onContextMenu={showContextMenu} />
+    <!--
+      Instead of rendering the root node, we now check if it has children
+      and iterate over them directly. This hides the root and shows the
+      first level of the vault.
+    -->
+    {#if filteredNode && filteredNode.children && filteredNode.children.length > 0}
+        {#each filteredNode.children as child (child.path)}
+            <FileTree node={child} onContextMenu={showContextMenu} />
+        {/each}
     {:else if searchTerm}
         <p class="no-results">No files found.</p>
     {:else if $isWorldLoaded}
