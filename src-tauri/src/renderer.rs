@@ -155,3 +155,121 @@ impl Renderer {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::indexer::Indexer;
+    use parking_lot::RwLock;
+    use serde_json::json;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+
+    /// Helper function to set up a renderer with a pre-populated index.
+    fn setup_renderer() -> (Renderer, PathBuf) {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+
+        // Create a dummy file for link resolution
+        let page1_path = root.join("Page One.md");
+        fs::write(&page1_path, "content").unwrap();
+
+        // Create and scan the indexer
+        let mut indexer = Indexer::new(root);
+        indexer.full_scan(root).unwrap();
+
+        let indexer_arc = Arc::new(RwLock::new(indexer));
+        let renderer = Renderer::new(indexer_arc);
+
+        (renderer, page1_path)
+    }
+
+    #[test]
+    fn test_render_wikilinks_in_string() {
+        let (renderer, page1_path) = setup_renderer();
+        let content = "Link to [[Page One]] and a [[Broken Link|bad link]].";
+        let rendered = renderer.render_wikilinks_in_string(content);
+
+        let expected_path_str = page1_path.to_string_lossy();
+        let expected = format!(
+            "Link to <a href=\"#\" class=\"internal-link\" data-path=\"{}\">Page One</a> and a <span class=\"internal-link broken\">bad link</span>.",
+            expected_path_str
+        );
+
+        assert_eq!(rendered, expected);
+    }
+
+    #[test]
+    fn test_render_page_preview_with_valid_frontmatter() {
+        let (renderer, page1_path) = setup_renderer();
+        let content = "---\ntitle: Test\nrelation: 'A link to [[Page One]]'\n---\nBody content with [[Page One|an alias]].".to_string();
+
+        let result = renderer.render_page_preview(&content).unwrap();
+        let expected_path_str = page1_path.to_string_lossy();
+
+        // Check frontmatter
+        assert_eq!(result.processed_frontmatter["title"], "Test");
+        let expected_relation_html = format!(
+            "A link to <a href=\"#\" class=\"internal-link\" data-path=\"{}\">Page One</a>",
+            expected_path_str
+        );
+        assert_eq!(
+            result.processed_frontmatter["relation"],
+            expected_relation_html
+        );
+
+        // Check body
+        let expected_body_html = format!(
+            "<p>Body content with <a href=\"#\" class=\"internal-link\" data-path=\"{}\">an alias</a>.</p>\n",
+            expected_path_str
+        );
+        assert_eq!(result.rendered_html, expected_body_html);
+    }
+
+    #[test]
+    fn test_render_page_preview_with_malformed_yaml() {
+        let (renderer, _) = setup_renderer();
+        let content = "---\ntitle: Test\ninvalid yaml: here:\n---\nBody.";
+        let result = renderer.render_page_preview(content).unwrap();
+
+        // Check that the frontmatter contains the error object
+        assert_eq!(
+            result.processed_frontmatter["error"],
+            json!("YAML Parse Error")
+        );
+        assert!(result.processed_frontmatter["details"].is_string());
+
+        // Check that the body is still rendered
+        assert_eq!(result.rendered_html, "<p>Body.</p>\n");
+    }
+
+    #[test]
+    fn test_render_page_preview_no_frontmatter() {
+        let (renderer, _) = setup_renderer();
+        let content = "# Title\nJust body content, with a [[Broken Link]].";
+        let result = renderer.render_page_preview(content).unwrap();
+
+        // Frontmatter should be null
+        assert!(result.processed_frontmatter.is_null());
+
+        // Body should be rendered with the broken link
+        let expected_html = "<h1>Title</h1>\n<p>Just body content, with a <span class=\"internal-link broken\">Broken Link</span>.</p>\n";
+        assert_eq!(result.rendered_html, expected_html);
+    }
+
+    #[test]
+    fn test_render_markdown_does_not_process_wikilinks() {
+        let (renderer, _) = setup_renderer();
+        let content = "# Help File\nThis is how you write a wikilink: `[[Page Name]]`.";
+        let result = renderer.render_markdown(content).unwrap();
+
+        // Frontmatter should be null
+        assert!(result.processed_frontmatter.is_null());
+
+        // The wikilink syntax should be preserved inside the code block
+        let expected_html = "<h1>Help File</h1>\n<p>This is how you write a wikilink: <code>[[Page Name]]</code>.</p>\n";
+        assert_eq!(result.rendered_html, expected_html);
+    }
+}
