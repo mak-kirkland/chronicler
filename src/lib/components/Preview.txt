@@ -9,12 +9,10 @@
     let {
         renderedData,
         infoboxData = null,
-        imageUrl = null,
         mode = "unified",
     } = $props<{
         renderedData: RenderedPage | null;
         infoboxData?: InfoboxData | null;
-        imageUrl?: string | null;
         mode?: "split" | "unified";
     }>();
 </script>
@@ -24,7 +22,7 @@
     {#if infoboxData}
         <!-- A class is added based on the mode to control the layout -->
         <div class="infobox-wrapper mode-{mode}">
-            <Infobox data={infoboxData} {imageUrl} />
+            <Infobox data={infoboxData} />
         </div>
     {/if}
 

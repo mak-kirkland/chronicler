@@ -5,7 +5,7 @@
     import ErrorBox from "$lib/components/ErrorBox.svelte";
     import SaveStatus from "$lib/components/SaveStatus.svelte";
     import { fileViewMode, currentView, rightSidebar } from "$lib/stores";
-    import { files, isWorldLoaded, vaultPath } from "$lib/worldStore";
+    import { files, isWorldLoaded } from "$lib/worldStore";
     import {
         buildPageView,
         writePageContent,
@@ -15,8 +15,6 @@
     import type { PageHeader, FullPageData } from "$lib/bindings";
     import { findFileInTree } from "$lib/utils";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
-    import { convertFileSrc } from "@tauri-apps/api/core";
-    import { resolve } from "@tauri-apps/api/path";
 
     let { file } = $props<{ file: PageHeader }>();
 
@@ -24,13 +22,13 @@
     let error = $state<string | null>(null);
     let isLoading = $state(true);
     let pristineContent = $state("");
-    let imageUrl = $state<string | null>(null);
     let saveStatus: "idle" | "dirty" | "saving" | "error" = $state("idle");
     let lastSaveTime = $state<Date | null>(null);
     let saveTimeout: number;
 
     // This effect handles loading the page data whenever the `file` prop changes.
     $effect(() => {
+        // --- State Reset ---
         isLoading = true;
         pageData = null;
         error = null;
@@ -39,11 +37,12 @@
         lastSaveTime = null; // Reset last save time for the new file
         rightSidebar.update((state) => ({ ...state, backlinks: [] })); // Reset backlinks
 
+        // --- Data Fetching ---
         buildPageView(file.path)
             .then((data) => {
                 pageData = data;
                 pristineContent = data.raw_content;
-                // Update the backlinks in the store
+                // Update the backlinks in the store for the right sidebar.
                 rightSidebar.update((state) => ({
                     ...state,
                     backlinks: data.backlinks,
@@ -57,7 +56,7 @@
                 isLoading = false;
             });
 
-        // Cleanup function clears all timers when the file changes or component unmounts.
+        // Cleanup function clears any pending save timeouts when the file changes or component unmounts.
         return () => {
             clearTimeout(saveTimeout);
         };
@@ -87,6 +86,7 @@
                     saveStatus = "idle"; // Return to idle after a successful save
                     lastSaveTime = new Date(); // Set the timestamp of the successful save
 
+                    // Re-render the preview with the new content.
                     return renderPagePreview(contentToSave);
                 })
                 .then((newlyRenderedData) => {
@@ -97,26 +97,6 @@
                     saveStatus = "error";
                 });
         }, AUTOSAVE_DEBOUNCE_MS);
-    });
-
-    $effect(() => {
-        (async () => {
-            if (!pageData?.rendered_page.infobox_image_path || !$vaultPath) {
-                imageUrl = null;
-                return;
-            }
-            try {
-                const imagePath = await resolve(
-                    $vaultPath,
-                    "images",
-                    pageData.rendered_page.infobox_image_path,
-                );
-                imageUrl = convertFileSrc(imagePath);
-            } catch (e) {
-                console.error("Image Path Error:", e);
-                imageUrl = null;
-            }
-        })();
     });
 
     // This effect navigates away if the current file is deleted from the vault.
@@ -204,7 +184,6 @@
                         infoboxData={hasInfoboxContent
                             ? pageData.rendered_page.processed_frontmatter
                             : null}
-                        {imageUrl}
                         mode="split"
                     />
                 </div>
@@ -215,7 +194,6 @@
                         infoboxData={hasInfoboxContent
                             ? pageData.rendered_page.processed_frontmatter
                             : null}
-                        {imageUrl}
                         mode="unified"
                     />
                 </div>
