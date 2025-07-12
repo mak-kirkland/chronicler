@@ -5,6 +5,8 @@
  */
 
 import type { FileNode } from "./bindings";
+import { resolve } from "@tauri-apps/api/path";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 /**
  * Extracts a display-friendly title from a file path.
@@ -68,4 +70,27 @@ export function filterFileTree(node: FileNode | null, term: string): FileNode | 
 	// If we get here, it's a directory that doesn't match and has no matching children,
 	// or a file that doesn't match.
 	return null;
+}
+
+/**
+ * Resolves a relative image filename from the vault into a full, usable asset URL.
+ * @param vaultPath The absolute path to the current vault.
+ * @param filename The name of the image file (e.g., "character.jpg").
+ * @returns A promise that resolves to the asset URL string, or null if an error occurs.
+ */
+export async function resolveImageUrl(
+	vaultPath: string | null,
+	filename: string | undefined,
+): Promise<string | null> {
+	if (!vaultPath || !filename) {
+		return null;
+	}
+	try {
+		// Assumes images are always in an "images" subfolder in the vault root.
+		const imagePath = await resolve(vaultPath, "images", filename);
+		return convertFileSrc(imagePath);
+	} catch (e) {
+		console.error(`Failed to resolve image path for "${filename}":`, e);
+		return null;
+	}
 }

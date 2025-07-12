@@ -1,6 +1,8 @@
 <script lang="ts">
     import { navigateToTag } from "$lib/actions";
     import ErrorBox from "./ErrorBox.svelte";
+    import { vaultPath } from "$lib/worldStore";
+    import { resolveImageUrl } from "$lib/utils";
 
     type InfoboxData = {
         title?: string;
@@ -12,16 +14,32 @@
         [key: string]: any; // Allow other dynamic properties from frontmatter
     };
 
-    let { data, imageUrl } = $props<{
+    let { data } = $props<{
         data: InfoboxData | null;
-        imageUrl: string | null;
     }>();
 
+    let imageUrl = $state<string | null>(null);
     let imageError = $state(false);
     let filteredData = $state<[string, any][]>([]);
 
+    // This effect resolves the image URL
     $effect(() => {
         imageError = false;
+        imageUrl = null;
+
+        if (data?.image) {
+            resolveImageUrl($vaultPath, data.image).then((url) => {
+                if (url) {
+                    imageUrl = url;
+                } else {
+                    imageError = true;
+                }
+            });
+        }
+    });
+
+    // This effect prepares the data for display by filtering out reserved keys.
+    $effect(() => {
         if (!data || typeof data !== "object") {
             filteredData = [];
             return;
@@ -52,9 +70,9 @@
 
 <div class="infobox">
     <div class="infobox-content-wrapper">
-        {#if imageUrl}
+        {#if data?.image}
             <div class="image-column">
-                {#if !imageError}
+                {#if imageUrl && !imageError}
                     <div class="image-container">
                         <img
                             src={imageUrl}
@@ -63,20 +81,19 @@
                             onerror={() => (imageError = true)}
                         />
                     </div>
-                {/if}
-
-                {#if imageError}
-                    <ErrorBox title="Image Error">
-                        Could not load image: "{data?.image}"
-                    </ErrorBox>
+                {:else if imageError}
+                    <ErrorBox title="Image Error"
+                        >Could not load image: "{data.image}"</ErrorBox
+                    >
                 {/if}
             </div>
         {/if}
+
         <div class="data-column">
             {#if data?.error}
-                <ErrorBox title="YAML Parse Error">
-                    {data.details || data.error}
-                </ErrorBox>
+                <ErrorBox title="YAML Parse Error"
+                    >{data.details || data.error}</ErrorBox
+                >
             {/if}
 
             {#if data?.infobox}
@@ -136,12 +153,15 @@
         /* Defaults to a stacked layout */
         display: block;
     }
+    .image-column {
+        width: 100%;
+        margin-bottom: 1rem;
+    }
     .image-container {
         display: flex;
         justify-content: center;
         align-items: center;
         width: 100%;
-        margin-bottom: 1rem;
         background-color: rgba(0, 0, 0, 0.02);
         border: 1px solid var(--border-color);
         border-radius: 4px;
@@ -231,13 +251,11 @@
         .image-column {
             flex: 0 0 270px;
             min-width: 0;
+            margin-bottom: 0;
         }
         .data-column {
             flex: 1;
             min-width: 0;
-        }
-        .image-container {
-            margin-bottom: 0;
         }
     }
 </style>

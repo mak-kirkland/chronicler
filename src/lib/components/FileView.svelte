@@ -5,7 +5,7 @@
     import ErrorBox from "$lib/components/ErrorBox.svelte";
     import SaveStatus from "$lib/components/SaveStatus.svelte";
     import { fileViewMode, currentView, rightSidebar } from "$lib/stores";
-    import { files, isWorldLoaded, vaultPath } from "$lib/worldStore";
+    import { files, isWorldLoaded } from "$lib/worldStore";
     import {
         buildPageView,
         writePageContent,
@@ -15,8 +15,6 @@
     import type { PageHeader, FullPageData } from "$lib/bindings";
     import { findFileInTree } from "$lib/utils";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
-    import { convertFileSrc } from "@tauri-apps/api/core";
-    import { resolve } from "@tauri-apps/api/path";
 
     let { file } = $props<{ file: PageHeader }>();
 
@@ -24,7 +22,6 @@
     let error = $state<string | null>(null);
     let isLoading = $state(true);
     let pristineContent = $state("");
-    let imageUrl = $state<string | null>(null);
     let saveStatus: "idle" | "dirty" | "saving" | "error" = $state("idle");
     let lastSaveTime = $state<Date | null>(null);
     let saveTimeout: number;
@@ -100,27 +97,6 @@
                     saveStatus = "error";
                 });
         }, AUTOSAVE_DEBOUNCE_MS);
-    });
-
-    // This effect resolves the local asset URL for the infobox image.
-    $effect(() => {
-        (async () => {
-            if (!pageData?.rendered_page.infobox_image_path || !$vaultPath) {
-                imageUrl = null;
-                return;
-            }
-            try {
-                const imagePath = await resolve(
-                    $vaultPath,
-                    "images",
-                    pageData.rendered_page.infobox_image_path,
-                );
-                imageUrl = convertFileSrc(imagePath);
-            } catch (e) {
-                console.error("Image Path Error:", e);
-                imageUrl = null;
-            }
-        })();
     });
 
     // This effect navigates away if the current file is deleted from the vault.
@@ -208,7 +184,6 @@
                         infoboxData={hasInfoboxContent
                             ? pageData.rendered_page.processed_frontmatter
                             : null}
-                        {imageUrl}
                         mode="split"
                     />
                 </div>
@@ -219,7 +194,6 @@
                         infoboxData={hasInfoboxContent
                             ? pageData.rendered_page.processed_frontmatter
                             : null}
-                        {imageUrl}
                         mode="unified"
                     />
                 </div>

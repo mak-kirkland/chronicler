@@ -45,14 +45,7 @@ impl Renderer {
             }
         };
 
-        // 2. Extract the raw image path *before* any processing.
-        let infobox_image_path = if let Value::Object(map) = &frontmatter_json {
-            map.get("image").and_then(|v| v.as_str()).map(String::from)
-        } else {
-            None
-        };
-
-        // 3. Process wikilinks within the frontmatter JSON values
+        // 2. Process wikilinks within the frontmatter JSON values
         if let Value::Object(map) = &mut frontmatter_json {
             for (_, value) in map.iter_mut() {
                 if let Value::String(s) = value {
@@ -67,17 +60,16 @@ impl Renderer {
             }
         }
 
-        // 4. Convert wikilinks
+        // 3. Convert wikilinks in the main body
         let processed_markdown = self.render_wikilinks_in_string(body);
 
-        // 5. Render the main body content to HTML
+        // 4. Render the main body content to HTML
         let rendered_html = self.render_markdown_to_html(&processed_markdown);
 
-        // 6. Return the complete structure with the new image path field.
+        // 5. Return the complete structure.
         Ok(RenderedPage {
             processed_frontmatter: frontmatter_json,
             rendered_html,
-            infobox_image_path,
         })
     }
 
@@ -127,7 +119,6 @@ impl Renderer {
         Ok(RenderedPage {
             processed_frontmatter: serde_json::Value::Null,
             rendered_html,
-            infobox_image_path: None,
         })
     }
 

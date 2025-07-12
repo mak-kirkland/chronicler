@@ -27,7 +27,6 @@ export type TagMap = [string, PageHeader[]][];
 export interface RenderedPage {
 	processed_frontmatter: any; // This is a JSON object
 	rendered_html: string;
-	infobox_image_path?: string; // The optional raw image path
 }
 
 // The corresponding TypeScript interface for the new backend struct.

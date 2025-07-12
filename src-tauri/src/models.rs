@@ -83,9 +83,6 @@ pub struct RenderedPage {
     pub processed_frontmatter: Value,
     /// The body of the page, fully rendered from Markdown to HTML.
     pub rendered_html: String,
-    /// The raw, unprocessed path for the infobox image, if one exists.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub infobox_image_path: Option<String>,
 }
 
 // A comprehensive data structure for the file view. This is a "View Model"
