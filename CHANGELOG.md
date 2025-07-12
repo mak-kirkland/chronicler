@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.1.6-alpha] - 2025-07-12
+
+### ✨ Added
+
+- **View Navigation**: Added back and forward arrows to the main view, allowing for easy navigation through browsing history, similar to a web browser.
+- **Backend Unit Tests**: Added unit tests for the backend rendering engine to ensure stability and prevent regressions.
+
+### 🔄 Changed
+
+- **File Explorer UI**: The file explorer has been improved to hide the redundant root folder and start with all sub-folders collapsed by default, providing a cleaner initial view.
+- **Improved Documentation**: Added extensive documentation to both the frontend and backend codebases to improve clarity and maintainability.
+- **Refactored Image Handling**: Simplified the logic for displaying infobox images by handling it directly in the frontend, making the code easier to follow.
+
+---
+
 ## [v0.1.5-alpha] - 2025-07-10
 
 ### ✨ Added
