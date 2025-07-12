@@ -4,7 +4,12 @@
     import Button from "$lib/components/Button.svelte";
     import ErrorBox from "$lib/components/ErrorBox.svelte";
     import SaveStatus from "$lib/components/SaveStatus.svelte";
-    import { fileViewMode, currentView, rightSidebar } from "$lib/stores";
+    import {
+        fileViewMode,
+        currentView,
+        rightSidebar,
+        navigation,
+    } from "$lib/stores";
     import { files, isWorldLoaded } from "$lib/worldStore";
     import {
         buildPageView,
@@ -128,11 +133,33 @@
         </div>
     {:else if pageData}
         <div class="view-header">
-            <div class="title-container">
-                <h2 class="view-title" title={file.title}>
-                    {file.title}
-                </h2>
-                <SaveStatus status={saveStatus} {lastSaveTime} />
+            <div class="header-left">
+                <div class="navigation-arrows">
+                    <Button
+                        variant="ghost"
+                        size="small"
+                        title="Back"
+                        disabled={!$navigation.canGoBack}
+                        onclick={navigation.back}
+                    >
+                        &larr;
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="small"
+                        title="Forward"
+                        disabled={!$navigation.canGoForward}
+                        onclick={navigation.forward}
+                    >
+                        &rarr;
+                    </Button>
+                </div>
+                <div class="title-container">
+                    <h2 class="view-title" title={file.title}>
+                        {file.title}
+                    </h2>
+                    <SaveStatus status={saveStatus} {lastSaveTime} />
+                </div>
             </div>
 
             <div class="view-actions">
@@ -204,17 +231,12 @@
 
 <style>
     .file-view-container {
-        position: relative;
         display: flex;
         flex-direction: column;
         width: 100%;
         height: 100%;
     }
     .view-header {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -226,14 +248,26 @@
         z-index: 20;
         height: 60px;
         box-sizing: border-box;
+        flex-shrink: 0;
+    }
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 1;
+        min-width: 0; /* Prevents the container from overflowing */
+    }
+    .navigation-arrows {
+        display: flex;
+        flex-shrink: 0; /* Prevents arrows from being squished */
     }
     .title-container {
         display: flex;
         align-items: baseline;
         gap: 1rem;
         flex-shrink: 1;
-        flex-grow: 1;
         overflow: hidden;
+        min-width: 0; /* Helps with ellipsis truncation */
     }
     .view-title {
         font-family: "Uncial Antiqua", cursive;
@@ -252,7 +286,6 @@
     .content-panes {
         display: flex;
         flex-grow: 1;
-        padding-top: 60px;
         height: 100%;
         box-sizing: border-box;
         overflow: hidden;
