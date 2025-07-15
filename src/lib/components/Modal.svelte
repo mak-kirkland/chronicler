@@ -67,20 +67,20 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
+        background-color: var(--color-overlay-medium);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 1000;
     }
     .modal-content {
-        background-color: #fdf6e3;
+        background-color: var(--parchment);
         padding: 2rem;
         border-radius: 8px;
         border: 2px solid var(--border-color);
         width: 100%;
         max-width: 500px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 5px 15px var(--color-overlay-light);
         color: var(--ink);
     }
     .modal-content:focus {
@@ -95,7 +95,7 @@
         margin-bottom: 1rem;
     }
     .modal-header h3 {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         font-size: 1.5rem;
         color: var(--ink-light);
         margin: 0;

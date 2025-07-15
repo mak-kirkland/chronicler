@@ -48,9 +48,9 @@
             <FileTree node={child} onContextMenu={showContextMenu} />
         {/each}
     {:else if searchTerm}
-        <p class="no-results">No files found.</p>
+        <p class="text-muted text-center">No files found.</p>
     {:else if $isWorldLoaded}
-        <p class="no-results">Your vault is empty.</p>
+        <p class="text-muted text-center">Your vault is empty.</p>
     {:else}
         <p>Loading files...</p>
     {/if}
@@ -61,10 +61,7 @@
         height: 100%;
         width: 100%;
     }
-    .no-results {
-        color: var(--ink-light);
-        text-align: center;
-        font-style: italic;
+    .text-muted.text-center {
         margin-top: 1rem;
     }
 </style>

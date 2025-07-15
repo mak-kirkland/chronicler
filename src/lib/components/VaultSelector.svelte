@@ -40,7 +40,7 @@
         text-align: center;
         width: 100vw;
         height: 100vh;
-        color: #4a3f35;
+        color: var(--ink);
     }
     .welcome-icon {
         width: 150px;
@@ -49,10 +49,10 @@
         margin-bottom: 2rem;
     }
     .welcome-title {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         font-size: 4rem;
         margin-bottom: 1rem;
-        color: #6a5f55;
+        color: var(--ink-light);
     }
     .welcome-text {
         font-size: 1.2rem;

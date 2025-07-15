@@ -68,7 +68,7 @@
         align-items: center;
         padding: 0 1rem;
         height: 60px;
-        background-color: rgba(253, 246, 227, 0.85);
+        background-color: var(--color-background-header);
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
         border-bottom: 1px solid var(--border-color);
@@ -83,7 +83,7 @@
         display: flex;
     }
     h2 {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         color: var(--ink-light);
         border-bottom: none;
         padding-bottom: 0;

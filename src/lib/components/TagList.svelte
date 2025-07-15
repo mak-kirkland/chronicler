@@ -21,7 +21,7 @@
             </div>
         {/each}
     {:else}
-        <p class="no-results">No tags found.</p>
+        <p class="text-muted text-center">No tags found.</p>
     {/if}
 </div>
 
@@ -49,10 +49,5 @@
     }
     .tag-count {
         color: var(--ink-light);
-    }
-    .no-results {
-        color: var(--ink-light);
-        text-align: center;
-        font-style: italic;
     }
 </style>

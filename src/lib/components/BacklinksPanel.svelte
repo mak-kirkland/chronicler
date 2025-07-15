@@ -43,7 +43,7 @@
                 {/each}
             </ul>
         {:else}
-            <p class="no-results">No backlinks found for this page.</p>
+            <p class="text-muted">No backlinks found for this page.</p>
         {/if}
     </div>
 </aside>
@@ -52,7 +52,7 @@
     .right-sidebar {
         width: 200px; /* Fixed width for the right sidebar */
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.03);
+        background-color: var(--color-overlay-light);
         border-left: 1px solid var(--border-color);
         display: flex;
         flex-direction: column;
@@ -66,7 +66,7 @@
         border-bottom: 1px solid var(--border-color);
     }
     h3 {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         color: var(--ink-light);
         margin: 0;
         font-size: 1.2rem;
@@ -107,9 +107,5 @@
         font-style: italic;
         padding-left: 0.5rem;
         flex-shrink: 0;
-    }
-    .no-results {
-        font-style: italic;
-        color: var(--ink-light);
     }
 </style>

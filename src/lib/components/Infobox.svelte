@@ -122,7 +122,7 @@
                     </dd>
                 {:else}
                     {#if data && !data.error && filteredData.length === 0 && (!data.tags || data.tags.length === 0)}
-                        <div class="no-fields-message">
+                        <div class="no-fields-message text-muted text-center">
                             No additional fields to display.
                         </div>
                     {/if}
@@ -151,7 +151,7 @@
 
 <style>
     .infobox {
-        background-color: rgba(0, 0, 0, 0.03);
+        background-color: var(--color-overlay-light);
         border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 1rem;
@@ -171,7 +171,7 @@
         justify-content: center;
         align-items: center;
         width: 100%;
-        background-color: rgba(0, 0, 0, 0.02);
+        background-color: var(--color-overlay-subtle);
         border: 1px solid var(--border-color);
         border-radius: 4px;
         overflow: hidden;
@@ -183,14 +183,11 @@
         border-radius: 2px;
     }
     .no-fields-message {
-        font-style: italic;
-        color: var(--ink-light);
         grid-column: 1 / -1;
-        text-align: center;
         padding: 0.5rem;
     }
     h4 {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         margin-top: 0;
         border-bottom: 1px solid var(--border-color);
         padding-bottom: 0.5rem;
@@ -215,15 +212,15 @@
         padding-left: 1.2rem;
     }
     :global(.infobox a.internal-link) {
-        color: #2563eb;
+        color: var(--color-text-link);
         text-decoration: none;
-        border-bottom: 1px dotted #2563eb;
+        border-bottom: 1px dotted var(--color-text-link);
         cursor: pointer;
     }
     :global(.infobox span.internal-link.broken) {
-        color: #b04a4a;
+        color: var(--color-text-link-broken);
         text-decoration: none;
-        border-bottom: 1px dotted #b04a4a;
+        border-bottom: 1px dotted var(--color-text-link-broken);
         cursor: help;
     }
     .tag-container {
@@ -232,7 +229,7 @@
         gap: 0.5rem;
     }
     .tag-link {
-        background-color: rgba(0, 0, 0, 0.07);
+        background-color: var(--color-overlay-dark);
         color: var(--ink);
         padding: 0.2rem 0.6rem;
         border-radius: 9999px; /* pill shape */
@@ -247,7 +244,7 @@
         background-color: var(--parchment-dark);
         outline: none;
         transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 4px var(--color-overlay-subtle);
     }
     /* --- Container Query for responsive layout --- */
     /* When the infobox container is wider than 480px, switch to a side-by-side layout */

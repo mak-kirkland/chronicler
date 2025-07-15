@@ -91,8 +91,8 @@
 
 <style>
     .manual-update-notice {
-        background-color: rgba(118, 72, 9, 0.1);
-        border: 1px solid rgba(118, 72, 9, 0.2);
+        background-color: var(--parchment-dark);
+        border: 1px solid var(--parchment-dark);
         padding: 1rem;
         border-radius: 6px;
         margin-top: 1rem;

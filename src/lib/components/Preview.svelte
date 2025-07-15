@@ -63,7 +63,7 @@
     .preview-content :global(h1),
     .preview-content :global(h2),
     .preview-content :global(h3) {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         color: var(--ink-light);
         border-bottom: 1px solid var(--border-color);
         padding-bottom: 0.3em;
@@ -76,15 +76,15 @@
         margin-top: 0;
     }
     .preview-content :global(a.internal-link) {
-        color: #2563eb;
+        color: var(--color-text-link);
         text-decoration: none;
-        border-bottom: 1px dotted #2563eb;
+        border-bottom: 1px dotted var(--color-text-link);
         cursor: pointer;
     }
     .preview-content :global(span.internal-link.broken) {
-        color: #b04a4a;
+        color: var(--color-text-link-broken);
         text-decoration: none;
-        border-bottom: 1px dotted #b04a4a;
+        border-bottom: 1px dotted var(--color-text-link-broken);
         cursor: help;
     }
     .preview-content :global(blockquote) {
@@ -96,13 +96,13 @@
     }
     /* For inline code: `like this` */
     .preview-content :global(:not(pre) > code) {
-        background-color: rgba(0, 0, 0, 0.05);
+        background-color: var(--color-overlay-medium);
         padding: 0.2em 0.4em;
         border-radius: 3px;
     }
     /* For the fenced code block container (```) */
     .preview-content :global(pre) {
-        background-color: rgba(0, 0, 0, 0.05);
+        background-color: var(--color-overlay-medium);
         padding: 1em;
         border-radius: 4px;
         overflow-x: auto;
@@ -126,7 +126,7 @@
         text-align: left;
     }
     .preview-content :global(th) {
-        background-color: rgba(0, 0, 0, 0.03);
+        background-color: var(--color-overlay-light);
         font-weight: bold;
     }
 </style>

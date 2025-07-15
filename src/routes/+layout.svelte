@@ -204,22 +204,22 @@
         padding: 2rem;
     }
     .error-message {
-        background-color: rgba(139, 0, 0, 0.1);
-        color: darkred;
+        background-color: var(--color-background-error);
+        color: var(--color-text-error);
         padding: 1rem;
         border-radius: 4px;
         margin-bottom: 2rem;
         max-width: 600px;
-        border: 1px solid rgba(139, 0, 0, 0.2);
+        border: 1px solid var(--color-border-error);
     }
     .select-button {
         padding: 0.75rem 1.5rem;
         background-color: var(--accent-color);
         color: var(--parchment);
-        border: 1px solid rgba(211, 199, 179, 0.5);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         cursor: pointer;
-        font-family: "IM Fell English", serif;
+        font-family: var(--font-family-body);
         font-size: 1.1rem;
     }
     .chronicler-app {
@@ -227,7 +227,7 @@
         height: 100vh;
         width: 100vw;
         color: var(--ink);
-        font-family: "IM Fell English", serif;
+        font-family: var(--font-family-body);
     }
     .main-content {
         display: flex;
@@ -238,7 +238,7 @@
     .resizer {
         width: 5px;
         cursor: ew-resize;
-        background: #00000020;
+        background: var(--color-overlay-resizer);
         position: fixed;
         top: 0;
         bottom: 0;
@@ -247,7 +247,7 @@
     }
     .resizer:hover,
     .resizer:focus {
-        background: #00000040;
+        background: var(--color-overlay-resizer-hover);
         outline: none;
     }
     .welcome-icon {
@@ -257,7 +257,7 @@
         margin-bottom: 2rem;
     }
     .welcome-title {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         font-size: 4rem;
         margin-bottom: 1rem;
         color: var(--ink-light);

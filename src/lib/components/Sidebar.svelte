@@ -123,7 +123,7 @@
         top: 0;
         left: 0;
         bottom: 0;
-        background-color: rgba(0, 0, 0, 0.05);
+        background-color: var(--color-overlay-medium);
         border-right: 1px solid var(--border-color);
         display: flex;
         flex-direction: column;
@@ -135,7 +135,7 @@
         border-bottom: 1px solid var(--border-color);
     }
     .title {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         margin: 0;
         font-size: 2rem;
         color: var(--ink-light);
@@ -153,6 +153,7 @@
         cursor: pointer;
         color: var(--ink-light);
         border-bottom: 2px solid transparent;
+        font-family: var(--font-family-body);
     }
     .tab-navigation button.active {
         border-bottom-color: var(--accent-color);

@@ -150,7 +150,7 @@
         padding-bottom: 0;
     }
     h4 {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         margin: 0;
         color: var(--ink-light);
     }

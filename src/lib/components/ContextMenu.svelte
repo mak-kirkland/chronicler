@@ -83,7 +83,7 @@
         background-color: var(--parchment);
         border: 1px solid var(--border-color);
         border-radius: 6px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 12px var(--color-overlay-subtle);
         padding: 0.5rem;
         min-width: 180px;
     }

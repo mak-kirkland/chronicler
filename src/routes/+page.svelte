@@ -99,10 +99,10 @@
         margin-bottom: 2rem;
     }
     .welcome-title {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         font-size: 4rem;
         margin-bottom: 1rem;
-        color: #6a5f55;
+        color: var(--ink-light);
     }
     .welcome-text {
         font-size: 1.2rem;
@@ -112,7 +112,7 @@
         padding: 2rem;
         text-align: center;
         border-top: 1px solid var(--border-color);
-        background-color: rgba(0, 0, 0, 0.02);
+        background-color: var(--color-overlay-subtle);
     }
     .welcome-footer p {
         margin: 0.5rem 0;
@@ -120,8 +120,8 @@
         color: var(--ink-light);
     }
     .welcome-footer a {
-        color: #2563eb;
+        color: var(--color-text-link);
         text-decoration: none;
-        border-bottom: 1px dotted #2563eb;
+        border-bottom: 1px dotted var(--color-text-link);
     }
 </style>

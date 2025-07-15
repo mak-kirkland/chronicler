@@ -45,7 +45,7 @@
     }
 
     .save-status.error {
-        color: darkred;
+        color: var(--color-text-error);
         font-weight: bold;
     }
 

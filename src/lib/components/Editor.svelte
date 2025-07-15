@@ -86,30 +86,29 @@
             color: "var(--ink)",
         },
         ".cm-content": {
-            fontFamily: "var(--font-family-default)",
+            fontFamily: "var(--font-family-body)",
             fontSize: "1.1rem",
             lineHeight: "1.8",
-            padding: "2em",
         },
         ".cm-gutters": {
             backgroundColor: "transparent",
             border: "none",
         },
         ".cm-activeLine": {
-            backgroundColor: "rgba(0, 0, 0, 0.05)",
+            backgroundColor: "var(--color-overlay-medium)",
         },
         ".cm-cursor": {
             borderLeftColor: "var(--ink)",
         },
         // Style the autocomplete dropdown to match the app
         ".cm-tooltip.cm-tooltip-autocomplete > ul": {
-            backgroundColor: "var(--background-primary)",
+            backgroundColor: "var(--parchment)",
             border: "1px solid var(--border-color)",
-            fontFamily: "var(--font-family-default)",
+            fontFamily: "var(--font-family-body)",
         },
         ".cm-tooltip-autocomplete li[aria-selected]": {
-            backgroundColor: "var(--background-modifier-hover)",
-            color: "var(--text-normal)",
+            backgroundColor: "var(--parchment-dark)",
+            color: "var(--ink)",
         },
         ".cm-completionIcon-link": {
             "&:after": { content: "'🔗'" },
@@ -142,5 +141,7 @@
         flex-direction: column;
         height: 100%;
         width: 100%;
+        padding: 2em;
+        box-sizing: border-box;
     }
 </style>

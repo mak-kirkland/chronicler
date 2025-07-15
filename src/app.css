@@ -1,5 +1,6 @@
 /* --- Root Variables --- */
 :root {
+    /* Colors */
     --parchment: #fdf6e3;
     --parchment-mid: #00000014;
     --parchment-dark: #dcd3c3;
@@ -7,6 +8,31 @@
     --ink-light: #6a5f55;
     --border-color: #d3c7b3;
     --accent-color: var(--parchment-dark);
+
+    /* Semantic Colors */
+    --color-text-link: #2563eb;
+    --color-text-link-broken: #b04a4a;
+    --color-text-error: #8b0000; /* darkred */
+    --color-background-error: rgba(139, 0, 0, 0.1);
+    --color-border-error: rgba(139, 0, 0, 0.2);
+
+    /* UI Element Colors */
+    --color-background-header: rgba(
+        253,
+        246,
+        227,
+        0.85
+    ); /* parchment with blur */
+    --color-overlay-subtle: rgba(0, 0, 0, 0.02);
+    --color-overlay-light: rgba(0, 0, 0, 0.03);
+    --color-overlay-medium: rgba(0, 0, 0, 0.05);
+    --color-overlay-dark: rgba(0, 0, 0, 0.07);
+    --color-overlay-resizer: rgba(0, 0, 0, 0.125);
+    --color-overlay-resizer-hover: rgba(0, 0, 0, 0.25);
+
+    /* Typography */
+    --font-family-body: "IM Fell English", serif;
+    --font-family-heading: "Uncial Antiqua", cursive;
 }
 
 /* --- Local Font Definitions (from /static folder) --- */
@@ -41,7 +67,7 @@ html {
     padding: 0;
     height: 100%;
     overflow: hidden;
-    font-family: "IM Fell English", serif;
+    font-family: var(--font-family-body);
     background-color: var(--parchment);
     color: var(--ink);
 }
@@ -73,13 +99,24 @@ html {
     padding: 0;
     cursor: pointer;
     font-family: inherit;
-    color: #2563eb;
+    color: var(--color-text-link);
     text-decoration: none;
-    border-bottom: 1px dotted #2563eb;
+    border-bottom: 1px dotted var(--color-text-link);
     text-align: left;
 }
 .link-button:hover,
 .link-button:focus {
     text-decoration: underline;
     outline: none;
+}
+
+/* A reusable class for muted, italicized text, like "No results found" */
+.text-muted {
+    color: var(--ink-light);
+    font-style: italic;
+}
+
+/* A reusable class for centering text */
+.text-center {
+    text-align: center;
 }

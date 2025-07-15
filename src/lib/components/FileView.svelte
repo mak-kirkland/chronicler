@@ -241,7 +241,7 @@
         justify-content: space-between;
         align-items: center;
         padding: 0 2rem;
-        background-color: rgba(253, 246, 227, 0.85);
+        background-color: var(--color-background-header);
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
         border-bottom: 1px solid var(--border-color);
@@ -270,7 +270,7 @@
         min-width: 0; /* Helps with ellipsis truncation */
     }
     .view-title {
-        font-family: "Uncial Antiqua", cursive;
+        font-family: var(--font-family-heading);
         color: var(--ink-light);
         margin: 0;
         font-size: 1.5rem;
