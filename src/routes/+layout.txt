@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { get } from "svelte/store";
     import { checkForAppUpdates } from "$lib/updater";
     import { appStatus, resetAllStores } from "$lib/viewStores";
     import { world } from "$lib/worldStore";
@@ -16,29 +17,58 @@
     } from "$lib/config";
     import "../app.css";
 
+    import { getCurrentWindow } from "@tauri-apps/api/window";
+    import { openModal } from "$lib/modalStore";
+    import DonationModal from "$lib/components/DonationModal.svelte";
+    import { hideDonationPrompt, loadSettings } from "$lib/settingsStore";
+
     let { children } = $props();
     let sidebarWidth = $state(SIDEBAR_INITIAL_WIDTH);
     let isResizing = $state(false);
     let errorMessage = $state<string | null>(null);
 
-    // This onMount hook handles the application's startup sequence.
-    onMount(async () => {
-        errorMessage = null;
-        try {
-            // Check if a vault path is already stored in the config.
-            const path = await getVaultPath();
-            if (path) {
-                // If a path exists, initialize the vault with it.
-                await handleVaultSelected(path);
-            } else {
-                // Otherwise, show the vault selector screen.
-                $appStatus = "selecting_vault";
+    onMount(() => {
+        (async () => {
+            errorMessage = null;
+            try {
+                const path = await getVaultPath();
+                if (path) {
+                    await handleVaultSelected(path);
+                } else {
+                    $appStatus = "selecting_vault";
+                }
+            } catch (e: any) {
+                console.error("Failed during startup initialization:", e);
+                errorMessage =
+                    e.message || `Failed to read configuration: ${e}`;
+                $appStatus = "error";
             }
-        } catch (e: any) {
-            console.error("Failed during startup initialization:", e);
-            errorMessage = e.message || `Failed to read configuration: ${e}`;
-            $appStatus = "error";
-        }
+
+            // Load the persistent setting first.
+            await loadSettings();
+
+            // Only attach the listener if the user has not opted out.
+            if (!get(hideDonationPrompt)) {
+                let hasFiredOnce = false;
+                const unlisten = await getCurrentWindow().onCloseRequested(
+                    async (event) => {
+                        if (hasFiredOnce) {
+                            return;
+                        }
+                        event.preventDefault();
+                        hasFiredOnce = true;
+                        openModal({
+                            component: DonationModal,
+                            props: {},
+                        });
+                    },
+                );
+
+                return () => {
+                    unlisten();
+                };
+            }
+        })();
     });
 
     /**

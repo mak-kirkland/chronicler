@@ -5,10 +5,12 @@
         children,
         title = "Modal Title",
         onClose = () => {},
+        showCloseButton = true,
     } = $props<{
         children: any;
         title?: string;
         onClose?: () => void;
+        showCloseButton?: boolean;
     }>();
 
     let modalElement: HTMLDivElement;
@@ -44,9 +46,13 @@
     >
         <div class="modal-header">
             <h3>{title}</h3>
-            <button class="close-btn" onclick={onClose} aria-label="Close modal"
-                >&times;</button
-            >
+            {#if showCloseButton}
+                <button
+                    class="close-btn"
+                    onclick={onClose}
+                    aria-label="Close modal">&times;</button
+                >
+            {/if}
         </div>
         <div class="modal-body">
             {@render children()}
