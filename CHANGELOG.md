@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.1.8-alpha] - 2025-07-15
+
+### ✨ Added
+
+- **Editor Autocompletion**: The editor has been upgraded to CodeMirror 6 and now provides autocompletion suggestions for [[wikilinks]] and frontmatter tags: [].
+- **Donation Prompt**: A modal will now appear on application close asking users to consider supporting development. This choice is saved persistently so it only appears once.
+
+### 🔄 Changed
+
+- **UI & Branding**: The application logo has been added to the welcome screen and vault selector for a more consistent brand identity.
+
+### 🐞 Fixed
+
+- **Frontmatter Rendering**: Fixed a bug where having duplicate keys in a page's frontmatter would prevent the page from rendering correctly.
+
+---
+
 ## [v0.1.7-alpha] - 2025-07-13
 
 ### ✨ Added
