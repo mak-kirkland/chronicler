@@ -69,7 +69,7 @@
         border: none;
         padding: 0.25rem;
         color: var(--ink-light);
-        opacity: 0.7;
+        opacity: 0.8;
         font-size: 1.5rem;
     }
     .ghost:hover:not(:disabled) {

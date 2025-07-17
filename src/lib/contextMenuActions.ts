@@ -65,7 +65,7 @@ export function getContextMenuActions(node: FileNode): ContextMenuItem[] {
     if (isDir) {
         actions.push({ isSeparator: true });
         actions.push({
-            label: "New File...",
+            label: "New Page...",
             handler: () => promptAndCreateItem("file", node.path),
         });
         actions.push({

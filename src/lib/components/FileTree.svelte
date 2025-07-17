@@ -3,6 +3,8 @@
     import type { ContextMenuHandler } from "$lib/types";
     import { currentView } from "$lib/viewStores";
     import FileTree from "./FileTree.svelte";
+    import { promptAndCreateItem } from "$lib/actions";
+    import Button from "./Button.svelte";
 
     let { node, onContextMenu } = $props<{
         node: FileNode;
@@ -12,6 +14,16 @@
 
     function openFile(file: PageHeader) {
         currentView.set({ type: "file", data: file });
+    }
+
+    function handleNewFile(e: MouseEvent) {
+        e.stopPropagation(); // Prevent the directory from expanding/collapsing
+        promptAndCreateItem("file", node.path);
+    }
+
+    function handleNewFolder(e: MouseEvent) {
+        e.stopPropagation(); // Prevent the directory from expanding/collapsing
+        promptAndCreateItem("folder", node.path);
     }
 </script>
 
@@ -28,8 +40,28 @@
                 onContextMenu(e, node);
             }}
         >
-            <span class="icon">{expanded ? "▼" : "►"}</span>
-            <span>{node.name}</span>
+            <div class="label">
+                <span class="icon">{expanded ? "▼" : "►"}</span>
+                <span>{node.name}</span>
+            </div>
+            <div class="quick-actions">
+                <Button
+                    variant="ghost"
+                    class="quick-action-btn"
+                    title="New Page in '{node.name}'"
+                    onclick={handleNewFile}
+                >
+                    +📄
+                </Button>
+                <Button
+                    variant="ghost"
+                    class="quick-action-btn"
+                    title="New Folder in '{node.name}'"
+                    onclick={handleNewFolder}
+                >
+                    +📁
+                </Button>
+            </div>
         </div>
         {#if expanded && node.children}
             <div class="children">
@@ -73,6 +105,7 @@
         align-items: center;
         gap: 0.5rem;
         user-select: none;
+        justify-content: space-between;
     }
     .directory:hover,
     .file:hover {
@@ -90,5 +123,30 @@
     .icon {
         opacity: 0.7;
         font-size: 0.8em;
+    }
+    .label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-grow: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+    .quick-actions {
+        display: flex;
+        align-items: center;
+        visibility: hidden;
+        flex-shrink: 0;
+    }
+    .directory:hover .quick-actions {
+        visibility: visible;
+    }
+
+    /* Use :global() to override the styles of the child Button component */
+    :global(.quick-action-btn) {
+        font-size: 1em !important;
+        padding: 0 0.3rem !important;
+        line-height: 1 !important;
     }
 </style>
