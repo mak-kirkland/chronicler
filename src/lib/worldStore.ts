@@ -138,30 +138,3 @@ export const tags = derived(world, ($world) => $world.tags);
  * A derived store that reflects the loading status of the world data.
  */
 export const isWorldLoaded = derived(world, ($world) => $world.isLoaded);
-
-/**
- * Recursively flattens the file tree into a simple array of file titles.
- * This is used to generate link suggestions for autocompletion.
- */
-function flattenFileTree(node: FileNode | null): string[] {
-    if (!node) return [];
-    const titles: string[] = [];
-    if (node.name && !node.is_directory) {
-        // Extract title from path, removing extension
-        titles.push(node.name);
-    }
-    if (node.children) {
-        for (const child of node.children) {
-            titles.push(...flattenFileTree(child));
-        }
-    }
-    return titles;
-}
-
-/**
- * A derived store that provides a flattened list of all page titles.
- * Useful for autocompletion features.
- */
-export const allFileTitles = derived(files, ($files) =>
-    flattenFileTree($files),
-);
