@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.1.9-alpha] - 2025-07-17
+
+### ✨ Added
+
+- **Quick-Create Buttons**: Added hover-activated buttons to each directory in the file explorer, allowing for the quick creation of new pages and folders directly within that directory.
+
+### 🔄 Changed
+
+- **Improved Styling**: Further unified CSS styling by centralizing more colors and typography into global variables.
+
+### 🐞 Fixed
+
+- **Editor Reverted**: Temporarily reverted the editor from CodeMirror 6 back to a standard textarea. This was done to resolve critical bugs in the production build. The advanced editor with autocompletion will be re-introduced once the build issues are fully solved.
+- **Build Stability**: Corrected the SvelteKit configuration to properly build for SPA (Single-Page Application) mode, which is essential for Tauri apps.
+
+---
+
 ## [v0.1.8-alpha] - 2025-07-15
 
 ### ✨ Added
