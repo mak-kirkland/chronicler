@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.1.10-alpha] - 2025-07-18
+
+### ✨ Added
+
+- **Drag-and-Drop support**: Enabled drag-and-drop functionality in the File Explorer, allowing you to move files and folders to new locations directly within the app.
+
+---
+
 ## [v0.1.9-alpha] - 2025-07-17
 
 ### ✨ Added
