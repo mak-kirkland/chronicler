@@ -4,7 +4,7 @@
     import type { FileNode } from "$lib/bindings";
     import { getContextMenuActions } from "$lib/contextMenuActions";
     import { moveItemToDir } from "$lib/actions";
-    import { droppable } from "$lib/domActions";
+    import { droppable, autoscrollOnDrag } from "$lib/domActions";
     import { isDragging } from "$lib/dragStore";
 
     // Import components needed for the view
@@ -77,7 +77,7 @@
     </div>
 
     <!-- The file tree is rendered below the drop zone -->
-    <div class="file-tree-container">
+    <div class="file-tree-container" use:autoscrollOnDrag>
         <!--
             Instead of rendering the root node, we now check if it has children
             and iterate over them directly. This hides the root and shows the

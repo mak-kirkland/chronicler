@@ -118,3 +118,80 @@ export function droppable(node: HTMLElement, params?: { dropClass?: string }) {
         },
     };
 }
+
+/**
+ * This action makes a scrollable container automatically scroll when a
+ * dragged item is held near its top or bottom edge.
+ * @param node The scrollable HTML element.
+ * @param params Optional parameters.
+ * - `scrollSpeed`: How fast to scroll (pixels per frame).
+ * - `threshold`: The size of the "hot zone" at the top and bottom (in pixels).
+ */
+export function autoscrollOnDrag(
+    node: HTMLElement,
+    params?: { scrollSpeed?: number; threshold?: number },
+) {
+    const scrollSpeed = params?.scrollSpeed ?? 10;
+    const threshold = params?.threshold ?? 60;
+
+    let animationFrameId: number | null = null;
+    let scrollDirection: "up" | "down" | null = null;
+
+    function scrollLoop() {
+        if (scrollDirection === "up") {
+            node.scrollTop -= scrollSpeed;
+        } else if (scrollDirection === "down") {
+            node.scrollTop += scrollSpeed;
+        }
+        if (scrollDirection) {
+            animationFrameId = requestAnimationFrame(scrollLoop);
+        }
+    }
+
+    function startScrolling(direction: "up" | "down") {
+        if (scrollDirection === direction) return; // Already scrolling this way
+        scrollDirection = direction;
+        if (!animationFrameId) {
+            animationFrameId = requestAnimationFrame(scrollLoop);
+        }
+    }
+
+    function stopScrolling() {
+        scrollDirection = null;
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+    }
+
+    function handleDragOver(e: DragEvent) {
+        const rect = node.getBoundingClientRect();
+        const y = e.clientY;
+
+        if (y < rect.top + threshold) {
+            startScrolling("up");
+        } else if (y > rect.bottom - threshold) {
+            startScrolling("down");
+        } else {
+            stopScrolling();
+        }
+    }
+
+    // Stop scrolling if the drag leaves the element or the entire window
+    node.addEventListener("dragleave", stopScrolling);
+    document.addEventListener("dragend", stopScrolling);
+    document.addEventListener("drop", stopScrolling);
+
+    node.addEventListener("dragover", handleDragOver);
+
+    return {
+        destroy() {
+            node.removeEventListener("dragover", handleDragOver);
+            node.removeEventListener("dragleave", stopScrolling);
+            document.removeEventListener("dragend", stopScrolling);
+            document.removeEventListener("drop", stopScrolling);
+            // Final cleanup
+            stopScrolling();
+        },
+    };
+}
