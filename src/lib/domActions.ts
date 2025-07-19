@@ -5,6 +5,8 @@
  * like autofocus and drag-and-drop.
  */
 
+import { isDragging } from "$lib/dragStore";
+
 /**
  * A reusable Svelte action to programmatically focus an element when it is mounted to the DOM.
  * This is a more accessible alternative to the `autofocus` attribute.
@@ -33,15 +35,24 @@ export function draggable(node: HTMLElement, params: { path: string }) {
     function handleDragStart(e: DragEvent) {
         e.dataTransfer!.setData("text/plain", params.path);
         e.dataTransfer!.effectAllowed = "move";
+        // Set the global store to true
+        isDragging.set(true);
+    }
+
+    function handleDragEnd() {
+        // Always set the global store to false when the drag ends
+        isDragging.set(false);
     }
 
     node.draggable = true;
     node.addEventListener("dragstart", handleDragStart);
+    node.addEventListener("dragend", handleDragEnd);
 
     return {
         destroy() {
             node.draggable = false;
             node.removeEventListener("dragstart", handleDragStart);
+            node.removeEventListener("dragend", handleDragEnd);
         },
     };
 }
