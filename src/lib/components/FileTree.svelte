@@ -4,6 +4,7 @@
     import { currentView } from "$lib/viewStores";
     import FileTree from "./FileTree.svelte";
     import { promptAndCreateItem, moveItemToDir } from "$lib/actions";
+    import { draggable, droppable } from "$lib/domActions";
     import Button from "./Button.svelte";
 
     let { node, onContextMenu } = $props<{
@@ -12,10 +13,6 @@
     }>();
 
     let expanded = $state(false);
-    // State to track if a directory is being hovered over by a dragged item
-    let isDragOver = $state(false);
-    // Counter to reliably track drag enter/leave events on nested elements
-    let dragCounter = 0;
 
     function openFile(file: PageHeader) {
         currentView.set({ type: "file", data: file });
@@ -31,63 +28,26 @@
         promptAndCreateItem("folder", node.path);
     }
 
-    // --- Drag and Drop Handlers ---
+    // This handler receives the custom event from our `droppable` action.
+    async function handleFilesDropped(e: CustomEvent<{ sourcePath: string }>) {
+        const { sourcePath } = e.detail;
+        const destinationDir = node.path;
 
-    function handleDragStart(e: DragEvent) {
-        // Set the data to be transferred (the path of the dragged node)
-        e.dataTransfer!.setData("text/plain", node.path);
-        e.dataTransfer!.effectAllowed = "move";
-    }
-
-    function handleDragEnter(e: DragEvent) {
-        e.preventDefault();
-        dragCounter++;
-        // Show visual feedback when dragging over a directory
-        if (node.is_directory) {
-            isDragOver = true;
-        }
-    }
-
-    function handleDragOver(e: DragEvent) {
-        // This is necessary to allow a drop to occur
-        e.preventDefault();
-    }
-
-    function handleDragLeave(e: DragEvent) {
-        dragCounter--;
-        // Only remove visual feedback if the counter is 0, meaning we've left the parent element
-        if (dragCounter === 0) {
-            isDragOver = false;
-        }
-    }
-
-    function handleDrop(e: DragEvent) {
-        e.preventDefault();
-        // Reset state after a drop
-        isDragOver = false;
-        dragCounter = 0;
-
-        // Ensure we are dropping on a directory
-        if (!node.is_directory) return;
-
-        const sourcePath = e.dataTransfer?.getData("text/plain");
-        const destinationPath = node.path;
-
-        if (!sourcePath) return;
-
-        // Prevent dropping a folder into itself or one of its own children
+        // Perform validation before calling the move action
         if (
-            sourcePath === destinationPath ||
-            destinationPath.startsWith(sourcePath + "/")
+            !sourcePath ||
+            sourcePath === destinationDir ||
+            destinationDir.startsWith(sourcePath + "/")
         ) {
-            console.warn(
-                "Invalid move: Cannot move a folder into itself or a child directory.",
-            );
+            console.warn("Invalid move: Cannot move a folder into itself.");
             return;
         }
 
-        // Call the function to execute the move
-        moveItemToDir(sourcePath, destinationPath);
+        try {
+            await moveItemToDir(sourcePath, destinationDir);
+        } catch (err) {
+            console.error("The move operation failed in the UI.", err);
+        }
     }
 </script>
 
@@ -95,7 +55,6 @@
     {#if node.is_directory}
         <div
             class="directory"
-            class:drop-target={isDragOver}
             onclick={() => (expanded = !expanded)}
             onkeydown={(e) => e.key === "Enter" && (expanded = !expanded)}
             role="button"
@@ -104,12 +63,9 @@
                 e.preventDefault();
                 onContextMenu(e, node);
             }}
-            draggable="true"
-            ondragstart={handleDragStart}
-            ondragenter={handleDragEnter}
-            ondragover={handleDragOver}
-            ondragleave={handleDragLeave}
-            ondrop={handleDrop}
+            use:draggable={{ path: node.path }}
+            use:droppable
+            onfilesdropped={handleFilesDropped}
         >
             <div class="label">
                 <span class="icon">{expanded ? "▼" : "►"}</span>
@@ -156,8 +112,7 @@
                 e.preventDefault();
                 onContextMenu(e, node);
             }}
-            draggable="true"
-            ondragstart={handleDragStart}
+            use:draggable={{ path: node.path }}
         >
             <span class="icon">📜</span>
             <span>{node.name}</span>
@@ -193,7 +148,9 @@
         background-color: var(--parchment-dark);
         color: var(--ink);
     }
-    .directory.drop-target {
+    /* The class is applied by the "droppable" action, not the component,
+       so make the style global to ensure that it's applied */
+    .directory:global(.drop-target) {
         background-color: var(--parchment-dark);
         box-shadow: inset 0 0 0 2px var(--ink);
         transform: scale(1.02);
