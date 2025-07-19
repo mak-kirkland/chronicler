@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.2.0-alpha] - 2025-07-19
+
+### ✨ Added
+
+**Improved Drag-and-Drop Experience**:
+
+- **Root Drop Zone**: A dedicated drop zone now appears at the top of the file explorer when dragging, allowing files and folders to be moved to the vault root in a clear and predictable way.
+- **Auto-Scrolling**: The file explorer now automatically scrolls when you drag an item near the top or bottom edge, making it easy to drop files into folders that are currently out of view.
+
+### 🔄 Changed
+
+- **Refactored Drag-and-Drop Logic**: The internal code for drag-and-drop was refactored into reusable Svelte DOM actions (draggable and droppable), simplifying component logic and improving maintainability.
+
+---
+
 ## [v0.1.10-alpha] - 2025-07-18
 
 ### ✨ Added
