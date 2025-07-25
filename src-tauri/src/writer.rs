@@ -262,18 +262,19 @@ tags: [add, your, tags]
             if target.to_lowercase() == old_stem_lower {
                 let section = caps.get(2).map_or("", |m| m.as_str());
                 let alias = caps.get(3).map_or("", |m| m.as_str());
-
-                let mut new_link = format!("[[{new_stem}");
-                if !section.is_empty() {
-                    new_link.push('#');
-                    new_link.push_str(section);
-                }
-                if !alias.is_empty() {
-                    new_link.push('|');
-                    new_link.push_str(alias);
-                }
-                new_link.push_str("]]");
-                new_link
+                format!(
+                    "[[{new_stem}{section}{alias}]]",
+                    section = if section.is_empty() {
+                        "".to_string()
+                    } else {
+                        format!("#{}", section)
+                    },
+                    alias = if alias.is_empty() {
+                        "".to_string()
+                    } else {
+                        format!("|{}", alias)
+                    },
+                )
             } else {
                 caps.get(0).unwrap().as_str().to_string()
             }
