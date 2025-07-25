@@ -136,24 +136,25 @@ tags: [add, your, tags]
             return Err(ChroniclerError::FileAlreadyExists(new_path.clone()));
         }
 
-        // --- 1. Prepare Phase: Calculate all required file system changes in memory ---
-        let mut operations: HashMap<PathBuf, String> = HashMap::new();
+        // --- 1. Prepare Phase: Calculate all required file changes in memory ---
+        let mut backlink_updates: HashMap<PathBuf, String> = HashMap::new();
         if old_path.is_file() {
             let old_name_stem = file_stem_string(old_path);
             let new_name_stem = file_stem_string(&new_path);
 
             for backlink_path in backlinks {
-                let new_content =
-                    self.replace_wikilink_in_file(backlink_path, &old_name_stem, &new_name_stem)?;
-                if let Some(content) = new_content {
-                    operations.insert(backlink_path.clone(), content);
+                if let Some(new_content) =
+                    self.replace_wikilink_in_file(backlink_path, &old_name_stem, &new_name_stem)?
+                {
+                    backlink_updates.insert(backlink_path.clone(), new_content);
                 }
             }
         }
 
         // --- 2. Transaction Phase: Perform all file system changes ---
-        if let Err(e) = self.perform_rename_transaction(old_path, &new_path, &operations) {
+        if let Err(e) = self.perform_rename_transaction(old_path, &new_path, &backlink_updates) {
             warn!("Rename transaction failed and was rolled back: {}", e);
+            // The transaction function handles its own rollback.
             return Err(e);
         }
 
