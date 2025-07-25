@@ -2,7 +2,7 @@
 //!
 //! This module is responsible for all direct, stateful write operations on the vault's
 //! file system. It provides a safe, transactional API for creating, renaming, and
-//! deleting files and folders, ensuring data integrity through rollback mechanisms.
+//! deleting files and folders, ensuring data integrity through atomic writes.
 
 use crate::{
     error::{ChroniclerError, Result},
@@ -14,8 +14,10 @@ use regex::Captures;
 use std::{
     collections::{HashMap, HashSet},
     fs,
+    io::Write,
     path::{Path, PathBuf},
 };
+use tempfile::NamedTempFile;
 use tracing::{instrument, warn};
 
 /// A component responsible for performing safe, transactional file system
@@ -23,13 +25,39 @@ use tracing::{instrument, warn};
 #[derive(Debug, Clone)]
 pub struct Writer;
 
+/// Writes content to a file atomically using the `tempfile` crate.
+///
+/// This creates a named temporary file in the same directory, writes the content,
+/// and then atomically renames it to the final destination. The `tempfile` crate
+/// ensures the temporary file is automatically cleaned up if an error occurs
+/// before the final `persist` call, preventing stray `.tmp` files.
+#[instrument(skip(content), fields(path = %path.display()))]
+fn atomic_write(path: &Path, content: &str) -> Result<()> {
+    let parent_dir = path
+        .parent()
+        .ok_or_else(|| ChroniclerError::InvalidPath(path.to_path_buf()))?;
+
+    // 1. Create a new temporary file in the same directory as the target.
+    let mut temp_file = NamedTempFile::new_in(parent_dir)?;
+
+    // 2. Write the content to the temporary file.
+    temp_file.write_all(content.as_bytes())?;
+
+    // 3. Atomically rename the temporary file to the final path.
+    // The `persist` method handles this and prevents the temp file from being
+    // deleted on drop. The error is converted into our application's error type.
+    temp_file.persist(path).map_err(|e| e.error)?;
+
+    Ok(())
+}
+
 impl Writer {
-    /// Creates a new Writer for the specified root path.
+    /// Creates a new Writer.
     pub fn new() -> Self {
         Self
     }
 
-    /// Creates a new, empty markdown file.
+    /// Creates a new, empty markdown file using an atomic write.
     #[instrument(skip(self))]
     pub fn create_new_file(&self, parent_dir: &str, file_name: &str) -> Result<PageHeader> {
         let mut path = PathBuf::from(parent_dir);
@@ -51,7 +79,8 @@ tags: [add, your, tags]
 "#
         );
 
-        fs::write(&path, default_content)?;
+        // Use the robust atomic_write helper.
+        atomic_write(&path, &default_content)?;
 
         Ok(PageHeader { title, path })
     }
@@ -163,74 +192,42 @@ tags: [add, your, tags]
 
     /// Performs the file system part of a rename operation transactionally.
     ///
-    /// It uses a backup-and-replace strategy to ensure that if any operation fails, all changes
-    /// can be safely rolled back.
-    ///
-    /// # The Transaction Process:
-    /// 1.  Backup: For every file to be modified, it is first renamed to a `.bak` file.
-    /// 2.  Commit: The new content is written and the original file is moved to its new path.
-    /// 3.  Rollback: If the commit succeeds, all `.bak` files are deleted. If it fails, the
-    ///     `.bak` files are renamed back to their original names, restoring the vault to its
-    ///     original state.
+    /// The main `fs::rename` is atomic. Each backlink update uses `atomic_write`.
+    /// If a backlink update fails, we roll back the main rename.
     fn perform_rename_transaction(
         &self,
         old_path: &Path,
         new_path: &Path,
         backlink_updates: &HashMap<PathBuf, String>,
     ) -> Result<()> {
-        let mut backup_paths: Vec<(PathBuf, PathBuf)> = Vec::new();
+        // --- 1. Perform the primary atomic rename ---
+        fs::rename(old_path, new_path)?;
 
-        let result: Result<()> = (|| {
-            let old_path_bak = old_path.with_extension("md.bak");
-            fs::rename(old_path, &old_path_bak)?;
-            backup_paths.push((old_path_bak.clone(), old_path.to_path_buf()));
-
-            for path in backlink_updates.keys() {
-                let bak_path = path.with_extension("md.bak");
-                fs::rename(path, &bak_path)?;
-                backup_paths.push((bak_path, path.clone()));
-            }
-
-            fs::rename(&old_path_bak, new_path)?;
-
-            for (path, new_content) in backlink_updates {
-                fs::write(path, new_content)?;
-            }
-
-            Ok(())
-        })();
-
-        match result {
-            Ok(()) => {
-                for (bak_path, original_path) in &backup_paths {
-                    if original_path != old_path {
-                        if let Err(e) = fs::remove_file(bak_path) {
-                            warn!("Failed to clean up backup file {:?}: {}", bak_path, e);
-                        }
-                    }
-                }
-                Ok(())
-            }
-            Err(e) => {
+        // --- 2. Atomically update all backlink files ---
+        // If any of these fail, we need to roll back the primary rename.
+        for (path, new_content) in backlink_updates {
+            if let Err(e) = atomic_write(path, new_content) {
                 warn!(
-                    "An error occurred during rename transaction, rolling back. Error: {}",
-                    e
+                    "Failed to write backlink file {:?}, rolling back main rename. Error: {}",
+                    path, e
                 );
-                for (bak_path, original_path) in backup_paths {
-                    if bak_path.exists() {
-                        if let Err(rollback_err) = fs::rename(&bak_path, &original_path) {
-                            tracing::error!(
-                                "CRITICAL: Failed to roll back {:?} to {:?}: {}",
-                                bak_path,
-                                original_path,
-                                rollback_err
-                            );
-                        }
-                    }
+                // Attempt to roll back the primary rename.
+                if let Err(rollback_err) = fs::rename(new_path, old_path) {
+                    // This is a critical failure state. The vault is now inconsistent.
+                    tracing::error!(
+                        "CRITICAL: FAILED TO ROLL BACK RENAME from {:?} to {:?}: {}",
+                        new_path,
+                        old_path,
+                        rollback_err
+                    );
                 }
-                Err(e)
+                // Return the original error that caused the rollback.
+                return Err(e.into());
             }
         }
+
+        // All operations succeeded.
+        Ok(())
     }
 
     /// Reads a file and replaces all instances of a given wikilink.
