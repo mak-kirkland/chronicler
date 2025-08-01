@@ -215,14 +215,14 @@
         text-align: center;
         width: 100vw;
         height: 100vh;
-        color: var(--ink);
+        color: var(--color-text-primary);
         padding: 2rem;
     }
     .chronicler-app {
         display: flex;
         height: 100vh;
         width: 100vw;
-        color: var(--ink);
+        color: var(--color-text-primary);
         font-family: var(--font-family-body);
     }
     .main-content {
@@ -256,7 +256,7 @@
         font-family: var(--font-family-heading);
         font-size: 4rem;
         margin-bottom: 1rem;
-        color: var(--ink-heading);
+        color: var(--color-text-heading);
     }
     .animate-spin {
         animation: spin 2s linear infinite;

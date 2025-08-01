@@ -54,20 +54,20 @@
     }
     label {
         font-weight: bold;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
     }
     .text-input {
         width: 100%;
         padding: 0.5rem 0.75rem;
         border-radius: 6px;
-        border: 1px solid var(--border-color);
-        background-color: var(--parchment);
-        color: var(--ink);
+        border: 1px solid var(--color-border-primary);
+        background-color: var(--color-background-primary);
+        color: var(--color-text-primary);
         font-size: 1rem;
     }
     .text-input:focus {
-        outline: 1px solid var(--accent-color);
-        border-color: var(--accent-color);
+        outline: 1px solid var(--color-accent-primary);
+        border-color: var(--color-accent-primary);
     }
     .modal-actions {
         display: flex;

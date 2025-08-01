@@ -12,19 +12,19 @@
 <style>
     .search-container {
         padding: 0.75rem;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border-primary);
     }
     .search-input {
         width: 100%;
         padding: 0.5rem 0.75rem;
         border-radius: 6px;
-        border: 1px solid var(--border-color);
-        background-color: var(--parchment);
-        color: var(--ink);
+        border: 1px solid var(--color-border-primary);
+        background-color: var(--color-background-primary);
+        color: var(--color-text-primary);
         font-size: 0.95rem;
     }
     .search-input:focus {
-        outline: 1px solid var(--accent-color);
-        border-color: var(--accent-color);
+        outline: 1px solid var(--color-accent-primary);
+        border-color: var(--color-accent-primary);
     }
 </style>

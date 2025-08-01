@@ -80,8 +80,8 @@
     .context-menu {
         position: fixed;
         z-index: 1000;
-        background-color: var(--parchment);
-        border: 1px solid var(--border-color);
+        background-color: var(--color-background-primary);
+        border: 1px solid var(--color-border-primary);
         border-radius: 6px;
         box-shadow: 0 4px 12px var(--color-overlay-subtle);
         padding: 0.5rem;
@@ -96,14 +96,14 @@
         text-align: left;
         cursor: pointer;
         border-radius: 4px;
-        color: var(--ink);
+        color: var(--color-text-primary);
     }
     .menu-item:hover {
-        background-color: var(--parchment-dark);
+        background-color: var(--color-background-tertiary);
     }
     .separator {
         border: none;
-        border-top: 1px solid var(--border-color);
+        border-top: 1px solid var(--color-border-primary);
         margin: 0.5rem 0;
     }
 </style>

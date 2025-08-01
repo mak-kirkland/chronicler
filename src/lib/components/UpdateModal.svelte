@@ -104,12 +104,12 @@
 <style>
     .release-notes {
         padding: 1rem;
-        background-color: var(--parchment-mid);
+        background-color: var(--color-background-secondary);
         border-radius: 6px;
         max-height: 250px;
         /* Enable both vertical and horizontal scrolling */
         overflow: auto;
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--color-border-primary);
     }
     .notes-content {
         font-size: 0.8rem;
@@ -118,8 +118,8 @@
         font-family: monospace;
     }
     .manual-update-notice {
-        background-color: var(--parchment-dark);
-        border: 1px solid var(--parchment-dark);
+        background-color: var(--color-background-tertiary);
+        border: 1px solid var(--color-background-tertiary);
         padding: 1rem;
         border-radius: 6px;
         margin-top: 1rem;

@@ -56,19 +56,19 @@
 
     /* --- Variants --- */
     .primary {
-        border: 1px solid var(--parchment-mid);
-        background-color: var(--parchment-mid);
-        color: var(--ink);
+        border: 1px solid var(--color-background-secondary);
+        background-color: var(--color-background-secondary);
+        color: var(--color-text-primary);
     }
     .primary:hover:not(:disabled) {
-        background-color: var(--parchment-dark);
+        background-color: var(--color-background-tertiary);
     }
 
     .ghost {
         background: none;
         border: none;
         padding: 0.25rem;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
         opacity: 0.8;
         font-size: 1.5rem;
     }

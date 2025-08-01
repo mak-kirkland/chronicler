@@ -89,7 +89,7 @@
             height: "100%",
             width: "100%",
             backgroundColor: "transparent",
-            color: "var(--ink)",
+            color: "var(--color-text-primary)",
         },
         ".cm-content": {
             fontFamily: "var(--font-family-body)",
@@ -104,17 +104,17 @@
             backgroundColor: "var(--color-overlay-medium)",
         },
         ".cm-cursor": {
-            borderLeftColor: "var(--ink)",
+            borderLeftColor: "var(--color-text-primary)",
         },
         // Style the autocomplete dropdown to match the app
         ".cm-tooltip.cm-tooltip-autocomplete > ul": {
-            backgroundColor: "var(--parchment)",
-            border: "1px solid var(--border-color)",
+            backgroundColor: "var(--color-background-primary)",
+            border: "1px solid var(--color-border-primary)",
             fontFamily: "var(--font-family-body)",
         },
         ".cm-tooltip-autocomplete li[aria-selected]": {
-            backgroundColor: "var(--parchment-dark)",
-            color: "var(--ink)",
+            backgroundColor: "var(--color-background-tertiary)",
+            color: "var(--color-text-primary)",
         },
         ".cm-completionIcon-link": {
             "&:after": { content: "'🔗'" },

@@ -39,7 +39,7 @@
 <style>
     .save-status {
         font-size: 0.85rem;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
         transition: opacity 0.3s ease-in-out;
         white-space: nowrap;
     }

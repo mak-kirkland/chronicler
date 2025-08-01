@@ -154,7 +154,7 @@
 <style>
     .infobox {
         background-color: var(--color-overlay-light);
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--color-border-primary);
         border-radius: 8px;
         padding: 1rem;
         font-size: 0.9rem;
@@ -174,7 +174,7 @@
         align-items: center;
         width: 100%;
         background-color: var(--color-overlay-subtle);
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--color-border-primary);
         border-radius: 4px;
         overflow: hidden;
     }
@@ -191,7 +191,7 @@
     h4 {
         font-family: var(--font-family-heading);
         margin-top: 0;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border-primary);
         padding-bottom: 0.5rem;
         margin-bottom: 1rem;
     }
@@ -204,7 +204,7 @@
     dt {
         font-weight: bold;
         text-transform: capitalize;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
     }
     dd {
         margin: 0;
@@ -232,7 +232,7 @@
     }
     .tag-link {
         background-color: var(--color-overlay-dark);
-        color: var(--ink);
+        color: var(--color-text-primary);
         padding: 0.2rem 0.6rem;
         border-radius: 9999px; /* pill shape */
         font-size: 0.8rem;
@@ -243,7 +243,7 @@
     }
     .tag-link:hover,
     .tag-link:focus {
-        background-color: var(--parchment-dark);
+        background-color: var(--color-background-tertiary);
         outline: none;
         transform: translateY(-1px);
         box-shadow: 0 2px 4px var(--color-overlay-subtle);

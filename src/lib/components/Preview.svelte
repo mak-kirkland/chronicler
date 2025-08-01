@@ -117,7 +117,7 @@
     .main-content :global(h1),
     .main-content :global(h2),
     .main-content :global(h3) {
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border-primary);
         padding-bottom: 0.3em;
         margin-top: 1.5em;
         margin-bottom: 0.3em;
@@ -140,11 +140,11 @@
         cursor: help;
     }
     .main-content :global(blockquote) {
-        border-left: 3px solid var(--border-color);
+        border-left: 3px solid var(--color-border-primary);
         padding-left: 1em;
         margin-left: 0;
         font-style: italic;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
     }
     /* For inline code: `like this` */
     .main-content :global(:not(pre) > code) {
@@ -173,7 +173,7 @@
     }
     .main-content :global(th),
     .main-content :global(td) {
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--color-border-primary);
         padding: 0.6em 0.8em;
         text-align: left;
     }

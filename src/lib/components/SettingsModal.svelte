@@ -169,7 +169,7 @@
         flex-direction: column;
         gap: 0.5rem;
         padding-bottom: 1rem;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border-primary);
     }
     .setting-item:last-child {
         border-bottom: none;
@@ -180,30 +180,30 @@
     }
     .setting-item p {
         margin: 0;
-        color: var(--ink);
+        color: var(--color-text-primary);
         font-size: 0.95rem;
     }
     .import-message {
         font-size: 0.9rem;
         font-style: italic;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
         margin-top: 0.5rem !important;
     }
     .modal-footer {
         margin-top: 1.5rem;
         padding-top: 1rem;
-        border-top: 1px solid var(--border-color);
+        border-top: 1px solid var(--color-border-primary);
         text-align: center;
         font-size: 0.85rem;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
     }
     .modal-footer p {
         margin: 0;
     }
     .theme-select {
-        background-color: var(--parchment-mid);
-        color: var(--ink);
-        border: 1px solid var(--border-color);
+        background-color: var(--color-background-secondary);
+        color: var(--color-text-primary);
+        border: 1px solid var(--color-border-primary);
         border-radius: 6px;
         padding: 0.5rem;
         font-family: inherit;
@@ -216,12 +216,12 @@
         border: none;
         padding: 0;
         margin-top: 0.25rem;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
         text-decoration: underline;
         cursor: pointer;
         font-size: 0.85rem;
     }
     .link-button:hover {
-        color: var(--ink);
+        color: var(--color-text-primary);
     }
 </style>

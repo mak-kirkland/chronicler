@@ -161,13 +161,13 @@
         margin-bottom: 0.5rem;
         border-width: 2px;
         opacity: 1;
-        border-color: var(--border-color);
+        border-color: var(--color-border-primary);
     }
     /* Highlight the drop zone when an item is dragged over it */
     .root-drop-zone:global(.drop-target) {
-        background-color: var(--parchment-mid);
-        border-color: var(--ink);
-        color: var(--ink);
+        background-color: var(--color-background-secondary);
+        border-color: var(--color-text-primary);
+        color: var(--color-text-primary);
     }
     .file-tree-container {
         flex-grow: 1;

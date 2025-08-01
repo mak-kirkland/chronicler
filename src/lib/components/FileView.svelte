@@ -243,7 +243,7 @@
         padding: 0 2rem;
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border-primary);
         z-index: 20;
         height: 60px;
         box-sizing: border-box;
@@ -270,7 +270,7 @@
     }
     .view-title {
         font-family: var(--font-family-heading);
-        color: var(--ink-heading);
+        color: var(--color-text-heading);
         margin: 0;
         font-size: 1.5rem;
         white-space: nowrap;
@@ -307,7 +307,7 @@
         overflow-y: auto;
         height: 100%;
         box-sizing: border-box;
-        border-right: 1px solid var(--border-color);
+        border-right: 1px solid var(--color-border-primary);
     }
     .status-container {
         padding: 2rem;

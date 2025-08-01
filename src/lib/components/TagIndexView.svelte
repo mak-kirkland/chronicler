@@ -70,7 +70,7 @@
         height: 60px;
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border-primary);
         flex-shrink: 0;
     }
     .header-left {
@@ -88,7 +88,7 @@
         font-size: 1.5rem;
     }
     .tag-highlight {
-        color: var(--ink);
+        color: var(--color-text-primary);
         font-weight: bold;
     }
     .page-link-list {

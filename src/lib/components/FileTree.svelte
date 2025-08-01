@@ -155,22 +155,22 @@
     }
     .directory:hover,
     .file:hover {
-        background-color: var(--parchment-mid);
+        background-color: var(--color-background-secondary);
     }
     .file.active {
-        background-color: var(--parchment-dark);
-        color: var(--ink);
+        background-color: var(--color-background-tertiary);
+        color: var(--color-text-primary);
     }
     /* The class is applied by the "droppable" action, not the component,
        so make the style global to ensure that it's applied */
     .directory:global(.drop-target) {
-        background-color: var(--parchment-dark);
-        box-shadow: inset 0 0 0 2px var(--ink);
+        background-color: var(--color-background-tertiary);
+        box-shadow: inset 0 0 0 2px var(--color-text-primary);
         transform: scale(1.02);
     }
     .children {
         padding-left: 1rem;
-        border-left: 1px solid var(--border-color);
+        border-left: 1px solid var(--color-border-primary);
         margin-left: 0.5rem;
     }
     .icon {

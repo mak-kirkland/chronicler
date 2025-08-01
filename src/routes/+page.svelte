@@ -114,7 +114,7 @@
         font-family: var(--font-family-heading);
         font-size: 4rem;
         margin-bottom: 1rem;
-        color: var(--ink-heading);
+        color: var(--color-text-heading);
     }
     .welcome-text {
         font-size: 1.2rem;
@@ -123,13 +123,13 @@
         flex-shrink: 0; /* Prevents it from shrinking */
         padding: 2rem;
         text-align: center;
-        border-top: 1px solid var(--border-color);
+        border-top: 1px solid var(--color-border-primary);
         background-color: var(--color-overlay-subtle);
     }
     .welcome-footer p {
         margin: 0.5rem 0;
         font-size: 1rem;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
     }
     .welcome-footer a {
         color: var(--color-text-link);

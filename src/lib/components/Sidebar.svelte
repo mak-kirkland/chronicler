@@ -130,7 +130,7 @@
         left: 0;
         bottom: 0;
         background-color: var(--color-overlay-medium);
-        border-right: 1px solid var(--border-color);
+        border-right: 1px solid var(--color-border-primary);
         display: flex;
         flex-direction: column;
         z-index: 50;
@@ -138,17 +138,17 @@
     .sidebar-header {
         padding: 1rem;
         text-align: center;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border-primary);
     }
     .title {
         font-family: var(--font-family-heading);
         margin: 0;
         font-size: 2rem;
-        color: var(--ink-heading);
+        color: var(--color-text-heading);
     }
     .tab-navigation {
         display: flex;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border-primary);
     }
     .tab-navigation button {
         flex: 1;
@@ -157,14 +157,14 @@
         border: none;
         font-size: 1rem;
         cursor: pointer;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
         border-bottom: 2px solid transparent;
         font-family: var(--font-family-body);
     }
     .tab-navigation button.active {
-        border-bottom-color: var(--accent-color);
+        border-bottom-color: var(--color-accent-primary);
         font-weight: bold;
-        color: var(--ink);
+        color: var(--color-text-primary);
     }
     .sidebar-content {
         flex-grow: 1;
@@ -173,7 +173,7 @@
     }
     .sidebar-footer {
         padding: 0.75rem;
-        border-top: 1px solid var(--border-color);
+        border-top: 1px solid var(--color-border-primary);
         display: flex;
         justify-content: space-between;
         align-items: center;

@@ -40,7 +40,7 @@
         text-align: center;
         width: 100vw;
         height: 100vh;
-        color: var(--ink);
+        color: var(--color-text-primary);
     }
     .welcome-icon {
         width: 150px;
@@ -52,7 +52,7 @@
         font-family: var(--font-family-heading);
         font-size: 4rem;
         margin-bottom: 1rem;
-        color: var(--ink-heading);
+        color: var(--color-text-heading);
     }
     .welcome-text {
         font-size: 1.2rem;

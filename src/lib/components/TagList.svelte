@@ -40,14 +40,14 @@
     }
     .tag-group:hover,
     .tag-group:focus {
-        background-color: var(--parchment-mid);
+        background-color: var(--color-background-secondary);
         outline: none;
     }
     .tag-name {
         font-weight: bold;
-        color: var(--ink);
+        color: var(--color-text-primary);
     }
     .tag-count {
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
     }
 </style>

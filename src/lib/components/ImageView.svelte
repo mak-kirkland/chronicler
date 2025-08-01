@@ -69,13 +69,13 @@
         align-items: center;
         padding: 0 2rem;
         background-color: var(--color-background-header);
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border-primary);
         height: 60px;
         flex-shrink: 0;
     }
     .view-title {
         font-family: var(--font-family-heading);
-        color: var(--ink-heading);
+        color: var(--color-text-heading);
         margin: 0;
         font-size: 1.5rem;
         white-space: nowrap;

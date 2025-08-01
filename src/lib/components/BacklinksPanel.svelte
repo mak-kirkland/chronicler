@@ -53,7 +53,7 @@
         width: 200px; /* Fixed width for the right sidebar */
         height: 100%;
         background-color: var(--color-overlay-light);
-        border-left: 1px solid var(--border-color);
+        border-left: 1px solid var(--color-border-primary);
         display: flex;
         flex-direction: column;
         flex-shrink: 0; /* Prevent the sidebar from shrinking */
@@ -63,7 +63,7 @@
         justify-content: space-between;
         align-items: center;
         padding: 1rem;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--color-border-primary);
     }
     h3 {
         margin: 0;
@@ -73,7 +73,7 @@
         background: none;
         border: none;
         font-size: 1.5rem;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
         cursor: pointer;
         padding: 0;
         line-height: 1;
@@ -101,7 +101,7 @@
     }
     .reference-count {
         font-size: 0.8em;
-        color: var(--ink-light);
+        color: var(--color-text-secondary);
         font-style: italic;
         padding-left: 0.5rem;
         flex-shrink: 0;
