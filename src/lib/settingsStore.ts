@@ -114,18 +114,12 @@ export async function setHideDonationPrompt() {
 }
 
 /**
- * Sets the application theme. By default, it saves the choice.
+ * Sets the application theme and saves the choice.
  * @param newThemeName The name of the theme to activate.
- * @param save Pass false to prevent writing to disk. Defaults to true.
  */
-export async function setActiveTheme(
-    newThemeName: ThemeName,
-    save: boolean = true,
-) {
+export async function setActiveTheme(newThemeName: ThemeName) {
     activeTheme.set(newThemeName);
-    if (save) {
-        await saveAllSettings();
-    }
+    await saveAllSettings();
 }
 
 /**

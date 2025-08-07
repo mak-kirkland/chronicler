@@ -119,7 +119,7 @@
         originalName = themeToSave.name;
 
         if (isRenaming && wasActive) {
-            setActiveTheme(themeToSave.name, true);
+            setActiveTheme(themeToSave.name);
         }
     }
 
