@@ -22,27 +22,11 @@ interface AppSettings {
 
 export type ThemeName = string;
 
-/** Defines the shape of a single theme's color palette using semantic variable names. */
-export interface ThemePalette {
-    "--color-background-primary": string;
-    "--color-background-secondary": string;
-    "--color-background-tertiary": string;
-    "--color-text-heading": string;
-    "--color-text-primary": string;
-    "--color-text-secondary": string;
-    "--color-border-primary": string;
-    "--color-accent-primary": string;
-    "--color-text-link": string;
-    "--color-text-link-broken": string;
-    "--color-text-error": string;
-}
-
 /**
  * The canonical list of CSS variables that make up a theme palette.
- * This is the single source of truth for the application, ensuring that all
- * components (theme editor, global layout, etc.) use the same set of keys.
+ * This is the single source of truth for the application's theme structure.
  */
-export const THEME_PALETTE_KEYS: (keyof ThemePalette)[] = [
+export const THEME_PALETTE_KEYS = [
     "--color-background-primary",
     "--color-background-secondary",
     "--color-background-tertiary",
@@ -54,7 +38,24 @@ export const THEME_PALETTE_KEYS: (keyof ThemePalette)[] = [
     "--color-text-link",
     "--color-text-link-broken",
     "--color-text-error",
-];
+] as const;
+
+/**
+ * A union type representing all possible CSS variable names for a theme color.
+ *
+ * This type is derived from the `THEME_PALETTE_KEYS` constant array, ensuring that any
+ * function or component using it will only accept valid theme keys known to the application.
+ */
+type PaletteKey = (typeof THEME_PALETTE_KEYS)[number];
+
+/**
+ * Defines the shape of a single theme's color palette.
+ * This type is generated automatically from the THEME_PALETTE_KEYS array,
+ * ensuring it is always in sync.
+ */
+export type ThemePalette = {
+    [Key in PaletteKey]: string;
+};
 
 /** Defines a full theme object, including its name and palette. */
 export interface CustomTheme {
