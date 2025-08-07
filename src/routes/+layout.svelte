@@ -1,6 +1,5 @@
 <script lang="ts">
     import {
-        SIDEBAR_INITIAL_WIDTH,
         SIDEBAR_MIN_WIDTH,
         SIDEBAR_MAX_WIDTH,
         SIDEBAR_KEYBOARD_RESIZE_STEP,
@@ -18,6 +17,7 @@
         userThemes,
         themeRefresher,
         THEME_PALETTE_KEYS,
+        sidebarWidth,
     } from "$lib/settingsStore";
     import { openModal } from "$lib/modalStore";
     import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -33,7 +33,6 @@
     import "../app.css";
 
     let { children } = $props();
-    let sidebarWidth = $state(SIDEBAR_INITIAL_WIDTH);
     let isResizing = $state(false);
 
     // --- App Initialization ---
@@ -125,7 +124,7 @@
                 newWidth >= SIDEBAR_MIN_WIDTH &&
                 newWidth <= SIDEBAR_MAX_WIDTH
             ) {
-                sidebarWidth = newWidth;
+                $sidebarWidth = newWidth;
             }
         }
     }
@@ -142,16 +141,16 @@
             event.preventDefault();
             const newWidth = Math.max(
                 SIDEBAR_MIN_WIDTH,
-                sidebarWidth - SIDEBAR_KEYBOARD_RESIZE_STEP,
+                $sidebarWidth - SIDEBAR_KEYBOARD_RESIZE_STEP,
             );
-            sidebarWidth = newWidth;
+            $sidebarWidth = newWidth;
         } else if (event.key === "ArrowRight") {
             event.preventDefault();
             const newWidth = Math.min(
                 SIDEBAR_MAX_WIDTH,
-                sidebarWidth + SIDEBAR_KEYBOARD_RESIZE_STEP,
+                $sidebarWidth + SIDEBAR_KEYBOARD_RESIZE_STEP,
             );
-            sidebarWidth = newWidth;
+            $sidebarWidth = newWidth;
         }
     }
 </script>
@@ -176,8 +175,8 @@
         <Button onclick={handleTryAgain}>Select a Different Folder</Button>
     </div>
 {:else if $appStatus.state === "ready"}
-    <div class="chronicler-app" style="--sidebar-width: {sidebarWidth}px">
-        <Sidebar bind:width={sidebarWidth} />
+    <div class="chronicler-app" style="--sidebar-width: {$sidebarWidth}px">
+        <Sidebar bind:width={$sidebarWidth} />
 
         <div
             class="resizer"
@@ -187,10 +186,10 @@
             tabindex="0"
             aria-label="Resize sidebar"
             aria-orientation="vertical"
-            aria-valuenow={sidebarWidth}
+            aria-valuenow={$sidebarWidth}
             aria-valuemin={SIDEBAR_MIN_WIDTH}
             aria-valuemax={SIDEBAR_MAX_WIDTH}
-            style="left: {sidebarWidth - 2.5}px;"
+            style="left: {$sidebarWidth - 2.5}px;"
         ></div>
 
         <main class="main-content">

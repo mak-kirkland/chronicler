@@ -9,6 +9,7 @@
 
 import { writable, get } from "svelte/store";
 import { LazyStore } from "@tauri-apps/plugin-store";
+import { SIDEBAR_INITIAL_WIDTH } from "$lib/config";
 
 // --- Type Definitions ---
 
@@ -18,6 +19,7 @@ interface AppSettings {
     activeTheme: ThemeName;
     fontSize: number;
     userThemes: CustomTheme[];
+    sidebarWidth: number;
 }
 
 export type ThemeName = string;
@@ -73,6 +75,7 @@ export const hideDonationPrompt = writable<boolean>(false);
 export const activeTheme = writable<ThemeName>("light");
 export const fontSize = writable<number>(100);
 export const userThemes = writable<CustomTheme[]>([]);
+export const sidebarWidth = writable<number>(SIDEBAR_INITIAL_WIDTH);
 
 // --- Private Functions ---
 
@@ -85,6 +88,7 @@ async function saveAllSettings() {
         activeTheme: get(activeTheme),
         fontSize: get(fontSize),
         userThemes: get(userThemes),
+        sidebarWidth: get(sidebarWidth),
     };
     await settingsFile.set("allSettings", settings);
     await settingsFile.save();
@@ -103,6 +107,7 @@ export async function loadSettings() {
         activeTheme.set(settings.activeTheme || "light");
         fontSize.set(settings.fontSize || 100);
         userThemes.set(settings.userThemes || []);
+        sidebarWidth.set(settings.sidebarWidth || SIDEBAR_INITIAL_WIDTH);
     }
     // Enable automatic saving only after initial settings have been loaded.
     isInitialized = true;
@@ -210,3 +215,4 @@ hideDonationPrompt.subscribe(debouncedSave);
 activeTheme.subscribe(debouncedSave);
 fontSize.subscribe(debouncedSave);
 userThemes.subscribe(debouncedSave);
+sidebarWidth.subscribe(debouncedSave);
