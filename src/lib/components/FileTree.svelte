@@ -84,7 +84,7 @@
         >
             <div class="label">
                 <span class="icon">{expanded ? "▼" : "►"}</span>
-                <span>{node.name}</span>
+                <span class="node-name-text">{node.name}</span>
             </div>
             <div class="quick-actions">
                 <Button
@@ -128,7 +128,7 @@
             use:draggable={{ path: node.path }}
         >
             <span class="icon">{isImage(node) ? "🖼️" : "📜"}</span>
-            <span>{node.name}</span>
+            <span class="node-name-text">{node.name}</span>
         </div>
     {/if}
 </div>
@@ -183,8 +183,16 @@
         gap: 0.5rem;
         flex-grow: 1;
         overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
+    }
+    /* This base class only handles layout, ensuring both
+       file and folder names can grow and wrap correctly. */
+    .node-name-text {
+        flex-grow: 1; /* Allows the span to fill the available space */
+    }
+    /* This rule applies right-alignment ONLY to
+       text within an element having the .file class. */
+    .file .node-name-text {
+        text-align: right;
     }
     .quick-actions {
         display: flex;
