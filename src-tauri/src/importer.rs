@@ -24,26 +24,13 @@ fn get_pandoc_executable_path(app_handle: &AppHandle) -> Result<PathBuf> {
         "pandoc"
     };
 
-    // Pandoc extracts into a subdirectory, e.g. pandoc-3.7.0.2-windows-x86_64/pandoc-3.7.0.2/
-    // We need to find the executable within that structure.
-    let pattern = format!(
-        "{}/pandoc-{}/**/{}",
-        pandoc_dir.to_string_lossy(),
-        PANDOC_VERSION,
-        exe_name
-    );
+    // The `**` will match any subdirectory structure, like `bin/pandoc` on macOS
+    // or a nested versioned folder.
+    let pattern = format!("{}/**/{}", pandoc_dir.to_string_lossy(), exe_name);
 
     match glob::glob(&pattern)?.next() {
         Some(Ok(path)) => Ok(path),
-        _ => {
-            // Fallback for simpler structures
-            let simple_path = pandoc_dir.join(exe_name);
-            if simple_path.exists() {
-                Ok(simple_path)
-            } else {
-                Err(ChroniclerError::PandocNotFound)
-            }
-        }
+        _ => Err(ChroniclerError::PandocNotFound),
     }
 }
 
