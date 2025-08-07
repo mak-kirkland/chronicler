@@ -8,7 +8,7 @@
     const PATREON_URL = "https://patreon.com/ChroniclerNotes";
 
     async function handleDonate() {
-        await setHideDonationPrompt();
+        setHideDonationPrompt();
         await openUrl(PATREON_URL);
         await exit(0);
     }

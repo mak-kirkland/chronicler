@@ -50,8 +50,7 @@ type PaletteKey = (typeof THEME_PALETTE_KEYS)[number];
 
 /**
  * Defines the shape of a single theme's color palette.
- * This type is generated automatically from the THEME_PALETTE_KEYS array,
- * ensuring it is always in sync.
+ * This type is generated automatically from the THEME_PALETTE_KEYS array.
  */
 export type ThemePalette = {
     [Key in PaletteKey]: string;
@@ -59,7 +58,7 @@ export type ThemePalette = {
 
 /** Defines a full theme object, including its name and palette. */
 export interface CustomTheme {
-    name: ThemeName; // Changed from string to ThemeName for consistency
+    name: ThemeName;
     palette: ThemePalette;
 }
 
@@ -75,21 +74,7 @@ export const activeTheme = writable<ThemeName>("light");
 export const fontSize = writable<number>(100);
 export const userThemes = writable<CustomTheme[]>([]);
 
-// --- Public API ---
-
-/**
- * Loads all settings from the persistent file store into the reactive Svelte stores.
- * This should be called once when the application initializes.
- */
-export async function loadSettings() {
-    const settings = await settingsFile.get<AppSettings>("allSettings");
-    if (settings) {
-        hideDonationPrompt.set(settings.hideDonationPrompt || false);
-        activeTheme.set(settings.activeTheme || "light");
-        fontSize.set(settings.fontSize || 100);
-        userThemes.set(settings.userThemes || []);
-    }
-}
+// --- Private Functions ---
 
 /**
  * Saves the entire current state of settings to the persistent file.
@@ -105,36 +90,51 @@ async function saveAllSettings() {
     await settingsFile.save();
 }
 
+// --- Public API ---
+
 /**
- * Sets the 'hideDonationPrompt' setting to true and saves it.
+ * Loads all settings from the persistent file store into the reactive Svelte stores.
+ * This should be called once when the application initializes.
  */
-export async function setHideDonationPrompt() {
-    hideDonationPrompt.set(true);
-    await saveAllSettings();
+export async function loadSettings() {
+    const settings = await settingsFile.get<AppSettings>("allSettings");
+    if (settings) {
+        hideDonationPrompt.set(settings.hideDonationPrompt || false);
+        activeTheme.set(settings.activeTheme || "light");
+        fontSize.set(settings.fontSize || 100);
+        userThemes.set(settings.userThemes || []);
+    }
+    // Enable automatic saving only after initial settings have been loaded.
+    isInitialized = true;
 }
 
 /**
- * Sets the application theme and saves the choice.
+ * Sets the 'hideDonationPrompt' setting to true.
+ */
+export function setHideDonationPrompt() {
+    hideDonationPrompt.set(true);
+}
+
+/**
+ * Sets the application theme.
  * @param newThemeName The name of the theme to activate.
  */
-export async function setActiveTheme(newThemeName: ThemeName) {
+export function setActiveTheme(newThemeName: ThemeName) {
     activeTheme.set(newThemeName);
-    await saveAllSettings();
 }
 
 /**
- * Sets the application's base font size and saves the choice.
+ * Sets the application's base font size.
  */
-export async function setFontSize(newSize: number) {
+export function setFontSize(newSize: number) {
     fontSize.set(newSize);
-    await saveAllSettings();
 }
 
 /**
  * Adds a new custom theme or updates an existing one.
  * @param theme The custom theme object to save.
  */
-export async function saveCustomTheme(theme: CustomTheme) {
+export function saveCustomTheme(theme: CustomTheme) {
     userThemes.update((themes) => {
         const existingIndex = themes.findIndex((t) => t.name === theme.name);
         if (existingIndex > -1) {
@@ -144,20 +144,18 @@ export async function saveCustomTheme(theme: CustomTheme) {
         }
         return themes;
     });
-    await saveAllSettings();
 }
 
 /**
  * Deletes a custom theme by its name.
  * @param themeName The name of the theme to delete.
  */
-export async function deleteCustomTheme(themeName: ThemeName) {
+export function deleteCustomTheme(themeName: ThemeName) {
     userThemes.update((themes) => themes.filter((t) => t.name !== themeName));
     // If the deleted theme was active, fall back to the light theme.
     if (get(activeTheme) === themeName) {
         activeTheme.set("light");
     }
-    await saveAllSettings();
 }
 
 /**
@@ -184,3 +182,31 @@ export const themeRefresher = writable(0);
 export function forceThemeRefresh() {
     themeRefresher.update((n) => n + 1);
 }
+
+// --- Automatic Persistence ---
+
+let saveTimeout: ReturnType<typeof setTimeout>;
+let isInitialized = false;
+
+/**
+ * A debounced version of saveAllSettings. This prevents rapid, successive
+ * writes to disk when settings are changed quickly.
+ */
+function debouncedSave() {
+    // Clear any pending save operation
+    clearTimeout(saveTimeout);
+    // Schedule a new save operation
+    saveTimeout = setTimeout(() => {
+        // Only save if the initial settings have been loaded
+        if (isInitialized) {
+            console.log("Saving settings to disk...");
+            saveAllSettings();
+        }
+    }, 500); // Wait 500ms after the last change before saving
+}
+
+// Subscribe to every settings store. Whenever one changes, trigger a debounced save.
+hideDonationPrompt.subscribe(debouncedSave);
+activeTheme.subscribe(debouncedSave);
+fontSize.subscribe(debouncedSave);
+userThemes.subscribe(debouncedSave);

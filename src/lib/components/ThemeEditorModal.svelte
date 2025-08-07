@@ -134,7 +134,7 @@
                 type: "warning",
             })
         ) {
-            await deleteCustomTheme(themeToDelete.name);
+            deleteCustomTheme(themeToDelete.name);
             currentTheme = null;
             originalName = null;
         }
