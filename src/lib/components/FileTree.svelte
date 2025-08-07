@@ -189,11 +189,14 @@
     .quick-actions {
         display: flex;
         align-items: center;
-        visibility: hidden;
         flex-shrink: 0;
+        opacity: 0;
+        max-width: 0;
+        overflow: hidden; /* Ensures content doesn't spill out during transition */
     }
     .directory:hover .quick-actions {
-        visibility: visible;
+        opacity: 1;
+        max-width: 100px; /* A value large enough for the buttons */
     }
 
     /* Use :global() to override the styles of the child Button component */
