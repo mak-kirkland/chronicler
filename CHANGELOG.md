@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.9.4-alpha] - 2025-08-07
+
+### 🐞 Fixed
+
+- **Pandoc**: Corrected the logic for locating the Pandoc executable on macOS by simplifying the search pattern.
+
+### 🔄 Changed
+
+- **Themes**: Centralized the list of CSS variables that define a theme's color palette into a single source of truth. The theme editor's UI is now dynamically generated from this central list.
+- **Themes**: Refactored the internal theme data structures to derive the `ThemePalette` type directly from the canonical list of theme keys, improving type safety and reducing redundancy.
+- **Themes**: Simplified the internal function for setting the active theme.
+
+---
+
 ## [v0.9.3-alpha] - 2025-08-06
 
 ### ✨ Added
