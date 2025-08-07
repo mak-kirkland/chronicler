@@ -10,6 +10,7 @@
         saveCustomTheme,
         deleteCustomTheme,
         forceThemeRefresh,
+        THEME_PALETTE_KEYS,
         type CustomTheme,
         type ThemePalette,
         type ThemeName,
@@ -50,6 +51,14 @@
         "--color-text-error": "#8b0000",
     };
 
+    // --- Helper Functions ---
+    /** Removes only the styles applied by the live preview. */
+    function clearLivePreviewStyles() {
+        for (const key of THEME_PALETTE_KEYS) {
+            document.documentElement.style.removeProperty(key);
+        }
+    }
+
     // --- Component Logic ---
     $effect(() => {
         // When the modal is closed, force the global theme handler to re-apply the correct theme.
@@ -65,9 +74,7 @@
                 document.documentElement.style.setProperty(key, value);
             }
             return () => {
-                for (const key of Object.keys(currentTheme.palette)) {
-                    document.documentElement.style.removeProperty(key);
-                }
+                clearLivePreviewStyles();
             };
         }
     });
@@ -169,8 +176,7 @@
                 </div>
                 <h4>Colors</h4>
                 <div class="color-grid">
-                    {#each Object.keys(colorLabels) as key (key)}
-                        {@const paletteKey = key as keyof ThemePalette}
+                    {#each THEME_PALETTE_KEYS as paletteKey (paletteKey)}
                         <div class="form-group color-picker-group">
                             <label for="color-{paletteKey}"
                                 >{colorLabels[paletteKey]}</label

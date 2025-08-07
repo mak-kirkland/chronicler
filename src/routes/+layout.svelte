@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { get } from "svelte/store";
     import {
         SIDEBAR_INITIAL_WIDTH,
         SIDEBAR_MIN_WIDTH,
@@ -18,6 +17,7 @@
         fontSize,
         userThemes,
         themeRefresher,
+        THEME_PALETTE_KEYS,
     } from "$lib/settingsStore";
     import { openModal } from "$lib/modalStore";
     import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -80,21 +80,6 @@
             style.fontSize = `${$fontSize}%`;
 
             // B. Apply theme.
-            // Define the list of variables that custom themes use.
-            const customThemeVars = [
-                "--color-background-primary",
-                "--color-background-secondary",
-                "--color-background-tertiary",
-                "--color-text-heading",
-                "--color-text-primary",
-                "--color-text-secondary",
-                "--color-border-primary",
-                "--color-accent-primary",
-                "--color-text-link",
-                "--color-text-link-broken",
-                "--color-text-error",
-            ];
-
             if (customTheme) {
                 // It's a custom theme.
                 document.documentElement.removeAttribute("data-theme");
@@ -110,7 +95,7 @@
                     themeName || "light",
                 );
                 // CRITICAL: Clean up any lingering variables from a previous custom theme.
-                for (const varName of customThemeVars) {
+                for (const varName of THEME_PALETTE_KEYS) {
                     style.removeProperty(varName);
                 }
             }

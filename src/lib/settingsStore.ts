@@ -37,6 +37,25 @@ export interface ThemePalette {
     "--color-text-error": string;
 }
 
+/**
+ * The canonical list of CSS variables that make up a theme palette.
+ * This is the single source of truth for the application, ensuring that all
+ * components (theme editor, global layout, etc.) use the same set of keys.
+ */
+export const THEME_PALETTE_KEYS: (keyof ThemePalette)[] = [
+    "--color-background-primary",
+    "--color-background-secondary",
+    "--color-background-tertiary",
+    "--color-text-heading",
+    "--color-text-primary",
+    "--color-text-secondary",
+    "--color-border-primary",
+    "--color-accent-primary",
+    "--color-text-link",
+    "--color-text-link-broken",
+    "--color-text-error",
+];
+
 /** Defines a full theme object, including its name and palette. */
 export interface CustomTheme {
     name: ThemeName; // Changed from string to ThemeName for consistency
