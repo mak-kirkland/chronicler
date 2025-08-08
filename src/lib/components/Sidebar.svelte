@@ -162,7 +162,7 @@
     .sidebar-content {
         flex-grow: 1;
         overflow-y: auto;
-        padding: 1rem;
+        padding: 1rem 0 1rem 1rem;
     }
     .sidebar-footer {
         padding: 0.75rem;

@@ -127,7 +127,7 @@
         height: 100%;
         width: 100%;
         box-sizing: border-box;
-        padding: 0.5rem;
+        padding: 0rem;
         display: flex;
         flex-direction: column;
     }

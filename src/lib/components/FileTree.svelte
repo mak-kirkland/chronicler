@@ -139,7 +139,7 @@
     }
     .directory,
     .file {
-        padding: 0.25rem 0.5rem;
+        padding: 0.25rem 0.6rem;
         cursor: pointer;
         border-radius: 4px;
         display: flex;
