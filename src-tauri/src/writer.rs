@@ -108,16 +108,13 @@ impl Writer {
     /// Creates a new, empty markdown file using an atomic write.
     #[instrument(skip(self))]
     pub fn create_new_file(&self, parent_dir: &str, file_name: &str) -> Result<PageHeader> {
-        let mut path = PathBuf::from(parent_dir);
-        path.push(file_name.trim());
-        path.set_extension("md");
+        let path = PathBuf::from(parent_dir).join(format!("{}.md", file_name.trim()));
 
         if path.exists() {
             return Err(ChroniclerError::FileAlreadyExists(path));
         }
 
         let title = file_stem_string(&path);
-
         let default_content = format!(
             r#"---
 title: {title}
@@ -126,10 +123,8 @@ tags: [add, your, tags]
 
 "#
         );
-
         // Use the robust atomic_write helper.
         atomic_write(&path, &default_content)?;
-
         Ok(PageHeader { title, path })
     }
 
@@ -169,13 +164,22 @@ tags: [add, your, tags]
         let parent = old_path
             .parent()
             .ok_or_else(|| ChroniclerError::InvalidPath(old_path.to_path_buf()))?;
-        let mut new_path = parent.join(new_name.trim());
 
-        if old_path.is_file() {
-            if let Some(ext) = old_path.extension() {
-                new_path.set_extension(ext);
-            }
-        }
+        let new_path = if old_path.is_file() {
+            // Treat the `new_name` as the full stem and manually append the extension.
+            let new_filename = if let Some(ext) = old_path.extension().and_then(|s| s.to_str()) {
+                // If the original file has an extension, append it.
+                // e.g., ("bar.baz", "md") -> "bar.baz.md"
+                format!("{}.{}", new_name.trim(), ext)
+            } else {
+                // If there's no original extension, the new name is the whole thing.
+                new_name.trim().to_string()
+            };
+            parent.join(new_filename)
+        } else {
+            // For directories, the name is just the name.
+            parent.join(new_name.trim())
+        };
 
         self.execute_rename_or_move(old_path, new_path, backlinks)
     }
