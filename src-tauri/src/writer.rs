@@ -76,8 +76,15 @@ fn replace_wikilink_in_content(content: &str, old_stem: &str, new_stem: &str) ->
         // Perform a case-insensitive comparison on the link target.
         if target.to_lowercase() == old_stem_lower {
             let section = caps.get(2).map_or("", |m| m.as_str());
-            let alias = caps.get(3).map_or("", |m| m.as_str());
-            format!("[[{new_stem}{section}|{alias}]]")
+
+            // Check if an alias exists.
+            if let Some(alias_match) = caps.get(3) {
+                // An alias is present, so include it with the pipe.
+                format!("[[{new_stem}{section}|{}]]", alias_match.as_str())
+            } else {
+                // No alias was present, so don't add a pipe.
+                format!("[[{new_stem}{section}]]")
+            }
         } else {
             // If the link doesn't match, return the original text of the match.
             caps.get(0).unwrap().as_str().to_string()
