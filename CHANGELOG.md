@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.10.3-alpha] - 2025-08-13
+
+### 🐞 Fixed
+
+- **Writer**: Fixed a regression where renaming a page would incorrectly add a pipe separator (`|`) to wikilinks that did not have an alias. This would cause a link like `[[old-name]]` to be changed to `[[new-name|]]`. The logic now correctly handles both aliased and non-aliased links, preserving their original structure.
+
+---
+
 ## [v0.10.2-alpha] - 2025-08-12
 
 ### 🐞 Fixed
