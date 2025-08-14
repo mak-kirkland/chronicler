@@ -21,7 +21,7 @@ use std::{
 };
 use tauri::{AppHandle, Emitter};
 use tokio::sync::broadcast;
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 
 /// The main `World` struct containing all application subsystems and state.
 ///
@@ -98,11 +98,13 @@ impl World {
         }
 
         // --- 6. Spawn Background Event Processing Task ---
-        // The task is given its own handle to the indexer state.
+        // The task is given its own handle to the world's state.
         let indexer_clone = self.indexer.clone();
+        let writer_clone = self.writer.clone();
         // Use Tauri's async runtime instead of tokio::spawn
         tauri::async_runtime::spawn(async move {
-            Self::process_file_events(app_handle, indexer_clone, event_receiver).await;
+            Self::process_file_events(app_handle, indexer_clone, writer_clone, event_receiver)
+                .await;
         });
 
         info!(
@@ -121,24 +123,56 @@ impl World {
         self.initialize(Path::new(&path), app_handle)
     }
 
-    /// Background task that processes file events and updates the indexer.
+    /// Background task that processes file events from the watcher.
     ///
-    /// This runs in a separate async task and handles the event loop for file changes.
+    /// This task handles the crucial logic for reacting to external file changes.
+    /// For renames, it coordinates the `Writer` and `Indexer` to ensure that
+    /// backlinks on disk are updated *before* the in-memory index is changed.
     /// It continues until the event channel is closed or an unrecoverable error occurs.
-    ///
-    /// # Arguments
-    /// * `app_handle` - A handle to the Tauri application
-    /// * `indexer` - Shared reference to the indexer
-    /// * `mut event_receiver` - Receiver for file change events
-    #[instrument(level = "debug", skip(app_handle, indexer, event_receiver))]
+    #[instrument(level = "debug", skip(app_handle, indexer, writer, event_receiver))]
     async fn process_file_events(
         app_handle: AppHandle,
         indexer: Arc<RwLock<Indexer>>,
+        writer: Arc<RwLock<Option<Writer>>>,
         mut event_receiver: broadcast::Receiver<FileEvent>,
     ) {
         loop {
             match event_receiver.recv().await {
                 Ok(event) => {
+                    // --- Handle External Renames Transactionally ---
+                    // For external renames detected by the watcher,
+                    // we must update the backlinks on disk before
+                    // updating the index.
+                    if let FileEvent::Renamed { from, to } = &event {
+                        if let Some(writer) = writer.read().clone() {
+                            // Get the backlinks from the index *before* it's updated.
+                            let backlinks = {
+                                let index = indexer.read();
+                                index
+                                    .pages
+                                    .get(from)
+                                    .map(|p| p.backlinks.clone())
+                                    .unwrap_or_default()
+                            };
+
+                            if !backlinks.is_empty() {
+                                info!(
+                                    "External rename detected for file with {} backlinks. Updating...",
+                                    backlinks.len()
+                                );
+                                if let Err(e) =
+                                    writer.update_backlinks_for_rename(from, to, &backlinks)
+                                {
+                                    error!(
+                                        "Failed to update backlinks for external rename from {:?} to {:?}: {}",
+                                        from, to, e
+                                    );
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Update the Index (for all events) ---
                     // Scope the write lock to release it before emitting the event
                     {
                         let mut indexer = indexer.write();
@@ -147,11 +181,11 @@ impl World {
 
                     // Emit an event to notify the frontend that the index has changed
                     if let Err(e) = app_handle.emit("index-updated", ()) {
-                        tracing::error!("Failed to emit index-updated event: {}", e);
+                        error!("Failed to emit index-updated event: {}", e);
                     }
                 }
                 Err(broadcast::error::RecvError::Closed) => {
-                    tracing::info!("Event channel closed, stopping file event processing");
+                    info!("Event channel closed, stopping file event processing");
                     break;
                 }
                 Err(broadcast::error::RecvError::Lagged(skipped)) => {
@@ -163,7 +197,7 @@ impl World {
                 }
             }
         }
-        tracing::info!("File event processing task stopped");
+        info!("File event processing task stopped");
     }
 
     /// Converts docx files and adds them to the vault, then updates the index.

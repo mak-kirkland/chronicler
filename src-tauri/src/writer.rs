@@ -7,7 +7,7 @@
 use crate::{
     error::{ChroniclerError, Result},
     models::PageHeader,
-    utils::file_stem_string,
+    utils::{file_stem_string, is_markdown_file},
     wikilink::WIKILINK_RE,
 };
 use regex::Captures;
@@ -18,7 +18,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use tempfile::NamedTempFile;
-use tracing::{instrument, warn};
+use tracing::{error, instrument, warn};
 
 /// Represents a required change to a single backlink file, including its original content for rollback.
 struct BacklinkUpdate {
@@ -169,7 +169,6 @@ tags: [add, your, tags]
             // Treat the `new_name` as the full stem and manually append the extension.
             let new_filename = if let Some(ext) = old_path.extension().and_then(|s| s.to_str()) {
                 // If the original file has an extension, append it.
-                // e.g., ("bar.baz", "md") -> "bar.baz.md"
                 format!("{}.{}", new_name.trim(), ext)
             } else {
                 // If there's no original extension, the new name is the whole thing.
@@ -207,7 +206,7 @@ tags: [add, your, tags]
 
     /// Common logic for executing a transactional rename or move operation.
     ///
-    /// This internal function is called by both `rename_path` and `move_item`. It prepares
+    /// This internal function is called by both `rename_path` and `move_path`. It prepares
     /// the operation and invokes the transactional process.
     fn execute_rename_or_move(
         &self,
@@ -219,69 +218,93 @@ tags: [add, your, tags]
             return Err(ChroniclerError::FileAlreadyExists(new_path.clone()));
         }
 
-        // --- 1. Prepare Phase: Read files and calculate changes in memory ---
-        let mut backlink_updates: Vec<BacklinkUpdate> = Vec::new();
-        if old_path.is_file() {
-            let old_name_stem = file_stem_string(old_path);
-            let new_name_stem = file_stem_string(&new_path);
+        // --- 1. Perform the primary atomic rename ---
+        fs::rename(old_path, &new_path)?;
 
-            for backlink_path in backlinks {
-                // Read the original content to check for links and for potential rollback.
-                let old_content = fs::read_to_string(backlink_path)?;
-                if let Some(new_content) =
-                    replace_wikilink_in_content(&old_content, &old_name_stem, &new_name_stem)
-                {
-                    backlink_updates.push(BacklinkUpdate {
-                        path: backlink_path.clone(),
-                        old_content,
-                        new_content,
-                    });
-                }
+        // --- 2. Atomically update all backlink files ---
+        if let Err(e) = self.update_backlinks_for_rename(old_path, &new_path, backlinks) {
+            warn!(
+                "Backlink update failed after rename, rolling back primary rename: {}",
+                e
+            );
+
+            // --- ROLLBACK the primary rename ---
+            if let Err(rollback_err) = fs::rename(&new_path, old_path) {
+                error!(
+                    "CRITICAL: FAILED TO ROLL BACK RENAME from {:?} to {:?}: {}. Vault is now inconsistent.",
+                    new_path,
+                    old_path,
+                    rollback_err
+                );
             }
-        }
-
-        // --- 2. Transaction Phase: Perform all file system changes ---
-        if let Err(e) = self.perform_rename_transaction(old_path, &new_path, &backlink_updates) {
-            warn!("Rename transaction failed and will be rolled back: {}", e);
-            // The transaction function handles its own rollback.
+            // Return the error from the backlink update
             return Err(e);
         }
 
         Ok(new_path)
     }
 
-    /// Performs the file system part of a rename operation transactionally.
+    /// Transactionally updates all files that link to a renamed file.
     ///
-    /// The main `fs::rename` is atomic. Each backlink update uses `atomic_write`.
-    /// If any backlink update fails, this function rolls back all previous changes,
-    /// including successfully updated backlinks and the primary rename.
-    fn perform_rename_transaction(
+    /// This function reads each backlink file, replaces the wikilink, and writes the
+    /// file back atomically. If any write fails, it attempts to roll back all
+    /// previous writes in the transaction. This is the core reusable logic.
+    #[instrument(skip(self, backlinks))]
+    pub fn update_backlinks_for_rename(
         &self,
         old_path: &Path,
         new_path: &Path,
-        backlink_updates: &[BacklinkUpdate],
+        backlinks: &HashSet<PathBuf>,
     ) -> Result<()> {
-        // --- 1. Perform the primary atomic rename ---
-        fs::rename(old_path, new_path)?;
+        if !is_markdown_file(old_path) {
+            // Backlink updates only apply to markdown file renames, not folders or other file types.
+            return Ok(());
+        }
 
-        // --- 2. Atomically update all backlink files ---
-        // Keep track of which files were successfully updated so we can roll them back on failure.
+        // --- 1. Prepare Phase: Read files and calculate changes in memory ---
+        let old_name_stem = file_stem_string(old_path);
+        let new_name_stem = file_stem_string(new_path);
+        let mut updates: Vec<BacklinkUpdate> = Vec::new();
+
+        for backlink_path in backlinks {
+            let old_content = match fs::read_to_string(backlink_path) {
+                Ok(content) => content,
+                Err(e) => {
+                    warn!(
+                        "Failed to read backlink file {:?}, skipping update: {}",
+                        backlink_path, e
+                    );
+                    continue; // Skip this file if it can't be read
+                }
+            };
+
+            if let Some(new_content) =
+                replace_wikilink_in_content(&old_content, &old_name_stem, &new_name_stem)
+            {
+                updates.push(BacklinkUpdate {
+                    path: backlink_path.clone(),
+                    old_content,
+                    new_content,
+                });
+            }
+        }
+
+        // --- 2. Transaction Phase: Perform all file system changes ---
         let mut successfully_updated: Vec<&BacklinkUpdate> = Vec::new();
-
-        for update in backlink_updates {
+        for update in &updates {
             if let Err(e) = atomic_write(&update.path, &update.new_content) {
                 // --- ROLLBACK ---
                 warn!(
-                    "Failed to write backlink file {:?}, rolling back transaction. Error: {}",
+                    "Failed to write backlink file {:?}, rolling back changes. Error: {}",
                     &update.path, e
                 );
 
-                // 1. Roll back the already updated backlinks by writing their old content back.
+                // Roll back the already updated backlinks by writing their old content back.
                 for change_to_revert in successfully_updated.iter().rev() {
                     if let Err(rollback_err) =
                         atomic_write(&change_to_revert.path, &change_to_revert.old_content)
                     {
-                        tracing::error!(
+                        error!(
                             "CRITICAL: FAILED TO ROLL BACK BACKLINK FILE {:?}: {}. Vault may be inconsistent.",
                             &change_to_revert.path,
                             rollback_err
@@ -289,19 +312,7 @@ tags: [add, your, tags]
                         // Continue trying to roll back the rest of the transaction.
                     }
                 }
-
-                // 2. Roll back the primary rename.
-                if let Err(rollback_err) = fs::rename(new_path, old_path) {
-                    tracing::error!(
-                        "CRITICAL: FAILED TO ROLL BACK RENAME from {:?} to {:?}: {}. Vault is now inconsistent.",
-                        new_path,
-                        old_path,
-                        rollback_err
-                    );
-                }
-
-                // Return the original error that caused the rollback.
-                return Err(e);
+                return Err(e); // Return the original error
             } else {
                 // On success, add the update to our list for potential rollback.
                 successfully_updated.push(update);
@@ -413,11 +424,13 @@ mod tests {
             "New file should not exist after rollback"
         );
 
-        // Assert that the successfully updated backlink was also rolled back
+        // The backlink update function should handle its own rollback.
+        // Since the primary rename is rolled back, we only need to check that the
+        // backlink files are in their original state.
         let final_content_b1 = fs::read_to_string(&backlink1_path).unwrap();
         assert_eq!(
             original_content_b1, final_content_b1,
-            "The first backlink's content should be rolled back to its original state."
+            "The first backlink's content should be in its original state."
         );
 
         // Assert that the backlink that was never touched remains unchanged
