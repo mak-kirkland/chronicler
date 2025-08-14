@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.10.4-alpha] - 2025-08-14
+
+### 🐞 Fixed
+
+- **Writer**: Fixed a data consistency issue where renaming a file externally (e.g., in the system's file explorer) would not update its backlinks, leading to a broken link graph. Previously, only renames initiated from within the application would trigger backlink updates. The backlink logic has now been centralized into a single transactional function that handles renames from both the file watcher and internal app operations.
+
+### 🔄 Changed
+
+- **Writer**: Periods are now allowed in filenames. Previously, the application would interpret the last period as the start of a file extension, causing a name like "api.v1" to be saved as "api.md". The path construction logic has been changed to ensure that periods in user-provided names are preserved.
+
+---
+
 ## [v0.10.3-alpha] - 2025-08-13
 
 ### 🐞 Fixed
