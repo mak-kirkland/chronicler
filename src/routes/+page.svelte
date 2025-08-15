@@ -32,24 +32,13 @@
                 out!
             </p>
             <p>
-                🙏 If you find this app useful, please consider <b
-                    >supporting its development</b
-                >
-                on
+                ❤️ If you find this app useful, please consider
                 <a
-                    href="https://patreon.com/ChroniclerNotes"
+                    href="https://chronicler.pro/#support"
                     onclick={(event) => {
                         event.preventDefault();
-                        openUrl("https://patreon.com/ChroniclerNotes");
-                    }}>Patreon</a
-                >
-                or
-                <a
-                    href="https://buymeacoffee.com/chronicler"
-                    onclick={(event) => {
-                        event.preventDefault();
-                        openUrl("https://buymeacoffee.com/chronicler");
-                    }}>Buy Me a Coffee</a
+                        openUrl("https://chronicler.pro/#support");
+                    }}>supporting its development</a
                 >. Thanks! :)
             </p>
             <p>
