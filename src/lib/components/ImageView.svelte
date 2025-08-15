@@ -2,6 +2,7 @@
     import { convertFileSrc } from "@tauri-apps/api/core";
     import type { PageHeader } from "$lib/bindings";
     import ErrorBox from "./ErrorBox.svelte";
+    import ViewHeader from "./ViewHeader.svelte";
 
     /**
      * The component properties, expecting the `data` for the image to display.
@@ -45,9 +46,11 @@
 </script>
 
 <div class="image-view-container">
-    <div class="view-header">
-        <h2 class="view-title" title={data.title}>{data.title}</h2>
-    </div>
+    <ViewHeader>
+        <div slot="left">
+            <h2 class="view-title" title={data.title}>{data.title}</h2>
+        </div>
+    </ViewHeader>
     <div class="image-content">
         {#if error}
             <ErrorBox title="Image Error">{error}</ErrorBox>
@@ -63,15 +66,6 @@
         flex-direction: column;
         width: 100%;
         height: 100%;
-    }
-    .view-header {
-        display: flex;
-        align-items: center;
-        padding: 0 2rem;
-        background-color: var(--color-background-header);
-        border-bottom: 1px solid var(--color-border-primary);
-        height: 60px;
-        flex-shrink: 0;
     }
     .view-title {
         font-family: var(--font-family-heading);

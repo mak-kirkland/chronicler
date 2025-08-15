@@ -4,12 +4,8 @@
     import Button from "$lib/components/Button.svelte";
     import ErrorBox from "$lib/components/ErrorBox.svelte";
     import SaveStatus from "$lib/components/SaveStatus.svelte";
-    import {
-        fileViewMode,
-        currentView,
-        rightSidebar,
-        navigation,
-    } from "$lib/viewStores";
+    import ViewHeader from "$lib/components/ViewHeader.svelte";
+    import { fileViewMode, currentView, rightSidebar } from "$lib/viewStores";
     import { files, isWorldLoaded } from "$lib/worldStore";
     import {
         buildPageView,
@@ -126,37 +122,14 @@
             <ErrorBox title="File Error">{error}</ErrorBox>
         </div>
     {:else if pageData}
-        <div class="view-header">
-            <div class="header-left">
-                <div class="navigation-arrows">
-                    <Button
-                        variant="ghost"
-                        size="small"
-                        title="Back"
-                        disabled={!$navigation.canGoBack}
-                        onclick={navigation.back}
-                    >
-                        &larr;
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="small"
-                        title="Forward"
-                        disabled={!$navigation.canGoForward}
-                        onclick={navigation.forward}
-                    >
-                        &rarr;
-                    </Button>
-                </div>
-                <div class="title-container">
-                    <h2 class="view-title" title={file.title}>
-                        {file.title}
-                    </h2>
-                    <SaveStatus status={saveStatus} {lastSaveTime} />
-                </div>
+        <ViewHeader>
+            <div slot="left" class="title-container">
+                <h2 class="view-title" title={file.title}>
+                    {file.title}
+                </h2>
+                <SaveStatus status={saveStatus} {lastSaveTime} />
             </div>
-
-            <div class="view-actions">
+            <div slot="right">
                 {#if $rightSidebar.backlinks.length > 0}
                     <Button
                         size="small"
@@ -187,7 +160,7 @@
                     </Button>
                 {/if}
             </div>
-        </div>
+        </ViewHeader>
 
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
@@ -232,30 +205,6 @@
         width: 100%;
         height: 100%;
     }
-    .view-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 2rem;
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-        border-bottom: 1px solid var(--color-border-primary);
-        z-index: 20;
-        height: 60px;
-        box-sizing: border-box;
-        flex-shrink: 0;
-    }
-    .header-left {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex-shrink: 1;
-        min-width: 0; /* Prevents the container from overflowing */
-    }
-    .navigation-arrows {
-        display: flex;
-        flex-shrink: 0; /* Prevents arrows from being squished */
-    }
     .title-container {
         display: flex;
         align-items: baseline;
@@ -272,11 +221,6 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-    }
-    .view-actions {
-        display: flex;
-        gap: 0.5rem;
-        flex-shrink: 0;
     }
     .content-panes {
         display: flex;

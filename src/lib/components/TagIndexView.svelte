@@ -1,8 +1,7 @@
 <script lang="ts">
     import { tags } from "$lib/worldStore";
     import { navigateToPage } from "$lib/actions";
-    import { navigation } from "$lib/viewStores";
-    import Button from "$lib/components/Button.svelte";
+    import ViewHeader from "./ViewHeader.svelte";
 
     let { name } = $props<{ name: string }>();
 
@@ -13,31 +12,11 @@
 </script>
 
 <div class="tag-index-wrapper">
-    <div class="view-header">
-        <div class="header-left">
-            <div class="navigation-arrows">
-                <Button
-                    variant="ghost"
-                    size="small"
-                    title="Back"
-                    disabled={!$navigation.canGoBack}
-                    onclick={navigation.back}
-                >
-                    &larr;
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="small"
-                    title="Forward"
-                    disabled={!$navigation.canGoForward}
-                    onclick={navigation.forward}
-                >
-                    &rarr;
-                </Button>
-            </div>
+    <ViewHeader>
+        <div slot="left">
             <h2>Index for <span class="tag-highlight">#{name}</span></h2>
         </div>
-    </div>
+    </ViewHeader>
 
     <ul class="page-link-list">
         {#each pages as page (page.path)}
@@ -61,25 +40,6 @@
         display: flex;
         flex-direction: column;
         box-sizing: border-box;
-    }
-    .view-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 1rem;
-        height: 60px;
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-        border-bottom: 1px solid var(--color-border-primary);
-        flex-shrink: 0;
-    }
-    .header-left {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .navigation-arrows {
-        display: flex;
     }
     h2 {
         border-bottom: none;
