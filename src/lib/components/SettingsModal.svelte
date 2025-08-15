@@ -22,6 +22,7 @@
     import ChangelogModal from "./ChangelogModal.svelte";
     import Modal from "./Modal.svelte";
     import ThemeEditorModal from "./ThemeEditorModal.svelte";
+    import { openUrl } from "@tauri-apps/plugin-opener";
 
     let { onClose = () => {} } = $props<{
         onClose?: () => void;
@@ -262,8 +263,14 @@
                 {/if}
             {:else}
                 <p>
-                    This is a community build. Paste your license key below to
-                    activate.
+                    To keep Chronicler alive, please consider purchasing a
+                    <a
+                        href="https://chronicler.pro/#support"
+                        onclick={(event) => {
+                            event.preventDefault();
+                            openUrl("https://chronicler.pro/#support");
+                        }}>Community License</a
+                    >.
                 </p>
             {/if}
 
