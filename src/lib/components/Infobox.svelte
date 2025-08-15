@@ -9,7 +9,7 @@
         image?: string;
         infobox?: string;
         error?: string;
-        details?: string;
+        details?: string; // Error details
         tags?: string[];
         [key: string]: any; // Allow other dynamic properties from frontmatter
     };
@@ -54,7 +54,7 @@
             "infobox",
             "image",
             "error",
-            "details",
+            "details", // Error details
         ];
 
         try {
