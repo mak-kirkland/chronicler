@@ -3,12 +3,10 @@
     import Button from "$lib/components/Button.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { exit } from "@tauri-apps/plugin-process";
-    import { setHideDonationPrompt } from "$lib/settingsStore";
 
     const PATREON_URL = "https://patreon.com/ChroniclerNotes";
 
     async function handleDonate() {
-        setHideDonationPrompt();
         await openUrl(PATREON_URL);
         await exit(0);
     }

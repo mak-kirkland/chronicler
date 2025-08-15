@@ -19,7 +19,6 @@ import { SIDEBAR_INITIAL_WIDTH } from "$lib/config";
 /** Defines the shape of the GLOBAL settings object saved to disk. */
 interface GlobalSettings {
     userThemes: CustomTheme[];
-    hideDonationPrompt: boolean;
 }
 
 /** Defines the shape of the PER-VAULT settings object saved to disk. */
@@ -100,7 +99,6 @@ const VAULT_SETTINGS_FILENAME = ".chronicler.vault.json";
 // We provide sensible defaults for first-time users or when no vault is loaded.
 
 // Global Stores
-export const hideDonationPrompt = writable<boolean>(false);
 export const userThemes = writable<CustomTheme[]>([]);
 
 // Per-Vault Stores
@@ -117,7 +115,6 @@ async function saveGlobalSettings() {
     if (!globalSettingsFile) return;
     const settings: GlobalSettings = {
         userThemes: get(userThemes),
-        hideDonationPrompt: get(hideDonationPrompt),
     };
     await globalSettingsFile.set("globalSettings", settings);
     await globalSettingsFile.save();
@@ -150,11 +147,9 @@ export async function loadGlobalSettings() {
     const settings =
         await globalSettingsFile.get<GlobalSettings>("globalSettings");
     if (settings) {
-        hideDonationPrompt.set(settings.hideDonationPrompt ?? false);
         userThemes.set(settings.userThemes ?? []);
     }
     // Enable automatic saving for global settings.
-    hideDonationPrompt.subscribe(debouncedGlobalSave);
     userThemes.subscribe(debouncedGlobalSave);
 }
 
@@ -190,13 +185,6 @@ export function destroyVaultSettings() {
     fontSize.set(100);
     sidebarWidth.set(SIDEBAR_INITIAL_WIDTH);
     vaultSettingsFile = null; // Ensure no further saves can happen.
-}
-
-/**
- * Sets the 'hideDonationPrompt' setting to true.
- */
-export function setHideDonationPrompt() {
-    hideDonationPrompt.set(true);
 }
 
 /**

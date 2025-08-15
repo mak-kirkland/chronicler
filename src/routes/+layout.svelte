@@ -11,7 +11,6 @@
         handleVaultSelected,
     } from "$lib/startup";
     import {
-        hideDonationPrompt,
         activeTheme,
         fontSize,
         userThemes,
@@ -19,6 +18,7 @@
         THEME_PALETTE_KEYS,
         sidebarWidth,
     } from "$lib/settingsStore";
+    import { licenseStore } from "$lib/licenseStore";
     import { openModal } from "$lib/modalStore";
     import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -44,7 +44,10 @@
     // --- Donation Prompt on Close ---
     $effect(() => {
         // This effect handles the window close listener and its cleanup.
-        if ($hideDonationPrompt || typeof window === "undefined") {
+        if (
+            $licenseStore.status === "licensed" ||
+            typeof window === "undefined"
+        ) {
             return;
         }
 
