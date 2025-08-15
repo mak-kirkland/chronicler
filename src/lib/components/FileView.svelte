@@ -114,12 +114,6 @@
             currentView.set({ type: "welcome" });
         }
     });
-
-    const hasInfoboxContent = $derived(
-        pageData?.rendered_page.processed_frontmatter &&
-            Object.keys(pageData.rendered_page.processed_frontmatter).length >
-                0,
-    );
 </script>
 
 <div class="file-view-container">
@@ -209,9 +203,8 @@
                     <div class="scroll-wrapper">
                         <Preview
                             renderedData={pageData.rendered_page}
-                            infoboxData={hasInfoboxContent
-                                ? pageData.rendered_page.processed_frontmatter
-                                : null}
+                            infoboxData={pageData.rendered_page
+                                .processed_frontmatter}
                             mode="split"
                         />
                     </div>
@@ -221,9 +214,8 @@
                     <div class="scroll-wrapper">
                         <Preview
                             renderedData={pageData.rendered_page}
-                            infoboxData={hasInfoboxContent
-                                ? pageData.rendered_page.processed_frontmatter
-                                : null}
+                            infoboxData={pageData.rendered_page
+                                .processed_frontmatter}
                             mode="unified"
                         />
                     </div>
