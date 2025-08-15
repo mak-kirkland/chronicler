@@ -4,10 +4,10 @@
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { exit } from "@tauri-apps/plugin-process";
 
-    const PATREON_URL = "https://patreon.com/ChroniclerNotes";
+    const DONATE_URL = "https://chronicler.pro/#support";
 
     async function handleDonate() {
-        await openUrl(PATREON_URL);
+        await openUrl(DONATE_URL);
         await exit(0);
     }
 
