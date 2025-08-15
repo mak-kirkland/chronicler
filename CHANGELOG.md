@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.11.0-alpha] - 2025-08-15
+
+### ✨ Added
+
+- **Licensing**: A complete backend system has been implemented for validating and managing user licenses via the Keygen.sh API.
+
+### 🔄 Changed
+
+- **Donation Prompt**: The donation prompt logic has been refactored to no longer show for users with an active license, providing a better user experience for supporters.
+
+---
+
 ## [v0.10.4-alpha] - 2025-08-14
 
 ### 🐞 Fixed
