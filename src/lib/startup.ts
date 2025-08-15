@@ -13,6 +13,7 @@ import {
     destroyVaultSettings,
 } from "$lib/settingsStore";
 import { checkForAppUpdates } from "$lib/updater";
+import { licenseStore } from "./licenseStore";
 
 /**
  * Orchestrates the complete vault initialization sequence. This function is the
@@ -44,8 +45,8 @@ export async function handleVaultSelected(path: string) {
  */
 export async function initializeApp() {
     try {
-        // Load global settings that apply to the whole application first.
-        await loadGlobalSettings();
+        // Load global settings and license status that apply to the whole application first.
+        await Promise.all([loadGlobalSettings(), licenseStore.initialize()]);
 
         // Then, check if a vault was already open from the last session.
         const path = await getVaultPath();

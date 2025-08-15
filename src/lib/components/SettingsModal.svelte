@@ -17,6 +17,7 @@
         type ThemeName,
     } from "$lib/settingsStore";
     import { openModal, closeModal } from "$lib/modalStore";
+    import { licenseStore } from "$lib/licenseStore";
     import Button from "./Button.svelte";
     import ChangelogModal from "./ChangelogModal.svelte";
     import Modal from "./Modal.svelte";
@@ -26,9 +27,18 @@
         onClose?: () => void;
     }>();
 
+    // Pandoc State
     let pandocInstalled = $state(false);
     let isInstalling = $state(false);
     let importMessage = $state<string | null>(null);
+
+    // License State
+    let licenseMessage = $state<string | null>(null);
+    let isVerifyingLicense = $state(false);
+    let licenseKeyInput = $state("");
+    let showLicenseInput = $state(false);
+
+    // App Info State
     let appVersion = $state<string | null>(null);
     let showChangelog = $state(false);
 
@@ -114,6 +124,35 @@
         } catch (e) {
             console.error("File import failed:", e);
             alert(`File import failed: ${e}`);
+        }
+    }
+
+    /**
+     * Verifies a license key pasted by the user.
+     */
+    async function verifyLicense() {
+        if (!licenseKeyInput.trim()) {
+            licenseMessage = "Please paste a license key.";
+            return;
+        }
+
+        licenseMessage = null;
+        isVerifyingLicense = true;
+        try {
+            const success = await licenseStore.verify(licenseKeyInput);
+
+            if (success) {
+                licenseMessage = "License verified successfully!";
+                licenseKeyInput = ""; // Clear input on success
+                showLicenseInput = false; // Hide input on success
+            } else {
+                licenseMessage = `License is invalid. Please check the key and try again.`;
+            }
+        } catch (e: any) {
+            console.error("License verification failed:", e);
+            licenseMessage = `Failed to verify license: ${e.message || e}`;
+        } finally {
+            isVerifyingLicense = false;
         }
     }
 
@@ -203,6 +242,56 @@
                 <p class="import-message">{importMessage}</p>
             {/if}
         </div>
+
+        <div class="setting-item">
+            <h4>License</h4>
+            {#if $licenseStore.status === "licensed"}
+                <p>
+                    License Status:
+                    <span class="license-status-active"
+                        >{$licenseStore.license?.status}</span
+                    >
+                </p>
+                <p class="license-expiry">
+                    Expiry: {$licenseStore.license?.expiry}
+                </p>
+                {#if !showLicenseInput}
+                    <Button onclick={() => (showLicenseInput = true)}
+                        >Replace License</Button
+                    >
+                {/if}
+            {:else}
+                <p>
+                    This is a community build. Paste your license key below to
+                    activate.
+                </p>
+            {/if}
+
+            {#if $licenseStore.status !== "licensed" || showLicenseInput}
+                <div class="license-input-group">
+                    <input
+                        type="text"
+                        placeholder="Paste license key here"
+                        bind:value={licenseKeyInput}
+                        disabled={isVerifyingLicense}
+                    />
+                    <Button
+                        onclick={verifyLicense}
+                        disabled={isVerifyingLicense || !licenseKeyInput}
+                    >
+                        {#if isVerifyingLicense}
+                            Verifying...
+                        {:else}
+                            Verify License
+                        {/if}
+                    </Button>
+                </div>
+            {/if}
+
+            {#if licenseMessage}
+                <p class="import-message">{licenseMessage}</p>
+            {/if}
+        </div>
     </div>
 
     {#if appVersion}
@@ -249,6 +338,15 @@
         font-style: italic;
         color: var(--color-text-secondary);
         margin-top: 0.5rem !important;
+    }
+    .license-expiry {
+        font-size: 0.85rem !important;
+        color: var(--color-text-secondary) !important;
+        margin-top: -0.25rem !important;
+    }
+    .license-status-active {
+        font-weight: bold;
+        color: var(--color-accent-primary);
     }
     .modal-footer {
         margin-top: 1.5rem;
@@ -309,5 +407,27 @@
     }
     .link-button:hover {
         color: var(--color-text-primary);
+    }
+    .license-input-group {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .license-input-group input {
+        flex-grow: 1;
+        background-color: var(--color-background-secondary);
+        color: var(--color-text-primary);
+        border: 1px solid var(--color-border-primary);
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        font-family: inherit;
+        font-size: 1rem;
+    }
+
+    .license-input-group input:focus {
+        outline: 2px solid var(--color-accent-primary);
+        outline-offset: -1px;
+        border-color: var(--color-accent-primary);
     }
 </style>

@@ -79,3 +79,13 @@ export interface FullPageData {
     /** A list of all pages that link to this page. */
     backlinks: Backlink[];
 }
+
+/**
+ * Represents the structure of a validated license.
+ * This mirrors the `License` struct in `src-tauri/src/models.rs`.
+ */
+export interface License {
+    key: string;
+    status: string;
+    expiry: string;
+}

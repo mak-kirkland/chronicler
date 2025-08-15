@@ -71,6 +71,9 @@ pub enum ChroniclerError {
 
     #[error("Glob pattern error: {0}")]
     Glob(#[from] glob::PatternError),
+
+    #[error("License is invalid: {0}")]
+    LicenseInvalid(String),
 }
 
 // We need to implement Serialize for the error type to be able to return

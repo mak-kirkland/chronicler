@@ -9,6 +9,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
     FileNode,
     FullPageData,
+    License,
     PageHeader,
     RenderedPage,
     TagMap,
@@ -164,6 +165,23 @@ export const downloadPandoc = () => invoke<void>("download_pandoc");
  */
 export const importDocxFiles = (docxPaths: string[]) =>
     invoke<string[]>("import_docx_files", { docxPaths });
+
+// --- Licensing Commands ---
+
+/**
+ * Retrieves the current license status from the stored license file.
+ * @returns A promise that resolves to the license object or null if not found.
+ */
+export const getLicenseStatus = () =>
+    invoke<License | null>("get_license_status");
+
+/**
+ * Verifies a license key, and if valid, saves it to the config directory.
+ * @param licenseKey The raw string content of the license file.
+ * @returns A promise that resolves to the validated license object.
+ */
+export const verifyAndStoreLicense = (licenseKey: string) =>
+    invoke<License>("verify_and_store_license", { licenseKey });
 
 // --- System Commands ---
 

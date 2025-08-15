@@ -17,6 +17,7 @@ mod error;
 mod events;
 mod importer;
 mod indexer;
+mod licensing;
 mod models;
 mod parser;
 mod renderer;
@@ -80,6 +81,8 @@ fn main() {
             commands::import_docx_files,
             commands::render_markdown,
             commands::get_linux_install_type,
+            commands::get_license_status,
+            commands::verify_and_store_license,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);

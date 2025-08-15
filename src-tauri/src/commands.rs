@@ -3,6 +3,8 @@
 //! These commands bridge the frontend (Svelte/JavaScript) and backend (Rust) functionality.
 //! All commands are async-capable and automatically manage thread safety via Tauri's State system.
 
+use crate::licensing;
+use crate::licensing::License;
 use crate::models::{FullPageData, PageHeader};
 use crate::{
     config,
@@ -172,6 +174,27 @@ pub fn is_pandoc_installed(app_handle: AppHandle) -> Result<bool> {
 #[instrument(skip(app_handle))]
 pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
     importer::download_pandoc(app_handle).await
+}
+
+// --- Licensing ---
+
+/// Retrieves the current license status from the stored license file.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn get_license_status(app_handle: AppHandle) -> Result<Option<License>> {
+    licensing::load_license(&app_handle)
+}
+
+/// Verifies a license key, and if valid, saves it to the config directory.
+#[command]
+#[instrument(skip(app_handle, license_key))]
+pub async fn verify_and_store_license(
+    app_handle: AppHandle,
+    license_key: String,
+) -> Result<License> {
+    let license = licensing::validate_license(&license_key).await?;
+    licensing::save_license(&app_handle, &license)?;
+    Ok(license)
 }
 
 // --- System ---
