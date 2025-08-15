@@ -48,17 +48,17 @@
   -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex -->
 <div class="preview-container mode-{mode}" role="document" tabindex="0">
+    {#if infoboxData}
+        <!-- Use <aside> for better semantics. It's floated, so order in HTML matters. -->
+        <aside class="infobox-wrapper">
+            <Infobox data={infoboxData} />
+        </aside>
+    {/if}
+
     {#if renderedData}
         <div class="main-content">
             {@html renderedData.rendered_html}
         </div>
-    {/if}
-
-    {#if infoboxData}
-        <!-- Use <aside> for better semantics -->
-        <aside class="infobox-wrapper">
-            <Infobox data={infoboxData} />
-        </aside>
     {/if}
 </div>
 
@@ -67,46 +67,28 @@
         line-height: 1.7;
     }
 
-    /* --- Flexbox Layout --- */
-
-    /* By default, in unified mode, we use a flex row layout. */
-    .preview-container.mode-unified {
-        display: flex;
-        gap: 2rem;
-        align-items: flex-start; /* Aligns items to the top */
-    }
-
-    .main-content {
-        flex: 1; /* Allows the main content to grow and fill available space */
-        min-width: 0; /* A crucial flexbox property to prevent content overflow */
-    }
-
-    .infobox-wrapper {
-        flex-shrink: 0; /* Prevents the infobox from shrinking */
+    /* --- Float-based Layout for Unified Mode --- */
+    .preview-container.mode-unified .infobox-wrapper {
+        float: right;
         width: clamp(20rem, 20vw, 28rem);
-        order: 2; /* This moves the infobox to the right side of the main content */
+        /* Add margin to create space between the infobox and the wrapping text */
+        margin-left: 2rem;
+        margin-bottom: 1rem;
     }
 
-    /* In split mode, we stack the items vertically. */
-    .preview-container.mode-split {
-        display: flex;
-        flex-direction: column;
-    }
-
+    /* --- Layout for Split Mode (Infobox on top) --- */
     .preview-container.mode-split .infobox-wrapper {
-        order: -1; /* Moves the infobox to the top */
         width: 100%;
         margin-bottom: 2rem;
     }
 
-    /* On smaller screens, always stack the infobox on top for both modes. */
+    /* --- Responsive Overrides --- */
+    /* On smaller screens, disable float and stack the infobox on top for both modes. */
     @media (max-width: 800px) {
-        .preview-container.mode-unified {
-            flex-direction: column;
-        }
-        .infobox-wrapper {
-            order: -1; /* Move infobox to the top */
+        .preview-container.mode-unified .infobox-wrapper {
+            float: none;
             width: 100%;
+            margin-left: 0;
             margin-bottom: 1rem;
         }
     }
@@ -121,6 +103,13 @@
         padding-bottom: 0.3em;
         margin-top: 1.5em;
         margin-bottom: 0.3em;
+        /*
+	 * Display: flow-root creates a new block formatting context for
+	 * the heading itself, forcing its border to respect the floated
+	 * element, without preventing the rest of the .main-content text
+	 * from wrapping underneath the infobox.
+	 */
+        display: flow-root;
     }
     .main-content :global(h1 + p),
     .main-content :global(h2 + p),
