@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { convertFileSrc } from "@tauri-apps/api/core";
     import type { PageHeader } from "$lib/bindings";
+    import { getImageAsBase64 } from "$lib/commands";
     import ErrorBox from "./ErrorBox.svelte";
     import ViewHeader from "./ViewHeader.svelte";
 
@@ -14,21 +14,22 @@
     let error = $state<string | null>(null);
 
     /**
-     * This effect runs whenever the `data` prop changes. It uses Tauri's
-     * `convertFileSrc` API to create a usable URL from the local file path,
-     * which is then used in the `<img>` tag's src attribute.
+     * This effect runs whenever the `data` prop changes. It now calls the
+     * backend to get the image as a Base64 Data URL.
      */
     $effect(() => {
         let isCancelled = false;
 
         async function getUrl() {
             try {
-                const url = convertFileSrc(data.path);
+                // Call the backend command to do the heavy lifting
+                const url = await getImageAsBase64(data.path);
+
                 if (!isCancelled) {
                     imageUrl = url;
                 }
             } catch (e) {
-                console.error("Failed to convert image path:", e);
+                console.error("Failed to get image as Base64:", e);
                 if (!isCancelled) {
                     error = `Could not load image: ${e}`;
                 }

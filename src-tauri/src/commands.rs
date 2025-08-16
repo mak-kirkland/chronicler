@@ -84,6 +84,13 @@ pub fn render_markdown(content: String, world: State<World>) -> Result<RenderedP
     world.render_markdown(&content)
 }
 
+/// Converts a relative or absolute image path to a Base64 Data URL string.
+#[command]
+#[instrument(skip(world))]
+pub fn get_image_as_base64(path: String, world: State<World>) -> Result<String> {
+    world.get_image_as_base64(&path)
+}
+
 // --- File and Folder Operations ---
 
 /// Writes content to a page on disk. The file watcher will pick up the change.

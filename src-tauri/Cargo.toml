@@ -10,7 +10,7 @@ license = "PolyForm Shield License 1.0.0"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset"] }
+tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
@@ -42,6 +42,7 @@ tauri-plugin-process = "2"
 tauri-plugin-os = "2"
 tauri-plugin-store = "2"
 tauri-plugin-fs = "2"
+base64 = "0.22.1"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

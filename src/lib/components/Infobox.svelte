@@ -1,8 +1,6 @@
 <script lang="ts">
     import { navigateToTag } from "$lib/actions";
     import ErrorBox from "./ErrorBox.svelte";
-    import { vaultPath } from "$lib/worldStore";
-    import { resolveImageUrl } from "$lib/utils";
 
     type InfoboxData = {
         title?: string;
@@ -18,27 +16,7 @@
         data: InfoboxData | null;
     }>();
 
-    let imageUrl = $state<string | null>(null);
-    let imageError = $state<string | null>(null);
     let filteredData = $state<[string, any][]>([]);
-
-    // This effect resolves the image URL
-    $effect(() => {
-        // Reset state when data changes
-        imageError = null;
-        imageUrl = null;
-
-        if (data?.image) {
-            resolveImageUrl($vaultPath, data.image)
-                .then((url) => {
-                    imageUrl = url;
-                })
-                .catch((e: Error) => {
-                    console.error(e);
-                    imageError = e.message;
-                });
-        }
-    });
 
     // This effect prepares the data for display by filtering out reserved keys.
     $effect(() => {
@@ -74,21 +52,13 @@
     <div class="infobox-content-wrapper">
         {#if data?.image}
             <div class="image-column">
-                {#if imageUrl && !imageError}
-                    <div class="image-container">
-                        <img
-                            src={imageUrl}
-                            alt={data?.title || "Infobox image"}
-                            class="infobox-image"
-                            onerror={() =>
-                                (imageError = `Invalid image: Failed to load ${imageUrl}`)}
-                        />
-                    </div>
-                {:else if imageError}
-                    <ErrorBox title="Image Error"
-                        >Could not load image {data.image} : {imageError}</ErrorBox
-                    >
-                {/if}
+                <div class="image-container">
+                    <img
+                        src={data.image}
+                        alt={data?.title || "Infobox image"}
+                        class="infobox-image"
+                    />
+                </div>
             </div>
         {/if}
 

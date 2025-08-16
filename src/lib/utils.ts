@@ -7,7 +7,6 @@
 import type { FileNode } from "./bindings";
 import { pathExists } from "./commands";
 import { resolve, resolveResource } from "@tauri-apps/api/path";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 
 /**
@@ -105,31 +104,6 @@ export function filterFileTree(
     // If we get here, it's a directory that doesn't match and has no matching children,
     // or a file that doesn't match.
     return null;
-}
-
-/**
- * Resolves a relative image filename from the vault into a full, usable asset URL.
- * @param vaultPath The absolute path to the current vault.
- * @param filename The name of the image file (e.g., "character.jpg").
- * @returns A promise that resolves to the asset URL string.
- * @throws An error if the path cannot be resolved or the file does not exist.
- */
-export async function resolveImageUrl(
-    vaultPath: string | null,
-    filename: string | undefined,
-): Promise<string> {
-    if (!vaultPath || !filename) {
-        throw new Error("Invalid vault path or filename provided");
-    }
-
-    const imagePath = await resolve(vaultPath, "images", filename);
-
-    // We verify the file exists at the path before trying to create a URL.
-    if (!(await pathExists(imagePath))) {
-        throw new Error(`File does not exist: ${imagePath || filename}`);
-    }
-
-    return convertFileSrc(imagePath);
 }
 
 /**

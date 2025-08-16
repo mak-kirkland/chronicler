@@ -144,6 +144,14 @@ export const pathExists = (path: string) =>
 export const openInExplorer = (path: string) =>
     invoke<void>("open_in_explorer", { path });
 
+/**
+ * Converts an image at a given path to a Base64 Data URL.
+ * @param path The absolute or relative path to the image file.
+ * @returns A promise that resolves to the Base64 Data URL string.
+ */
+export const getImageAsBase64 = (path: string) =>
+    invoke<string>("get_image_as_base64", { path });
+
 // --- Importer Commands ---
 
 /**

@@ -38,8 +38,8 @@ pub struct World {
     /// The application's file system watcher. Wrapped in a Mutex to allow safe swapping
     /// when the vault path changes.
     watcher: Arc<Mutex<Option<Watcher>>>,
-    /// The application's Markdown renderer. Wrapped in an Arc as it is read-only after creation.
-    pub renderer: Arc<Renderer>,
+    /// The application's Markdown renderer. It is created when a vault is initialized.
+    pub renderer: Arc<RwLock<Option<Renderer>>>,
     /// A component for handling all file system write operations.
     writer: Arc<RwLock<Option<Writer>>>,
 }
@@ -52,13 +52,11 @@ impl World {
     pub fn new() -> Self {
         // The indexer is created empty and wrapped for concurrent access.
         let indexer = Arc::new(RwLock::new(Indexer::default()));
-        // The renderer is initialized with a clonable handle to the indexer.
-        let renderer = Arc::new(Renderer::new(indexer.clone()));
 
         Self {
             root_path: Arc::new(RwLock::new(None)),
             indexer,
-            renderer,
+            renderer: Arc::new(RwLock::new(None)),
             // The watcher starts as None and is created when a vault is initialized.
             watcher: Arc::new(Mutex::new(None)),
             writer: Arc::new(RwLock::new(None)),
@@ -83,8 +81,10 @@ impl World {
         // --- 3. Subscribe to File Events ---
         let event_receiver = new_watcher.subscribe();
 
-        // --- 4. Create File System Writer ---
+        // --- 4. Create File System Writer and Renderer ---
         let new_writer = Writer::new();
+        // The Renderer is created here, now that we have the vault path.
+        let new_renderer = Renderer::new(self.indexer.clone(), root_path.to_path_buf());
 
         // --- 5. Lock and Update Shared State ---
         // The lock scope is kept as short as possible.
@@ -95,6 +95,8 @@ impl World {
             // The fully scanned indexer replaces the old one.
             *self.indexer.write() = new_indexer_instance;
             *self.writer.write() = Some(new_writer);
+            // Set the newly created renderer.
+            *self.renderer.write() = Some(new_renderer);
         }
 
         // --- 6. Spawn Background Event Processing Task ---
@@ -238,25 +240,46 @@ impl World {
     /// Processes raw markdown content and returns the fully rendered page data.
     pub fn render_page_preview(&self, content: &str) -> Result<RenderedPage> {
         // This operation does not lock the renderer, only the indexer internally for link resolution.
-        self.renderer.render_page_preview(content)
+        if let Some(renderer) = self.renderer.read().as_ref() {
+            renderer.render_page_preview(content)
+        } else {
+            Err(ChroniclerError::VaultNotInitialized)
+        }
     }
 
     /// Renders a string of pure Markdown to a `RenderedPage` object.
     /// This bypasses all wikilink and frontmatter processing.
     pub fn render_markdown(&self, markdown: &str) -> Result<RenderedPage> {
         // This is a pure function and doesn't require any state locks.
-        self.renderer.render_markdown(markdown)
+        if let Some(renderer) = self.renderer.read().as_ref() {
+            renderer.render_markdown(markdown)
+        } else {
+            Err(ChroniclerError::VaultNotInitialized)
+        }
     }
 
     /// Fetches and renders all data required for the main file view.
     pub fn build_page_view(&self, path: &str) -> Result<FullPageData> {
         // The renderer handles its own internal locking of the indexer.
-        self.renderer.build_page_view(path)
+        if let Some(renderer) = self.renderer.read().as_ref() {
+            renderer.build_page_view(path)
+        } else {
+            Err(ChroniclerError::VaultNotInitialized)
+        }
     }
 
     /// Returns a list of all directory paths in the vault.
     pub fn get_all_directory_paths(&self) -> Result<Vec<PathBuf>> {
         self.indexer.read().get_all_directory_paths()
+    }
+
+    /// Converts a relative or absolute image path to a Base64 Data URL string.
+    pub fn get_image_as_base64(&self, path: &str) -> Result<String> {
+        if let Some(renderer) = self.renderer.read().as_ref() {
+            Ok(renderer.convert_image_path_to_data_url(path))
+        } else {
+            Err(ChroniclerError::VaultNotInitialized)
+        }
     }
 
     // --- File System Operations ---

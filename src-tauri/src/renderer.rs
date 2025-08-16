@@ -4,24 +4,69 @@ use crate::error::ChroniclerError;
 use crate::models::{Backlink, FullPageData};
 use crate::wikilink::WIKILINK_RE;
 use crate::{error::Result, indexer::Indexer, models::RenderedPage, parser};
+use base64::{engine::general_purpose, Engine as _};
 use parking_lot::RwLock;
 use pulldown_cmark::{html, Event, Options, Parser};
 use regex::Captures;
 use serde_json::Value;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// A struct responsible for rendering Markdown content.
 #[derive(Debug)]
 pub struct Renderer {
     indexer: Arc<RwLock<Indexer>>,
+    // The vault path is needed to resolve relative image paths.
+    vault_path: PathBuf,
+}
+
+/// Determines the MIME type of a file based on its extension.
+fn get_mime_type(filename: &str) -> &str {
+    let lower = filename.to_lowercase();
+    if lower.ends_with(".png") {
+        "image/png"
+    } else if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
+        "image/jpeg"
+    } else if lower.ends_with(".gif") {
+        "image/gif"
+    } else if lower.ends_with(".svg") {
+        "image/svg+xml"
+    } else if lower.ends_with(".webp") {
+        "image/webp"
+    } else {
+        "application/octet-stream"
+    }
 }
 
 impl Renderer {
     /// Creates a new Renderer.
-    pub fn new(indexer: Arc<RwLock<Indexer>>) -> Self {
-        Self { indexer }
+    pub fn new(indexer: Arc<RwLock<Indexer>>, vault_path: PathBuf) -> Self {
+        Self {
+            indexer,
+            vault_path,
+        }
+    }
+
+    /// Processes an image source path, returning a Base64 Data URL.
+    /// It resolves both absolute and relative paths before encoding.
+    pub fn convert_image_path_to_data_url(&self, path_str: &str) -> String {
+        let path = Path::new(path_str);
+        let absolute_path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            // Assumes relative paths are inside the vault's "images" directory.
+            self.vault_path.join("images").join(path)
+        };
+
+        if let Ok(data) = fs::read(&absolute_path) {
+            let mime_type = get_mime_type(path_str);
+            let encoded = general_purpose::STANDARD.encode(data);
+            format!("data:{};base64,{}", mime_type, encoded)
+        } else {
+            // If reading the file fails, return the original src to show a broken image link.
+            path_str.to_string()
+        }
     }
 
     /// Processes raw markdown content into a structured, rendered page object.
@@ -45,8 +90,9 @@ impl Renderer {
             }
         };
 
-        // 2. Process wikilinks within the frontmatter JSON values
+        // 2. Process special fields within the frontmatter JSON
         if let Value::Object(map) = &mut frontmatter_json {
+            // Process wikilinks in all string and array-of-string values
             for (_, value) in map.iter_mut() {
                 if let Value::String(s) = value {
                     *value = Value::String(self.render_wikilinks_in_string(s));
@@ -57,6 +103,12 @@ impl Renderer {
                         }
                     }
                 }
+            }
+
+            // Specifically process the 'image' field for the infobox.
+            if let Some(Value::String(image_path)) = map.get("image").cloned() {
+                let processed_src = self.convert_image_path_to_data_url(&image_path);
+                map.insert("image".to_string(), Value::String(processed_src));
             }
         }
 
@@ -329,7 +381,7 @@ mod tests {
         indexer.full_scan(root).unwrap();
 
         let indexer_arc = Arc::new(RwLock::new(indexer));
-        let renderer = Renderer::new(indexer_arc);
+        let renderer = Renderer::new(indexer_arc, root.to_path_buf());
 
         (renderer, page1_path)
     }

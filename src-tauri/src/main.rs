@@ -83,6 +83,7 @@ fn main() {
             commands::get_linux_install_type,
             commands::get_license_status,
             commands::verify_and_store_license,
+            commands::get_image_as_base64,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);
