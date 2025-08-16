@@ -13,6 +13,7 @@ import { getTitleFromPath } from "./utils";
 import { world } from "./worldStore";
 import TextInputModal from "./components/TextInputModal.svelte";
 import { openModal, closeModal } from "./modalStore";
+import { dirname } from "@tauri-apps/api/path";
 
 /**
  * Navigates the main view to display a specific file.
@@ -179,7 +180,14 @@ export function promptAndCreateItem(
  * @param destinationDir The full path of the target directory.
  */
 export async function movePath(sourcePath: string, destinationDir: string) {
-    // The backend will handle checking if the source and destination are effectively the same.
+    // Get the parent directory of the source file/folder.
+    const sourceParentDir = await dirname(sourcePath);
+
+    // If the source is already in the destination directory, or _is_ the destination, do nothing.
+    if (sourceParentDir === destinationDir || sourcePath === destinationDir) {
+        return;
+    }
+
     try {
         await commands.movePath(sourcePath, destinationDir);
         await world.initialize(); // Refresh data to show the move in the UI.
