@@ -87,7 +87,7 @@
                         src={data.image}
                         alt={data?.title || "Infobox image"}
                         class="infobox-image"
-                        ondblclick={openImageView}
+                        onclick={openImageView}
                     />
                 </div>
             </div>
