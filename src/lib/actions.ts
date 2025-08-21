@@ -208,3 +208,19 @@ export async function movePath(sourcePath: string, destinationDir: string) {
         throw e;
     }
 }
+
+/**
+ * Duplicates a page, refreshes the world state, and navigates to the new file.
+ * @param path The path of the page to duplicate.
+ */
+export async function duplicatePage(path: string) {
+    try {
+        const newPage = await commands.duplicatePage(path);
+        await world.initialize(); // Refresh data
+        navigateToPage(newPage); // Navigate to the new duplicate
+    } catch (e) {
+        console.error(`Duplicate failed for path: ${path}`, e);
+        alert(`Error: ${e}`);
+        throw e;
+    }
+}

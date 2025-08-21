@@ -321,6 +321,43 @@ tags: [add, your, tags]
 
         Ok(())
     }
+
+    /// Creates a duplicate of a page, finding a unique name for the new file.
+    ///
+    /// # Arguments
+    /// * `path` - The path to the file to duplicate.
+    ///
+    /// # Returns
+    /// A `PageHeader` for the newly created duplicate file.
+    #[instrument(skip(self))]
+    pub fn duplicate_page(&self, path: &Path) -> Result<PageHeader> {
+        let content = fs::read_to_string(path)?;
+
+        let parent_dir = path
+            .parent()
+            .ok_or_else(|| ChroniclerError::InvalidPath(path.to_path_buf()))?;
+        let original_stem = file_stem_string(path);
+        let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("md");
+
+        let mut new_path;
+        let mut counter = 1;
+        loop {
+            let new_stem = format!("{} {}", original_stem, counter);
+            new_path = parent_dir.join(format!("{}.{}", new_stem, extension));
+            if !new_path.exists() {
+                break;
+            }
+            counter += 1;
+        }
+
+        atomic_write(&new_path, &content)?;
+
+        let title = file_stem_string(&new_path);
+        Ok(PageHeader {
+            title,
+            path: new_path,
+        })
+    }
 }
 
 #[cfg(test)]

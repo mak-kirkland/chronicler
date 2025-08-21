@@ -130,6 +130,14 @@ export const movePath = (sourcePath: string, destDir: string) =>
     invoke<void>("move_path", { sourcePath, destDir });
 
 /**
+ * Duplicates a page, creating a new file with a numerical suffix.
+ * @param path The path of the file to duplicate.
+ * @returns A promise that resolves to the header data of the newly created page.
+ */
+export const duplicatePage = (path: string) =>
+    invoke<PageHeader>("duplicate_page", { path });
+
+/**
  * Checks if a file or directory exists at the given path.
  * @param path The absolute path to check.
  * @returns A promise that resolves to true if the path exists.

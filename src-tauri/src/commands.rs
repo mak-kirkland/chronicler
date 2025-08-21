@@ -144,6 +144,13 @@ pub fn move_path(world: State<World>, source_path: String, dest_dir: String) -> 
     world.move_path(PathBuf::from(source_path), PathBuf::from(dest_dir))
 }
 
+/// Duplicates a page, creating a new file with a numerical suffix.
+#[command]
+#[instrument(skip(world))]
+pub fn duplicate_page(path: String, world: State<World>) -> Result<PageHeader> {
+    world.duplicate_page(path)
+}
+
 /// Checks if a file or directory exists at the given path.
 #[command]
 pub fn path_exists(path: PathBuf) -> bool {

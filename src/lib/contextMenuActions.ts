@@ -8,8 +8,13 @@
 import type { FileNode } from "$lib/bindings";
 import type { ContextMenuItem } from "$lib/types";
 import { openModal, closeModal } from "$lib/modalStore";
-import { renamePath, deletePath, promptAndCreateItem } from "$lib/actions";
-import { isDirectory } from "$lib/utils";
+import {
+    renamePath,
+    deletePath,
+    promptAndCreateItem,
+    duplicatePage,
+} from "$lib/actions";
+import { isDirectory, isMarkdown } from "$lib/utils";
 import { openInExplorer } from "$lib/commands";
 // Import modal components that can be triggered from the context menu
 import TextInputModal from "./components/TextInputModal.svelte";
@@ -73,6 +78,14 @@ export function getContextMenuActions(
                 },
             },
         );
+    }
+
+    // Add "Duplicate" action only for Markdown files.
+    if (isMarkdown(node)) {
+        actions.push({
+            label: "Duplicate",
+            handler: () => duplicatePage(node.path),
+        });
     }
 
     if (isDir) {

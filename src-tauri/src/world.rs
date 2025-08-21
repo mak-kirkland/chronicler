@@ -408,6 +408,24 @@ impl World {
 
         Ok(())
     }
+
+    /// Duplicates a page and synchronously updates the index.
+    pub fn duplicate_page(&self, path: String) -> Result<PageHeader> {
+        let writer = self
+            .writer
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+
+        let new_page_header = writer.duplicate_page(&PathBuf::from(path))?;
+
+        // After the file is created on disk, notify the indexer.
+        self.indexer
+            .write()
+            .handle_file_event(&FileEvent::Created(new_page_header.path.clone()));
+
+        Ok(new_page_header)
+    }
 }
 
 /// Provides a default, empty `World` instance.
