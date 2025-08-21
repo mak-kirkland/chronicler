@@ -39,7 +39,7 @@ pub struct Writer;
 /// ensures the temporary file is automatically cleaned up if an error occurs
 /// before the final `persist` call, preventing stray `.tmp` files.
 #[instrument(skip(content), fields(path = %path.display()))]
-fn atomic_write(path: &Path, content: &str) -> Result<()> {
+pub fn atomic_write(path: &Path, content: &str) -> Result<()> {
     let parent_dir = path
         .parent()
         .ok_or_else(|| ChroniclerError::InvalidPath(path.to_path_buf()))?;
@@ -105,9 +105,19 @@ impl Writer {
         Self
     }
 
-    /// Creates a new, empty markdown file using an atomic write.
-    #[instrument(skip(self))]
-    pub fn create_new_file(&self, parent_dir: &str, file_name: &str) -> Result<PageHeader> {
+    /// Creates a new markdown file, optionally from a template.
+    ///
+    /// # Arguments
+    /// * `parent_dir` - The directory where the new file will be created.
+    /// * `file_name` - The name of the new file (without extension).
+    /// * `template_content` - Optional content from a template file.
+    #[instrument(skip(self, template_content))]
+    pub fn create_new_file(
+        &self,
+        parent_dir: &str,
+        file_name: &str,
+        template_content: Option<String>,
+    ) -> Result<PageHeader> {
         let path = PathBuf::from(parent_dir).join(format!("{}.md", file_name.trim()));
 
         if path.exists() {
@@ -115,16 +125,21 @@ impl Writer {
         }
 
         let title = file_stem_string(&path);
-        let default_content = format!(
-            r#"---
+
+        // Use the template content if provided, otherwise use the default.
+        let final_content = match template_content {
+            Some(content) => content.replace("{{title}}", &title),
+            None => format!(
+                r#"---
 title: {title}
 tags: [add, your, tags]
 ---
 
 "#
-        );
-        // Use the robust atomic_write helper.
-        atomic_write(&path, &default_content)?;
+            ),
+        };
+
+        atomic_write(&path, &final_content)?;
         Ok(PageHeader { title, path })
     }
 

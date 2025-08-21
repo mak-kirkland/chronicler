@@ -91,10 +91,19 @@ export const renderMarkdown = (content: string) =>
  * Creates a new, empty markdown file.
  * @param parentDir The directory where the new file should be created.
  * @param fileName The name for the new file.
+ * @param templatePath Optional path to a template file to use.
  * @returns A promise that resolves to the header data of the newly created page.
  */
-export const createNewFile = (parentDir: string, fileName: string) =>
-    invoke<PageHeader>("create_new_file", { parentDir, fileName });
+export const createNewFile = (
+    parentDir: string,
+    fileName: string,
+    templatePath?: string | null,
+) =>
+    invoke<PageHeader>("create_new_file", {
+        parentDir,
+        fileName,
+        templatePath,
+    });
 
 /**
  * Creates a new, empty folder.
@@ -215,3 +224,36 @@ export function getLinuxInstallType(): Promise<string> {
  * @returns {Promise<number>} A promise that resolves to the number of days.
  */
 export const getAppUsageDays = () => invoke<number>("get_app_usage_days");
+
+// --- Template Commands ---
+
+/**
+ * Retrieves a list of all available templates.
+ * @returns A promise that resolves to an array of PageHeader objects for the templates.
+ */
+export const getAllTemplates = () => invoke<PageHeader[]>("get_all_templates");
+
+/**
+ * Reads the raw content of a specific template file.
+ * @param path The path of the template file to read.
+ * @returns A promise that resolves to the string content of the template.
+ */
+export const getTemplateContent = (path: string) =>
+    invoke<string>("get_template_content", { path });
+
+/**
+ * Saves content to a template file.
+ * @param name The name of the template (without extension).
+ * @param content The new content to save.
+ * @returns A promise that resolves to the path of the saved template file.
+ */
+export const saveTemplateContent = (name: string, content: string) =>
+    invoke<string>("save_template_content", { name, content });
+
+/**
+ * Deletes a template file.
+ * @param path The path of the template file to delete.
+ * @returns A promise that resolves when the template has been deleted.
+ */
+export const deleteTemplate = (path: string) =>
+    invoke<void>("delete_template", { path });
