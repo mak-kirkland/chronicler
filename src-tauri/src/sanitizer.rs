@@ -41,7 +41,7 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         .add_tag_attributes("img", &["src", "data", "alt", "style", "width", "height"])
         .add_tag_attributes("figure", &["style"])
         .add_tag_attributes("figcaption", &["style"])
-        .add_tag_attributes("a", &["href", "title"])
+        .add_tag_attributes("a", &["href", "title", "class", "data-path"])
         .add_tag_attributes("span", &["class"])
         .clean(dirty_html)
         .to_string()
