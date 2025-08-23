@@ -35,8 +35,12 @@
                 // --- Handle External Links ---
                 // Find the closest parent `<a>` tag to the click target.
                 const link = event.target.closest("a");
-                // If it's an external link, open it in the default browser.
-                if (link && link.href.startsWith("http")) {
+                // If it's an external link (and not an internal-link), open it in the default browser.
+                if (
+                    link &&
+                    link.href.startsWith("http") &&
+                    !link.classList.contains("internal-link")
+                ) {
                     event.preventDefault();
                     openUrl(link.href);
                 }

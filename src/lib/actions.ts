@@ -15,6 +15,7 @@ import NewPageModal from "./components/NewPageModal.svelte";
 import TextInputModal from "./components/TextInputModal.svelte";
 import { openModal, closeModal } from "./modalStore";
 import { dirname } from "@tauri-apps/api/path";
+import { get } from "svelte/store";
 
 /**
  * Navigates the main view to display a specific file.
@@ -42,11 +43,22 @@ export function handleLinkClick(event: Event) {
     const target = event.target as HTMLElement;
     const link = target.closest("a.internal-link");
 
-    if (link && link.hasAttribute("data-path")) {
+    if (link) {
         event.preventDefault();
-        const path = link.getAttribute("data-path")!;
-        const title = link.textContent || getTitleFromPath(path);
-        navigateToPage({ path, title });
+        if (
+            link.classList.contains("broken") &&
+            link.hasAttribute("data-target")
+        ) {
+            const targetName = link.getAttribute("data-target")!;
+            const currentVaultPath = get(world).vaultPath;
+            if (currentVaultPath) {
+                promptAndCreateItem("file", currentVaultPath, targetName);
+            }
+        } else if (link.hasAttribute("data-path")) {
+            const path = link.getAttribute("data-path")!;
+            const title = link.textContent || getTitleFromPath(path);
+            navigateToPage({ path, title });
+        }
     }
 }
 
@@ -166,10 +178,12 @@ export async function createFolder(parentDir: string, name: string) {
  * triggers the creation of a new file or folder.
  * @param itemType The type of item to create ('file' or 'folder').
  * @param parentDir The directory in which to create the item.
+ * @param initialName An optional pre-filled name for the item.
  */
 export function promptAndCreateItem(
     itemType: "file" | "folder",
     parentDir: string,
+    initialName?: string,
 ) {
     if (itemType === "file") {
         // Open the advanced modal for creating pages with templates.
@@ -177,6 +191,7 @@ export function promptAndCreateItem(
             component: NewPageModal,
             props: {
                 parentDir,
+                initialName,
                 onClose: closeModal,
             },
         });

@@ -304,11 +304,11 @@ a.internal-link {
     cursor: pointer;
 }
 
-span.internal-link.broken {
+a.internal-link.broken {
     color: var(--color-text-link-broken);
     text-decoration: none;
     border-bottom: 1px dotted var(--color-text-link-broken);
-    cursor: help;
+    cursor: pointer;
 }
 
 /* --- Global Spoiler Styles --- */
@@ -336,7 +336,7 @@ span.spoiler.revealed {
 /* --- Nested Spoiler Styles --- */
 /* This specifically targets links inside a hidden spoiler to make them transparent. */
 span.spoiler a.internal-link,
-span.spoiler span.internal-link.broken {
+span.spoiler a.internal-link.broken {
     color: transparent;
     border-bottom-color: transparent;
 }
@@ -346,7 +346,7 @@ span.spoiler.revealed a.internal-link {
     color: var(--color-text-link);
     border-bottom-color: var(--color-text-link);
 }
-span.spoiler.revealed span.internal-link.broken {
+span.spoiler.revealed a.internal-link.broken {
     color: var(--color-text-link-broken);
     border-bottom-color: var(--color-text-link-broken);
 }

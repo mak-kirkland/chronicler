@@ -8,16 +8,21 @@
     import Modal from "./Modal.svelte";
     import Button from "./Button.svelte";
 
-    let { parentDir, onClose } = $props<{
+    let {
+        parentDir,
+        onClose,
+        initialName = "",
+    } = $props<{
         parentDir: string;
         onClose: () => void;
+        initialName?: string;
     }>();
 
     // --- State ---
     let templates = $state<PageHeader[]>([]);
     let isLoading = $state(true);
     let error = $state<string | null>(null);
-    let pageName = $state("");
+    let pageName = $state(initialName);
     let selectedTemplatePath = $state<string | null>(null); // Use null for "Blank Page"
 
     // --- Lifecycle ---

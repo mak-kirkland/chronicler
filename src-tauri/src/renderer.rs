@@ -202,7 +202,11 @@ impl Renderer {
                         alias
                     )
                 } else {
-                    format!("<span class=\"internal-link broken\">{}</span>", alias)
+                    format!(
+                        "<a href=\"#\" class=\"internal-link broken\" data-target=\"{}\">{}</a>",
+                        target, // Use the original target name for creation
+                        alias
+                    )
                 }
             })
             .to_string()
@@ -485,7 +489,7 @@ mod tests {
         assert!(result.processed_frontmatter.is_null());
 
         // Body should be rendered with the broken link
-        let expected_html = "<h1>Title</h1>\n<p>Just body content, with a <span class=\"internal-link broken\">Broken Link</span>.</p>\n";
+        let expected_html = "<h1>Title</h1>\n<p>Just body content, with a <a href=\"#\" class=\"internal-link broken\" data-target=\"Broken Link\">Broken Link</a>.</p>\n";
         assert_eq!(result.rendered_html, expected_html);
     }
 
