@@ -7,6 +7,7 @@ use std::collections::HashSet;
 /// to prevent XSS attacks.
 pub fn sanitize_html(dirty_html: &str) -> String {
     Builder::new()
+        .link_rel(None) // Do not add rel="noopener noreferrer" to links.
         .tags(HashSet::from([
             "figure",
             "img",
