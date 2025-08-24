@@ -71,6 +71,14 @@ export function navigateToTag(tagName: string) {
 }
 
 /**
+ * Navigates to a specific report view.
+ * @param reportName The identifier for the report to display.
+ */
+export function navigateToReport(reportName: string) {
+    currentView.set({ type: "report", name: reportName });
+}
+
+/**
  * Navigates the main view to display an image.
  * @param image The header of the image to open, containing its path and title.
  */

@@ -91,6 +91,7 @@ fn main() {
             commands::get_template_content,
             commands::save_template_content,
             commands::delete_template,
+            commands::get_all_broken_links,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);

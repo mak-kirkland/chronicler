@@ -4,13 +4,14 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import FileExplorer from "./FileExplorer.svelte";
     import TagList from "./TagList.svelte";
+    import ReportListView from "./ReportListView.svelte";
     import SettingsModal from "./SettingsModal.svelte";
     import HelpModal from "./HelpModal.svelte";
     import Button from "./Button.svelte";
     import SearchInput from "./SearchInput.svelte";
 
     let { width = $bindable() } = $props();
-    let activeTab = $state<"files" | "tags">("files");
+    let activeTab = $state<"files" | "tags" | "reports">("files");
     let searchTerm = $state("");
 
     // When the value of activTab changes, clear the search term
@@ -65,7 +66,9 @@
         bind:value={searchTerm}
         placeholder={activeTab === "files"
             ? "Search files..."
-            : "Search tags..."}
+            : activeTab === "tags"
+              ? "Search tags..."
+              : "Search reports..."}
     />
 
     <div class="tab-navigation">
@@ -81,12 +84,20 @@
         >
             Tags
         </button>
+        <button
+            class:active={activeTab === "reports"}
+            onclick={() => (activeTab = "reports")}
+        >
+            Reports
+        </button>
     </div>
     <div class="sidebar-content">
         {#if activeTab === "files"}
             <FileExplorer {searchTerm} />
         {:else if activeTab === "tags"}
             <TagList tags={filteredTags} />
+        {:else if activeTab === "reports"}
+            <ReportListView />
         {/if}
     </div>
 

@@ -4,6 +4,7 @@
     import FileView from "$lib/components/FileView.svelte";
     import ImageView from "$lib/components/ImageView.svelte";
     import BacklinksPanel from "$lib/components/BacklinksPanel.svelte";
+    import BrokenLinksReportView from "$lib/components/BrokenLinksReportView.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
 
     // This effect resets the file view mode and hides the right sidebar
@@ -69,6 +70,8 @@
     <FileView file={$currentView.data} />
 {:else if $currentView.type === "image" && $currentView.data}
     <ImageView data={$currentView.data} />
+{:else if $currentView.type === "report" && $currentView.name === "broken-links"}
+    <BrokenLinksReportView />
 {/if}
 
 {#if $rightSidebar.isVisible}

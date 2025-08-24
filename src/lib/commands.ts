@@ -13,6 +13,7 @@ import type {
     PageHeader,
     RenderedPage,
     TagMap,
+    BrokenLink,
 } from "./bindings";
 
 // --- Vault Commands ---
@@ -51,6 +52,13 @@ export const getAllTags = () => invoke<TagMap>("get_all_tags");
  */
 export const getAllDirectoryPaths = () =>
     invoke<string[]>("get_all_directory_paths");
+
+/**
+ * Returns a list of all broken links in the vault.
+ * @returns A promise that resolves to an array of BrokenLink objects.
+ */
+export const getAllBrokenLinks = () =>
+    invoke<BrokenLink[]>("get_all_broken_links");
 
 // --- Page & File Operation Commands ---
 

@@ -89,3 +89,14 @@ export interface License {
     status: string;
     expiry: string;
 }
+
+/**
+ * Represents a broken link report from the backend.
+ * This mirrors the `BrokenLink` struct in `src-tauri/src/models.rs`.
+ */
+export interface BrokenLink {
+    /** The target name of the link that could not be resolved. */
+    target: string;
+    /** A list of all pages that contain a link to this target. */
+    sources: PageHeader[];
+}

@@ -113,7 +113,7 @@ pub struct FileNode {
 
 /// A lightweight representation of a page containing only the data needed for list views.
 /// This is used to efficiently send lists of pages to the frontend.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PageHeader {
     pub title: String,
     pub path: PathBuf,
@@ -144,4 +144,13 @@ pub struct FullPageData {
     pub raw_content: String,
     pub rendered_page: RenderedPage,
     pub backlinks: Vec<Backlink>,
+}
+
+/// Represents a broken link report, aggregating all pages that link to a non-existent target.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BrokenLink {
+    /// The target name of the link that could not be resolved.
+    pub target: String,
+    /// A list of all pages that contain a link to this target.
+    pub sources: Vec<PageHeader>,
 }

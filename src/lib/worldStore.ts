@@ -14,9 +14,14 @@
 
 import { writable, derived } from "svelte/store";
 import { listen } from "@tauri-apps/api/event";
-import { getFileTree, getAllTags, getVaultPath } from "./commands";
+import {
+    getFileTree,
+    getAllTags,
+    getVaultPath,
+    getAllBrokenLinks,
+} from "./commands";
 import { isMarkdown } from "./utils";
-import type { FileNode, TagMap } from "./bindings";
+import type { FileNode, TagMap, BrokenLink } from "./bindings";
 
 /**
  * The shape of the core application data.
@@ -25,6 +30,7 @@ export interface WorldState {
     vaultPath: string | null;
     files: FileNode | null;
     tags: TagMap;
+    brokenLinks: BrokenLink[];
     isLoaded: boolean;
     error: string | null;
 }
@@ -33,6 +39,7 @@ const initialState: WorldState = {
     vaultPath: null,
     files: null,
     tags: [],
+    brokenLinks: [],
     isLoaded: false,
     error: null,
 };
@@ -51,16 +58,18 @@ function createWorldStore() {
     const loadData = async () => {
         try {
             // Fetch all data in parallel for efficiency.
-            const [files, tags, vaultPath] = await Promise.all([
+            const [files, tags, vaultPath, brokenLinks] = await Promise.all([
                 getFileTree(),
                 getAllTags(),
                 getVaultPath(),
+                getAllBrokenLinks(),
             ]);
             update((s) => ({
                 ...s,
                 files,
                 tags,
                 vaultPath,
+                brokenLinks,
                 isLoaded: true,
                 error: null,
             }));
@@ -134,6 +143,11 @@ export const files = derived(world, ($world) => $world.files);
  * A derived store that only contains the tag map.
  */
 export const tags = derived(world, ($world) => $world.tags);
+
+/**
+ * A derived store that only contains the list of broken links.
+ */
+export const brokenLinks = derived(world, ($world) => $world.brokenLinks);
 
 /**
  * A derived store that reflects the loading status of the world data.
