@@ -5,7 +5,7 @@
 
 use crate::licensing;
 use crate::licensing::License;
-use crate::models::{FullPageData, PageHeader};
+use crate::models::{BrokenLink, FullPageData, PageHeader};
 use crate::{
     config,
     error::Result,
@@ -58,6 +58,13 @@ pub fn get_file_tree(world: State<World>) -> Result<FileNode> {
 #[instrument(skip(world))]
 pub fn get_all_directory_paths(world: State<World>) -> Result<Vec<PathBuf>> {
     world.get_all_directory_paths()
+}
+
+/// Returns a list of all broken links in the vault.
+#[command]
+#[instrument(skip(world))]
+pub fn get_all_broken_links(world: State<World>) -> Result<Vec<BrokenLink>> {
+    world.get_all_broken_links()
 }
 
 // --- Page Rendering and Content ---

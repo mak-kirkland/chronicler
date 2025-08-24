@@ -6,7 +6,7 @@
 use crate::{
     error::{ChroniclerError, Result},
     events::FileEvent,
-    models::{FileNode, FileType, Link, Page, PageHeader},
+    models::{BrokenLink, FileNode, FileType, Link, Page, PageHeader},
     parser,
     utils::{file_stem_string, is_image_file, is_markdown_file},
 };
@@ -466,6 +466,46 @@ impl Indexer {
             }
         }
     }
+
+    /// Finds all broken links in the vault and aggregates them by target.
+    #[instrument(level = "debug", skip(self))]
+    pub fn get_all_broken_links(&self) -> Result<Vec<BrokenLink>> {
+        let mut broken_links_map: HashMap<String, HashSet<PageHeader>> = HashMap::new();
+
+        // Iterate through all pages and their outgoing links
+        for (source_path, page) in &self.pages {
+            for link in &page.links {
+                // A link is broken if it cannot be resolved by the indexer.
+                if self.resolve_link(link).is_none() {
+                    let source_header = PageHeader {
+                        path: source_path.clone(),
+                        title: page.title.clone(),
+                    };
+                    // Add the source page to the set for this broken target.
+                    broken_links_map
+                        .entry(link.target.clone())
+                        .or_default()
+                        .insert(source_header);
+                }
+            }
+        }
+
+        // Convert the map into the final Vec<BrokenLink> structure for the frontend.
+        let mut result: Vec<BrokenLink> = broken_links_map
+            .into_iter()
+            .map(|(target, sources_set)| {
+                let mut sources: Vec<PageHeader> = sources_set.into_iter().collect();
+                // Sort the source pages alphabetically by title for consistent display.
+                sources.sort_by_key(|p| p.title.to_lowercase());
+                BrokenLink { target, sources }
+            })
+            .collect();
+
+        // Sort the final list of broken links alphabetically by their target name.
+        result.sort_by_key(|bl| bl.target.to_lowercase());
+
+        Ok(result)
+    }
 }
 
 #[cfg(test)]
@@ -630,5 +670,40 @@ Now I link to [[Page Two]]!
         assert_eq!(page2.backlinks.len(), 2);
         assert!(page2.backlinks.contains(&new_page_path));
         assert!(page2.backlinks.contains(&page3_path));
+    }
+
+    #[test]
+    fn test_get_all_broken_links() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+
+        let page1_path = root.join("Page One.md");
+        fs::write(&page1_path, "Links to [[Page Two]] and [[Missing Page]].").unwrap();
+
+        let page2_path = root.join("Page Two.md");
+        fs::write(&page2_path, "Links to [[Another Missing Page]].").unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.full_scan(root).unwrap();
+
+        let broken_links = indexer.get_all_broken_links().unwrap();
+
+        assert_eq!(broken_links.len(), 2);
+
+        // Find the "Another Missing Page" report (results are sorted)
+        let another_missing = broken_links
+            .iter()
+            .find(|bl| bl.target == "Another Missing Page")
+            .unwrap();
+        assert_eq!(another_missing.sources.len(), 1);
+        assert_eq!(another_missing.sources[0].path, page2_path);
+
+        // Find the "Missing Page" report
+        let missing_page = broken_links
+            .iter()
+            .find(|bl| bl.target == "Missing Page")
+            .unwrap();
+        assert_eq!(missing_page.sources.len(), 1);
+        assert_eq!(missing_page.sources[0].path, page1_path);
     }
 }

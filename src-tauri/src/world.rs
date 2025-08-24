@@ -8,7 +8,7 @@ use crate::{
     events::FileEvent,
     importer,
     indexer::Indexer,
-    models::{FileNode, FullPageData, PageHeader, RenderedPage},
+    models::{BrokenLink, FileNode, FullPageData, PageHeader, RenderedPage},
     renderer::Renderer,
     template,
     watcher::Watcher,
@@ -281,6 +281,11 @@ impl World {
         } else {
             Err(ChroniclerError::VaultNotInitialized)
         }
+    }
+
+    /// Returns a list of all broken links in the vault.
+    pub fn get_all_broken_links(&self) -> Result<Vec<BrokenLink>> {
+        self.indexer.read().get_all_broken_links()
     }
 
     // --- File System Operations ---
