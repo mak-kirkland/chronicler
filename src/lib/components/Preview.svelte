@@ -3,6 +3,7 @@
     import type { RenderedPage } from "$lib/bindings";
     import Infobox from "./Infobox.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
+    import TableOfContents from "./TableOfContents.svelte";
 
     // The type for the infobox data is complex, so we can use `any` here.
     // It's the `processed_frontmatter` object from the Rust backend.
@@ -36,17 +37,21 @@
                 // Find the closest parent `<a>` tag to the click target.
                 const link = event.target.closest("a");
                 // If it's an external link (and not an internal-link), open it in the default browser.
+                const href = link?.getAttribute("href");
+
                 if (
                     link &&
-                    link.href.startsWith("http") &&
+                    href &&
+                    href.startsWith("http") &&
                     !link.classList.contains("internal-link")
                 ) {
                     event.preventDefault();
-                    openUrl(link.href);
+                    openUrl(href);
                 }
             }
         };
 
+        // We attach the listener to the body to catch all clicks, but only act on specific ones.
         document.body.addEventListener("click", handleContentClick);
 
         return () => {
@@ -70,7 +75,13 @@
 
     {#if renderedData}
         <div class="main-content">
-            {@html renderedData.rendered_html}
+            {@html renderedData.html_before_toc}
+            {#if renderedData.toc.length > 0}
+                <aside class="toc-wrapper">
+                    <TableOfContents toc={renderedData.toc} />
+                </aside>
+            {/if}
+            {@html renderedData.html_after_toc}
         </div>
     {/if}
 </div>
@@ -89,8 +100,15 @@
         margin-bottom: 1rem;
     }
 
+    /* The TOC behaves as a block element */
+    .preview-container.mode-unified .toc-wrapper {
+        width: clamp(20rem, 22vw, 28rem);
+        margin-bottom: 1rem;
+    }
+
     /* --- Layout for Split Mode (Infobox on top) --- */
-    .preview-container.mode-split .infobox-wrapper {
+    .preview-container.mode-split .infobox-wrapper,
+    .preview-container.mode-split .toc-wrapper {
         width: 100%;
         margin-bottom: 2rem;
     }
@@ -98,10 +116,12 @@
     /* --- Responsive Overrides --- */
     /* On smaller screens, disable float and stack the infobox on top for both modes. */
     @media (max-width: 800px) {
-        .preview-container.mode-unified .infobox-wrapper {
+        .preview-container.mode-unified .infobox-wrapper,
+        .preview-container.mode-unified .toc-wrapper {
             float: none;
             width: 100%;
             margin-left: 0;
+            margin-right: 0;
             margin-bottom: 1rem;
         }
     }
