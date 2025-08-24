@@ -45,13 +45,32 @@ export interface FileNode {
 export type TagMap = [string, PageHeader[]][];
 
 /**
+ * Represents a single entry in the Table of Contents.
+ * This mirrors the `TocEntry` struct in Rust.
+ */
+export interface TocEntry {
+    /** The hierarchical number of the entry (e.g., "1.2"). */
+    number: string;
+    /** The text content of the header. */
+    text: string;
+    /** The level of the header (1-6). */
+    level: number;
+    /** The URL-friendly ID generated for the header. */
+    id: string;
+}
+
+/**
  * Contains the processed frontmatter and rendered HTML for a page preview.
  */
 export interface RenderedPage {
     /** The page's frontmatter, parsed as a flexible JSON object. */
     processed_frontmatter: any;
-    /** The page's body content, fully rendered from Markdown to HTML. */
-    rendered_html: string;
+    /** The portion of the rendered HTML that comes *before* the first header. */
+    html_before_toc: string;
+    /** The portion of the rendered HTML that comes *from* the first header onwards. */
+    html_after_toc: string;
+    /** The generated Table of Contents for the page. */
+    toc: TocEntry[];
 }
 
 /**

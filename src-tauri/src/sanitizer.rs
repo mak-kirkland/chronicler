@@ -59,6 +59,13 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         .add_tag_attributes("abbr", &["title"]) // Allow title for abbreviations
         .add_tag_attributes("th", &["style", "align"]) // Allow table header alignment
         .add_tag_attributes("td", &["style", "align"]) // Allow table cell alignment
+        // Allow 'id' attribute on all heading tags for TOC linking.
+        .add_tag_attributes("h1", &["id"])
+        .add_tag_attributes("h2", &["id"])
+        .add_tag_attributes("h3", &["id"])
+        .add_tag_attributes("h4", &["id"])
+        .add_tag_attributes("h5", &["id"])
+        .add_tag_attributes("h6", &["id"])
         .clean(dirty_html)
         .to_string()
 }
