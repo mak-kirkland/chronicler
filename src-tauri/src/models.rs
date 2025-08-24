@@ -127,13 +127,30 @@ pub struct Backlink {
     pub count: usize,
 }
 
+/// Represents a single entry in the Table of Contents.
+#[derive(Debug, Serialize, Clone)]
+pub struct TocEntry {
+    /// The hierarchical number of the entry (e.g., "1.2").
+    pub number: String,
+    /// The text content of the header.
+    pub text: String,
+    /// The level of the header (1-6).
+    pub level: u32,
+    /// The URL-friendly ID generated for the header.
+    pub id: String,
+}
+
 /// A structure containing the fully processed data for a page, ready for frontend display.
 #[derive(Debug, Serialize, Clone)]
 pub struct RenderedPage {
     /// The frontmatter, with any wikilinks inside its values replaced by HTML tags.
     pub processed_frontmatter: Value,
-    /// The body of the page, fully rendered from Markdown to HTML.
-    pub rendered_html: String,
+    /// The portion of the rendered HTML that comes *before* the first header.
+    pub html_before_toc: String,
+    /// The portion of the rendered HTML that comes *from* the first header onwards.
+    pub html_after_toc: String,
+    /// The generated Table of Contents for the page.
+    pub toc: Vec<TocEntry>,
 }
 
 /// A comprehensive data structure for the file view. This is a "View Model"

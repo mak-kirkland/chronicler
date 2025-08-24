@@ -1,15 +1,16 @@
 //! Markdown and Wikilink rendering engine.
 
 use crate::error::ChroniclerError;
-use crate::models::{Backlink, FullPageData};
+use crate::models::{Backlink, FullPageData, TocEntry};
 use crate::sanitizer;
 use crate::wikilink::WIKILINK_RE;
 use crate::{error::Result, indexer::Indexer, models::RenderedPage, parser};
 use base64::{engine::general_purpose, Engine as _};
 use parking_lot::RwLock;
-use pulldown_cmark::{html, Event, Options, Parser};
+use pulldown_cmark::{html, CowStr, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use regex::{Captures, Regex};
 use serde_json::{Map, Value};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
@@ -171,12 +172,14 @@ impl Renderer {
         }
 
         // 3. Render the main body content to HTML, correctly handling custom syntax.
-        let rendered_html = self.render_body_to_html(body);
+        let (html_before_toc, html_after_toc, toc) = self.render_body_to_html_with_toc(body);
 
         // 4. Return the complete structure.
         Ok(RenderedPage {
             processed_frontmatter: frontmatter_json,
-            rendered_html,
+            html_before_toc,
+            html_after_toc,
+            toc,
         })
     }
 
@@ -212,7 +215,10 @@ impl Renderer {
             .to_string()
     }
 
-    /// Renders Markdown body content to HTML, processing custom wikilinks.
+    /// Renders Markdown body content to HTML, processing custom wikilinks, and generating a TOC.
+    ///
+    /// The function splits the resulting HTML at the first header, allowing the frontend
+    /// to inject the Table of Contents between any introductory content and the main body.
     ///
     /// ## Behavior
     ///
@@ -221,6 +227,14 @@ impl Renderer {
     /// 1.  **Block-Level Code**: Wikilinks ARE processed inside fenced (```) and indented code blocks.
     /// 2.  **Inline Code**: Wikilinks are NOT processed inside inline (` `) code and the literal `[[...]]` syntax is preserved.
     /// 3.  **All Other Text**: Wikilinks are processed as normal.
+    ///
+    /// ## Table of Contents Generation
+    ///
+    /// A preliminary pass is made over the Markdown to extract all headers (`<h1>` to `<h6>`).
+    /// For each header, it generates:
+    /// - A hierarchical number (e.g., "1", "1.1", "2").
+    /// - A unique, URL-friendly `id` (a "slug") for anchor linking. Duplicate header
+    ///   text is handled by appending a counter to the slug (e.g., `my-header`, `my-header-1`).
     ///
     /// ## Implementation Details
     ///
@@ -239,7 +253,14 @@ impl Renderer {
     /// - **Inline code** is a single, discrete `Event::Code`, not `Text`. This event triggers a buffer
     ///   flush and is then passed through, so its content is never processed for wikilinks.
     ///
-    fn render_body_to_html(&self, markdown: &str) -> String {
+    /// ## Returns
+    ///
+    /// A tuple `(html_before_toc, html_after_toc, toc)` where:
+    /// - `html_before_toc`: Rendered HTML of all content *before* the first header.
+    /// - `html_after_toc`: Rendered HTML of all content *from* the first header onwards.
+    /// - `toc`: A `Vec<TocEntry>` representing the structured Table of Contents.
+    ///
+    fn render_body_to_html_with_toc(&self, markdown: &str) -> (String, String, Vec<TocEntry>) {
         // --- 1. Initial Setup ---
 
         // Standard pulldown-cmark options to enable features like tables and strikethrough.
@@ -250,14 +271,68 @@ impl Renderer {
 
         // Create the event stream parser from the raw Markdown string.
         let parser = Parser::new_ext(markdown, options);
+        // We collect events first to allow for a multi-pass approach.
+        let events: Vec<Event> = parser.into_iter().collect();
 
-        // `new_events` will store our final, modified list of events after processing.
-        let mut new_events = Vec::new();
+        // --- Pass 1: Extract Headers and Generate TOC data ---
+        let mut toc = Vec::new();
+        let mut header_text_buffer = String::new();
+        let mut current_level: Option<HeadingLevel> = None;
+        let mut counters = [0; 6]; // For H1 to H6
+        let mut unique_ids = HashMap::new();
+
+        for event in &events {
+            if let Event::Start(Tag::Heading { level, .. }) = event {
+                current_level = Some(*level);
+                header_text_buffer.clear();
+            } else if let Event::End(TagEnd::Heading(_)) = event {
+                if let Some(level) = current_level.take() {
+                    let level_index = (level as usize) - 1;
+                    counters[level_index] += 1;
+                    // Reset counters for deeper levels
+                    ((level_index + 1)..6).for_each(|i| {
+                        counters[i] = 0;
+                    });
+
+                    let number_parts: Vec<String> = counters[..=level_index]
+                        .iter()
+                        .filter(|&&c| c > 0)
+                        .map(|c| c.to_string())
+                        .collect();
+                    let number = number_parts.join(".");
+
+                    let mut slug = slug::slugify(&header_text_buffer);
+                    let original_slug = slug.clone();
+                    let mut counter = 1;
+                    while unique_ids.contains_key(&slug) {
+                        slug = format!("{}-{}", original_slug, counter);
+                        counter += 1;
+                    }
+                    unique_ids.insert(slug.clone(), ());
+
+                    toc.push(TocEntry {
+                        number,
+                        text: header_text_buffer.clone(),
+                        level: level as u32,
+                        id: slug,
+                    });
+                }
+            } else if current_level.is_some() {
+                if let Event::Text(text) | Event::Code(text) = event {
+                    header_text_buffer.push_str(text);
+                }
+            }
+        }
+
+        // --- Pass 2: Process Events for HTML Rendering ---
+        let mut events_before_toc = Vec::new();
+        let mut events_after_toc = Vec::new();
         // `text_buffer` will temporarily store the content of consecutive `Text` events.
         let mut text_buffer = String::new();
+        let mut found_first_header = false;
+        let mut header_idx = 0;
 
-        // --- 2. The Flushing Closure ---
-
+        // --- 2a. The Flushing Closure ---
         // This closure contains the logic to process the contents of `text_buffer`.
         // It's called whenever we need to "flush" the text we've gathered.
         let flush_text_buffer = |buffer: &mut String, events: &mut Vec<Event>| {
@@ -275,43 +350,78 @@ impl Renderer {
             buffer.clear();
         };
 
-        // --- 3. The Main Event Loop ---
+        // --- 2b. The Main Event Loop ---
+        for event in events {
+            let current_event_list = if found_first_header {
+                &mut events_after_toc
+            } else {
+                &mut events_before_toc
+            };
 
-        for event in parser {
             match event {
                 // If the event is text, add it to our buffer. Don't process it yet.
                 Event::Text(text) => {
                     text_buffer.push_str(&text);
                 }
-                // If the event is *anything else* (a start tag, end tag, code event, etc.),
-                // it signals the end of our consecutive text block.
+                Event::Start(Tag::Heading { level, .. }) => {
+                    // This signals the end of our consecutive text block. So, first, we flush.
+                    flush_text_buffer(&mut text_buffer, current_event_list);
+                    found_first_header = true;
+
+                    // Get the pre-calculated ID for this header from our TOC data.
+                    let id = toc
+                        .get(header_idx)
+                        .map_or_else(|| CowStr::from(""), |entry| CowStr::from(entry.id.clone()));
+                    header_idx += 1;
+                    // Now that we've found the header, all subsequent events go to the 'after' list.
+                    events_after_toc.push(Event::Start(Tag::Heading {
+                        level,
+                        id: Some(id),
+                        classes: vec![],
+                        attrs: vec![],
+                    }));
+                }
+                // If the event is *anything else* (an end tag, code event, etc.),
+                // it also signals the end of our consecutive text block.
                 _ => {
                     // So, first, we flush the text buffer we've built up.
-                    flush_text_buffer(&mut text_buffer, &mut new_events);
+                    flush_text_buffer(&mut text_buffer, current_event_list);
                     // Then, we push the non-text event that triggered the flush.
-                    new_events.push(event);
+                    current_event_list.push(event);
                 }
             }
         }
         // It's possible for the markdown to end with text, leaving content in the buffer.
         // This final flush ensures that last bit of text gets processed.
-        flush_text_buffer(&mut text_buffer, &mut new_events);
+        let final_event_list = if found_first_header {
+            &mut events_after_toc
+        } else {
+            &mut events_before_toc
+        };
+        flush_text_buffer(&mut text_buffer, final_event_list);
 
         // --- 4. Final HTML Rendering ---
 
         // Render our new, modified stream of events into the final HTML string.
-        let mut html_output = String::new();
-        html::push_html(&mut html_output, new_events.into_iter());
+        let mut html_before = String::new();
+        html::push_html(&mut html_before, events_before_toc.into_iter());
+
+        let mut html_after = String::new();
+        html::push_html(&mut html_after, events_after_toc.into_iter());
 
         // --- 5. Sanitize HTML ---
         // Sanitize the raw rendered HTML to remove any malicious user-written
         // tags (like <script>) or attributes (like onerror) and prevent XSS.
-        let sanitized_html = sanitizer::sanitize_html(&html_output);
+        let sanitized_before = sanitizer::sanitize_html(&html_before);
+        let sanitized_after = sanitizer::sanitize_html(&html_after);
 
         // --- 6. Post-Processing for Embedded Images ---
         // Now that the HTML is safe, find the remaining <img> tags and convert
         // their local src paths to Base64 data URLs.
-        self.process_body_image_tags(&sanitized_html)
+        let final_before = self.process_body_image_tags(&sanitized_before);
+        let final_after = self.process_body_image_tags(&sanitized_after);
+
+        (final_before, final_after, toc)
     }
 
     /// Renders a full Markdown string to an HTML string using pulldown-cmark.
@@ -337,7 +447,9 @@ impl Renderer {
         let rendered_html = self.render_markdown_to_html(markdown);
         Ok(RenderedPage {
             processed_frontmatter: serde_json::Value::Null,
-            rendered_html,
+            html_before_toc: rendered_html,
+            html_after_toc: String::new(),
+            toc: vec![],
         })
     }
 
@@ -454,12 +566,13 @@ mod tests {
             expected_relation_html
         );
 
-        // Check body
+        // Check body - since there's no header, it should all be in html_before_toc
         let expected_body_html = format!(
             "<p>Body content with <a href=\"#\" class=\"internal-link\" data-path=\"{}\">an alias</a>.</p>\n",
             expected_path_str
         );
-        assert_eq!(result.rendered_html, expected_body_html);
+        assert_eq!(result.html_before_toc, expected_body_html);
+        assert!(result.html_after_toc.is_empty());
     }
 
     #[test]
@@ -476,7 +589,7 @@ mod tests {
         assert!(result.processed_frontmatter["details"].is_string());
 
         // Check that the body is still rendered
-        assert_eq!(result.rendered_html, "<p>Body.</p>\n");
+        assert_eq!(result.html_before_toc, "<p>Body.</p>\n");
     }
 
     #[test]
@@ -488,9 +601,14 @@ mod tests {
         // Frontmatter should be null
         assert!(result.processed_frontmatter.is_null());
 
-        // Body should be rendered with the broken link
-        let expected_html = "<h1>Title</h1>\n<p>Just body content, with a <a href=\"#\" class=\"internal-link broken\" data-target=\"Broken Link\">Broken Link</a>.</p>\n";
-        assert_eq!(result.rendered_html, expected_html);
+        // Body should be rendered with the broken link.
+        // Since the content starts with a header, html_before_toc should be empty.
+        let expected_html = "<p>Just body content, with a <a href=\"#\" class=\"internal-link broken\" data-target=\"Broken Link\">Broken Link</a>.</p>\n";
+        assert!(result.html_before_toc.is_empty());
+        assert_eq!(
+            result.html_after_toc,
+            format!("<h1 id=\"title\">Title</h1>\n{}", expected_html)
+        );
     }
 
     #[test]
@@ -504,7 +622,7 @@ mod tests {
 
         // The wikilink syntax should be preserved inside the code block
         let expected_html = "<h1>Help File</h1>\n<p>This is how you write a wikilink: <code>[[Page Name]]</code>.</p>\n";
-        assert_eq!(result.rendered_html, expected_html);
+        assert_eq!(result.html_before_toc, expected_html);
     }
 
     #[test]
@@ -529,7 +647,7 @@ Case 3: Inline with single backticks `[[Page One]]`.
 A normal link for comparison: [[Page One]].
 "#;
 
-        let result = renderer.render_page_preview(content).unwrap();
+        let (body_html, _, _) = renderer.render_body_to_html_with_toc(content);
         let expected_path_str = page1_path.to_string_lossy();
 
         // The expected HTML now asserts that wikilinks ARE rendered inside
@@ -539,7 +657,7 @@ A normal link for comparison: [[Page One]].
             expected_path_str
         );
 
-        assert_eq!(result.rendered_html, expected_html);
+        assert_eq!(body_html, expected_html);
     }
 
     #[test]
@@ -550,7 +668,7 @@ A normal link for comparison: [[Page One]].
 A normal link to [[Page One]].
 A spoiler with a ||secret [[link]] inside||.
 "#;
-        let result = renderer.render_page_preview(content).unwrap();
+        let (body_html, _, _) = renderer.render_body_to_html_with_toc(content);
         let page1_path_str = page1_path.to_string_lossy();
         let link_path_str = link_path.to_string_lossy();
 
@@ -560,6 +678,76 @@ A spoiler with a ||secret [[link]] inside||.
             link_path_str
         );
 
-        assert_eq!(result.rendered_html, expected_html);
+        assert_eq!(body_html, expected_html);
+    }
+
+    #[test]
+    fn test_toc_generation_and_html_split() {
+        let (renderer, _) = setup_renderer();
+        let content = r#"
+Summary paragraph before any headers.
+
+# Header 1
+Some text.
+## Header 1.1
+More text.
+# Header 2
+Final text.
+"#;
+        let result = renderer.render_page_preview(content).unwrap();
+
+        // Test TOC structure
+        assert_eq!(result.toc.len(), 3);
+        assert_eq!(result.toc[0].number, "1");
+        assert_eq!(result.toc[0].text, "Header 1");
+        assert_eq!(result.toc[0].id, "header-1");
+        assert_eq!(result.toc[1].number, "1.1");
+        assert_eq!(result.toc[1].text, "Header 1.1");
+        assert_eq!(result.toc[1].id, "header-1-1");
+        assert_eq!(result.toc[2].number, "2");
+        assert_eq!(result.toc[2].text, "Header 2");
+        assert_eq!(result.toc[2].id, "header-2");
+
+        // Test HTML split
+        assert_eq!(
+            result.html_before_toc.trim(),
+            "<p>Summary paragraph before any headers.</p>"
+        );
+        assert!(result
+            .html_after_toc
+            .contains("<h1 id=\"header-1\">Header 1</h1>"));
+        assert!(result
+            .html_after_toc
+            .contains("<h2 id=\"header-1-1\">Header 1.1</h2>"));
+        assert!(result
+            .html_after_toc
+            .contains("<h1 id=\"header-2\">Header 2</h1>"));
+    }
+
+    #[test]
+    fn test_toc_with_duplicate_headers() {
+        let (renderer, _) = setup_renderer();
+        let content = "# 똑같은 제목\n## 똑같은 제목\n# 똑같은 제목"; // Using non-ASCII to test slugify
+        let result = renderer.render_page_preview(content).unwrap();
+
+        assert_eq!(result.toc.len(), 3);
+        // The slugify crate transliterates non-ASCII characters.
+        assert_eq!(result.toc[0].id, "ddoggateun-jemog");
+        assert_eq!(result.toc[1].id, "ddoggateun-jemog-1"); // Should be unique
+        assert_eq!(result.toc[2].id, "ddoggateun-jemog-2"); // Should be unique
+    }
+
+    #[test]
+    fn test_toc_with_no_headers() {
+        let (renderer, _) = setup_renderer();
+        let content = "This page has no headers. Just a paragraph.";
+        let result = renderer.render_page_preview(content).unwrap();
+
+        assert!(result.toc.is_empty());
+        assert_eq!(
+            result.html_before_toc.trim(),
+            "<p>This page has no headers. Just a paragraph.</p>"
+        );
+        assert!(result.html_after_toc.is_empty());
     }
 }
