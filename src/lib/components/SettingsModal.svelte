@@ -22,6 +22,7 @@
     import ChangelogModal from "./ChangelogModal.svelte";
     import Modal from "./Modal.svelte";
     import ThemeEditorModal from "./ThemeEditorModal.svelte";
+    import TemplateManagerModal from "./TemplateManagerModal.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
 
     let { onClose = () => {} } = $props<{
@@ -165,6 +166,15 @@
             },
         });
     }
+
+    function openTemplateManager() {
+        openModal({
+            component: TemplateManagerModal,
+            props: {
+                onClose: closeModal,
+            },
+        });
+    }
 </script>
 
 <Modal title="Settings" {onClose}>
@@ -216,6 +226,12 @@
                 />
                 <span class="font-size-label">{$fontSize}%</span>
             </div>
+        </div>
+
+        <div class="setting-item">
+            <h4>Templates</h4>
+            <p>Manage your custom page templates.</p>
+            <Button onclick={openTemplateManager}>Manage Templates</Button>
         </div>
 
         <div class="setting-item">

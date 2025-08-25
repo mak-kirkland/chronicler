@@ -11,6 +11,7 @@ import type { PageHeader } from "./bindings";
 import * as commands from "./commands";
 import { getTitleFromPath } from "./utils";
 import { world } from "./worldStore";
+import NewPageModal from "./components/NewPageModal.svelte";
 import TextInputModal from "./components/TextInputModal.svelte";
 import { openModal, closeModal } from "./modalStore";
 import { dirname } from "@tauri-apps/api/path";
@@ -87,10 +88,19 @@ export async function initializeVault(path: string) {
  * the main view to the new file in edit mode.
  * @param parentDir The directory where the new file should be created.
  * @param name The name for the new file.
+ * @param templatePath Optional path to a template file to use.
  */
-export async function createFile(parentDir: string, name: string) {
+export async function createFile(
+    parentDir: string,
+    name: string,
+    templatePath?: string | null,
+) {
     try {
-        const newPage = await commands.createNewFile(parentDir, name);
+        const newPage = await commands.createNewFile(
+            parentDir,
+            name,
+            templatePath,
+        );
         // Manually trigger a refresh to ensure the frontend's file tree is up-to-date.
         await world.initialize();
         // Now that the frontend state is fresh, we can safely navigate to the new file.
@@ -161,25 +171,31 @@ export function promptAndCreateItem(
     itemType: "file" | "folder",
     parentDir: string,
 ) {
-    const isFile = itemType === "file";
-
-    openModal({
-        component: TextInputModal,
-        props: {
-            title: `New ${isFile ? "Page" : "Folder"}`,
-            label: `Enter the name for the new ${isFile ? "page" : "folder"}:`,
-            buttonText: "Create",
-            onClose: closeModal,
-            onSubmit: (name: string) => {
-                if (isFile) {
-                    createFile(parentDir, name);
-                } else {
-                    createFolder(parentDir, name);
-                }
-                closeModal();
+    if (itemType === "file") {
+        // Open the advanced modal for creating pages with templates.
+        openModal({
+            component: NewPageModal,
+            props: {
+                parentDir,
+                onClose: closeModal,
             },
-        },
-    });
+        });
+    } else {
+        // For folders, the simple text input is still sufficient.
+        openModal({
+            component: TextInputModal,
+            props: {
+                title: "New Folder",
+                label: "Enter the name for the new folder:",
+                buttonText: "Create",
+                onClose: closeModal,
+                onSubmit: (name: string) => {
+                    createFolder(parentDir, name);
+                    closeModal();
+                },
+            },
+        });
+    }
 }
 
 /**

@@ -11,6 +11,7 @@ use crate::{
     error::Result,
     importer,
     models::{FileNode, RenderedPage},
+    template,
     world::World,
 };
 use chrono::{Local, NaiveDate};
@@ -108,8 +109,9 @@ pub fn create_new_file(
     world: State<World>,
     parent_dir: String,
     file_name: String,
+    template_path: Option<String>,
 ) -> Result<PageHeader> {
-    world.create_new_file(parent_dir, file_name)
+    world.create_new_file(parent_dir, file_name, template_path)
 }
 
 /// Creates a new, empty folder.
@@ -247,4 +249,34 @@ pub fn get_app_usage_days(app_handle: AppHandle) -> Result<i64> {
             Ok(0)
         }
     }
+}
+
+// --- Template Commands ---
+
+/// Retrieves a list of all available templates.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn list_templates(app_handle: AppHandle) -> Result<Vec<PageHeader>> {
+    template::list_templates(&app_handle)
+}
+
+/// Reads the raw content of a specific template file.
+#[command]
+#[instrument]
+pub fn read_template(path: String) -> Result<String> {
+    template::read_template(&PathBuf::from(path))
+}
+
+/// Saves content to a template file.
+#[command]
+#[instrument(skip(app_handle, content))]
+pub fn write_template(app_handle: AppHandle, name: String, content: String) -> Result<PathBuf> {
+    template::write_template(&app_handle, &name, &content)
+}
+
+/// Deletes a template file.
+#[command]
+#[instrument]
+pub fn delete_template(path: String) -> Result<()> {
+    template::delete_template(&PathBuf::from(path))
 }

@@ -10,6 +10,7 @@ use crate::{
     indexer::Indexer,
     models::{FileNode, FullPageData, PageHeader, RenderedPage},
     renderer::Renderer,
+    template,
     watcher::Watcher,
     writer::Writer,
 };
@@ -32,7 +33,7 @@ use tracing::{error, info, instrument};
 #[derive(Debug, Clone)]
 pub struct World {
     /// The root directory of the worldbuilding vault, protected for concurrent access.
-    root_path: Arc<RwLock<Option<PathBuf>>>,
+    pub root_path: Arc<RwLock<Option<PathBuf>>>,
     /// Thread-safe, shared access to the vault indexer.
     pub indexer: Arc<RwLock<Indexer>>,
     /// The application's file system watcher. Wrapped in a Mutex to allow safe swapping
@@ -295,15 +296,25 @@ impl World {
         fs::write(path_buf, content).map_err(Into::into)
     }
 
-    /// Creates a new, empty markdown file and synchronously updates the index.
-    pub fn create_new_file(&self, parent_dir: String, file_name: String) -> Result<PageHeader> {
+    /// Creates a new markdown file, optionally using a template.
+    pub fn create_new_file(
+        &self,
+        parent_dir: String,
+        file_name: String,
+        template_path: Option<String>,
+    ) -> Result<PageHeader> {
         let writer = self
             .writer
             .read()
             .clone()
             .ok_or(ChroniclerError::VaultNotInitialized)?;
 
-        let page_header = writer.create_new_file(&parent_dir, &file_name)?;
+        // Read the template content if a path is provided.
+        let template_content = template_path
+            .map(|p| template::read_template(Path::new(&p)))
+            .transpose()?;
+
+        let page_header = writer.create_new_file(&parent_dir, &file_name, template_content)?;
 
         // After the file is created on disk, notify the indexer.
         self.indexer

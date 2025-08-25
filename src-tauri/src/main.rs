@@ -22,6 +22,7 @@ mod models;
 mod parser;
 mod renderer;
 mod sanitizer;
+mod template;
 mod utils;
 mod watcher;
 mod wikilink;
@@ -86,6 +87,10 @@ fn main() {
             commands::get_image_as_base64,
             commands::get_app_usage_days,
             commands::duplicate_page,
+            commands::list_templates,
+            commands::read_template,
+            commands::write_template,
+            commands::delete_template,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);
