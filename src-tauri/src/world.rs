@@ -16,7 +16,6 @@ use crate::{
 };
 use parking_lot::{Mutex, RwLock};
 use std::{
-    fs,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -294,11 +293,12 @@ impl World {
     /// This method doesn't need to modify the index directly, as the file watcher
     /// will detect the change and send an event.
     pub fn write_page_content(&self, path: &str, content: &str) -> Result<()> {
-        let path_buf = PathBuf::from(path);
-        if let Some(parent) = path_buf.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path_buf, content).map_err(Into::into)
+        let writer = self
+            .writer
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+        writer.write_page_content(Path::new(path), content)
     }
 
     /// Creates a new markdown file, optionally using a template.
