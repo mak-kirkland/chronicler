@@ -141,7 +141,7 @@ impl Drop for Watcher {
 ///
 /// This function processes raw filesystem events from the debouncer, converts them
 /// to our standardized `FileEvent` format, and publishes them to subscribers.
-/// Only markdown files are considered, and events are filtered and normalized.
+/// It processes both markdown and image files, ignoring temporary files.
 ///
 /// # Arguments
 /// * `event_sender` - The broadcast sender to publish events to
