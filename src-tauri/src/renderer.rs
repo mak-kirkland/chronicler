@@ -524,7 +524,7 @@ mod tests {
 
         // Create and scan the indexer
         let mut indexer = Indexer::new(root);
-        indexer.full_scan(root).unwrap();
+        indexer.scan_vault(root).unwrap();
 
         let indexer_arc = Arc::new(RwLock::new(indexer));
         let renderer = Renderer::new(indexer_arc, root.to_path_buf());

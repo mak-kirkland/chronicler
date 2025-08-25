@@ -60,7 +60,7 @@ impl Indexer {
     ///
     /// # Returns
     /// `Result<()>` indicating success or failure of the scan operation
-    pub fn full_scan(&mut self, root_path: &Path) -> Result<()> {
+    pub fn scan_vault(&mut self, root_path: &Path) -> Result<()> {
         info!(path = %root_path.display(), "Starting full vault scan");
         let start_time = Instant::now();
 
@@ -560,12 +560,12 @@ No outgoing links here.
     }
 
     #[test]
-    fn test_indexer_full_scan() {
+    fn test_indexer_scan_vault() {
         let (_dir, page1_path, page2_path, page3_path) = setup_test_vault();
         let root = _dir.path();
         let mut indexer = Indexer::new(root);
 
-        indexer.full_scan(root).unwrap();
+        indexer.scan_vault(root).unwrap();
 
         // Test pages count
         assert_eq!(indexer.pages.len(), 3);
@@ -610,7 +610,7 @@ No outgoing links here.
         let (_dir, page1_path, page2_path, page3_path) = setup_test_vault();
         let root = _dir.path();
         let mut indexer = Indexer::new(root);
-        indexer.full_scan(root).unwrap();
+        indexer.scan_vault(root).unwrap();
 
         // --- Test Deletion ---
         indexer.handle_file_event(&FileEvent::Deleted(page1_path.clone()));
@@ -684,7 +684,7 @@ Now I link to [[Page Two]]!
         fs::write(&page2_path, "Links to [[Another Missing Page]].").unwrap();
 
         let mut indexer = Indexer::new(root);
-        indexer.full_scan(root).unwrap();
+        indexer.scan_vault(root).unwrap();
 
         let broken_links = indexer.get_all_broken_links().unwrap();
 
