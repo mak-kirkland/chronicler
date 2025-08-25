@@ -1,4 +1,7 @@
-// src/sanitizer.rs
+//! HTML sanitizer.
+//!
+//! This module is responsible for cleaning rendered HTML to prevent Cross-Site Scripting (XSS) attacks.
+//! It uses a strict allow-list of approved tags and attributes, ensuring only safe content is displayed.
 
 use ammonia::Builder;
 use std::collections::HashSet;
