@@ -72,7 +72,7 @@ impl World {
         // --- 1. Perform Initial Scan on a new Indexer instance ---
         // This is done outside of any locks to avoid blocking other operations during the scan.
         let mut new_indexer_instance = Indexer::new(root_path);
-        new_indexer_instance.full_scan(root_path)?;
+        new_indexer_instance.scan_vault(root_path)?;
 
         // --- 2. Start File Watcher ---
         let mut new_watcher = Watcher::new();
