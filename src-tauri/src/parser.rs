@@ -52,9 +52,11 @@ pub fn parse_file(path: &Path) -> Result<Page> {
 }
 
 /// Extracts YAML frontmatter from markdown content.
-/// Returns (frontmatter, body) where frontmatter is empty if none found.
 ///
 /// This function is Unicode-safe and handles multibyte characters correctly.
+///
+/// Returns a tuple `(frontmatter, body)`, where `frontmatter` is the raw string
+/// content between the `---` delimiters, or an empty string if none is found.
 pub fn extract_frontmatter(content: &str) -> (&str, &str) {
     // Must start with frontmatter delimiter
     let Some(after_opening) = content.strip_prefix("---\n") else {
