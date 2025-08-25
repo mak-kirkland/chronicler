@@ -105,6 +105,16 @@ impl Writer {
         Self
     }
 
+    /// Writes content to a page on disk using an atomic operation.
+    #[instrument(skip(self, content))]
+    pub fn write_page_content(&self, path: &Path, content: &str) -> Result<()> {
+        if let Some(parent) = path.parent() {
+            // Ensure the directory exists before writing.
+            fs::create_dir_all(parent)?;
+        }
+        atomic_write(path, content)
+    }
+
     /// Creates a new markdown file, optionally from a template.
     ///
     /// # Arguments
