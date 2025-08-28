@@ -28,21 +28,11 @@
 </script>
 
 <Modal title="Help" {onClose}>
-    <div class="content-wrapper">
-        {#if isLoading}
-            <p>Loading help...</p>
-        {:else if error}
-            <ErrorBox>{error}</ErrorBox>
-        {:else if renderedData}
-            <Preview {renderedData} />
-        {/if}
-    </div>
+    {#if isLoading}
+        <p>Loading help...</p>
+    {:else if error}
+        <ErrorBox>{error}</ErrorBox>
+    {:else if renderedData}
+        <Preview {renderedData} />
+    {/if}
 </Modal>
-
-<style>
-    .content-wrapper {
-        max-height: 70vh;
-        overflow-y: auto;
-        padding-right: 1rem;
-    }
-</style>

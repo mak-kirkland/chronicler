@@ -55,7 +55,9 @@
             {/if}
         </div>
         <div class="modal-body">
-            {@render children()}
+            <div class="modal-body-wrapper">
+                {@render children()}
+            </div>
         </div>
     </div>
 </div>
@@ -102,8 +104,13 @@
         cursor: pointer;
     }
     .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
+    }
+    .modal-body-wrapper {
+        padding-right: 1rem;
     }
 </style>
