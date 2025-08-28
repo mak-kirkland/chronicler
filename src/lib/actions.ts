@@ -56,7 +56,7 @@ export function handleLinkClick(event: Event) {
             }
         } else if (link.hasAttribute("data-path")) {
             const path = link.getAttribute("data-path")!;
-            const title = link.textContent || getTitleFromPath(path);
+            const title = getTitleFromPath(path);
             navigateToPage({ path, title });
         }
     }
