@@ -150,6 +150,8 @@ impl Renderer {
             }
         };
 
+        sanitizer::sanitize_json_values(&mut frontmatter_json);
+
         // 2. Process special fields within the frontmatter JSON
         if let Value::Object(map) = &mut frontmatter_json {
             // Process custom syntax in all string and array-of-string values
