@@ -28,7 +28,17 @@ Your **vault** is just a folder on your computer. You decide where the world is 
 Chronicler uses **Markdown** to format your pages.
 
 - Use `# heading`, `## subheading`, `**bold**`, `*italic*`, `-` for bullet lists, and so on
-- Use `[[Page Name]]` wikilinks to link to another page in your vault (if the page doesn't exist, Chronicler will create a placeholder)
+
+---
+
+## 🔗 Linking Between Pages
+
+Use `[[Page Name]]` to link to other pages in your vault.
+
+- Autocompletion helps you insert links quickly
+- You can alias links with `[[Silverflow River|Silverflow]]`
+- Backlinks are shown in the right sidebar so you can see what links *to* the current page
+- When you rename a page, **all links to it are automatically updated**
 
 ---
 
@@ -52,11 +62,23 @@ All frontmatter fields are optional. There are four fields that have special beh
 | `title`   | Page display title (otherwise filename is used) |
 | `infobox` | Header text for the infobox |
 | `tags`    | List of tags for categorization |
-| `image`   | Image shown in the infobox |
+| `image`   | Image shown in the infobox (see below) |
 
 You can add any custom fields you want (e.g `height`, `age`, `capital`, `population` etc.). Any field that is not one of the four special fields above will be automatically added as a row in the infobox, giving you a flexible way to display structured data.
 
-Note that special syntax like `[[wikilinks]]` and `||spoilers||` must be `"||surrounded by double quotes||"` to be rendered properly by the infobox.
+**Note**: special syntax like `[[wikilinks]]` and `||spoilers||` must be `"||surrounded by double quotes||"` to be rendered properly by the infobox.
+
+---
+
+## 🏷️ Tags
+
+You can tag pages using the `tags:` field in YAML frontmatter:
+
+```yaml
+tags: [city, coastal]
+```
+
+- Click on any tag to see a list of all pages with that tag
 
 ---
 
@@ -133,29 +155,6 @@ For a more structured image with a caption, wrap the `<img>` tag in `<figure>` a
 
 ---
 
-## 🔗 Linking Between Pages
-
-Use `[[Page Name]]` to link to other pages in your vault.
-
-- Autocompletion helps you insert links quickly
-- You can alias links with `[[Silverflow River|Silverflow]]`
-- Backlinks are shown in the right sidebar so you can see what links *to* the current page
-- When you rename a page, **all links to it are automatically updated**
-
----
-
-## 🏷️ Tags
-
-You can tag pages using the `tags:` field in YAML frontmatter:
-
-```yaml
-tags: [city, coastal]
-```
-
-- Click on any tag to see a list of all pages with that tag
-
----
-
 ## 🫣 Spoilers
 
 You can use the **spoiler syntax** by wrapping text in double pipes `||like this||`.
@@ -170,6 +169,42 @@ This will render as:
 > The king’s advisor is ▓▓▓▓▓▓▓▓▓▓▓▓
 
 Readers can click to reveal the hidden text, and click again to hide it.
+
+---
+
+## 🗄️ Tables
+
+You can create tables using a combination of pipes (`|`) and hyphens (`-`). The first line contains the column headers, and the second line uses hyphens to separate the header from the rest of the table.
+
+### Basic Table
+
+To create a basic table, use the following syntax:
+
+```markdown
+| Header 1 | Header 2 | Header 3 |
+|---|---|---|
+| Row 1, Col 1 | Row 1, Col 2 | Row 1, Col 3 |
+| Row 2, Col 1 | Row 2, Col 2 | Row 2, Col 3 |
+```
+
+### Aligning Content
+
+You can control the alignment of content within columns by adding colons (`:`) to the header separator line.
+
+* A colon on the left side of the hyphens makes the content **left-aligned** (this is the default).
+* A colon on the right side makes the content **right-aligned**.
+* A colon on both sides makes the content **centered**.
+
+Example:
+
+```markdown
+| Item | Price |
+|---|---:|
+| Sword | 100gp |
+| Shield | 75gp |
+```
+
+You can also use **standard HTML `<table>` tags** to create more complex tables with greater styling control.
 
 ---
 
