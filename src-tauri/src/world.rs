@@ -202,7 +202,7 @@ impl World {
         info!("File event processing task stopped");
     }
 
-    /// Converts docx files and adds them to the vault, then updates the index.
+    /// Converts individual docx files and adds them to the vault, then updates the index.
     pub fn import_docx_files(
         &self,
         app_handle: &AppHandle,
@@ -217,6 +217,42 @@ impl World {
         let converted_paths =
             importer::convert_docx_to_markdown(app_handle, docx_paths, output_dir)?;
 
+        let mut indexer = self.indexer.write();
+        for path in &converted_paths {
+            indexer.update_file(path);
+        }
+
+        Ok(converted_paths)
+    }
+
+    /// Scans a directory for .docx files, imports them, and updates the index.
+    ///
+    /// This method acts as a coordinator. It determines the output directory,
+    /// delegates the scanning and conversion logic to the `importer` module,
+    /// and then performs its primary responsibility: updating the application index
+    /// with the newly created files.
+    pub fn import_docx_from_folder(
+        &self,
+        app_handle: &AppHandle,
+        folder_path: PathBuf,
+    ) -> Result<Vec<PathBuf>> {
+        // 1. Determine the output path (the root of the current vault).
+        let output_dir = self
+            .root_path
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+
+        // 2. Delegate the file discovery and conversion process to the importer module.
+        let converted_paths =
+            importer::convert_docx_in_folder(app_handle, &folder_path, output_dir)?;
+
+        // If the importer found no files, we can stop early.
+        if converted_paths.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // 3. The World's responsibility is to update the index after the import.
         let mut indexer = self.indexer.write();
         for path in &converted_paths {
             indexer.update_file(path);

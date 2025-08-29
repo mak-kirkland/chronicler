@@ -191,6 +191,14 @@ export const downloadPandoc = () => invoke<void>("download_pandoc");
 export const importDocxFiles = (docxPaths: string[]) =>
     invoke<string[]>("import_docx_files", { docxPaths });
 
+/**
+ * Imports all .docx files found within a given folder.
+ * @param folderPath The absolute path to the folder to scan.
+ * @returns A promise that resolves to an array of paths of the newly created Markdown files.
+ */
+export const importDocxFromFolder = (folderPath: string) =>
+    invoke<string[]>("import_docx_from_folder", { folderPath });
+
 // --- Licensing Commands ---
 
 /**

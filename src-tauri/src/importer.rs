@@ -2,10 +2,11 @@
 
 use crate::error::{ChroniclerError, Result};
 use std::env::consts::{ARCH, OS};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::{AppHandle, Manager};
 use tracing::{error, info, instrument, warn};
+use walkdir::WalkDir;
 
 const PANDOC_VERSION: &str = "3.7.0.2";
 
@@ -102,7 +103,7 @@ pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
     }
 }
 
-/// Converts a list of .docx files to Markdown.
+/// Converts a list of individual .docx files to Markdown.
 #[instrument(skip(app_handle, docx_paths))]
 pub fn convert_docx_to_markdown(
     app_handle: &AppHandle,
@@ -143,4 +144,40 @@ pub fn convert_docx_to_markdown(
         output_files.push(output_path);
     }
     Ok(output_files)
+}
+
+/// Scans a directory recursively for .docx files and converts them to Markdown.
+///
+/// This function uses the `walkdir` crate to efficiently traverse the directory
+/// tree. It collects all found `.docx` files and then delegates the actual
+/// conversion to the `convert_docx_to_markdown` function.
+#[instrument(skip(app_handle))]
+pub fn convert_docx_in_folder(
+    app_handle: &AppHandle,
+    folder_path: &Path,
+    output_dir: PathBuf,
+) -> Result<Vec<PathBuf>> {
+    info!("Scanning folder for .docx files: {:?}", folder_path);
+
+    // Use WalkDir to iterate through all files in the given folder and its subdirectories.
+    let docx_paths: Vec<PathBuf> = WalkDir::new(folder_path)
+        .into_iter()
+        .filter_map(|e| e.ok()) // Ignore any directory traversal errors.
+        .filter(|e| {
+            // Check if the entry is a file and has a ".docx" extension (case-insensitive).
+            e.path().is_file()
+                && e.path()
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("docx"))
+        })
+        .map(|e| e.path().to_path_buf())
+        .collect();
+
+    if docx_paths.is_empty() {
+        info!("No .docx files found in the specified folder.");
+        return Ok(Vec::new());
+    }
+
+    info!("Found {} .docx files to import.", docx_paths.len());
+    convert_docx_to_markdown(app_handle, docx_paths, output_dir)
 }

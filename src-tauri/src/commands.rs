@@ -180,6 +180,17 @@ pub fn import_docx_files(
     world.import_docx_files(&app_handle, docx_paths)
 }
 
+/// Scans a directory for .docx files and imports them.
+#[command]
+#[instrument(skip(world, app_handle))]
+pub fn import_docx_from_folder(
+    world: State<World>,
+    app_handle: AppHandle,
+    folder_path: PathBuf,
+) -> Result<Vec<PathBuf>> {
+    world.import_docx_from_folder(&app_handle, folder_path)
+}
+
 /// Checks if Pandoc is installed in the application's config directory.
 #[command]
 #[instrument(skip(app_handle))]
