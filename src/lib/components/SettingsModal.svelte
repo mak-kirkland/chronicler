@@ -1,12 +1,5 @@
 <script lang="ts">
     import { getVersion } from "@tauri-apps/api/app";
-    import { open } from "@tauri-apps/plugin-dialog";
-    import {
-        downloadPandoc,
-        importDocxFiles,
-        isPandocInstalled,
-    } from "$lib/commands";
-    import { world } from "$lib/worldStore";
     import { selectNewVault } from "$lib/startup";
     import {
         activeTheme,
@@ -24,15 +17,11 @@
     import ThemeEditorModal from "./ThemeEditorModal.svelte";
     import TemplateManagerModal from "./TemplateManagerModal.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
+    import ImporterModal from "./ImporterModal.svelte";
 
     let { onClose = () => {} } = $props<{
         onClose?: () => void;
     }>();
-
-    // Pandoc State
-    let pandocInstalled = $state(false);
-    let isInstalling = $state(false);
-    let importMessage = $state<string | null>(null);
 
     // License State
     let licenseMessage = $state<string | null>(null);
@@ -45,16 +34,6 @@
     let showChangelog = $state(false);
 
     $effect(() => {
-        // Check for pandoc
-        isPandocInstalled()
-            .then((installed) => {
-                pandocInstalled = installed;
-            })
-            .catch((err) => {
-                console.error("Failed to check pandoc status:", err);
-                pandocInstalled = false;
-            });
-
         // Get the application version
         getVersion()
             .then((version) => {
@@ -73,60 +52,6 @@
     function handleChangeVault() {
         onClose();
         selectNewVault();
-    }
-
-    async function installPandoc() {
-        if (
-            !window.confirm(
-                "This feature requires Pandoc, a universal document converter. Allow Chronicler to download it? (This is a one-time download of approx. 200MB).",
-            )
-        ) {
-            return;
-        }
-
-        isInstalling = true;
-        importMessage = "Downloading and setting up Pandoc...";
-        try {
-            await downloadPandoc();
-            pandocInstalled = true;
-            importMessage =
-                "Pandoc installed successfully! You can now import files.";
-        } catch (e) {
-            console.error("Pandoc installation failed:", e);
-            importMessage = `Failed to install Pandoc: ${e}`;
-        } finally {
-            isInstalling = false;
-        }
-    }
-
-    async function importFiles() {
-        if (!pandocInstalled) {
-            await installPandoc();
-            // If installation was successful, the user can click again to import.
-            return;
-        }
-
-        try {
-            const selected = await open({
-                multiple: true,
-                filters: [{ name: "Word Document", extensions: ["docx"] }],
-            });
-
-            if (Array.isArray(selected) && selected.length > 0) {
-                const paths = selected;
-                importMessage = `Importing ${paths.length} file(s)...`;
-                await importDocxFiles(paths);
-
-                // Manually trigger a refresh after import
-                await world.initialize();
-
-                alert(`${paths.length} file(s) imported successfully!`);
-                onClose();
-            }
-        } catch (e) {
-            console.error("File import failed:", e);
-            alert(`File import failed: ${e}`);
-        }
     }
 
     /**
@@ -171,6 +96,20 @@
         openModal({
             component: TemplateManagerModal,
             props: {
+                onClose: closeModal,
+            },
+        });
+    }
+
+    /**
+     * Opens the dedicated modal for handling file and folder imports.
+     */
+    function openImporter() {
+        openModal({
+            component: ImporterModal,
+            props: {
+                // Pass the `closeModal` function so the Importer can close itself
+                // without affecting this Settings modal.
                 onClose: closeModal,
             },
         });
@@ -242,22 +181,8 @@
 
         <div class="setting-item">
             <h4>Import</h4>
-            <p>
-                Import .docx files as new Markdown pages in your vault's root
-                directory.
-            </p>
-            <Button onclick={importFiles} disabled={isInstalling}>
-                {#if isInstalling}
-                    Installing Pandoc...
-                {:else if !pandocInstalled}
-                    Install Pandoc & Import
-                {:else}
-                    Import from .docx
-                {/if}
-            </Button>
-            {#if importMessage}
-                <p class="import-message">{importMessage}</p>
-            {/if}
+            <p>Import .docx files from individual files or an entire folder.</p>
+            <Button onclick={openImporter}>Open Importer</Button>
         </div>
 
         <div class="setting-item">
