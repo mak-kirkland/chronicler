@@ -7,7 +7,9 @@ use crate::sanitizer;
 use crate::wikilink::WIKILINK_RE;
 use crate::{error::Result, indexer::Indexer, models::RenderedPage, parser};
 use base64::{engine::general_purpose, Engine as _};
+use html_escape::decode_html_entities;
 use parking_lot::RwLock;
+use percent_encoding::percent_decode_str;
 use pulldown_cmark::{html, CowStr, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use regex::{Captures, Regex};
 use serde_json::{Map, Value};
@@ -122,9 +124,21 @@ impl Renderer {
     fn process_body_image_tags(&self, html: &str) -> String {
         IMG_TAG_RE
             .replace_all(html, |caps: &Captures| {
-                let path_str = &caps[1];
-                let data_url = self.convert_image_path_to_data_url(path_str);
-                // Reconstruct the beginning of the img tag with the new data URL source.
+                // 1. Get the path, which might have both HTML and URL encoding
+                let encoded_path_str = &caps[1];
+
+                // 2. First, decode HTML entities (e.g., &amp; -> &)
+                let html_decoded_path = decode_html_entities(encoded_path_str);
+
+                // 3. Then, decode URL percent-encoding (e.g., %20 -> ' ')
+                let final_path = percent_decode_str(&html_decoded_path)
+                    .decode_utf8_lossy()
+                    .to_string();
+
+                // 4. Use the fully decoded path to find and convert the image
+                let data_url = self.convert_image_path_to_data_url(&final_path);
+
+                // Reconstruct the img tag with the new data URL
                 format!("<img src=\"{}\"", data_url)
             })
             .to_string()
