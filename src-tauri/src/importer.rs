@@ -9,6 +9,8 @@ use tracing::{error, info, instrument, warn};
 use walkdir::WalkDir;
 
 const PANDOC_VERSION: &str = "3.7.0.2";
+const IMAGES_DIR_NAME: &str = "images";
+const MEDIA_DIR_NAME: &str = "media";
 
 /// Returns the platform-specific directory where Pandoc should be.
 fn get_pandoc_dir(app_handle: &AppHandle) -> Result<PathBuf> {
@@ -103,7 +105,29 @@ pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
     }
 }
 
-/// Converts a list of individual .docx files to Markdown.
+/// Post-processes the conversion by moving the generated 'media' folder into the final 'images' directory.
+fn organize_extracted_media(output_dir: &Path) -> Result<()> {
+    let temp_media_dir = output_dir.join(MEDIA_DIR_NAME);
+    if temp_media_dir.exists() {
+        let images_dir = output_dir.join(IMAGES_DIR_NAME);
+        std::fs::create_dir_all(&images_dir)?;
+        let final_media_dir = images_dir.join(MEDIA_DIR_NAME);
+
+        // Move the folder. This assumes `images/media` doesn't already exist from a previous run.
+        if final_media_dir.exists() {
+            // If it does exist, remove it to ensure a clean move.
+            std::fs::remove_dir_all(&final_media_dir)?;
+        }
+        std::fs::rename(&temp_media_dir, &final_media_dir)?;
+        info!(
+            "Organized extracted media: moved {:?} to {:?}",
+            temp_media_dir, final_media_dir
+        );
+    }
+    Ok(())
+}
+
+/// Converts a list of individual .docx files to Markdown and extracts images.
 #[instrument(skip(app_handle, docx_paths))]
 pub fn convert_docx_to_markdown(
     app_handle: &AppHandle,
@@ -119,19 +143,24 @@ pub fn convert_docx_to_markdown(
             .file_stem()
             .ok_or_else(|| ChroniclerError::InvalidPath(docx_path.clone()))?;
         let md_filename = format!("{}.md", file_stem.to_string_lossy());
-        let output_path = output_dir.join(md_filename);
+        let output_path = output_dir.join(&md_filename);
 
         info!("Converting {:?} to {:?}", docx_path, output_path);
 
+        // Run Pandoc in the output directory. It will create a `media` folder there
+        // and importantly, create relative links like `media/image1.jpeg` in the markdown.
         let output = Command::new(&pandoc_exe)
+            .current_dir(&output_dir)
             .arg(&docx_path)
             .arg("-f")
             .arg("docx")
             .arg("-t")
             .arg("gfm") // Use GitHub Flavored Markdown for better table/strikethrough support
             .arg("--preserve-tabs")
+            .arg("--extract-media")
+            .arg(".") // Extract to a 'media' folder in the current directory (output_dir)
             .arg("-o")
-            .arg(&output_path)
+            .arg(&md_filename)
             .output()?;
 
         if !output.status.success() {
@@ -143,6 +172,10 @@ pub fn convert_docx_to_markdown(
         }
         output_files.push(output_path);
     }
+
+    // If any of the conversions produced a media folder, run the post-processing step.
+    organize_extracted_media(&output_dir)?;
+
     Ok(output_files)
 }
 
