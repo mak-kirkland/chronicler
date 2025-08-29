@@ -1,5 +1,6 @@
 //! Handles importing documents by converting them with Pandoc.
 
+use crate::config::IMAGES_DIR_NAME;
 use crate::error::{ChroniclerError, Result};
 use std::env::consts::{ARCH, OS};
 use std::path::{Path, PathBuf};
@@ -9,7 +10,6 @@ use tracing::{error, info, instrument, warn};
 use walkdir::WalkDir;
 
 const PANDOC_VERSION: &str = "3.7.0.2";
-const IMAGES_DIR_NAME: &str = "images";
 const MEDIA_DIR_NAME: &str = "media";
 
 /// Returns the platform-specific directory where Pandoc should be.

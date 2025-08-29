@@ -26,6 +26,9 @@ pub const MAX_FILE_SIZE: u64 = 1024 * 1024;
 /// you might need to increase this value.
 pub const DEFAULT_EVENT_CHANNEL_CAPACITY: usize = 100;
 
+/// The name of the directory within the vault where images and other media are stored.
+pub const IMAGES_DIR_NAME: &str = "images";
+
 /// Defines the structure of the application's configuration file.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AppConfig {
