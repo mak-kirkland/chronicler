@@ -103,7 +103,30 @@ pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
     }
 }
 
-/// Converts a list of individual .docx files to Markdown.
+/// Moves the temporarily extracted media folder to its final destination in the images directory.
+fn move_media_directory(output_dir: &Path, file_stem: &str) -> Result<()> {
+    let temp_media_abs_path = output_dir.join(file_stem);
+    if temp_media_abs_path.exists() {
+        let final_media_dir = output_dir.join("images");
+        std::fs::create_dir_all(&final_media_dir)?;
+        let final_media_path = final_media_dir.join(file_stem);
+
+        // For cross-platform safety, remove the destination if it exists before renaming.
+        if final_media_path.exists() {
+            std::fs::remove_dir_all(&final_media_path)?;
+        }
+
+        std::fs::rename(&temp_media_abs_path, &final_media_path)?;
+        info!(
+            "Moved extracted media from {:?} to {:?}",
+            temp_media_abs_path, final_media_path
+        );
+    }
+    Ok(())
+}
+
+/// Converts a list of individual .docx files to Markdown and extracts images.
+/// Media files are extracted into a subdirectory structure `images/<doc_name>/media`.
 #[instrument(skip(app_handle, docx_paths))]
 pub fn convert_docx_to_markdown(
     app_handle: &AppHandle,
@@ -117,21 +140,41 @@ pub fn convert_docx_to_markdown(
     for docx_path in docx_paths {
         let file_stem = docx_path
             .file_stem()
-            .ok_or_else(|| ChroniclerError::InvalidPath(docx_path.clone()))?;
-        let md_filename = format!("{}.md", file_stem.to_string_lossy());
-        let output_path = output_dir.join(md_filename);
+            .ok_or_else(|| ChroniclerError::InvalidPath(docx_path.clone()))?
+            .to_string_lossy();
 
-        info!("Converting {:?} to {:?}", docx_path, output_path);
+        let md_filename = format!("{}.md", file_stem);
+        let output_path = output_dir.join(&md_filename);
 
+        // This path is relative to `output_dir` and is what Pandoc will use to create links.
+        let temp_media_rel_path = PathBuf::from(file_stem.as_ref());
+
+        // Clean up any potential leftovers from a previous failed run.
+        let temp_media_abs_path = output_dir.join(&temp_media_rel_path);
+        if temp_media_abs_path.exists() {
+            std::fs::remove_dir_all(&temp_media_abs_path)?;
+        }
+
+        info!(
+            "Converting {:?} to {:?}, using temp media path {:?}",
+            docx_path, output_path, temp_media_abs_path
+        );
+
+        // Pandoc creates links relative to the output file. By passing `file_stem` to
+        // `--extract-media`, it will create `<output_dir>/<file_stem>/media` and the
+        // markdown links will be correctly formed as `<file_stem>/media/image.png`.
         let output = Command::new(&pandoc_exe)
+            .current_dir(&output_dir)
             .arg(&docx_path)
             .arg("-f")
             .arg("docx")
             .arg("-t")
             .arg("gfm") // Use GitHub Flavored Markdown for better table/strikethrough support
             .arg("--preserve-tabs")
+            .arg("--extract-media")
+            .arg(&temp_media_rel_path) // Extract to `<output_dir>/<file_stem>`
             .arg("-o")
-            .arg(&output_path)
+            .arg(&md_filename)
             .output()?;
 
         if !output.status.success() {
@@ -141,8 +184,13 @@ pub fn convert_docx_to_markdown(
                 docx_path.to_string_lossy().to_string(),
             ));
         }
+
+        // Now, move the extracted media directory to its final destination.
+        move_media_directory(&output_dir, &file_stem)?;
+
         output_files.push(output_path);
     }
+
     Ok(output_files)
 }
 
