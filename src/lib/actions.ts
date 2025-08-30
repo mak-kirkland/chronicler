@@ -16,6 +16,7 @@ import TextInputModal from "./components/TextInputModal.svelte";
 import { openModal, closeModal } from "./modalStore";
 import { dirname } from "@tauri-apps/api/path";
 import { get } from "svelte/store";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 /**
  * Navigates the main view to display a specific file.
@@ -26,12 +27,12 @@ export function navigateToPage(page: PageHeader) {
 }
 
 /**
- * An event handler for clicks within rendered HTML content. It specifically
- * looks for clicks on internal wikilinks and triggers navigation.
- * This allows the static HTML from the backend to become interactive.
+ * An event handler for clicks within any rendered HTML content. It handles
+ * internal wikilinks, external links, spoilers, and unsupported links.
+ * This uses event delegation to manage all interactions from a single listener.
  * @param event The MouseEvent or KeyboardEvent from the user.
  */
-export function handleLinkClick(event: Event) {
+export function handleContentClick(event: Event) {
     if (
         event instanceof KeyboardEvent &&
         event.key !== "Enter" &&
@@ -41,24 +42,56 @@ export function handleLinkClick(event: Event) {
     }
 
     const target = event.target as HTMLElement;
-    const link = target.closest("a.internal-link");
 
+    // --- Handle Spoilers ---
+    const spoiler = target.closest("span.spoiler");
+    if (spoiler) {
+        spoiler.classList.toggle("revealed");
+    }
+
+    // --- Handle Links ---
+    const link = target.closest("a");
     if (link) {
-        event.preventDefault();
-        if (
-            link.classList.contains("broken") &&
-            link.hasAttribute("data-target")
-        ) {
-            const targetName = link.getAttribute("data-target")!;
-            const currentVaultPath = get(world).vaultPath;
-            if (currentVaultPath) {
-                promptAndCreateItem("file", currentVaultPath, targetName);
+        const href = link.getAttribute("href");
+
+        // A) Handle internal wikilinks
+        if (link.classList.contains("internal-link")) {
+            event.preventDefault(); // Prevent default for this case
+            if (
+                link.classList.contains("broken") &&
+                link.hasAttribute("data-target")
+            ) {
+                const targetName = link.getAttribute("data-target")!;
+                const currentVaultPath = get(world).vaultPath;
+                if (currentVaultPath) {
+                    promptAndCreateItem("file", currentVaultPath, targetName);
+                }
+            } else if (link.hasAttribute("data-path")) {
+                const path = link.getAttribute("data-path")!;
+                const title = getTitleFromPath(path);
+                navigateToPage({ path, title });
             }
-        } else if (link.hasAttribute("data-path")) {
-            const path = link.getAttribute("data-path")!;
-            const title = getTitleFromPath(path);
-            navigateToPage({ path, title });
+            return;
         }
+
+        // B) Handle external links
+        if (href && (href.startsWith("http:") || href.startsWith("https:"))) {
+            event.preventDefault(); // Prevent default for this case
+            openUrl(href);
+            return;
+        }
+
+        // C) Handle and neutralize any other non-TOC links to prevent 404s
+        // We check if the href starts with '#' to allow TOC links to pass through.
+        if (href && !href.startsWith("#")) {
+            event.preventDefault(); // Prevent default for this case
+            console.warn(
+                `Blocked navigation for unsupported link href: ${href}`,
+            );
+        }
+
+        // For any other link (like <a href="#my-header">), we do nothing,
+        // allowing the browser's default scroll behavior to work.
     }
 }
 

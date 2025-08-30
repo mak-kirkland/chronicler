@@ -1,8 +1,6 @@
 <script lang="ts">
-    import { onMount } from "svelte";
     import type { RenderedPage } from "$lib/bindings";
     import Infobox from "./Infobox.svelte";
-    import { openUrl } from "@tauri-apps/plugin-opener";
     import TableOfContents from "./TableOfContents.svelte";
 
     // The type for the infobox data is complex, so we can use `any` here.
@@ -18,46 +16,6 @@
         infoboxData?: InfoboxData | null;
         mode?: "split" | "unified";
     }>();
-
-    /// Intercepts clicks within the preview pane to handle custom interactions
-    /// like opening external links or revealing spoilers.
-    onMount(() => {
-        const handleContentClick = (event: MouseEvent) => {
-            // First, ensure the target is an HTMLElement
-            if (event.target instanceof HTMLElement) {
-                // --- Handle Spoilers ---
-                // Find the closest parent spoiler span.
-                const spoiler = event.target.closest("span.spoiler");
-                if (spoiler) {
-                    // Toggle the 'revealed' class to show/hide the content via CSS.
-                    spoiler.classList.toggle("revealed");
-                }
-
-                // --- Handle External Links ---
-                // Find the closest parent `<a>` tag to the click target.
-                const link = event.target.closest("a");
-                // If it's an external link (and not an internal-link), open it in the default browser.
-                const href = link?.getAttribute("href");
-
-                if (
-                    link &&
-                    href &&
-                    href.startsWith("http") &&
-                    !link.classList.contains("internal-link")
-                ) {
-                    event.preventDefault();
-                    openUrl(href);
-                }
-            }
-        };
-
-        // We attach the listener to the body to catch all clicks, but only act on specific ones.
-        document.body.addEventListener("click", handleContentClick);
-
-        return () => {
-            document.body.removeEventListener("click", handleContentClick);
-        };
-    });
 </script>
 
 <!--
