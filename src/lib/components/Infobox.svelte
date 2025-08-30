@@ -80,6 +80,10 @@
 
 <div class="infobox">
     <div class="infobox-content-wrapper">
+        {#if data?.title}
+            <h3 class="infobox-title">{data.title}</h3>
+        {/if}
+
         {#if data?.image}
             <div class="image-column">
                 <div class="image-container">
@@ -173,6 +177,13 @@
         /* Defaults to a stacked layout */
         display: block;
     }
+    .infobox-title {
+        font-family: var(--font-family-heading);
+        font-size: 1.2rem;
+        margin: 0 0 1rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--color-border-primary);
+    }
     .image-column {
         width: 100%;
         margin-bottom: 1rem;
@@ -263,8 +274,12 @@
     @container (width > 480px) {
         .infobox-content-wrapper {
             display: flex;
-            gap: 1rem;
+            gap: 0rem 1rem;
             align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .infobox-title {
+            flex-basis: 100%; /* Make the title span the full width */
         }
         .image-column {
             flex: 0 0 270px;
