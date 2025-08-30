@@ -45,9 +45,9 @@ pub fn extract_wikilinks(content: &str) -> Vec<Link> {
             let full_match = cap.get(0).unwrap();
             let offset = full_match.start();
             let position = Some(offset_to_line_col(content, offset));
-            let target = cap.get(1).unwrap().as_str().to_string();
-            let section = cap.get(2).map(|m| m.as_str().to_string());
-            let alias = cap.get(3).map(|m| m.as_str().to_string());
+            let target = cap.get(1).unwrap().as_str().trim().to_string();
+            let section = cap.get(2).map(|m| m.as_str().trim().to_string());
+            let alias = cap.get(3).map(|m| m.as_str().trim().to_string());
             Link {
                 target,
                 section,
@@ -71,12 +71,14 @@ This file tests various link formats.
 - A link to a section: [[Third Page#Section Header]]
 - A link with both: [[Fourth Page#Some Section|Alias Text]]
 - A link in the middle of a sentence [[Fifth Page]] like this.
+- A link with extra whitespace: [[  Whitespace Test | Alias  ]]
+- A link with a whitespacey section: [[Test#  My Section  ]]
 "#;
         let links = extract_wikilinks(content);
 
-        assert_eq!(links.len(), 5);
+        assert_eq!(links.len(), 7);
 
-        // Corrected column numbers
+        // --- Standard Link ---
         assert_eq!(
             links[0],
             Link {
@@ -90,6 +92,7 @@ This file tests various link formats.
             }
         );
 
+        // --- Aliased Link ---
         assert_eq!(
             links[1],
             Link {
@@ -103,6 +106,7 @@ This file tests various link formats.
             }
         );
 
+        // --- Section Link ---
         assert_eq!(
             links[2],
             Link {
@@ -116,6 +120,7 @@ This file tests various link formats.
             }
         );
 
+        // --- Full Link ---
         assert_eq!(
             links[3],
             Link {
@@ -128,6 +133,8 @@ This file tests various link formats.
                 })
             }
         );
+
+        // --- Inline Link ---
         assert_eq!(
             links[4],
             Link {
@@ -136,6 +143,34 @@ This file tests various link formats.
                 alias: None,
                 position: Some(LinkPosition {
                     line: 7,
+                    column: 38
+                })
+            }
+        );
+
+        // --- Whitespace Test ---
+        assert_eq!(
+            links[5],
+            Link {
+                target: "Whitespace Test".to_string(),
+                section: None,
+                alias: Some("Alias".to_string()),
+                position: Some(LinkPosition {
+                    line: 8,
+                    column: 33
+                })
+            }
+        );
+
+        // --- Whitespacey Section Test ---
+        assert_eq!(
+            links[6],
+            Link {
+                target: "Test".to_string(),
+                section: Some("My Section".to_string()),
+                alias: None,
+                position: Some(LinkPosition {
+                    line: 9,
                     column: 38
                 })
             }
