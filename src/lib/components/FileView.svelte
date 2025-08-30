@@ -12,7 +12,7 @@
         writePageContent,
         renderPagePreview,
     } from "$lib/commands";
-    import { handleLinkClick } from "$lib/actions";
+    import { handleContentClick } from "$lib/actions";
     import type { PageHeader, FullPageData } from "$lib/bindings";
     import { findFileInTree } from "$lib/utils";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
@@ -165,8 +165,8 @@
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
             class="content-panes"
-            onclick={handleLinkClick}
-            onkeydown={handleLinkClick}
+            onclick={handleContentClick}
+            onkeydown={handleContentClick}
         >
             {#if $fileViewMode === "split"}
                 <div class="editor-pane">

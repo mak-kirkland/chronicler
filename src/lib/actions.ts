@@ -26,12 +26,12 @@ export function navigateToPage(page: PageHeader) {
 }
 
 /**
- * An event handler for clicks within rendered HTML content. It specifically
- * looks for clicks on internal wikilinks and triggers navigation.
- * This allows the static HTML from the backend to become interactive.
+ * An event handler for clicks within any rendered HTML content. It handles
+ * internal wikilinks, external links, spoilers, and unsupported links.
+ * This uses event delegation to manage all interactions from a single listener.
  * @param event The MouseEvent or KeyboardEvent from the user.
  */
-export function handleLinkClick(event: Event) {
+export function handleContentClick(event: Event) {
     if (
         event instanceof KeyboardEvent &&
         event.key !== "Enter" &&
@@ -41,24 +41,47 @@ export function handleLinkClick(event: Event) {
     }
 
     const target = event.target as HTMLElement;
-    const link = target.closest("a.internal-link");
 
+    // --- Handle Spoilers ---
+    const spoiler = target.closest("span.spoiler");
+    if (spoiler) {
+        spoiler.classList.toggle("revealed");
+    }
+
+    // --- Handle Links ---
+    const link = target.closest("a");
     if (link) {
-        event.preventDefault();
-        if (
-            link.classList.contains("broken") &&
-            link.hasAttribute("data-target")
-        ) {
-            const targetName = link.getAttribute("data-target")!;
-            const currentVaultPath = get(world).vaultPath;
-            if (currentVaultPath) {
-                promptAndCreateItem("file", currentVaultPath, targetName);
+        event.preventDefault(); // Prevent default for ALL links we handle.
+
+        const href = link.getAttribute("href");
+
+        // A) Handle internal wikilinks
+        if (link.classList.contains("internal-link")) {
+            if (
+                link.classList.contains("broken") &&
+                link.hasAttribute("data-target")
+            ) {
+                const targetName = link.getAttribute("data-target")!;
+                const currentVaultPath = get(world).vaultPath;
+                if (currentVaultPath) {
+                    promptAndCreateItem("file", currentVaultPath, targetName);
+                }
+            } else if (link.hasAttribute("data-path")) {
+                const path = link.getAttribute("data-path")!;
+                const title = getTitleFromPath(path);
+                navigateToPage({ path, title });
             }
-        } else if (link.hasAttribute("data-path")) {
-            const path = link.getAttribute("data-path")!;
-            const title = getTitleFromPath(path);
-            navigateToPage({ path, title });
+            return;
         }
+
+        // B) Handle external links
+        if (href && (href.startsWith("http:") || href.startsWith("https:"))) {
+            openUrl(href);
+            return;
+        }
+
+        // C) Handle and neutralize any other links to prevent 404s
+        console.warn(`Blocked navigation for unsupported link href: ${href}`);
     }
 }
 
