@@ -63,6 +63,7 @@
         background-color: var(--color-background-primary);
         color: var(--color-text-primary);
         font-size: 1rem;
+        box-sizing: border-box;
     }
     .text-input:focus {
         outline: 1px solid var(--color-accent-primary);
