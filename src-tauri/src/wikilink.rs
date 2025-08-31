@@ -45,7 +45,13 @@ pub fn extract_wikilinks(content: &str) -> Vec<Link> {
             let full_match = cap.get(0).unwrap();
             let offset = full_match.start();
             let position = Some(offset_to_line_col(content, offset));
-            let target = cap.get(1).unwrap().as_str().trim().to_string();
+            let target = cap
+                .get(1)
+                .unwrap()
+                .as_str()
+                .replace("\\", "")
+                .trim()
+                .to_string();
             let section = cap.get(2).map(|m| m.as_str().trim().to_string());
             let alias = cap.get(3).map(|m| m.as_str().trim().to_string());
             Link {
