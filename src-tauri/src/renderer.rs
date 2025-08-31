@@ -380,6 +380,15 @@ impl Renderer {
                 Event::Text(text) => {
                     text_buffer.push_str(&text);
                 }
+                // If the event is raw HTML, process its content for wikilinks.
+                Event::Html(html_content) => {
+                    // First, flush any pending text to maintain order.
+                    flush_text_buffer(&mut text_buffer, current_event_list);
+                    // Now, process the HTML content itself for our custom syntax.
+                    let processed_html = self.render_custom_syntax_in_string(&html_content);
+                    // Push the processed HTML back into the event stream.
+                    current_event_list.push(Event::Html(processed_html.into()));
+                }
                 Event::Start(Tag::Heading { level, .. }) => {
                     // This signals the end of our consecutive text block. So, first, we flush.
                     flush_text_buffer(&mut text_buffer, current_event_list);
