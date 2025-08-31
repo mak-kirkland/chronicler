@@ -1,12 +1,13 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { listTemplates } from "$lib/commands";
+    import { listTemplates, getAllDirectoryPaths } from "$lib/commands";
     import { createFile } from "$lib/actions";
     import { closeModal } from "$lib/modalStore";
     import { autofocus } from "$lib/domActions";
     import type { PageHeader } from "$lib/bindings";
     import Modal from "./Modal.svelte";
     import Button from "./Button.svelte";
+    import { vaultPath } from "$lib/worldStore";
 
     let {
         parentDir,
@@ -20,17 +21,44 @@
 
     // --- State ---
     let templates = $state<PageHeader[]>([]);
+    let allDirs = $state<string[]>([]);
     let isLoading = $state(true);
     let error = $state<string | null>(null);
     let pageName = $state(initialName);
     let selectedTemplatePath = $state<string | null>(null); // Use null for "Blank Page"
+    let selectedParentDir = $state(parentDir);
 
     // --- Lifecycle ---
     onMount(async () => {
         try {
-            templates = await listTemplates();
+            // Fetch templates and directories in parallel
+            const [templateList, dirList] = await Promise.all([
+                listTemplates(),
+                getAllDirectoryPaths(),
+            ]);
+            templates = templateList;
+
+            // Prepare directories for display
+            const rootPath = $vaultPath;
+            if (rootPath) {
+                allDirs = dirList.map((dir) => {
+                    if (dir === rootPath) return "/ (Vault Root)";
+                    // Remove the root path and the leading slash for a cleaner display
+                    return dir.replace(rootPath, "").replace(/^[\\/]/, "");
+                });
+                // Find the original full path for the pre-selected directory
+                const preselectedDirDisplay = parentDir
+                    .replace(rootPath, "")
+                    .replace(/^[\\/]/, "");
+                selectedParentDir =
+                    preselectedDirDisplay === ""
+                        ? "/ (Vault Root)"
+                        : preselectedDirDisplay;
+            } else {
+                allDirs = dirList;
+            }
         } catch (e: any) {
-            error = `Failed to load templates: ${e.message}`;
+            error = `Failed to load data: ${e.message}`;
         } finally {
             isLoading = false;
         }
@@ -43,7 +71,17 @@
             alert("Page name cannot be empty.");
             return;
         }
-        createFile(parentDir, pageName.trim(), selectedTemplatePath);
+
+        const rootPath = $vaultPath;
+        let finalParentDir = parentDir; // Default to original
+        if (rootPath) {
+            finalParentDir =
+                selectedParentDir === "/ (Vault Root)"
+                    ? rootPath
+                    : `${rootPath}/${selectedParentDir}`;
+        }
+
+        createFile(finalParentDir, pageName.trim(), selectedTemplatePath);
         closeModal();
     }
 </script>
@@ -59,6 +97,19 @@
                 use:autofocus
                 placeholder="Name of your new page"
             />
+        </div>
+
+        <div class="form-group">
+            <label for="folder-select">Folder</label>
+            <select
+                id="folder-select"
+                bind:value={selectedParentDir}
+                disabled={isLoading}
+            >
+                {#each allDirs as dir (dir)}
+                    <option value={dir}>{dir}</option>
+                {/each}
+            </select>
         </div>
 
         <div class="form-group">
