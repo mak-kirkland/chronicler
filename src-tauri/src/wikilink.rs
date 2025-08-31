@@ -10,7 +10,7 @@ use std::sync::LazyLock;
 /// Captures: 1: target, 2: section (optional), 3: alias (optional)
 /// Format: [[target#section|alias]]
 pub static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[\[([^\[\]\|#]+)(?:#([^\[\]\|]+))?(?:\|([^\[\]]+))?\]\]").unwrap()
+    Regex::new(r"\[\[([^\[\]\|#]+)(?:#([^\[\]\|#]+))?(?:\|([^\[\]]+))?\]\]").unwrap()
 });
 
 /// A helper to convert a byte offset to a 1-based line and column number.
