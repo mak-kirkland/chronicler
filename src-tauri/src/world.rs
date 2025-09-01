@@ -1,9 +1,18 @@
 //! Central application state manager.
 //!
-//! Coordinates the indexer, watcher, and frontend communication.
+//! This module defines the `World` struct, which acts as the single source of
+//! truth and coordinator for all backend subsystems. It manages the `Indexer`,
+//! the file `Watcher`, the `Renderer`, and the file system `Writer`.
+//!
+//! The `World` is responsible for:
+//! - Initializing the application state when a vault is opened.
+//! - Spawning and managing the asynchronous task that listens for file changes.
+//! - Handling the distinction between synchronous UI-driven actions and
+//!   asynchronous file system events to ensure both responsiveness and performance.
+//! - Providing a unified API for Tauri commands to interact with the backend.
 
 use crate::{
-    config,
+    config::{self, DEBOUNCE_INTERVAL},
     error::{ChroniclerError, Result},
     events::FileEvent,
     importer,
@@ -20,7 +29,7 @@ use std::{
     sync::Arc,
 };
 use tauri::{AppHandle, Emitter};
-use tokio::sync::broadcast;
+use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info, instrument};
 
 /// The main `World` struct containing all application subsystems and state.
@@ -125,12 +134,13 @@ impl World {
         self.initialize(Path::new(&path), app_handle)
     }
 
-    /// Background task that processes file events from the watcher.
+    /// Background task that collects and processes file events from the watcher.
     ///
-    /// This task handles the crucial logic for reacting to external file changes.
-    /// For renames, it coordinates the `Writer` and `Indexer` to ensure that
-    /// backlinks on disk are updated *before* the in-memory index is changed.
-    /// It continues until the event channel is closed or an unrecoverable error occurs.
+    /// This task implements a debouncing and batching strategy. It waits for an
+    /// initial event, then waits for a short duration (100ms) to collect any
+    /// other events that have occurred in rapid succession. This batch is then
+    /// processed by the `Indexer` in one go, preventing repeated, expensive
+    /// relationship rebuilds.
     #[instrument(level = "debug", skip(app_handle, indexer, writer, event_receiver))]
     async fn process_file_events(
         app_handle: AppHandle,
@@ -139,12 +149,35 @@ impl World {
         mut event_receiver: broadcast::Receiver<FileEvent>,
     ) {
         loop {
+            // --- 1. Event Collection ---
+            let mut events_batch = Vec::new();
             match event_receiver.recv().await {
-                Ok(event) => {
-                    // --- Handle External Renames Transactionally ---
-                    // For external renames detected by the watcher,
-                    // we must update the backlinks on disk before
-                    // updating the index.
+                Ok(first_event) => {
+                    events_batch.push(first_event);
+                    // Wait a moment to see if more events are coming.
+                    sleep(DEBOUNCE_INTERVAL).await;
+                    // Drain any other events that have queued up.
+                    while let Ok(event) = event_receiver.try_recv() {
+                        events_batch.push(event);
+                    }
+                }
+                Err(broadcast::error::RecvError::Closed) => {
+                    info!("Event channel closed, stopping file event processing");
+                    break;
+                }
+                Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                    tracing::warn!(
+                        "File event processing fell behind, skipped {} events",
+                        skipped
+                    );
+                    continue; // Skip to next iteration
+                }
+            }
+
+            // If we have events, process them.
+            if !events_batch.is_empty() {
+                // --- 2. Transactional Backlink Updates (for renames) ---
+                for event in &events_batch {
                     if let FileEvent::Renamed { from, to } = &event {
                         if let Some(writer) = writer.read().clone() {
                             // Get the backlinks from the index *before* it's updated.
@@ -173,29 +206,17 @@ impl World {
                             }
                         }
                     }
-
-                    // --- Update the Index (for all events) ---
-                    // Scope the write lock to release it before emitting the event
-                    {
-                        let mut indexer = indexer.write();
-                        indexer.handle_file_event(&event);
-                    } // Lock is released here
-
-                    // Emit an event to notify the frontend that the index has changed
-                    if let Err(e) = app_handle.emit("index-updated", ()) {
-                        error!("Failed to emit index-updated event: {}", e);
-                    }
                 }
-                Err(broadcast::error::RecvError::Closed) => {
-                    info!("Event channel closed, stopping file event processing");
-                    break;
+
+                // --- 3. Batch Index Update ---
+                {
+                    let mut index = indexer.write();
+                    index.handle_event_batch(&events_batch);
                 }
-                Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                    tracing::warn!(
-                        "File event processing fell behind, skipped {} events",
-                        skipped
-                    );
-                    // Continue processing - the indexer will eventually catch up
+
+                // --- 4. Notify Frontend ---
+                if let Err(e) = app_handle.emit("index-updated", ()) {
+                    error!("Failed to emit index-updated event: {}", e);
                 }
             }
         }
@@ -219,8 +240,9 @@ impl World {
 
         let mut indexer = self.indexer.write();
         for path in &converted_paths {
-            indexer.update_file(path);
+            indexer.update_file(path); // Update index state
         }
+        indexer.rebuild_relations(); // Rebuild relations once
 
         Ok(converted_paths)
     }
@@ -255,8 +277,9 @@ impl World {
         // 3. The World's responsibility is to update the index after the import.
         let mut indexer = self.indexer.write();
         for path in &converted_paths {
-            indexer.update_file(path);
+            indexer.update_file(path); // Update index state
         }
+        indexer.rebuild_relations(); // Rebuild relations once
 
         Ok(converted_paths)
     }
@@ -323,7 +346,7 @@ impl World {
         self.indexer.read().get_all_broken_links()
     }
 
-    // --- File System Operations ---
+    // --- Synchronous File System Operations (from UI) ---
 
     /// Writes content to a page on disk.
     /// This method doesn't need to modify the index directly, as the file watcher
@@ -357,10 +380,10 @@ impl World {
 
         let page_header = writer.create_new_file(&parent_dir, &file_name, template_content)?;
 
-        // After the file is created on disk, notify the indexer.
+        // For UI actions, we call the synchronous indexer method to get immediate feedback.
         self.indexer
             .write()
-            .handle_file_event(&FileEvent::Created(page_header.path.clone()));
+            .handle_event_and_rebuild(&FileEvent::Created(page_header.path.clone()));
 
         Ok(page_header)
     }
@@ -377,7 +400,7 @@ impl World {
 
         self.indexer
             .write()
-            .handle_file_event(&FileEvent::FolderCreated(new_path));
+            .handle_event_and_rebuild(&FileEvent::FolderCreated(new_path));
 
         Ok(())
     }
@@ -403,10 +426,12 @@ impl World {
         let new_path = writer.rename_path(&path, &new_name, &backlinks)?;
 
         // After the transaction succeeds, update the indexer's in-memory state.
-        self.indexer.write().handle_file_event(&FileEvent::Renamed {
-            from: path,
-            to: new_path,
-        });
+        self.indexer
+            .write()
+            .handle_event_and_rebuild(&FileEvent::Renamed {
+                from: path,
+                to: new_path,
+            });
 
         Ok(())
     }
@@ -433,10 +458,12 @@ impl World {
         let new_path = writer.move_path(&source_path, &dest_dir, &backlinks)?;
 
         // After the move succeeds, notify the indexer of the rename event.
-        self.indexer.write().handle_file_event(&FileEvent::Renamed {
-            from: source_path,
-            to: new_path,
-        });
+        self.indexer
+            .write()
+            .handle_event_and_rebuild(&FileEvent::Renamed {
+                from: source_path,
+                to: new_path,
+            });
 
         Ok(())
     }
@@ -456,8 +483,7 @@ impl World {
         } else {
             FileEvent::Deleted(path)
         };
-        self.indexer.write().handle_file_event(&event);
-
+        self.indexer.write().handle_event_and_rebuild(&event);
         Ok(())
     }
 
@@ -474,7 +500,7 @@ impl World {
         // After the file is created on disk, notify the indexer.
         self.indexer
             .write()
-            .handle_file_event(&FileEvent::Created(new_page_header.path.clone()));
+            .handle_event_and_rebuild(&FileEvent::Created(new_page_header.path.clone()));
 
         Ok(new_page_header)
     }

@@ -127,16 +127,27 @@ impl Indexer {
         Ok(())
     }
 
-    /// Processes a single file event and updates the index accordingly.
-    ///
-    /// This is the main entry point for event-driven index updates. It handles
-    /// all types of file events (create, modify, delete, rename) and maintains
-    /// the index's consistency.
-    ///
-    /// # Arguments
-    /// * `event` - The file event to process
+    /// Processes a batch of events and rebuilds relations once at the end.
+    /// This is the primary method for handling asynchronous updates from the file watcher.
+    #[instrument(level = "debug", skip(self, events))]
+    pub fn handle_event_batch(&mut self, events: &[FileEvent]) {
+        for event in events {
+            self.handle_file_event(event); // Call the low-level handler for each event
+        }
+        self.rebuild_relations(); // Rebuild all relationships only once
+    }
+
+    /// Processes a single UI-initiated event and rebuilds relations immediately.
+    /// This provides instant feedback for actions taken within the application.
     #[instrument(level = "debug", skip(self))]
-    pub fn handle_file_event(&mut self, event: &FileEvent) {
+    pub fn handle_event_and_rebuild(&mut self, event: &FileEvent) {
+        self.handle_file_event(event); // Call the low-level handler
+        self.rebuild_relations(); // Rebuild immediately
+    }
+
+    /// Routes a single file event to the appropriate state modification
+    /// method without rebuilding relations. This is the core router for all state changes.
+    fn handle_file_event(&mut self, event: &FileEvent) {
         match event {
             FileEvent::Created(path) => {
                 info!("Handling file creation: {:?}", path);
@@ -168,8 +179,6 @@ impl Indexer {
     }
 
     /// Updates the index for a single file that has been created or modified.
-    /// This simplified approach removes all old data and rebuilds relationships,
-    /// ensuring consistency without complex incremental logic.
     #[instrument(level = "debug", skip(self))]
     pub fn update_file(&mut self, path: &Path) {
         // Remove any existing page data
@@ -184,18 +193,12 @@ impl Indexer {
                 warn!("Could not parse file for update {:?}: {}", path, e);
             }
         };
-
-        // Always rebuild relations to clean up old data and establish new relationships.
-        self.rebuild_relations();
     }
 
     /// Removes a file and all its relationships from the index.
     #[instrument(level = "debug", skip(self))]
     fn remove_file(&mut self, path: &Path) {
-        if self.pages.remove(path).is_some() {
-            // After removing the page, rebuild relations to clean up dangling links/backlinks.
-            self.rebuild_relations();
-        }
+        self.pages.remove(path);
     }
 
     /// Removes a folder and all its descendant pages from the index.
@@ -204,9 +207,6 @@ impl Indexer {
         // Retain only the pages that do NOT start with the deleted folder's path.
         self.pages
             .retain(|page_path, _| !page_path.starts_with(path));
-
-        // After removing pages, rebuild all relationships to clean up dangling links.
-        self.rebuild_relations();
     }
 
     /// Handles an in-memory rename of a file or folder.
@@ -263,12 +263,11 @@ impl Indexer {
                 }
             }
         }
-        self.rebuild_relations();
     }
 
     /// Rebuilds all relationships (tags, graph, backlinks) from scratch.
-    #[instrument(level = "debug", skip(self))]
-    fn rebuild_relations(&mut self) {
+    #[instrument(level = "info", skip(self))]
+    pub fn rebuild_relations(&mut self) {
         // Rebuilding the resolver is a prerequisite for resolving links.
         self.rebuild_link_resolver();
 
@@ -613,7 +612,7 @@ No outgoing links here.
         indexer.scan_vault(root).unwrap();
 
         // --- Test Deletion ---
-        indexer.handle_file_event(&FileEvent::Deleted(page1_path.clone()));
+        indexer.handle_event_and_rebuild(&FileEvent::Deleted(page1_path.clone()));
 
         assert_eq!(indexer.pages.len(), 2);
         assert!(!indexer.tags.contains_key("alpha")); // alpha tag should be gone
@@ -638,7 +637,7 @@ Linking to [[Page Two]]
 "#,
         )
         .unwrap();
-        indexer.handle_file_event(&FileEvent::Created(new_page_path.clone()));
+        indexer.handle_event_and_rebuild(&FileEvent::Created(new_page_path.clone()));
 
         assert_eq!(indexer.pages.len(), 3);
         assert!(indexer.tags.contains_key("new"));
@@ -659,7 +658,7 @@ Now I link to [[Page Two]]!
 "#,
         )
         .unwrap();
-        indexer.handle_file_event(&FileEvent::Modified(page3_path.clone()));
+        indexer.handle_event_and_rebuild(&FileEvent::Modified(page3_path.clone()));
         let page3 = indexer.pages.get(&page3_path).unwrap();
         assert_eq!(page3.title, "Third Page Modified");
         assert!(page3.tags.contains("modified"));
