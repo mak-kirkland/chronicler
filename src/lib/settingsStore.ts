@@ -25,6 +25,7 @@ interface VaultSettings {
     activeTheme: ThemeName;
     fontSize: number;
     sidebarWidth: number;
+    isTocVisible: boolean;
 }
 
 export type ThemeName = string;
@@ -104,6 +105,7 @@ export const userThemes = writable<CustomTheme[]>([]);
 export const activeTheme = writable<ThemeName>("light");
 export const fontSize = writable<number>(100);
 export const sidebarWidth = writable<number>(SIDEBAR_INITIAL_WIDTH);
+export const isTocVisible = writable<boolean>(true); // Default to visible
 
 // --- Private Save Functions ---
 
@@ -128,6 +130,7 @@ async function saveVaultSettings() {
         activeTheme: get(activeTheme),
         fontSize: get(fontSize),
         sidebarWidth: get(sidebarWidth),
+        isTocVisible: get(isTocVisible),
     };
     await vaultSettingsFile.set("vaultSettings", settings);
     await vaultSettingsFile.save();
@@ -166,12 +169,14 @@ export async function initializeVaultSettings(vaultPath: string) {
         activeTheme.set(settings.activeTheme ?? "light");
         fontSize.set(settings.fontSize ?? 100);
         sidebarWidth.set(settings.sidebarWidth ?? SIDEBAR_INITIAL_WIDTH);
+        isTocVisible.set(settings.isTocVisible ?? true); // Fallback to true
     }
 
     // Enable automatic saving for vault settings.
     activeTheme.subscribe(debouncedVaultSave);
     fontSize.subscribe(debouncedVaultSave);
     sidebarWidth.subscribe(debouncedVaultSave);
+    isTocVisible.subscribe(debouncedVaultSave);
 }
 
 /**
@@ -183,6 +188,7 @@ export function destroyVaultSettings() {
     activeTheme.set("light");
     fontSize.set(100);
     sidebarWidth.set(SIDEBAR_INITIAL_WIDTH);
+    isTocVisible.set(true); // Reset to default
     vaultSettingsFile = null; // Ensure no further saves can happen.
 }
 

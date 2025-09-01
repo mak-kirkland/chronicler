@@ -1,18 +1,21 @@
 <script lang="ts">
     import type { TocEntry } from "$lib/bindings";
+    import { isTocVisible } from "$lib/settingsStore";
 
     let { toc } = $props<{ toc: TocEntry[] }>();
-    let isVisible = $state(true);
 </script>
 
 <div class="toc-container">
     <div class="toc-header">
         <h4 class="toc-title">Contents</h4>
-        <button class="toc-toggle" onclick={() => (isVisible = !isVisible)}>
-            [{isVisible ? "hide" : "show"}]
+        <button
+            class="toc-toggle"
+            onclick={() => ($isTocVisible = !$isTocVisible)}
+        >
+            [{$isTocVisible ? "hide" : "show"}]
         </button>
     </div>
-    {#if isVisible}
+    {#if $isTocVisible}
         <nav class="toc-nav">
             <ul>
                 {#each toc as entry (entry.id)}
