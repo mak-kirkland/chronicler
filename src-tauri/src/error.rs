@@ -47,6 +47,9 @@ pub enum ChroniclerError {
     #[error("JSON serialization/deserialization error: {0}")]
     Json(#[from] serde_json::Error),
 
+    #[error("YAML serialization error: {0}")]
+    Yaml(#[from] serde_yaml::Error),
+
     #[error("File already exists: {0:?}")]
     FileAlreadyExists(PathBuf),
 
@@ -68,6 +71,12 @@ pub enum ChroniclerError {
 
     #[error("Could not find the pandoc executable in the expected directory.")]
     PandocNotFound,
+
+    #[error("XML parse error: {0}")]
+    XmlParse(#[from] quick_xml::Error),
+
+    #[error("XML decode error: {0}")]
+    XmlDecode(#[from] quick_xml::encoding::EncodingError),
 
     #[error("Glob pattern error: {0}")]
     Glob(#[from] glob::PatternError),

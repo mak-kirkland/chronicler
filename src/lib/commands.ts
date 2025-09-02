@@ -199,6 +199,14 @@ export const importDocxFiles = (docxPaths: string[]) =>
 export const importDocxFromFolder = (folderPath: string) =>
     invoke<string[]>("import_docx_from_folder", { folderPath });
 
+/**
+ * Imports a MediaWiki XML dump file.
+ * @param xmlPath The path to the MediaWiki XML dump file.
+ * @returns A promise that resolves to an array of paths of the newly created Markdown files.
+ */
+export const importMediawikiDump = (xmlPath: string) =>
+    invoke<string[]>("import_mediawiki_dump", { xmlPath });
+
 // --- Licensing Commands ---
 
 /**

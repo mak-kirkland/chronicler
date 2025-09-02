@@ -17,6 +17,7 @@ use crate::{
     events::FileEvent,
     importer,
     indexer::Indexer,
+    mediawiki_importer,
     models::{BrokenLink, FileNode, FullPageData, PageHeader, RenderedPage},
     renderer::Renderer,
     template,
@@ -505,6 +506,31 @@ impl World {
         indexer.rebuild_relations(); // Rebuild relations once
 
         Ok(converted_paths)
+    }
+
+    /// Imports a MediaWiki XML dump, converting pages to Markdown.
+    pub async fn import_mediawiki_dump(&self, xml_path: PathBuf) -> Result<Vec<PathBuf>> {
+        let output_dir = self
+            .root_path
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+
+        let imported_paths =
+            mediawiki_importer::import_mediawiki_dump(xml_path, output_dir).await?;
+
+        if imported_paths.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // After import, update the index with all the new files.
+        let mut indexer = self.indexer.write();
+        for path in &imported_paths {
+            indexer.update_file(path);
+        }
+        indexer.rebuild_relations();
+
+        Ok(imported_paths)
     }
 }
 

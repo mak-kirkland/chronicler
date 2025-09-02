@@ -18,6 +18,7 @@ mod events;
 mod importer;
 mod indexer;
 mod licensing;
+mod mediawiki_importer;
 mod models;
 mod parser;
 mod renderer;
@@ -80,7 +81,8 @@ fn main() {
             commands::is_pandoc_installed,
             commands::download_pandoc,
             commands::import_docx_files,
-            commands::import_docx_from_folder, // <-- ADD THIS COMMAND
+            commands::import_docx_from_folder,
+            commands::import_mediawiki_dump,
             commands::render_markdown,
             commands::get_linux_install_type,
             commands::get_license_status,

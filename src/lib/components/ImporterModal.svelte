@@ -4,6 +4,7 @@
         downloadPandoc,
         importDocxFiles,
         importDocxFromFolder,
+        importMediawikiDump,
         isPandocInstalled,
     } from "$lib/commands";
     import { world } from "$lib/worldStore";
@@ -62,7 +63,7 @@
      * a list of files or a single folder path.
      * @param paths - Either an array of file paths or a single folder path string.
      */
-    async function handleImport(paths: string[] | string) {
+    async function handleDocxImport(paths: string[] | string) {
         // 1. Set the initial state and message so the user sees immediate feedback.
         isProcessing = true;
         if (Array.isArray(paths)) {
@@ -107,7 +108,7 @@
     /**
      * Opens the file dialog for selecting individual .docx files.
      */
-    async function selectFiles() {
+    async function selectDocxFiles() {
         if (!pandocInstalled) {
             await installPandoc();
             return; // User can click again after installation is complete.
@@ -118,7 +119,7 @@
                 filters: [{ name: "Word Document", extensions: ["docx"] }],
             });
             if (Array.isArray(selected) && selected.length > 0) {
-                await handleImport(selected);
+                await handleDocxImport(selected);
             }
         } catch (e) {
             console.error("File selection failed:", e);
@@ -128,7 +129,7 @@
     /**
      * Opens the directory dialog for selecting a folder.
      */
-    async function selectFolder() {
+    async function selectDocxFolder() {
         if (!pandocInstalled) {
             await installPandoc();
             return; // User can click again after installation is complete.
@@ -140,16 +141,80 @@
                 title: "Select a folder to import .docx files from",
             });
             if (typeof selected === "string") {
-                await handleImport(selected);
+                await handleDocxImport(selected);
             }
         } catch (e) {
             console.error("Folder selection failed:", e);
+        }
+    }
+
+    /**
+     * Handles the import process for a MediaWiki XML dump.
+     * @param path The file path of the selected XML file.
+     */
+    async function handleMediawikiImport(path: string) {
+        isProcessing = true;
+        importMessage = "Processing MediaWiki XML dump...";
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        try {
+            const importedPaths = await importMediawikiDump(path);
+            if (importedPaths.length === 0) {
+                alert("No pages were found to import from the XML file.");
+                importMessage = null;
+                return;
+            }
+
+            await world.initialize();
+            alert(`${importedPaths.length} page(s) imported successfully!`);
+            onClose();
+        } catch (e) {
+            console.error("MediaWiki import failed:", e);
+            alert(`MediaWiki import failed: ${e}`);
+            importMessage = `MediaWiki import failed: ${e}`;
+        } finally {
+            isProcessing = false;
+        }
+    }
+
+    /**
+     * Opens the file dialog to select a MediaWiki XML file.
+     */
+    async function selectMediawikiDump() {
+        try {
+            const selected = await open({
+                multiple: false,
+                filters: [{ name: "MediaWiki XML Dump", extensions: ["xml"] }],
+            });
+            if (typeof selected === "string") {
+                await handleMediawikiImport(selected);
+            }
+        } catch (e) {
+            console.error("File selection failed:", e);
         }
     }
 </script>
 
 <Modal title="Import Documents" {onClose}>
     <div class="modal-body-content">
+        <div class="setting-item">
+            <h4>Import from MediaWiki</h4>
+            <p>
+                Import a MediaWiki XML dump file. This will convert pages,
+                download images, and create tag indexes.
+            </p>
+            <div class="button-group">
+                <Button onclick={selectMediawikiDump} disabled={isProcessing}>
+                    {#if isProcessing}
+                        Importing...
+                    {:else}
+                        Select XML File
+                    {/if}
+                </Button>
+            </div>
+        </div>
+
         <div class="setting-item">
             <h4>Import from .docx</h4>
             <p>
@@ -164,7 +229,7 @@
             {/if}
 
             <div class="button-group">
-                <Button onclick={selectFiles} disabled={isProcessing}>
+                <Button onclick={selectDocxFiles} disabled={isProcessing}>
                     {#if isProcessing && !pandocInstalled}
                         Installing Pandoc...
                     {:else if isProcessing}
@@ -174,7 +239,7 @@
                     {/if}
                 </Button>
 
-                <Button onclick={selectFolder} disabled={isProcessing}>
+                <Button onclick={selectDocxFolder} disabled={isProcessing}>
                     {#if isProcessing && !pandocInstalled}
                         Installing Pandoc...
                     {:else if isProcessing}
@@ -184,10 +249,11 @@
                     {/if}
                 </Button>
             </div>
-            {#if importMessage}
-                <p class="import-message">{importMessage}</p>
-            {/if}
         </div>
+
+        {#if importMessage}
+            <p class="import-message">{importMessage}</p>
+        {/if}
     </div>
 </Modal>
 
@@ -229,6 +295,7 @@
         font-size: 0.9rem;
         font-style: italic;
         color: var(--color-text-secondary);
-        margin-top: 0.5rem !important;
+        margin-top: 1.5rem !important;
+        text-align: center;
     }
 </style>
