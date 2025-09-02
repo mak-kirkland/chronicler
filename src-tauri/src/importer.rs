@@ -1,5 +1,6 @@
 //! Handles importing documents by converting them with Pandoc.
 
+use crate::config::IMAGES_DIR_NAME;
 use crate::error::{ChroniclerError, Result};
 use std::env::consts::{ARCH, OS};
 use std::path::{Path, PathBuf};
@@ -107,7 +108,7 @@ pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
 fn move_media_directory(output_dir: &Path, file_stem: &str) -> Result<()> {
     let temp_media_abs_path = output_dir.join(file_stem);
     if temp_media_abs_path.exists() {
-        let final_media_dir = output_dir.join("images");
+        let final_media_dir = output_dir.join(IMAGES_DIR_NAME);
         std::fs::create_dir_all(&final_media_dir)?;
         let final_media_path = final_media_dir.join(file_stem);
 

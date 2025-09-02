@@ -1,5 +1,6 @@
 //! Markdown and Wikilink rendering engine.
 
+use crate::config::IMAGES_DIR_NAME;
 use crate::error::ChroniclerError;
 use crate::models::{Backlink, FullPageData, TocEntry};
 use crate::sanitizer;
@@ -72,7 +73,7 @@ impl Renderer {
             path.to_path_buf()
         } else {
             // Assumes relative paths are inside the vault's "images" directory.
-            self.vault_path.join("images").join(path)
+            self.vault_path.join(IMAGES_DIR_NAME).join(path)
         }
     }
 
