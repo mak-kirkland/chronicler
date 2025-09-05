@@ -31,6 +31,12 @@ static SPOILER_RE: LazyLock<Regex> = LazyLock::new(|| {
 /// Used to find and replace local image paths with Base64 data URLs.
 static IMG_TAG_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"<img src="([^"]+)""#).unwrap());
 
+/// Wikilink Image regex pattern.
+/// Captures: 1: target/filename, 2: alias/alt-text
+/// Format: ![[filename.png|alt text]]
+static WIKILINK_IMAGE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"!\[\[([^\|\]]+)(?:\|([^\]]+))?\]\]"#).unwrap());
+
 /// A struct responsible for rendering Markdown content.
 #[derive(Debug)]
 pub struct Renderer {
@@ -202,15 +208,30 @@ impl Renderer {
 
     /// Replaces all custom syntax (spoilers and wikilinks) in a string with valid HTML.
     fn render_custom_syntax_in_string(&self, text: &str) -> String {
-        // First, process spoilers sequentially.
+        // 1. Process spoilers first.
         let with_spoilers = SPOILER_RE.replace_all(text, |caps: &Captures| {
             format!("<span class=\"spoiler\">{}</span>", &caps[1])
         });
 
-        // Then, process wikilinks on the result.
+        // 2. Process image wikilinks ![[...]] into <img> tags.
+        let with_images = WIKILINK_IMAGE_RE.replace_all(&with_spoilers, |caps: &Captures| {
+            let path_str = caps.get(1).map_or("", |m| m.as_str()).trim();
+            let alt_text = caps.get(2).map_or(path_str, |m| m.as_str().trim());
+
+            // Generate the simple <img> tag with the given path.
+            // This will then be handled by the `process_body_image_tags` post-processor.
+            format!(
+                r#"<img src="{}" alt="{}" class="embedded-image">"#,
+                // Use the normalized path directly as the src
+                path_str,
+                html_escape::encode_double_quoted_attribute(alt_text)
+            )
+        });
+
+        // 3. Finally, process standard wikilinks [[...]] on the remaining text.
         let indexer = self.indexer.read();
         WIKILINK_RE
-            .replace_all(&with_spoilers, |caps: &Captures| {
+            .replace_all(&with_images, |caps: &Captures| {
                 let target = caps.get(1).map_or("", |m| m.as_str()).trim();
                 let alias = caps.get(3).map(|m| m.as_str().trim()).unwrap_or(target);
                 let normalized_target = target.to_lowercase();
