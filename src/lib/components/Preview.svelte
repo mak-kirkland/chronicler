@@ -101,6 +101,7 @@
 	 * from wrapping underneath the infobox.
 	 */
         display: flow-root;
+        clear: both;
     }
     .main-content :global(h1 + p),
     .main-content :global(h2 + p),
