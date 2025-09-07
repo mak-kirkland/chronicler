@@ -32,14 +32,16 @@
     {/if}
 
     {#if renderedData}
-        <div class="main-content">
-            {@html renderedData.html_before_toc}
-            {#if renderedData.toc.length > 0}
-                <aside class="toc-wrapper">
-                    <TableOfContents toc={renderedData.toc} />
-                </aside>
-            {/if}
-            {@html renderedData.html_after_toc}
+        <div class="main-content-wrapper">
+            <div class="main-content">
+                {@html renderedData.html_before_toc}
+                {#if renderedData.toc.length > 0}
+                    <aside class="toc-wrapper">
+                        <TableOfContents toc={renderedData.toc} />
+                    </aside>
+                {/if}
+                {@html renderedData.html_after_toc}
+            </div>
         </div>
     {/if}
 </div>
@@ -82,6 +84,10 @@
             margin-right: 0;
             margin-bottom: 1rem;
         }
+    }
+
+    .main-content-wrapper {
+        overflow: auto;
     }
 
     /* --- Global Styles for Rendered Content --- */
