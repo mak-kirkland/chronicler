@@ -27,8 +27,16 @@ static CATEGORY_RE: LazyLock<Regex> =
 // Matches the first template containing key-value parameters.
 static INFOBOX_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?is)\A\s*\{\{([\s\S]+?)\}\}").unwrap());
-static WIKITEXT_IMAGE_LINK_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)\[\[(?:File|Image):([^\|\]]+)[^\]]*\]\]").unwrap());
+/// A comprehensive regex for MediaWiki image links (`[[File:...]]` or `[[Image:...]]`).
+///
+/// It captures the filename and all parameters, allowing for detailed parsing of
+/// attributes like size, alignment, and caption.
+///
+/// # Capture Groups:
+/// - `Group 1`: The image filename (e.g., "Saskia 2.jpg").
+/// - `Group 2`: A string containing all parameters, each prefixed with a pipe (e.g., "|left|frameless|357x357px|A caption").
+static WIKITEXT_IMAGE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\[\[(?:File|Image):([^\|\]]+)((?:\|[^\]]+)*)\]\]").unwrap());
 static PANDOC_LINK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"\[([^\]]+)\]\(([^)]+?)(?:\s+"wikilink")?\)"#).unwrap());
 
@@ -267,11 +275,15 @@ async fn process_page(
         );
     }
 
-    // 8. Convert the remaining wikitext to Markdown using Pandoc.
+    // 8. Convert MediaWiki image links to HTML `<img>` tags BEFORE Pandoc.
+    //    This preserves layout information and allows our renderer to handle the final conversion.
+    wikitext = convert_mediawiki_images_to_html(&wikitext);
+
+    // 9. Convert the remaining wikitext to Markdown using Pandoc.
     let mut markdown = convert_with_pandoc(&wikitext, &page.title)?;
     markdown = convert_links_to_wikilinks(markdown);
 
-    // 9. Assemble the final file content and write it to disk.
+    // 10. Assemble the final file content and write it to disk.
     write_markdown_file(output_dir, &page.title, frontmatter, &markdown)
 }
 
@@ -388,7 +400,7 @@ fn clean_infobox_name(name: &str) -> String {
 ///
 /// This function is synchronous and only responsible for parsing, not downloading.
 fn extract_body_image_names(wikitext: &str) -> HashSet<String> {
-    WIKITEXT_IMAGE_LINK_RE
+    WIKITEXT_IMAGE_RE
         .captures_iter(wikitext)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().trim().to_string()))
         .collect()
@@ -432,6 +444,111 @@ fn write_markdown_file(
 }
 
 // --- General Purpose Utility Functions ---
+
+/// Converts MediaWiki image syntax like `[[File:Foo.jpg|thumb|left|250px|Caption]]`
+/// into a styled HTML `<figure>` and `<img>` block.
+///
+/// This function parses the various parameters in the wikitext to extract alignment,
+/// size constraints, and a caption. It then generates an HTML block that preserves
+/// this layout information using inline CSS styles. This HTML is passed through
+/// Pandoc and is later processed by the renderer, which converts the `src` path
+/// to a Base64 data URL.
+fn convert_mediawiki_images_to_html(wikitext: &str) -> String {
+    WIKITEXT_IMAGE_RE
+        .replace_all(wikitext, |caps: &Captures| {
+            let filename = caps.get(1).map_or("", |m| m.as_str()).trim();
+            let params_str = caps.get(2).map_or("", |m| m.as_str());
+
+            // The image src needs to match the saved file format (spaces replaced with underscores).
+            let image_src = filename.replace(' ', "_");
+
+            // Define keywords that are not captions.
+            let keywords = ["thumb", "frameless", "left", "right", "center"];
+
+            // Split parameters, trimming whitespace from each.
+            let params: Vec<&str> = params_str.split('|').skip(1).map(|p| p.trim()).collect();
+
+            // The caption is the last parameter that isn't a size or a keyword.
+            let caption = params
+                .iter()
+                .rfind(|p| !p.ends_with("px") && !keywords.contains(p))
+                .map_or("", |s| *s)
+                .to_string();
+
+            let mut styles = HashMap::new();
+            // Default alignment to 'right' to match common wiki layouts.
+            // This will only be overridden if 'left' or 'center' is explicitly found.
+            let mut align = "right";
+
+            // Find the first parameter that specifies a width. This handles "320px" and "320x320px".
+            let max_width = params.iter().find_map(|p| {
+                p.strip_suffix("px")
+                    .and_then(|dimensions| dimensions.split('x').next())
+                    .and_then(|width_str| width_str.trim().parse::<u32>().ok())
+            });
+
+            if let Some(w) = max_width {
+                styles.insert("max-width".to_string(), format!("{}px", w));
+            }
+
+            // Determine alignment from the remaining parameters.
+            for param in &params {
+                if *param == "left" {
+                    align = "left";
+                } else if *param == "center" {
+                    align = "center";
+                }
+            }
+
+            // Apply styles based on the final alignment.
+            match align {
+                "left" => {
+                    styles.insert("float".to_string(), "left".to_string());
+                    styles.insert("margin".to_string(), "0.5em 1em 0.5em 0".to_string());
+                }
+                "right" => {
+                    styles.insert("float".to_string(), "right".to_string());
+                    styles.insert("margin".to_string(), "0.5em 0 0.5em 1em".to_string());
+                }
+                "center" => {
+                    // For center, we don't float. We'll use a wrapper div.
+                    styles.insert("margin".to_string(), "0.5em auto".to_string());
+                }
+                _ => {} // Should not happen.
+            }
+
+            let style_attr = styles
+                .iter()
+                .map(|(k, v)| format!("{}: {};", k, v))
+                .collect::<String>();
+
+            // The alt attribute uses the caption for accessibility.
+            let alt_attr = html_escape::encode_double_quoted_attribute(&caption);
+
+            // Construct the self-contained <img> tag.
+            let img_tag = format!(
+                r#"<img src="{}" alt="{}" style="display: block; max-width: 100%; height: auto;">"#,
+                image_src, alt_attr
+            );
+
+            // Build the final HTML, using <figure> and <figcaption> if a caption exists.
+            let figure_content = if caption.is_empty() {
+                img_tag
+            } else {
+                format!("{}<figcaption>{}</figcaption>", img_tag, caption)
+            };
+            if align == "center" {
+                // The outer div handles centering the figure.
+                format!(
+                    r#"<div style="display: flex; justify-content: center;"><figure style="{}">{}</figure></div>"#,
+                    style_attr, figure_content
+                )
+            } else {
+                format!(r#"<figure style="{}">{}</figure>"#, style_attr, figure_content)
+            }
+        })
+        .to_string()
+}
 
 /// Downloads a single image from the MediaWiki API.
 #[instrument(skip(output_dir), err)]
