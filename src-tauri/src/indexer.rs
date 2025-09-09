@@ -10,6 +10,7 @@ use crate::{
     parser,
     utils::{file_stem_string, is_image_file, is_markdown_file},
 };
+use natord::compare as nat_compare;
 use std::{
     collections::{HashMap, HashSet},
     fs, mem,
@@ -421,11 +422,11 @@ impl Indexer {
                     }
                 }
 
-                // Sort children: directories first (based on Ord impl), then alphabetically by name.
+                // Sort children: directories first (based on Ord impl), then alphanumerically by name.
                 children_vec.sort_by(|a, b| {
                     a.file_type
                         .cmp(&b.file_type)
-                        .then_with(|| a.name.cmp(&b.name))
+                        .then_with(|| nat_compare(&a.name, &b.name))
                 });
             }
         }
