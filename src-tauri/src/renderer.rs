@@ -253,6 +253,20 @@ impl Renderer {
             .to_string()
     }
 
+    /// Extracts the display text from wikilinks within a string, leaving other text intact.
+    /// For example, "[[Page|Alias]] (extra)" becomes "Alias (extra)".
+    fn extract_display_text_from_wikilinks(&self, text: &str) -> String {
+        WIKILINK_RE
+            .replace_all(text, |caps: &Captures| {
+                // Use the alias (capture group 3) if it exists, otherwise use the target (capture group 1).
+                let alias = caps.get(3).map(|m| m.as_str().trim());
+                let target = caps.get(1).map(|m| m.as_str().trim()).unwrap_or("");
+                alias.unwrap_or(target).to_string()
+            })
+            .to_string()
+    }
+
+
     /// Renders Markdown body content to HTML, processing custom wikilinks, and generating a TOC.
     ///
     /// The function splits the resulting HTML at the first header, allowing the frontend
@@ -339,7 +353,11 @@ impl Renderer {
                         .collect();
                     let number = number_parts.join(".");
 
-                    let mut slug = slug::slugify(&header_text_buffer);
+                    // Process the raw header text to get clean display text for the TOC.
+                    let display_text = self.extract_display_text_from_wikilinks(&header_text_buffer);
+
+                    // Slugify the clean display text for a more readable anchor ID.
+                    let mut slug = slug::slugify(&display_text);
                     let original_slug = slug.clone();
                     let mut counter = 1;
                     while unique_ids.contains_key(&slug) {
@@ -350,7 +368,7 @@ impl Renderer {
 
                     toc.push(TocEntry {
                         number,
-                        text: header_text_buffer.clone(),
+                        text: display_text,
                         level: level as u32,
                         id: slug,
                     });
