@@ -6,6 +6,7 @@
     import SaveStatus from "$lib/components/SaveStatus.svelte";
     import ViewHeader from "$lib/components/ViewHeader.svelte";
     import { fileViewMode, currentView, rightSidebar } from "$lib/viewStores";
+    import { isTocVisible } from "$lib/settingsStore";
     import { files, isWorldLoaded } from "$lib/worldStore";
     import {
         buildPageView,
@@ -130,6 +131,16 @@
                 <SaveStatus status={saveStatus} {lastSaveTime} />
             </div>
             <div slot="right">
+                {#if pageData.rendered_page && pageData.rendered_page.toc.length > 0}
+                    <Button
+                        size="small"
+                        onclick={() => ($isTocVisible = !$isTocVisible)}
+                        title="Toggle Table of Contents"
+                    >
+                        📖 Contents
+                    </Button>
+                {/if}
+
                 {#if $rightSidebar.backlinks.length > 0}
                     <Button
                         size="small"

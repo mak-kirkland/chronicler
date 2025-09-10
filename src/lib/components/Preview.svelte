@@ -2,6 +2,7 @@
     import type { RenderedPage } from "$lib/bindings";
     import Infobox from "./Infobox.svelte";
     import TableOfContents from "./TableOfContents.svelte";
+    import { isTocVisible } from "$lib/settingsStore";
 
     // The type for the infobox data is complex, so we can use `any` here.
     // It's the `processed_frontmatter` object from the Rust backend.
@@ -35,11 +36,13 @@
         <div class="main-content-wrapper">
             <div class="main-content">
                 {@html renderedData.html_before_toc}
-                {#if renderedData.toc.length > 0}
+
+                {#if renderedData.toc.length > 0 && $isTocVisible}
                     <aside class="toc-wrapper">
                         <TableOfContents toc={renderedData.toc} />
                     </aside>
                 {/if}
+
                 {@html renderedData.html_after_toc}
             </div>
         </div>
