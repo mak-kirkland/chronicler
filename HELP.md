@@ -126,6 +126,14 @@ To add an image, simply use the `<img>` tag:
 <img src="world-map.jpg" alt="Map of the known world">
 ```
 
+### Inline Image (e.g., Flags or Icons)
+
+You can also place small images directly into a line of text. This is perfect for icons or flags. The `height: 1em;` style makes the image scale with the text, and `vertical-align: middle;` centers it nicely.
+
+```html
+The Gooblboys invaded the Lynorian Empire <img src="lynorian-flag.png" alt="Lynorian Empire Flag" style="height: 1em; vertical-align: middle;"> on a Saturday.
+```
+
 ### Styled Image (Float Right)
 
 You can add inline CSS styles to control the appearance. This example floats the image to the right of the text, adds some space around it, and sets its width.
