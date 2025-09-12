@@ -20,25 +20,37 @@ use std::sync::LazyLock;
 use tracing::{debug, info, instrument, warn};
 
 // --- Regex Constants ---
+
+/// Matches characters that are invalid in most filesystem filenames (e.g., `\ / : * ? " < > |`).
 static INVALID_FILENAME_CHARS: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"[\\/*?:"<>|]"#).unwrap());
+
+/// A case-insensitive regex to find MediaWiki category links (e.g., `[[Category:Foo]]`)
+/// and extract the category name into capture group 1.
 static CATEGORY_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\[\[Category:([^\]]+)\]\]").unwrap());
-// Matches the first template containing key-value parameters.
+
+/// A multi-line, case-insensitive regex that matches a MediaWiki template (e.g., an infobox)
+/// found at the very beginning of a document. The template's content is in capture group 1.
 static INFOBOX_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?is)\A\s*\{\{([\s\S]+?)\}\}").unwrap());
-/// A comprehensive regex for MediaWiki image links (`[[File:...]]` or `[[Image:...]]`).
-///
-/// It captures the filename and all parameters, allowing for detailed parsing of
-/// attributes like size, alignment, and caption.
-///
-/// # Capture Groups:
-/// - `Group 1`: The image filename (e.g., "Saskia 2.jpg").
-/// - `Group 2`: A string containing all parameters, each prefixed with a pipe (e.g., "|left|frameless|357x357px|A caption").
+
+/// A case-insensitive regex for MediaWiki image links (e.g., `[[File:Foo.jpg|thumb]]`).
+/// Captures the filename in group 1 and all parameters (e.g., `|thumb|caption`) in group 2.
 static WIKITEXT_IMAGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\[\[(?:File|Image):([^\|\]]+)((?:\|[^\]]+)*)\]\]").unwrap());
+
+/// Matches Markdown links that Pandoc creates from wikilinks, including the optional ` "wikilink"`
+/// title. Captures the link text in group 1 and the target page name in group 2.
 static PANDOC_LINK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"\[([^\]]+)\]\(([^)]+?)(?:\s+"wikilink")?\)"#).unwrap());
+
+/// Finds and removes leftover `br /` text fragments from the wikitext.
+///
+/// Pandoc correctly infers the necessary paragraph break from the header that
+/// follows, but its parser can leave this text artifact behind. This regex
+/// simply cleans it up by replacing it with an empty string.
+static BR_TAG_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)br\s*/").unwrap());
 
 #[derive(Debug, Default)]
 struct PageData {
@@ -82,7 +94,6 @@ pub async fn import_mediawiki_dump(xml_path: PathBuf, output_dir: PathBuf) -> Re
     // --- Pass 2: Process pages and convert to Markdown ---
     info!("Pass 2: Processing and converting articles...");
     let mut reader = Reader::from_file(&xml_path)?;
-    reader.config_mut().trim_text(true);
 
     let mut buf = Vec::new();
     let mut current_page = PageData::default();
@@ -163,7 +174,6 @@ pub async fn import_mediawiki_dump(xml_path: PathBuf, output_dir: PathBuf) -> Re
 /// names to the categories defined within them.
 fn build_template_category_map(xml_path: &Path) -> Result<HashMap<String, Vec<String>>> {
     let mut reader = Reader::from_file(xml_path)?;
-    reader.config_mut().trim_text(true);
     let mut buf = Vec::new();
     let mut map = HashMap::new();
 
@@ -279,11 +289,14 @@ async fn process_page(
     //    This preserves layout information and allows our renderer to handle the final conversion.
     wikitext = convert_mediawiki_images_to_html(&wikitext);
 
-    // 9. Convert the remaining wikitext to Markdown using Pandoc.
-    let mut markdown = convert_with_pandoc(&wikitext, &page.title)?;
+    // 9. Use a regex to remove all leftover "br /" tags.
+    let cleaned_wikitext = BR_TAG_RE.replace_all(&wikitext, "");
+
+    // 10. Convert the remaining wikitext to Markdown using Pandoc.
+    let mut markdown = convert_with_pandoc(&cleaned_wikitext, &page.title)?;
     markdown = convert_links_to_wikilinks(markdown);
 
-    // 10. Assemble the final file content and write it to disk.
+    // 11. Assemble the final file content and write it to disk.
     write_markdown_file(output_dir, &page.title, frontmatter, &markdown)
 }
 
