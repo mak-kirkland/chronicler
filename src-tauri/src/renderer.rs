@@ -152,6 +152,15 @@ impl Renderer {
             .to_string()
     }
 
+    /// Processes a single string value from the frontmatter, rendering any custom syntax
+    /// (wikilinks, spoilers, image tags) into final HTML.
+    fn render_frontmatter_string_as_html(&self, text: &str) -> String {
+        // 1. Process wikilinks, spoilers, and ![[image]] syntax.
+        let with_custom_syntax = self.render_custom_syntax_in_string(text);
+        // 2. Process any standard <img src="..."> tags that resulted from step 1 or were there originally.
+        self.process_body_image_tags(&with_custom_syntax)
+    }
+
     /// Processes raw markdown content into a structured, rendered page object.
     pub fn render_page_preview(&self, content: &str) -> Result<RenderedPage> {
         // 1. Separate frontmatter from the body
@@ -180,11 +189,11 @@ impl Renderer {
             // Process custom syntax in all string and array-of-string values
             for (_, value) in map.iter_mut() {
                 if let Value::String(s) = value {
-                    *value = Value::String(self.render_custom_syntax_in_string(s));
+                    *value = Value::String(self.render_frontmatter_string_as_html(s));
                 } else if let Value::Array(arr) = value {
                     for item in arr.iter_mut() {
                         if let Value::String(s) = item {
-                            *item = Value::String(self.render_custom_syntax_in_string(s));
+                            *item = Value::String(self.render_frontmatter_string_as_html(s));
                         }
                     }
                 }

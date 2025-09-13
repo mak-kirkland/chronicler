@@ -259,6 +259,11 @@
         margin: 0;
         padding-left: 1.2rem;
     }
+    dd :global(.embedded-image) {
+        height: 1.2em; /* Use 'em' to scale with the surrounding text size */
+        vertical-align: middle;
+        margin-right: 0.25em;
+    }
     .tag-container {
         display: flex;
         flex-wrap: wrap;
