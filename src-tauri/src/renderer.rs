@@ -161,31 +161,13 @@ impl Renderer {
         self.process_body_image_tags(&with_custom_syntax)
     }
 
-    /// Processes raw markdown content into a structured, rendered page object.
-    pub fn render_page_preview(&self, content: &str) -> Result<RenderedPage> {
-        // 1. Separate frontmatter from the body
-        let (frontmatter_str, body) = parser::extract_frontmatter(content);
+    /// Takes a parsed serde_json::Value representing the frontmatter, sanitizes it,
+    /// and recursively processes all string fields to render custom syntax. This
+    /// function modifies the `Value` in place.
+    fn process_frontmatter(&self, frontmatter: &mut Value) {
+        sanitizer::sanitize_json_values(frontmatter);
 
-        // Instead of returning a hard error with `?`, we match on the result.
-        // If parsing fails, we create a special JSON object with error details.
-        let mut frontmatter_json = match parser::parse_frontmatter(frontmatter_str, Path::new("")) {
-            Ok(fm) => fm,
-            Err(e) => {
-                // The frontend's Infobox component knows how to display this error object.
-                let mut error_map = serde_json::Map::new();
-                error_map.insert(
-                    "error".to_string(),
-                    Value::String("YAML Parse Error".to_string()),
-                );
-                error_map.insert("details".to_string(), Value::String(e.to_string()));
-                Value::Object(error_map)
-            }
-        };
-
-        sanitizer::sanitize_json_values(&mut frontmatter_json);
-
-        // 2. Process special fields within the frontmatter JSON
-        if let Value::Object(map) = &mut frontmatter_json {
+        if let Value::Object(map) = frontmatter {
             // Process custom syntax in all string and array-of-string values
             for (_, value) in map.iter_mut() {
                 if let Value::String(s) = value {
@@ -204,6 +186,28 @@ impl Renderer {
                 self.process_infobox_image(map, &relative_image_path);
             }
         }
+    }
+
+    /// Processes raw markdown content into a structured, rendered page object.
+    pub fn render_page_preview(&self, content: &str) -> Result<RenderedPage> {
+        // 1. Separate and parse the frontmatter.
+        let (frontmatter_str, body) = parser::extract_frontmatter(content);
+        let mut frontmatter_json = match parser::parse_frontmatter(frontmatter_str, Path::new("")) {
+            Ok(fm) => fm,
+            Err(e) => {
+                // If parsing fails, create a special JSON object with error details.
+                let mut error_map = serde_json::Map::new();
+                error_map.insert(
+                    "error".to_string(),
+                    Value::String("YAML Parse Error".to_string()),
+                );
+                error_map.insert("details".to_string(), Value::String(e.to_string()));
+                Value::Object(error_map)
+            }
+        };
+
+        // 2. Sanitize and render all fields within the frontmatter.
+        self.process_frontmatter(&mut frontmatter_json);
 
         // 3. Render the main body content to HTML, correctly handling custom syntax.
         let (html_before_toc, html_after_toc, toc) = self.render_body_to_html_with_toc(body);
