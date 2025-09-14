@@ -152,13 +152,38 @@ impl Renderer {
             .to_string()
     }
 
+    /// Renders a string of Markdown to HTML, but strips the outer `<p>` tags.
+    /// This is useful for rendering inline content like in infobox fields.
+    fn render_inline_markdown(&self, markdown: &str) -> String {
+        let mut options = Options::empty();
+        options.insert(Options::ENABLE_STRIKETHROUGH);
+
+        let parser = Parser::new_ext(markdown, options);
+
+        // Filter out the paragraph tags to prevent wrapping every field in <p>...</p>
+        let events = parser.filter(|event| {
+            !matches!(
+                event,
+                Event::Start(Tag::Paragraph) | Event::End(TagEnd::Paragraph)
+            )
+        });
+
+        let mut html_output = String::new();
+        html::push_html(&mut html_output, events);
+        html_output
+    }
+
     /// Processes a single string value from the frontmatter, rendering any custom syntax
     /// (wikilinks, spoilers, image tags) into final HTML.
     fn render_frontmatter_string_as_html(&self, text: &str) -> String {
-        // 1. Process wikilinks, spoilers, and ![[image]] syntax.
+        // 1. Process custom syntax first (wikilinks, spoilers, etc.)
         let with_custom_syntax = self.render_custom_syntax_in_string(text);
-        // 2. Process any standard <img src="..."> tags that resulted from step 1 or were there originally.
-        self.process_body_image_tags(&with_custom_syntax)
+
+        // 2. Render standard Markdown on the result of step 1.
+        let with_markdown = self.render_inline_markdown(&with_custom_syntax);
+
+        // 3. Process any <img> tags to embed images.
+        self.process_body_image_tags(&with_markdown)
     }
 
     /// Takes a parsed serde_json::Value representing the frontmatter, sanitizes it,
@@ -625,6 +650,32 @@ mod tests {
         );
 
         assert_eq!(rendered, expected);
+    }
+
+    #[test]
+    fn test_frontmatter_markdown_rendering() {
+        let (renderer, page1_path) = setup_renderer();
+        let content = r#"---
+title: "*Italic Title*"
+description: "**Bold with a [[Page One]] link**"
+---
+Body
+"#;
+        let result = renderer.render_page_preview(content).unwrap();
+        let expected_path_str = page1_path.to_string_lossy();
+
+        assert_eq!(
+            result.processed_frontmatter["title"],
+            "<em>Italic Title</em>"
+        );
+        let expected_description = format!(
+            "<strong>Bold with a <a href=\"#\" class=\"internal-link\" data-path=\"{}\">Page One</a> link</strong>",
+            expected_path_str
+        );
+        assert_eq!(
+            result.processed_frontmatter["description"],
+            expected_description
+        );
     }
 
     #[test]

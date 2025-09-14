@@ -83,11 +83,11 @@
 <div class="infobox">
     <div class="infobox-content-wrapper">
         {#if data?.title}
-            <h3 class="infobox-title">{data.title}</h3>
+            <h3 class="infobox-title">{@html data.title}</h3>
         {/if}
 
         {#if data?.subtitle}
-            <p class="infobox-subtitle">{data.subtitle}</p>
+            <p class="infobox-subtitle">{@html data.subtitle}</p>
         {/if}
 
         {#if data?.image}
@@ -118,7 +118,7 @@
             {/if}
 
             {#if data?.infobox}
-                <h4>{data.infobox}</h4>
+                <h4>{@html data.infobox}</h4>
             {/if}
 
             <dl>
