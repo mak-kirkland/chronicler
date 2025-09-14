@@ -87,28 +87,48 @@ impl Renderer {
         }
     }
 
-    /// Processes the `image` field from the frontmatter.
+    /// Processes the `image` field from the frontmatter, which can be a single
+    /// string or a list of strings, preparing it for the frontend.
     ///
     /// This function handles all logic for the infobox image:
     /// 1. Resolves the absolute path of the image.
-    /// 2. Adds the absolute path to the JSON map under the `image_path` key for the frontend.
-    /// 3. Converts the image to a Base64 Data URL and updates the `image` key.
-    fn process_infobox_image(&self, map: &mut Map<String, Value>, relative_image_path: &str) {
-        let absolute_path = self.resolve_image_path(relative_image_path);
+    /// 2. Adds the absolute path to the JSON map under the `image_paths` key for the frontend.
+    /// 3. Converts the image to a Base64 Data URL and updates the `images` key.
+    fn process_infobox_images(&self, map: &mut Map<String, Value>, image_value: &Value) {
+        let mut images_data_urls = Vec::new();
+        let mut image_absolute_paths = Vec::new();
 
-        // If the image exists, add its absolute path to the payload for the frontend.
-        // This allows the frontend to open the image in the viewer without knowing
-        // the vault's file structure.
-        if absolute_path.exists() {
-            map.insert(
-                "image_path".to_string(),
-                Value::String(absolute_path.to_string_lossy().to_string()),
-            );
+        let mut process_single_image = |path_str: &str| {
+            // Convert to Base64 Data URL for embedding.
+            images_data_urls.push(Value::String(self.convert_image_path_to_data_url(path_str)));
+            // Resolve the absolute path for the frontend to use.
+            let absolute_path = self.resolve_image_path(path_str);
+            image_absolute_paths.push(Value::String(absolute_path.to_string_lossy().to_string()));
+        };
+
+        match image_value {
+            Value::String(s) => {
+                process_single_image(s);
+            }
+            Value::Array(arr) => {
+                for item in arr {
+                    if let Value::String(s) = item {
+                        process_single_image(s);
+                    }
+                }
+            }
+            _ => {
+                // If the value is neither a string nor an array, do nothing.
+            }
         }
 
-        // Convert the original path to a Base64 Data URL for embedding in the infobox preview.
-        let processed_src = self.convert_image_path_to_data_url(relative_image_path);
-        map.insert("image".to_string(), Value::String(processed_src));
+        // Remove the original 'image' key and insert the new processed arrays.
+        map.remove("image");
+        map.insert("images".to_string(), Value::Array(images_data_urls));
+        map.insert(
+            "image_paths".to_string(),
+            Value::Array(image_absolute_paths),
+        );
     }
 
     /// Processes an image source path, returning a Base64 Data URL.
@@ -193,8 +213,16 @@ impl Renderer {
         sanitizer::sanitize_json_values(frontmatter);
 
         if let Value::Object(map) = frontmatter {
+            // Clone the image value before iterating, to avoid borrowing issues while mutating the map.
+            let image_value = map.get("image").cloned();
+
             // Process custom syntax in all string and array-of-string values
-            for (_, value) in map.iter_mut() {
+            for (key, value) in map.iter_mut() {
+                // Skip the image key for now, it will be handled separately.
+                if key == "image" {
+                    continue;
+                }
+
                 if let Value::String(s) = value {
                     *value = Value::String(self.render_frontmatter_string_as_html(s));
                 } else if let Value::Array(arr) = value {
@@ -206,9 +234,9 @@ impl Renderer {
                 }
             }
 
-            // Specifically process the 'image' field for the infobox.
-            if let Some(Value::String(relative_image_path)) = map.get("image").cloned() {
-                self.process_infobox_image(map, &relative_image_path);
+            // Now, specifically process the 'image' field for the infobox.
+            if let Some(value) = image_value {
+                self.process_infobox_images(map, &value);
             }
         }
     }
@@ -784,7 +812,7 @@ A normal link for comparison: [[Page One]].
         // The expected HTML now asserts that wikilinks ARE rendered inside
         // indented and fenced code blocks, but NOT inside inline code.
         let expected_html = format!(
-            "<p>Case 1: Indented with 4 spaces</p>\n<pre><code><a href=\"#\" class=\"internal-link\" data-path=\"{0}\">Page One</a>\n</code></pre>\n<p>Case 2: Fenced with backticks</p>\n<pre><code><a href=\"#\" class=\"internal-link\" data-path=\"{0}\">Page One</a>\n</code></pre>\n<p>Case 3: Inline with single backticks <code>[[Page One]]</code>.</p>\n<p>A normal link for comparison: <a href=\"#\" class=\"internal-link\" data-path=\"{0}\">Page One</a>.</p>\n",
+            "<p>Case 1: Indented with 4 spaces</p>\n<pre><code><a href=\"#\" class=\"internal-link\" data-path=\"{0}\">Page One</a>\n</code></pre>\n<p>Case 2: Fenced with backticks</p>\n<pre><code><a href=\"#\" class=\"internal-link\" data-path=\"{0}\">Page One</a>\n</code></pre>\n<p>Case 3: Inline with single backticks `[[Page One]]`.</p>\n<p>A normal link for comparison: <a href=\"#\" class=\"internal-link\" data-path=\"{0}\">Page One</a>.</p>\n",
             expected_path_str
         );
 
