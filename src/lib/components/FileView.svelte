@@ -137,7 +137,7 @@
                         onclick={() => ($isTocVisible = !$isTocVisible)}
                         title="Toggle Table of Contents"
                     >
-                        📖 Contents
+                        📑 Contents
                     </Button>
                 {/if}
 
@@ -155,19 +155,46 @@
                     </Button>
                 {/if}
 
-                {#if $fileViewMode === "split"}
-                    <Button
-                        size="small"
-                        onclick={() => ($fileViewMode = "preview")}
-                    >
-                        📖 Preview Only
-                    </Button>
-                {:else}
+                <!-- View Mode Controls -->
+                {#if $fileViewMode === "preview"}
                     <Button
                         size="small"
                         onclick={() => ($fileViewMode = "split")}
+                        title="Edit"
                     >
-                        ✏️ Edit
+                        📝 Edit
+                    </Button>
+                {/if}
+                {#if $fileViewMode === "split"}
+                    <Button
+                        size="small"
+                        onclick={() => ($fileViewMode = "editor")}
+                        title="Editor Only"
+                    >
+                        📄 Editor Only
+                    </Button>
+                    <Button
+                        size="small"
+                        onclick={() => ($fileViewMode = "preview")}
+                        title="Preview Only"
+                    >
+                        👁️ Preview Only
+                    </Button>
+                {/if}
+                {#if $fileViewMode === "editor"}
+                    <Button
+                        size="small"
+                        onclick={() => ($fileViewMode = "split")}
+                        title="Split View"
+                    >
+                        ◧ Split View
+                    </Button>
+                    <Button
+                        size="small"
+                        onclick={() => ($fileViewMode = "preview")}
+                        title="Preview Only"
+                    >
+                        👁️ Preview Only
                     </Button>
                 {/if}
             </div>
@@ -192,6 +219,10 @@
                             mode="split"
                         />
                     </div>
+                </div>
+            {:else if $fileViewMode === "editor"}
+                <div class="unified-editor-pane">
+                    <Editor bind:content={pageData.raw_content} />
                 </div>
             {:else}
                 <div class="unified-preview-pane">
@@ -256,6 +287,13 @@
         min-width: 0; /* Allows the pane to shrink */
         position: relative; /* Context for the absolute wrapper */
         height: 100%;
+    }
+
+    .unified-editor-pane {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        overflow-y: auto;
     }
 
     .editor-pane {

@@ -26,9 +26,10 @@ export type ViewState =
 export const currentView: Writable<ViewState> = writable({ type: "welcome" });
 
 /**
- * This store manages the view mode (split or preview) for files.
+ * This store manages the view mode (split, preview, or editor) for files.
  */
-export const fileViewMode: Writable<"preview" | "split"> = writable("preview");
+export const fileViewMode: Writable<"preview" | "split" | "editor"> =
+    writable("preview");
 
 // --- Right Sidebar State ---
 
