@@ -9,7 +9,7 @@ use crate::models::{BrokenLink, FullPageData, PageHeader};
 use crate::{
     config,
     error::Result,
-    importer,
+    fonts, importer,
     models::{FileNode, RenderedPage},
     template,
     world::World,
@@ -307,4 +307,13 @@ pub fn write_template(app_handle: AppHandle, name: String, content: String) -> R
 #[instrument]
 pub fn delete_template(path: String) -> Result<()> {
     template::delete_template(&PathBuf::from(path))
+}
+
+// --- Custom Fonts ---
+
+/// Scans the application's config directory for user-provided font files.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn get_user_fonts(app_handle: AppHandle) -> Result<Vec<fonts::UserFont>> {
+    fonts::get_user_fonts(&app_handle)
 }

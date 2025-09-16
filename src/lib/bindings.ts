@@ -119,3 +119,14 @@ export interface BrokenLink {
     /** A list of all pages that contain a link to this target. */
     sources: PageHeader[];
 }
+
+/**
+ * Represents a single user-provided font, prepared for frontend consumption.
+ * This mirrors the `UserFont` struct in `src-tauri/src/fonts.rs`.
+ */
+export interface UserFont {
+    /** The name of the font, derived from its filename (e.g., "FiraCode-Regular"). */
+    name: string;
+    /** The full Base64-encoded Data URI of the font file. */
+    base64: string;
+}

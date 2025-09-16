@@ -6,6 +6,7 @@
     import {
         activeTheme,
         userThemes,
+        userFonts,
         setActiveTheme,
         saveCustomTheme,
         deleteCustomTheme,
@@ -22,6 +23,13 @@
     // --- State ---
     let currentTheme: CustomTheme | null = $state(null);
     let originalName: ThemeName | null = $state(null);
+
+    // --- Derived State ---
+    /** A reactive list that combines the built-in fonts with the loaded user fonts. */
+    const allAvailableFonts = $derived([
+        ...AVAILABLE_FONTS,
+        ...$userFonts.map((f) => ({ name: f.name, value: `"${f.name}"` })),
+    ]);
 
     // --- Constants ---
     const colorLabels: Record<keyof ThemePalette, string> = {
@@ -216,7 +224,7 @@
                             class="font-select"
                             bind:value={currentTheme.fontFamilyHeading}
                         >
-                            {#each AVAILABLE_FONTS as font (font.value)}
+                            {#each allAvailableFonts as font (font.value)}
                                 <option value={font.value}>{font.name}</option>
                             {/each}
                         </select>
@@ -228,7 +236,7 @@
                             class="font-select"
                             bind:value={currentTheme.fontFamilyBody}
                         >
-                            {#each AVAILABLE_FONTS as font (font.value)}
+                            {#each allAvailableFonts as font (font.value)}
                                 <option value={font.value}>{font.name}</option>
                             {/each}
                         </select>
