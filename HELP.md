@@ -87,6 +87,39 @@ notes: |
   It can also contain wikilinks like [[Example Page]] or spoilers like ||secret||.
 ```
 
+### ✍️ Inline Markdown in Field Values
+
+Field values in the YAML frontmatter support **inline Markdown** formatting.
+This means you can use emphasis like `**bold**`, `*italics*` etc., links, and even embed images.
+
+For example:
+
+```yaml
+motto: '*Strength and Honor*'
+homepage: '[Official Site](https://example.com)'
+```
+
+### 🖼🗺 Inline Images
+
+You can embed small images directly inside field values. This is especially useful for flags, icons, or emblems that should appear next to text in the infobox.
+
+- All image syntaxes are supported:
+  - Wikilink: `![[lynorian-flag.png]]` (✅ recommended for simplicity)
+  - Markdown: `![Alt text](lynorian-flag.png)`
+  - HTML: `<img src="lynorian-flag.jpg">`
+
+- Images must be relative to the `images/` folder in the vault root (see below).
+
+- Inline images automatically scale to match the surrounding font size and align with text, making them perfect for inline symbols.
+
+Example:
+
+```yaml
+allegiance: 'Lynorian Empire ![[lynorian-flag.png]]'
+```
+
+This will render the Lynorian Empire’s flag icon inline with the text in the infobox.
+
 ---
 
 ## 🏷️ Tags
