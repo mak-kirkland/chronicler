@@ -14,6 +14,7 @@ import type {
     RenderedPage,
     TagMap,
     BrokenLink,
+    UserFont,
 } from "./bindings";
 
 // --- Vault Commands ---
@@ -273,3 +274,11 @@ export const writeTemplate = (name: string, content: string) =>
  */
 export const deleteTemplate = (path: string) =>
     invoke<void>("delete_template", { path });
+
+// --- Custom Font Commands ---
+
+/**
+ * Scans the application's config directory for user-provided font files.
+ * @returns A promise that resolves to an array of UserFont objects.
+ */
+export const getUserFonts = () => invoke<UserFont[]>("get_user_fonts");

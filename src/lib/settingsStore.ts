@@ -10,6 +10,7 @@
 import { writable, get } from "svelte/store";
 import { LazyStore } from "@tauri-apps/plugin-store";
 import { join } from "@tauri-apps/api/path";
+import { getUserFonts } from "$lib/commands";
 
 import { SIDEBAR_INITIAL_WIDTH } from "$lib/config";
 
@@ -92,6 +93,12 @@ export interface CustomTheme {
     fontFamilyBody?: string;
 }
 
+/** Represents a user-loaded font from the backend. */
+export interface UserFont {
+    name: string;
+    base64: string; // This is a full Data URI
+}
+
 // --- Store Management ---
 
 // Use LazyStore to prevent SSR issues. It will only load when first accessed.
@@ -106,6 +113,8 @@ const VAULT_SETTINGS_FILENAME = ".chronicler.vault.json";
 
 // Global Stores
 export const userThemes = writable<CustomTheme[]>([]);
+/** A store to hold the list of custom fonts loaded from the user's config directory. */
+export const userFonts = writable<UserFont[]>([]);
 
 // Per-Vault Stores
 export const activeTheme = writable<ThemeName>("light");
@@ -257,6 +266,52 @@ export function deleteCustomTheme(themeName: ThemeName) {
     if (get(activeTheme) === themeName) {
         activeTheme.set("light");
     }
+}
+
+/**
+ * Fetches user fonts from the backend and injects them into the document as
+ * usable @font-face rules. This should be called once on app startup.
+ */
+export async function loadUserFonts() {
+    try {
+        // Call the thin API layer instead of invoking directly.
+        const fonts = await getUserFonts();
+        userFonts.set(fonts);
+        injectFontFaces(fonts);
+    } catch (e) {
+        console.error("Failed to load user fonts:", e);
+    }
+}
+
+/**
+ * Creates a <style> tag in the document's head and populates it with
+ * @font-face rules for each custom font, making them available to CSS.
+ * @param fonts The list of user fonts from the backend.
+ */
+function injectFontFaces(fonts: UserFont[]) {
+    const styleId = "chronicler-user-fonts";
+    // Avoid creating duplicate style tags on hot-reload etc.
+    let styleElement = document.getElementById(styleId);
+
+    if (!styleElement) {
+        styleElement = document.createElement("style");
+        styleElement.id = styleId;
+        document.head.appendChild(styleElement);
+    }
+
+    // Generate a CSS rule for each font.
+    const fontFaceRules = fonts
+        .map(
+            (font) => `
+        @font-face {
+            font-family: "${font.name}";
+            src: url(${font.base64});
+        }
+    `,
+        )
+        .join("\n");
+
+    styleElement.innerHTML = fontFaceRules;
 }
 
 /**
