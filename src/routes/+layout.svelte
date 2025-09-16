@@ -17,6 +17,7 @@
         themeRefresher,
         THEME_PALETTE_KEYS,
         sidebarWidth,
+        loadUserFonts,
     } from "$lib/settingsStore";
     import { licenseStore } from "$lib/licenseStore";
     import { openModal } from "$lib/modalStore";
@@ -39,6 +40,8 @@
     $effect(() => {
         // Kick off the main application startup sequence once.
         initializeApp();
+        // Also load and inject any custom user fonts.
+        loadUserFonts();
     });
 
     // --- Donation Prompt on Close ---

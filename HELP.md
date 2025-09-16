@@ -251,6 +251,29 @@ You can also use **standard HTML `<table>` tags** to create more complex tables 
 
 ---
 
+## 🎨 Customizing Appearance
+
+### 🌈 Themes
+
+You can change the application's look and feel by going to **Settings**. Here you can switch between built-in themes, adjust the font size, or create your own custom themes with the Theme Editor.
+
+### 🖋 Custom Fonts
+
+Chronicler allows you to use your own font files for a truly custom appearance.
+
+**How to add custom fonts:**
+
+1. Find the application settings directory for your OS:
+  - Windows: `%AppData%\io.github.mak-kirkland.chronicler\`
+  - Linux: `~/.local/share/io.github.mak-kirkland.chronicler/`
+  - macOS: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
+
+2. Copy your desired font files (.woff2, .ttf, or .otf formats are supported) into the **fonts** folder within the settings directory.
+
+3. Restart Chronicler: The next time you open the application, your custom fonts will be available to select in the Theme Editor.
+
+---
+
 ## 📥 Importing Word Docs
 
 You can import `.docx` files from Microsoft Word directly into your vault.

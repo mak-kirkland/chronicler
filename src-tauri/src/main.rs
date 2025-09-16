@@ -15,6 +15,7 @@ mod commands;
 mod config;
 mod error;
 mod events;
+mod fonts; // Add the new fonts module
 mod importer;
 mod indexer;
 mod licensing;
@@ -95,6 +96,7 @@ fn main() {
             commands::write_template,
             commands::delete_template,
             commands::get_all_broken_links,
+            commands::get_user_fonts, // Register the new command
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);
