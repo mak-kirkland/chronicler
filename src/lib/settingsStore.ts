@@ -18,6 +18,12 @@ import { SIDEBAR_INITIAL_WIDTH } from "$lib/config";
 /** Defines the shape of the GLOBAL settings object saved to disk. */
 interface GlobalSettings {
     userThemes: CustomTheme[];
+    /**
+     * The name of the last active theme.
+     * Storing this globally allows the app to load the correct theme
+     * immediately on startup, before any vault-specific settings are loaded.
+     */
+    lastActiveTheme?: ThemeName;
 }
 
 /** Defines the shape of the PER-VAULT settings object saved to disk. */
@@ -116,6 +122,9 @@ async function saveGlobalSettings() {
     if (!globalSettingsFile) return;
     const settings: GlobalSettings = {
         userThemes: get(userThemes),
+        // By saving the active theme here, we persist it across sessions
+        // and between opening/closing vaults.
+        lastActiveTheme: get(activeTheme),
     };
     await globalSettingsFile.set("globalSettings", settings);
     await globalSettingsFile.save();
@@ -150,9 +159,15 @@ export async function loadGlobalSettings() {
         await globalSettingsFile.get<GlobalSettings>("globalSettings");
     if (settings) {
         userThemes.set(settings.userThemes ?? []);
+        // Load the last used theme from the global settings file. This ensures
+        // the theme is applied immediately on startup, even before a vault is chosen.
+        activeTheme.set(settings.lastActiveTheme ?? "light");
     }
     // Enable automatic saving for global settings.
     userThemes.subscribe(debouncedGlobalSave);
+    // Also subscribe the activeTheme to the global saver. This is the key
+    // to persisting the theme when it's changed.
+    activeTheme.subscribe(debouncedGlobalSave);
 }
 
 /**
@@ -166,10 +181,16 @@ export async function initializeVaultSettings(vaultPath: string) {
     const settings =
         await vaultSettingsFile.get<VaultSettings>("vaultSettings");
     if (settings) {
+        // Once a vault is loaded, its specific settings take precedence.
         activeTheme.set(settings.activeTheme ?? "light");
         fontSize.set(settings.fontSize ?? 100);
         sidebarWidth.set(settings.sidebarWidth ?? SIDEBAR_INITIAL_WIDTH);
         isTocVisible.set(settings.isTocVisible ?? true); // Fallback to true
+    } else {
+        // If the vault has no settings file, it should adopt the current theme.
+        // We immediately save the current settings to create the vault file,
+        // ensuring consistency.
+        saveVaultSettings();
     }
 
     // Enable automatic saving for vault settings.
@@ -185,7 +206,10 @@ export async function initializeVaultSettings(vaultPath: string) {
 export function destroyVaultSettings() {
     // Unsubscribe from automatic saving by replacing the stores.
     // This is simpler than managing unsubscribe functions for this use case.
-    activeTheme.set("light");
+
+    // Do NOT reset the theme here. By leaving the activeTheme store untouched,
+    // the theme will persist on the vault selector screen.
+
     fontSize.set(100);
     sidebarWidth.set(SIDEBAR_INITIAL_WIDTH);
     isTocVisible.set(true); // Reset to default
