@@ -52,11 +52,13 @@ pub fn sanitize_html(dirty_html: &str) -> String {
             "dd",      // Definition Description
             "details", // Collapsible details element
             "summary", // Summary for the details element
+            "kbd",     // Keyboard input
+            "abbr",    // Abbreviation
         ]))
         .add_tag_attributes("img", &["src", "data", "alt", "style", "width", "height"])
         .add_tag_attributes("figure", &["style"])
         .add_tag_attributes("figcaption", &["style"])
-        .add_tag_attributes("a", &["href", "title", "class", "data-path"])
+        .add_tag_attributes("a", &["href", "title", "class", "data-path", "data-target"])
         .add_tag_attributes("span", &["class"])
         .add_tag_attributes("details", &["open"])
         .add_tag_attributes("abbr", &["title"]) // Allow title for abbreviations
