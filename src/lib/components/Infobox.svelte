@@ -252,7 +252,6 @@
     }
     .infobox-subtitle {
         font-size: 1rem;
-        font-style: italic;
         /* Use a negative top margin to pull it closer to the title's bottom border */
         margin: -0.75rem 0 var(--space-md) 0;
         padding: 0;
