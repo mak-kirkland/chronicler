@@ -495,14 +495,14 @@ impl Indexer {
             .into_iter()
             .map(|(target, sources_set)| {
                 let mut sources: Vec<PageHeader> = sources_set.into_iter().collect();
-                // Sort the source pages alphabetically by title for consistent display.
-                sources.sort_by_key(|p| p.title.to_lowercase());
+                // Sort the source pages by title using natural ordering.
+                sources.sort_by(|a, b| nat_compare(&a.title, &b.title));
                 BrokenLink { target, sources }
             })
             .collect();
 
-        // Sort the final list of broken links alphabetically by their target name.
-        result.sort_by_key(|bl| bl.target.to_lowercase());
+        // Sort the final list of broken links by their target name using natural ordering.
+        result.sort_by(|a, b| nat_compare(&a.target, &b.target));
 
         Ok(result)
     }
