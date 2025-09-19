@@ -106,7 +106,7 @@
         const tree = $files;
         if ($isWorldLoaded && tree && !findFileInTree(tree, file.path)) {
             console.log(
-                `Current file ${file.path} not found in tree after update. Closing view.`,
+                `Current file ${file.path} not found in tree. Closing view.`,
             );
             currentView.set({ type: "welcome" });
         }
