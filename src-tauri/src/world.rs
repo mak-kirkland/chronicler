@@ -346,7 +346,8 @@ impl World {
     }
 
     /// Renames a file or folder in-place and synchronously updates the index.
-    pub fn rename_path(&self, path: PathBuf, new_name: String) -> Result<()> {
+    /// Returns the new path of the renamed item.
+    pub fn rename_path(&self, path: PathBuf, new_name: String) -> Result<PathBuf> {
         let writer = self
             .writer
             .read()
@@ -370,14 +371,16 @@ impl World {
             .write()
             .handle_event_and_rebuild(&FileEvent::Renamed {
                 from: path,
-                to: new_path,
+                to: new_path.clone(), // Clone the new path for the event
             });
 
-        Ok(())
+        // Return the new path to the caller (and ultimately the frontend).
+        Ok(new_path)
     }
 
     /// Moves a file or folder to a new directory, updating links and the index.
-    pub fn move_path(&self, source_path: PathBuf, dest_dir: PathBuf) -> Result<()> {
+    /// Returns the new path of the moved item.
+    pub fn move_path(&self, source_path: PathBuf, dest_dir: PathBuf) -> Result<PathBuf> {
         let writer = self
             .writer
             .read()
@@ -402,10 +405,11 @@ impl World {
             .write()
             .handle_event_and_rebuild(&FileEvent::Renamed {
                 from: source_path,
-                to: new_path,
+                to: new_path.clone(), // Clone the new path for the event
             });
 
-        Ok(())
+        // Return the new path to the caller.
+        Ok(new_path)
     }
 
     /// Deletes a file or folder and synchronously updates the index.

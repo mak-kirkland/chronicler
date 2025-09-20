@@ -123,12 +123,13 @@ export const createNewFolder = (parentDir: string, folderName: string) =>
     invoke<void>("create_new_folder", { parentDir, folderName });
 
 /**
- * Renames a file or folder in-place.
+ * Renames a file or folder in-place and returns its new path.
  * @param path The current path of the item to rename.
  * @param newName The new name for the item.
+ * @returns A promise that resolves to the new path of the renamed item.
  */
 export const renamePath = (path: string, newName: string) =>
-    invoke<void>("rename_path", { path, newName });
+    invoke<string>("rename_path", { path, newName });
 
 /**
  * Deletes a file or folder.
@@ -138,14 +139,14 @@ export const deletePath = (path: string) =>
     invoke<void>("delete_path", { path });
 
 /**
- * Moves a file or folder to a new directory.
+ * Moves a file or folder to a new directory and returns its new path.
  * This command delegates path construction to the backend, making it platform-safe.
  * @param sourcePath The full path of the item to move.
  * @param destDir The full path of the target directory.
- * @returns A promise that resolves when the item has been moved.
+ * @returns A promise that resolves to the new path of the moved item.
  */
 export const movePath = (sourcePath: string, destDir: string) =>
-    invoke<void>("move_path", { sourcePath, destDir });
+    invoke<string>("move_path", { sourcePath, destDir });
 
 /**
  * Duplicates a page, creating a new file with a numerical suffix.

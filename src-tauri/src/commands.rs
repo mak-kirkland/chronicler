@@ -132,10 +132,10 @@ pub fn create_new_folder(
     world.create_new_folder(parent_dir, folder_name)
 }
 
-/// Renames a file or folder on disk (in-place) and updates the index.
+/// Renames a file or folder on disk, updates backlinks, and returns the new path.
 #[command]
 #[instrument(skip(world))]
-pub fn rename_path(world: State<World>, path: String, new_name: String) -> Result<()> {
+pub fn rename_path(world: State<World>, path: String, new_name: String) -> Result<PathBuf> {
     world.rename_path(PathBuf::from(path), new_name)
 }
 
@@ -146,10 +146,10 @@ pub fn delete_path(world: State<World>, path: String) -> Result<()> {
     world.delete_path(PathBuf::from(path))
 }
 
-/// Moves a file or folder to a new directory and updates the index and backlinks.
+/// Moves a file or folder to a new directory, updates backlinks, and returns the new path.
 #[command]
 #[instrument(skip(world))]
-pub fn move_path(world: State<World>, source_path: String, dest_dir: String) -> Result<()> {
+pub fn move_path(world: State<World>, source_path: String, dest_dir: String) -> Result<PathBuf> {
     world.move_path(PathBuf::from(source_path), PathBuf::from(dest_dir))
 }
 

@@ -8,6 +8,9 @@ import type { FileNode } from "./bindings";
 import { resolveResource } from "@tauri-apps/api/path";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 
+/** A list of common image file extensions. */
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
+
 /**
  * A helper function to check if a FileNode is a directory.
  * @param node The FileNode to check.
@@ -33,6 +36,26 @@ export function isMarkdown(node: FileNode): boolean {
  */
 export function isImage(node: FileNode): boolean {
     return node.file_type === "Image";
+}
+
+/**
+ * Checks if a given path string points to a Markdown file based on its extension.
+ * This is useful for client-side logic where we only have the path string.
+ * @param path The file path string.
+ * @returns True if the path ends with .md (case-insensitive).
+ */
+export function isMarkdownFile(path: string): boolean {
+    return path.toLowerCase().endsWith(".md");
+}
+
+/**
+ * Checks if a given path string points to a supported image file based on its extension.
+ * @param path The file path string.
+ * @returns True if the path has a recognized image extension.
+ */
+export function isImageFile(path: string): boolean {
+    const extension = path.split(".").pop()?.toLowerCase();
+    return extension ? IMAGE_EXTENSIONS.includes(extension) : false;
 }
 
 /**
