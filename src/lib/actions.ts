@@ -9,7 +9,7 @@ import { currentView, fileViewMode } from "./viewStores";
 import type { PageHeader } from "./bindings";
 // Import all commands under a 'commands' namespace to prevent naming conflicts.
 import * as commands from "./commands";
-import { getTitleFromPath } from "./utils";
+import { getTitleFromPath, isImageFile, isMarkdownFile } from "./utils";
 import { world } from "./worldStore";
 import NewPageModal from "./components/NewPageModal.svelte";
 import TextInputModal from "./components/TextInputModal.svelte";
@@ -168,14 +168,32 @@ export async function createFile(
 }
 
 /**
- * Renames a file or folder and then refreshes the world state to reflect the change.
+ * Renames a file or folder, refreshes the world state, and conditionally
+ * navigates the main view to the new path if the renamed item was open.
  * @param path The current path of the item to rename.
  * @param newName The new name for the item.
  */
 export async function renamePath(path: string, newName: string) {
     try {
-        await commands.renamePath(path, newName);
-        await world.initialize(); // Refresh data
+        // Before the operation, check if the file being renamed is the one currently open.
+        const view = get(currentView);
+        const wasFileOpen =
+            (view.type === "file" || view.type === "image") &&
+            view.data.path === path;
+
+        // Execute the rename command and get the new path from the backend.
+        const newPath = await commands.renamePath(path, newName);
+        await world.initialize(); // Refresh all data after the operation.
+
+        // If the file was open, navigate the view to its new path.
+        if (wasFileOpen) {
+            const newTitle = getTitleFromPath(newPath);
+            if (isMarkdownFile(newPath)) {
+                navigateToPage({ path: newPath, title: newTitle });
+            } else if (isImageFile(newPath)) {
+                navigateToImage({ path: newPath, title: newTitle });
+            }
+        }
     } catch (e) {
         console.error(`Rename failed for path: ${path}`, e);
         alert(`Error: ${e}`);
@@ -255,7 +273,8 @@ export function promptAndCreateItem(
 }
 
 /**
- * Moves a file or folder to a new directory.
+ * Moves a file or folder, refreshes the world state, and conditionally
+ * navigates the main view to the new path if the moved item was open.
  * @param sourcePath The full path of the item to move.
  * @param destinationDir The full path of the target directory.
  */
@@ -269,8 +288,25 @@ export async function movePath(sourcePath: string, destinationDir: string) {
     }
 
     try {
-        await commands.movePath(sourcePath, destinationDir);
+        // Before the operation, check if the file being moved is the one currently open.
+        const view = get(currentView);
+        const wasFileOpen =
+            (view.type === "file" || view.type === "image") &&
+            view.data.path === sourcePath;
+
+        // Execute the move command and get the new path.
+        const newPath = await commands.movePath(sourcePath, destinationDir);
         await world.initialize(); // Refresh data to show the move in the UI.
+
+        // If the file was open, navigate the view to its new path.
+        if (wasFileOpen) {
+            const newTitle = getTitleFromPath(newPath);
+            if (isMarkdownFile(newPath)) {
+                navigateToPage({ path: newPath, title: newTitle });
+            } else if (isImageFile(newPath)) {
+                navigateToImage({ path: newPath, title: newTitle });
+            }
+        }
     } catch (e) {
         console.error(
             `Move failed for source '${sourcePath}' to '${destinationDir}'`,
