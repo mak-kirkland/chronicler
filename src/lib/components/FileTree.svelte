@@ -3,7 +3,12 @@
     import type { ContextMenuHandler } from "$lib/types";
     import { currentView } from "$lib/viewStores";
     import { manuallyExpandedPaths } from "$lib/explorerStore";
-    import { promptAndCreateItem, movePath } from "$lib/actions";
+    import {
+        promptAndCreateItem,
+        movePath,
+        navigateToPage,
+        navigateToImage,
+    } from "$lib/actions";
     import { draggable, droppable } from "$lib/domActions";
     import FileTree from "./FileTree.svelte";
     import Button from "./Button.svelte";
@@ -23,25 +28,15 @@
     // A folder is expanded if we are searching OR if it's in our global set
     const expanded = $derived(isSearching || isManuallyExpanded);
 
-    /** Opens a markdown file in the main view. */
-    function openFile(file: PageHeader) {
-        currentView.set({ type: "file", data: file });
-    }
-
-    /** Opens an image file in the main view. */
-    function openImage(file: PageHeader) {
-        currentView.set({ type: "image", data: file });
-    }
-
     /**
      * Handles a click on any non-directory node, routing to the correct
      * view based on the file type. Note the capitalized enum variant names.
      */
     function handleNodeClick(node: FileNode) {
         if (isMarkdown(node)) {
-            openFile({ title: node.name, path: node.path });
+            navigateToPage({ title: node.name, path: node.path });
         } else if (isImage(node)) {
-            openImage({ title: node.name, path: node.path });
+            navigateToImage({ title: node.name, path: node.path });
         }
     }
 
