@@ -2,11 +2,29 @@
 //!
 //! Defines the page and file tree representations.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::path::PathBuf;
+
+/// A custom serialization function for `PathBuf` that guarantees forward slashes.
+///
+/// This function ensures that when a `PathBuf` is sent to the frontend, it's
+/// always in a web-standard format with forward slashes (`/`), regardless of the
+/// operating system. This creates a consistent and predictable API contract with
+/// the TypeScript frontend.
+fn serialize_pathbuf_as_web_str<S>(path: &PathBuf, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let path_str = path.to_string_lossy().to_string();
+    #[cfg(windows)]
+    let web_path = path_str.replace('\\', "/");
+    #[cfg(not(windows))]
+    let web_path = path_str;
+    serializer.serialize_str(&web_path)
+}
 
 /// Represents the location of a link within a source file.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -105,6 +123,7 @@ impl Ord for FileType {
 #[derive(Debug, Serialize, Clone)]
 pub struct FileNode {
     pub name: String,
+    #[serde(serialize_with = "serialize_pathbuf_as_web_str")]
     pub path: PathBuf,
     pub file_type: FileType,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -116,6 +135,7 @@ pub struct FileNode {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PageHeader {
     pub title: String,
+    #[serde(serialize_with = "serialize_pathbuf_as_web_str")]
     pub path: PathBuf,
 }
 
@@ -123,6 +143,7 @@ pub struct PageHeader {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Backlink {
     pub title: String,
+    #[serde(serialize_with = "serialize_pathbuf_as_web_str")]
     pub path: PathBuf,
     pub count: usize,
 }
