@@ -63,6 +63,12 @@ fn get_mime_type(filename: &str) -> &str {
     }
 }
 
+/// Converts a `Path` or `PathBuf` into a web-standard string with forward slashes.
+/// This ensures consistency in all path data sent to the frontend.
+fn path_to_web_str(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
 impl Renderer {
     /// Creates a new Renderer.
     pub fn new(indexer: Arc<RwLock<Indexer>>, vault_path: PathBuf) -> Self {
@@ -305,10 +311,10 @@ impl Renderer {
                 let normalized_target = target.to_lowercase();
 
                 if let Some(path) = indexer.link_resolver.get(&normalized_target) {
+                    let web_path = path_to_web_str(path);
                     format!(
                         "<a href=\"#\" class=\"internal-link\" data-path=\"{}\">{}</a>",
-                        path.to_string_lossy(),
-                        alias
+                        web_path, alias
                     )
                 } else {
                     format!(
@@ -671,7 +677,7 @@ mod tests {
         let content = "Link to [[Page One]] and a ||spoiler||.";
         let rendered = renderer.render_custom_syntax_in_string(content);
 
-        let expected_path_str = page1_path.to_string_lossy();
+        let expected_path_str = path_to_web_str(&page1_path);
         let expected = format!(
             "Link to <a href=\"#\" class=\"internal-link\" data-path=\"{}\">Page One</a> and a <span class=\"spoiler\">spoiler</span>.",
             expected_path_str
@@ -690,7 +696,7 @@ description: "**Bold with a [[Page One]] link**"
 Body
 "#;
         let result = renderer.render_page_preview(content).unwrap();
-        let expected_path_str = page1_path.to_string_lossy();
+        let expected_path_str = path_to_web_str(&page1_path);
 
         assert_eq!(
             result.processed_frontmatter["title"],
@@ -712,7 +718,7 @@ Body
         let content = "---\ntitle: Test\nrelation: 'A link to [[Page One]]'\n---\nBody content with [[Page One|an alias]].".to_string();
 
         let result = renderer.render_page_preview(&content).unwrap();
-        let expected_path_str = page1_path.to_string_lossy();
+        let expected_path_str = path_to_web_str(&page1_path);
 
         // Check frontmatter
         assert_eq!(result.processed_frontmatter["title"], "Test");
@@ -807,7 +813,7 @@ A normal link for comparison: [[Page One]].
 "#;
 
         let (body_html, _, _) = renderer.render_body_to_html_with_toc(content);
-        let expected_path_str = page1_path.to_string_lossy();
+        let expected_path_str = path_to_web_str(&page1_path);
 
         // The expected HTML now asserts that wikilinks ARE rendered inside
         // indented and fenced code blocks, but NOT inside inline code.
@@ -828,8 +834,8 @@ A normal link to [[Page One]].
 A spoiler with a ||secret [[link]] inside||.
 "#;
         let (body_html, _, _) = renderer.render_body_to_html_with_toc(content);
-        let page1_path_str = page1_path.to_string_lossy();
-        let link_path_str = link_path.to_string_lossy();
+        let page1_path_str = path_to_web_str(&page1_path);
+        let link_path_str = path_to_web_str(&link_path);
 
         let expected_html = format!(
             "<p>A normal link to <a href=\"#\" class=\"internal-link\" data-path=\"{0}\">Page One</a>.\nA spoiler with a <span class=\"spoiler\">secret <a href=\"#\" class=\"internal-link\" data-path=\"{1}\">link</a> inside</span>.</p>\n",
