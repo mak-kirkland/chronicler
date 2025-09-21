@@ -127,22 +127,22 @@
                             onclick={prevImage}
                             aria-label="Previous image"
                         >
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path
+                            <svg viewBox="0 0 24 24" fill="currentColor"
+                                ><path
                                     d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
-                                ></path>
-                            </svg>
+                                ></path></svg
+                            >
                         </button>
                         <button
                             class="carousel-button next"
                             onclick={nextImage}
                             aria-label="Next image"
                         >
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path
+                            <svg viewBox="0 0 24 24" fill="currentColor"
+                                ><path
                                     d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"
-                                ></path>
-                            </svg>
+                                ></path></svg
+                            >
                         </button>
                         <div class="carousel-dots">
                             {#each data.images as _, i}
