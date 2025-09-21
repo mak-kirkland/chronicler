@@ -173,7 +173,7 @@ impl Renderer {
                 let data_url = self.convert_image_path_to_data_url(&final_path);
 
                 // Reconstruct the img tag with the new data URL
-                format!("<img src=\"{}\"", data_url)
+                format!(r#"<img src="{}" class="embedded-image""#, data_url)
             })
             .to_string()
     }
@@ -295,7 +295,7 @@ impl Renderer {
             // Generate the simple <img> tag with the given path.
             // This will then be handled by the `process_body_image_tags` post-processor.
             format!(
-                r#"<img src="{}" alt="{}" class="embedded-image">"#,
+                r#"<img src="{}" alt="{}">"#,
                 // Use the normalized path directly as the src
                 path_str,
                 html_escape::encode_double_quoted_attribute(alt_text)

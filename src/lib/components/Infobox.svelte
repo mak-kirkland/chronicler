@@ -386,7 +386,7 @@
         margin: 0;
         padding-left: 1.2rem;
     }
-    dd :global(.embedded-image) {
+    .infobox :global(.embedded-image) {
         height: 1.2em;
         vertical-align: middle;
         margin-right: var(--space-xs);
