@@ -65,6 +65,7 @@ All frontmatter fields are optional. There are four fields that have special beh
 | `infobox`  | Header text below the infobox image |
 | `tags`     | List of tags for categorization |
 | `image`    | Image shown in the infobox (see below) |
+| `layout`   | Define specific layout rules like headers and columns (see below) |
 
 You can add any custom fields you want (e.g `height`, `age`, `capital`, `population` etc.). Any field that is not one of the four special fields above will be automatically added as a row in the infobox, giving you a flexible way to display structured data.
 
@@ -119,6 +120,61 @@ allegiance: 'Lynorian Empire ![[lynorian-flag.png]]'
 ```
 
 This will render the Lynorian Empire’s flag icon inline with the text in the infobox.
+
+### 🪄 Layout - Advanced Infobox Layout Control
+
+By default, infobox fields are displayed in the order they appear in your frontmatter. For more precise control, you can add an optional `layout` key. This allows you to inject headers and group fields into columns, creating a more professional, wiki-style infobox.
+
+The layout system works by **injecting** rules into the default flow. Fields not mentioned in a layout rule will still appear in their original position.
+
+#### Adding Headers
+
+You can insert a centered header above any field.
+
+* `type: header`: Defines the rule as a header.
+* `text: 'Your Text'`: The text to display in the header.
+* `position: { above: 'field_name' }`: Specifies that this header should be injected immediately before `field_name` is rendered.
+
+#### Grouping Fields into Columns
+
+You can group multiple fields to be displayed side-by-side in columns. This is ideal for "Belligerents" or "Commanders" in a battle, for example.
+
+* `type: group`: Defines the rule as a group.
+* `render_as: columns`: Specifies that the group should be rendered as columns.
+* `keys: [field1, field2]`: A list of the frontmatter keys to include in the group. The group will be rendered at the position of the *first* key (`field1`), and all keys in the list will be consumed by the group.
+
+#### Full Example
+
+Here is a complete example demonstrating both headers and column groups.
+
+```yaml
+---
+title: Battle of the Somme
+date: 1 July – 18 November 1916
+belligerents_allies: ["United Kingdom", "France"]
+belligerents_central: ["German Empire"]
+commander_allies: ["Douglas Haig", "Ferdinand Foch"]
+commander_central: ["Erich von Falkenhayn", "Max von Gallwitz"]
+
+layout:
+  - type: header
+    text: Belligerents
+    position:
+      above: belligerents_allies
+  - type: group
+    render_as: columns
+    keys:
+      - belligerents_allies
+      - belligerents_central
+  - type: header
+    text: Commanders and leaders
+    position:
+      above: commander_allies
+  - type: group
+    render_as: columns
+    keys:
+      - commander_allies
+      - commander_central
 
 ---
 

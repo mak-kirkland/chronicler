@@ -1,19 +1,12 @@
 <script lang="ts">
     import { navigateToTag, navigateToImage } from "$lib/actions";
     import ErrorBox from "./ErrorBox.svelte";
-
-    // --- Types ---
-    type InfoboxData = {
-        title?: string;
-        subtitle?: string;
-        images?: string[]; // Base64 data URLs for the carousel
-        image_paths?: string[]; // Absolute file paths for opening in viewer
-        infobox?: string;
-        error?: string;
-        details?: string; // Error details
-        tags?: string[];
-        [key: string]: any; // Allow other dynamic properties from frontmatter
-    };
+    import type {
+        InfoboxData,
+        LayoutHeader,
+        LayoutGroup,
+        RenderItem,
+    } from "$lib/types";
 
     // --- Props ---
     let { data } = $props<{
@@ -22,7 +15,12 @@
 
     // --- State ---
     let currentImageIndex = $state(0);
-    let filteredData = $state<[string, any][]>([]);
+    /**
+     * This state variable holds the final, structured list of items to be rendered.
+     * It's built by the $effect hook, which processes the raw `data` prop and
+     * applies the custom `layout` rules.
+     */
+    let renderItems = $state<RenderItem[]>([]);
 
     // --- Derived State ---
     const hasCarousel = $derived(data?.images && data.images.length > 1);
@@ -59,16 +57,20 @@
 
     // --- Effects ---
     $effect(() => {
-        // Reset image index when data source changes
-        currentImageIndex = 0;
+        // This effect is the core of the dynamic layout logic. It runs whenever the
+        // `data` prop changes and transforms the raw frontmatter into a structured
+        // list of `RenderItem` objects that the template can easily display.
+
+        currentImageIndex = 0; // Reset image index on data change
 
         if (!data || typeof data !== "object") {
-            filteredData = [];
+            renderItems = [];
             return;
         }
 
-        // These keys are handled separately in the template, so we filter them out.
-        const excludedKeys = [
+        // Define keys that are handled by dedicated UI elements (like the title,
+        // image carousel, and tags) and should be excluded from the main data list.
+        const excludedKeys = new Set([
             "title",
             "subtitle",
             "tags",
@@ -77,18 +79,72 @@
             "image_paths",
             "error",
             "details", // Error details
-        ];
+            "layout", // The layout key itself is for rules, not display.
+        ]);
 
-        try {
-            // Get all other key-value pairs from the data object to display in the list.
-            const entries = Object.entries(data).filter(
-                ([key]) => !excludedKeys.includes(key),
-            );
-            filteredData = entries;
-        } catch (e) {
-            console.error("Error processing infobox data:", e, data);
-            filteredData = [];
+        // 1. Get all renderable key-value pairs from the frontmatter, preserving
+        //    their original order as defined in the YAML file.
+        const allEntries = Object.entries(data).filter(
+            ([key]) => !excludedKeys.has(key),
+        );
+
+        const layout = data.layout;
+        const finalItems: RenderItem[] = [];
+        const processedKeys = new Set<string>();
+
+        // 2. Pre-process layout rules into Maps for efficient O(1) lookups.
+        //    This avoids re-iterating the layout array for every frontmatter key.
+        const headerRules = new Map<string, LayoutHeader>();
+        const groupRules = new Map<string, LayoutGroup>();
+
+        if (layout && Array.isArray(layout)) {
+            for (const rule of layout) {
+                if (rule.type === "header" && rule.position?.above) {
+                    headerRules.set(rule.position.above, rule);
+                } else if (rule.type === "group" && rule.keys?.length > 0) {
+                    // A group rule is triggered by its *first* key.
+                    groupRules.set(rule.keys[0], rule);
+                }
+            }
         }
+
+        // 3. Iterate through the original frontmatter entries to build the final
+        //    render list, applying the injection rules as we go.
+        for (const [key, value] of allEntries) {
+            // Skip this key if it was already rendered as part of a group.
+            if (processedKeys.has(key)) {
+                continue;
+            }
+
+            // INJECTION POINT 1: Check if a header should be inserted *before* this key.
+            if (headerRules.has(key)) {
+                const rule = headerRules.get(key)!;
+                finalItems.push({ type: "header", text: rule.text });
+            }
+
+            // INJECTION POINT 2: Check if this key is the trigger for a group.
+            if (groupRules.has(key)) {
+                const rule = groupRules.get(key)!;
+                const groupValues: any[] = [];
+
+                // Collect all values specified in the group rule.
+                for (const groupKey of rule.keys) {
+                    if (data[groupKey] !== undefined) {
+                        groupValues.push(data[groupKey]);
+                        processedKeys.add(groupKey); // Mark key as processed.
+                    }
+                }
+                finalItems.push({
+                    type: "group",
+                    render_as: rule.render_as,
+                    items: groupValues,
+                });
+            } else {
+                // If the key is not part of any special rule, render it as a default item.
+                finalItems.push({ type: "default", item: [key, value] });
+            }
+        }
+        renderItems = finalItems;
     });
 </script>
 
@@ -170,34 +226,51 @@
                 <h4>{@html data.infobox}</h4>
             {/if}
 
+            <!-- The main definition list for key-value pairs. -->
             <dl>
-                <!--
-                  Add unique key to prevent error from duplicate fields in its frontmatter.
-                -->
-                {#each filteredData as [key, value], i (`${key}-${i}`)}
-                    <dt>{key}</dt>
-                    <dd>
-                        {#if Array.isArray(value)}
-                            <ul>
-                                <!--
-                                  Add unique key to prevent error from duplicate values in a key
-                                -->
-                                {#each value as item, j (`${item}-${j}`)}
-                                    <li>{@html item}</li>
+                <!-- This loop iterates over the final, processed list of render items. -->
+                {#each renderItems as renderItem, i (`${renderItem.type}-${i}`)}
+                    {#if renderItem.type === "header"}
+                        <!-- Injected headers span the full width of the grid. -->
+                        <h4 class="layout-header">{@html renderItem.text}</h4>
+                    {:else if renderItem.type === "group"}
+                        <!-- Groups also span the full width to contain their own layout. -->
+                        <div class="layout-group-wrapper">
+                            <div class="layout-columns">
+                                {#each renderItem.items as value}
+                                    <div class="layout-column">
+                                        <span class="layout-column-value">
+                                            {#if Array.isArray(value)}
+                                                {#each value as v}<span
+                                                        >{@html v}</span
+                                                    >{/each}
+                                            {:else}
+                                                {@html value}
+                                            {/if}
+                                        </span>
+                                    </div>
                                 {/each}
-                            </ul>
-                        {:else}
-                            {@html value}
-                        {/if}
-                    </dd>
-                {:else}
-                    {#if data && !data.error && filteredData.length === 0 && (!data.tags || data.tags.length === 0)}
-                        <div class="no-fields-message text-muted text-center">
-                            No additional fields to display.
+                            </div>
                         </div>
+                    {:else if renderItem.type === "default"}
+                        <!-- Default items render as a standard key-value pair. -->
+                        {@const [key, value] = renderItem.item}
+                        <dt>{key}</dt>
+                        <dd>
+                            {#if Array.isArray(value)}
+                                <ul>
+                                    {#each value as item, j (`${item}-${j}`)}
+                                        <li>{@html item}</li>
+                                    {/each}
+                                </ul>
+                            {:else}
+                                {@html value}
+                            {/if}
+                        </dd>
                     {/if}
                 {/each}
 
+                <!-- Tags are always rendered at the end of the list. -->
                 {#if data?.tags && Array.isArray(data.tags) && data.tags.length > 0}
                     <dt>Tags</dt>
                     <dd class="tag-container">
@@ -215,6 +288,12 @@
                     </dd>
                 {/if}
             </dl>
+
+            {#if data && !data.error && renderItems.length === 0 && (!data.tags || data.tags.length === 0)}
+                <div class="no-fields-message text-muted text-center">
+                    No additional fields to display.
+                </div>
+            {/if}
         </div>
     </div>
 </div>
@@ -414,6 +493,43 @@
         transform: translateY(-1px);
         box-shadow: 0 2px 4px var(--color-overlay-subtle);
     }
+
+    /* --- User-defined Layout Styles --- */
+    .layout-header {
+        /* Headers span all columns of the parent DL grid. */
+        grid-column: 1 / -1;
+        font-family: var(--font-family-heading);
+        margin-top: var(--space-sm);
+        margin-bottom: var(--space-xs);
+        padding-bottom: var(--space-xs);
+        border-bottom: 1px solid var(--color-border-primary);
+        font-size: 0.95rem;
+    }
+    .layout-group-wrapper {
+        /* Groups also span all columns to contain their own layout context. */
+        grid-column: 1 / -1;
+        margin-bottom: var(--space-xs);
+        padding-bottom: var(--space-xs);
+        border-bottom: 1px solid var(--color-border-primary);
+    }
+    .layout-columns {
+        display: flex;
+        gap: var(--space-sm);
+        align-items: flex-start;
+        justify-content: space-around;
+    }
+    .layout-column {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+    }
+    .layout-column-value span {
+        /* In case the value is an array, stack the items vertically. */
+        display: block;
+    }
+
     /* --- Container Query for responsive layout --- */
     /* When the infobox container is wider than 480px, switch to a side-by-side layout */
     @container (width > 480px) {
