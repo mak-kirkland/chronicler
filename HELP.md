@@ -198,6 +198,12 @@ You can display an image in a page’s **infobox** by adding the `image` field t
 image: rivertown.jpg
 ```
 
+You can also create a carousel by providing multiple images:
+
+```yaml
+image: [rivertown_day.jpg, rivertown_night.jpg, rivertown_castle.jpg]
+```
+
 There are three supported ways to specify the image path:
 
 - ✅ **Relative to the `images/` folder** (recommended)
