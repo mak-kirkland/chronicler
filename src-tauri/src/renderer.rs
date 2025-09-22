@@ -128,8 +128,6 @@ impl Renderer {
             }
         }
 
-        // Remove the original 'image' key and insert the new processed arrays.
-        map.remove("image");
         map.insert("images".to_string(), Value::Array(images_data_urls));
         map.insert(
             "image_paths".to_string(),
@@ -219,31 +217,36 @@ impl Renderer {
         sanitizer::sanitize_json_values(frontmatter);
 
         if let Value::Object(map) = frontmatter {
-            // Clone the image value before iterating, to avoid borrowing issues while mutating the map.
-            let image_value = map.get("image").cloned();
+            // Take ownership of the original map's content, leaving the original empty.
+            let original_map = std::mem::take(map);
+            // Create a new map to hold the processed key-value pairs in the correct order.
+            let mut processed_map = Map::new();
 
-            // Process custom syntax in all string and array-of-string values
-            for (key, value) in map.iter_mut() {
-                // Skip the image key for now, it will be handled separately.
+            // Iterate over the key-value pairs from the original map, preserving their order.
+            for (key, value) in original_map {
                 if key == "image" {
-                    continue;
-                }
-
-                if let Value::String(s) = value {
-                    *value = Value::String(self.render_frontmatter_string_as_html(s));
-                } else if let Value::Array(arr) = value {
-                    for item in arr.iter_mut() {
-                        if let Value::String(s) = item {
-                            *item = Value::String(self.render_frontmatter_string_as_html(s));
+                    // When we encounter the 'image' key, process it immediately.
+                    // This function will add the 'images' and 'image_paths' keys
+                    // to our new `processed_map` at the correct position.
+                    self.process_infobox_images(&mut processed_map, &value);
+                } else {
+                    // For all other keys, process them and insert into the new map.
+                    let mut new_value = value;
+                    if let Value::String(s) = &new_value {
+                        new_value = Value::String(self.render_frontmatter_string_as_html(s));
+                    } else if let Value::Array(arr) = &mut new_value {
+                        for item in arr.iter_mut() {
+                            if let Value::String(s) = item {
+                                *item = Value::String(self.render_frontmatter_string_as_html(s));
+                            }
                         }
                     }
+                    processed_map.insert(key, new_value);
                 }
             }
 
-            // Now, specifically process the 'image' field for the infobox.
-            if let Some(value) = image_value {
-                self.process_infobox_images(map, &value);
-            }
+            // Replace the (now empty) original map with our correctly ordered processed map.
+            *map = processed_map;
         }
     }
 
