@@ -8,6 +8,8 @@
 )]
 
 use clap::Parser;
+use std::path::Path;
+use tauri::Manager; // Required for the app handle and runtime scope management.
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
 use world::World;
 
@@ -56,6 +58,27 @@ fn main() {
         // part of the state (e.g., renderer) won't block writes on
         // another (e.g., indexer).
         .manage(World::new())
+        // Add the .setup() hook here, before the plugins.
+        .setup(|app| {
+            // Get a handle to the app instance to access Tauri's APIs.
+            let app_handle = app.handle();
+
+            // On startup, we read the config file to see if a vault path was
+            // saved from a previous session.
+            if let Ok(Some(vault_path_str)) = config::get_vault_path(app_handle) {
+                let vault_path = Path::new(&vault_path_str);
+
+                // Dynamically allow the asset protocol to access the last-used
+                // vault directory. This grants the frontend permission to load
+                // images and other files from this specific folder via URLs like
+                // `asset://...`
+                app.asset_protocol_scope()
+                    .allow_directory(vault_path, true)?; // `true` for recursive access
+            }
+
+            // The setup was successful.
+            Ok(())
+        })
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_os::init())

@@ -29,7 +29,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info, instrument};
 
@@ -79,24 +79,35 @@ impl World {
     fn initialize(&self, root_path: &Path, app_handle: AppHandle) -> Result<()> {
         info!(path = %root_path.display(), "Initializing or changing vault.");
 
-        // --- 1. Perform Initial Scan on a new Indexer instance ---
+        // --- 1. Explicitly update the asset protocol scope ---
+        if let Err(e) = app_handle
+            .asset_protocol_scope()
+            .allow_directory(root_path, true)
+        {
+            // Log the error but don't hard-fail; the implicit
+            // behavior (from the tauri-plugin-dialog) might still
+            // work.
+            tracing::error!("Failed to update asset protocol scope: {}", e);
+        }
+
+        // --- 2. Perform Initial Scan on a new Indexer instance ---
         // This is done outside of any locks to avoid blocking other operations during the scan.
         let mut new_indexer_instance = Indexer::new(root_path);
         new_indexer_instance.scan_vault(root_path)?;
 
-        // --- 2. Start File Watcher ---
+        // --- 3. Start File Watcher ---
         let mut new_watcher = Watcher::new();
         new_watcher.start(root_path)?;
 
-        // --- 3. Subscribe to File Events ---
+        // --- 4. Subscribe to File Events ---
         let event_receiver = new_watcher.subscribe();
 
-        // --- 4. Create File System Writer and Renderer ---
+        // --- 5. Create File System Writer and Renderer ---
         let new_writer = Writer::new();
         // The Renderer is created here, now that we have the vault path.
         let new_renderer = Renderer::new(self.indexer.clone(), root_path.to_path_buf());
 
-        // --- 5. Lock and Update Shared State ---
+        // --- 6. Lock and Update Shared State ---
         // The lock scope is kept as short as possible.
         {
             // The watcher is replaced. The old watcher is dropped, automatically stopping its thread.
@@ -109,7 +120,7 @@ impl World {
             *self.renderer.write() = Some(new_renderer);
         }
 
-        // --- 6. Spawn Background Event Processing Task ---
+        // --- 7. Spawn Background Event Processing Task ---
         // The task is given its own handle to the world's state.
         let indexer_clone = self.indexer.clone();
         let writer_clone = self.writer.clone();

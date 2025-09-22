@@ -9,7 +9,8 @@ use crate::{error::Result, indexer::Indexer, models::RenderedPage, parser};
 use base64::{engine::general_purpose, Engine as _};
 use html_escape::decode_html_entities;
 use parking_lot::RwLock;
-use percent_encoding::percent_decode_str;
+use path_clean::PathClean;
+use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use pulldown_cmark::{html, CowStr, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use regex::{Captures, Regex};
 use serde_json::{Map, Value};
@@ -17,6 +18,14 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
+
+// A character set for percent-encoding that ensures slashes and colons are encoded.
+// This matches the behavior of the frontend `convertFileSrc` function.
+const ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'_')
+    .remove(b'.')
+    .remove(b'~');
 
 /// Spoiler regex pattern.
 /// Captures: 1: content
@@ -28,7 +37,7 @@ static SPOILER_RE: LazyLock<Regex> = LazyLock::new(|| {
 
 /// HTML img tag regex pattern.
 /// Captures: 1: src attribute content
-/// Used to find and replace local image paths with Base64 data URLs.
+/// Used to find and replace local image paths with asset URLs.
 static IMG_TAG_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"<img src="([^"]+)""#).unwrap());
 
 /// Wikilink Image regex pattern.
@@ -85,29 +94,55 @@ impl Renderer {
     /// inside the vault's "images" subdirectory.
     fn resolve_image_path(&self, path_str: &str) -> PathBuf {
         let path = Path::new(path_str);
-        if path.is_absolute() {
+        let resolved_path = if path.is_absolute() {
             path.to_path_buf()
         } else {
-            // Assumes relative paths are inside the vault's "images" directory.
+            // Assumes relative paths start from the vault's "images" directory.
             self.vault_path.join(IMAGES_DIR_NAME).join(path)
-        }
+        };
+        resolved_path.clean()
+    }
+
+    /// Processes an image source path, returning a correctly formatted Tauri v2 asset URL.
+    /// It resolves both absolute and relative paths before encoding.
+    pub fn convert_image_path_to_asset_url(&self, path_str: &str) -> String {
+        let absolute_path = self.resolve_image_path(path_str);
+        let path_string = absolute_path.to_string_lossy().to_string();
+
+        // Percent-encode the entire absolute path. This correctly handles special characters
+        // and encodes the leading slash to `%2F` as required.
+        let encoded_path = utf8_percent_encode(&path_string, ENCODE_SET);
+
+        // This is the correct format that matches the frontend's `convertFileSrc`.
+        format!("asset://localhost/{}", encoded_path)
     }
 
     /// Processes the `image` field from the frontmatter, which can be a single
     /// string or a list of strings, preparing it for the frontend.
     ///
     /// This function handles all logic for the infobox image:
-    /// 1. Resolves the absolute path of the image.
-    /// 2. Adds the absolute path to the JSON map under the `image_paths` key for the frontend.
-    /// 3. Converts the image to a Base64 Data URL and updates the `images` key.
+    /// 1. Determines if a path is absolute or relative.
+    /// 2. Uses the performant `asset://` protocol for relative (in-vault) images.
+    /// 3. Uses a secure Base64 Data URL fallback for absolute (external) images.
     fn process_infobox_images(&self, map: &mut Map<String, Value>, image_value: &Value) {
-        let mut images_data_urls = Vec::new();
+        let mut image_srcs = Vec::new();
         let mut image_absolute_paths = Vec::new();
 
         let mut process_single_image = |path_str: &str| {
-            // Convert to Base64 Data URL for embedding.
-            images_data_urls.push(Value::String(self.convert_image_path_to_data_url(path_str)));
-            // Resolve the absolute path for the frontend to use.
+            let path = Path::new(path_str);
+
+            // Apply the hybrid logic: use the best method based on the path type.
+            let image_src = if path.is_absolute() {
+                // For absolute paths, use the secure Base64 fallback. This is necessary
+                // because the path is outside Tauri's asset protocol scope.
+                self.convert_image_path_to_data_url(path_str)
+            } else {
+                // For relative (in-vault) paths, use the performant asset protocol.
+                self.convert_image_path_to_asset_url(path_str)
+            };
+            image_srcs.push(Value::String(image_src));
+
+            // Also resolve the absolute path for the frontend to use (e.g., for an "open file" button).
             let absolute_path = self.resolve_image_path(path_str);
             image_absolute_paths.push(Value::String(absolute_path.to_string_lossy().to_string()));
         };
@@ -128,7 +163,8 @@ impl Renderer {
             }
         }
 
-        map.insert("images".to_string(), Value::Array(images_data_urls));
+        // The key for the frontend is `images`, which now contains a mix of asset URLs and data URLs.
+        map.insert("images".to_string(), Value::Array(image_srcs));
         map.insert(
             "image_paths".to_string(),
             Value::Array(image_absolute_paths),
@@ -151,27 +187,33 @@ impl Renderer {
     }
 
     /// A post-processing step that finds all standard HTML `<img src="...">` tags
-    /// in a block of rendered HTML and converts their `src` paths to Base64 data URLs.
-    /// This allows users to embed images directly in the markdown body with standard HTML.
+    /// in a block of rendered HTML and converts their `src` paths.
     fn process_body_image_tags(&self, html: &str) -> String {
         IMG_TAG_RE
             .replace_all(html, |caps: &Captures| {
                 // 1. Get the path, which might have both HTML and URL encoding
                 let encoded_path_str = &caps[1];
 
-                // 2. First, decode HTML entities (e.g., &amp; -> &)
+                // 2. Decode the path string
                 let html_decoded_path = decode_html_entities(encoded_path_str);
-
-                // 3. Then, decode URL percent-encoding (e.g., %20 -> ' ')
-                let final_path = percent_decode_str(&html_decoded_path)
+                let final_path_str = percent_decode_str(&html_decoded_path)
                     .decode_utf8_lossy()
                     .to_string();
 
-                // 4. Use the fully decoded path to find and convert the image
-                let data_url = self.convert_image_path_to_data_url(&final_path);
+                let final_path = Path::new(&final_path_str);
 
-                // Reconstruct the img tag with the new data URL
-                format!(r#"<img src="{}" class="embedded-image""#, data_url)
+                // 3. Check if the path is absolute or relative and choose the best method.
+                let image_src = if final_path.is_absolute() {
+                    // If it's an absolute path outside the vault, convert it to a Data URL.
+                    // This reads the file on the backend and embeds it directly in the HTML.
+                    self.convert_image_path_to_data_url(&final_path_str)
+                } else {
+                    // If it's a relative path, use the existing secure and performant asset protocol.
+                    self.convert_image_path_to_asset_url(&final_path_str)
+                };
+
+                // Reconstruct the img tag with the new src
+                format!(r#"<img src="{}" class="embedded-image""#, image_src)
             })
             .to_string()
     }
@@ -559,7 +601,7 @@ impl Renderer {
 
         // --- 6. Post-Processing for Embedded Images ---
         // Now that the HTML is safe, find the remaining <img> tags and convert
-        // their local src paths to Base64 data URLs.
+        // their local src paths to asset URLs.
         let final_before = self.process_body_image_tags(&sanitized_before);
         let final_after = self.process_body_image_tags(&sanitized_after);
 

@@ -219,8 +219,8 @@ There are three supported ways to specify the image path:
 
 - ⚠️ **Absolute paths** (not recommended)
   - `image: C:/Users/Michael/Pictures/map.png`
-  - This only works on your current machine and may break if you move
-    the vault
+  - This only works on your current machine and may break if you move the vault
+  - Using this method for large images can significantly slow down page loading.
 
 Supported formats: `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.svg`
 
