@@ -162,6 +162,7 @@ pub fn duplicate_page(path: String, world: State<World>) -> Result<PageHeader> {
 
 /// Opens the specified path in the OS's default file explorer.
 #[command]
+#[instrument(skip(app_handle))]
 pub fn open_in_explorer(app_handle: AppHandle, path: String) -> Result<()> {
     app_handle.opener().open_path(path, None::<&str>)?;
     Ok(())
