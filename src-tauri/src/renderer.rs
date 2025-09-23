@@ -107,14 +107,27 @@ impl Renderer {
     /// It resolves both absolute and relative paths before encoding.
     pub fn convert_image_path_to_asset_url(&self, path_str: &str) -> String {
         let absolute_path = self.resolve_image_path(path_str);
-        let path_string = absolute_path.to_string_lossy().to_string();
 
-        // Percent-encode the entire absolute path. This correctly handles special characters
-        // and encodes the leading slash to `%2F` as required.
-        let encoded_path = utf8_percent_encode(&path_string, ENCODE_SET);
+        // This block compiles ONLY on Windows
+        #[cfg(windows)]
+        {
+            // On Windows, we convert backslashes and percent-encode the path,
+            // but we do NOT encode the leading slash, as there isn't one.
+            // The path starts with a drive letter, e.g., "C:/Users/...".
+            let path_string = absolute_path.to_string_lossy().replace('\\', "/");
+            let encoded_path = utf8_percent_encode(&path_string, ENCODE_SET);
+            return format!("http://asset.localhost/{}", encoded_path);
+        }
 
-        // This is the correct format that matches the frontend's `convertFileSrc`.
-        format!("asset://localhost/{}", encoded_path)
+        // This block compiles on any non-Windows OS (Linux, macOS)
+        #[cfg(not(windows))]
+        {
+            // On Unix-like systems, we percent-encode the entire path,
+            // including the leading slash, which becomes %2F.
+            let path_string = absolute_path.to_string_lossy().to_string();
+            let encoded_path = utf8_percent_encode(&path_string, ENCODE_SET);
+            return format!("asset://localhost/{}", encoded_path);
+        }
     }
 
     /// Processes the `image` field from the frontmatter, which can be a single
