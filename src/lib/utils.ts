@@ -144,3 +144,12 @@ export async function readBundledResource(filename: string): Promise<string> {
         throw new Error(`Failed to read resource '${filename}': ${e}`);
     }
 }
+
+/**
+ * Normalizes a path to use forward slashes, ensuring cross-platform consistency.
+ * @param path The file path string.
+ * @returns The normalized path string.
+ */
+export function normalizePath(path: string): string {
+    return path.replace(/\\/g, "/");
+}

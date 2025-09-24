@@ -8,6 +8,7 @@
     import Modal from "./Modal.svelte";
     import Button from "./Button.svelte";
     import { vaultPath } from "$lib/worldStore";
+    import { normalizePath } from "$lib/utils";
 
     let {
         parentDir,
@@ -26,37 +27,18 @@
     let error = $state<string | null>(null);
     let pageName = $state(initialName);
     let selectedTemplatePath = $state<string | null>(null); // Use null for "Blank Page"
-    let selectedParentDir = $state(parentDir);
+    let selectedParentDir = $state(normalizePath(parentDir));
 
     // --- Lifecycle ---
     onMount(async () => {
         try {
-            // Fetch templates and directories in parallel
             const [templateList, dirList] = await Promise.all([
                 listTemplates(),
                 getAllDirectoryPaths(),
             ]);
-            templates = templateList;
 
-            // Prepare directories for display
-            const rootPath = $vaultPath;
-            if (rootPath) {
-                allDirs = dirList.map((dir) => {
-                    if (dir === rootPath) return "/ (Vault Root)";
-                    // Remove the root path and the leading slash for a cleaner display
-                    return dir.replace(rootPath, "").replace(/^[\\/]/, "");
-                });
-                // Find the original full path for the pre-selected directory
-                const preselectedDirDisplay = parentDir
-                    .replace(rootPath, "")
-                    .replace(/^[\\/]/, "");
-                selectedParentDir =
-                    preselectedDirDisplay === ""
-                        ? "/ (Vault Root)"
-                        : preselectedDirDisplay;
-            } else {
-                allDirs = dirList;
-            }
+            templates = templateList;
+            allDirs = dirList.map(normalizePath);
         } catch (e: any) {
             error = `Failed to load data: ${e.message}`;
         } finally {
@@ -72,17 +54,18 @@
             return;
         }
 
-        const rootPath = $vaultPath;
-        let finalParentDir = parentDir; // Default to original
-        if (rootPath) {
-            finalParentDir =
-                selectedParentDir === "/ (Vault Root)"
-                    ? rootPath
-                    : `${rootPath}/${selectedParentDir}`;
-        }
-
-        createFile(finalParentDir, pageName.trim(), selectedTemplatePath);
+        createFile(selectedParentDir, pageName.trim(), selectedTemplatePath);
         closeModal();
+    }
+
+    /** Helper to create a user-friendly display name from a full path */
+    function getDisplayDir(fullPath: string): string {
+        const rootPath = $vaultPath ? normalizePath($vaultPath) : "";
+        if (fullPath === rootPath) {
+            return "/ (Vault Root)";
+        }
+        // Remove the root path and the leading slash for a cleaner display
+        return fullPath.replace(rootPath, "").replace(/^\//, "");
     }
 </script>
 
@@ -107,7 +90,7 @@
                 disabled={isLoading}
             >
                 {#each allDirs as dir (dir)}
-                    <option value={dir}>{dir}</option>
+                    <option value={dir}>{getDisplayDir(dir)}</option>
                 {/each}
             </select>
         </div>
