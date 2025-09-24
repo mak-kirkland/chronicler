@@ -18,6 +18,7 @@
     import TemplateManagerModal from "./TemplateManagerModal.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import ImporterModal from "./ImporterModal.svelte";
+    import { openLogDirectory } from "$lib/commands";
 
     let { onClose = () => {} } = $props<{
         onClose?: () => void;
@@ -245,9 +246,17 @@
     {#if appVersion}
         <div class="modal-footer">
             <p>Chronicler Version: {appVersion}</p>
-            <button class="link-button" onclick={() => (showChangelog = true)}>
-                View Changelog
-            </button>
+            <div class="footer-links">
+                <button
+                    class="link-button"
+                    onclick={() => (showChangelog = true)}
+                    >View Changelog</button
+                >
+                <span class="separator"> • </span>
+                <button class="link-button" onclick={openLogDirectory}
+                    >Open Log Directory</button
+                >
+            </div>
         </div>
     {/if}
 </Modal>
@@ -306,6 +315,13 @@
     }
     .modal-footer p {
         margin: 0;
+        margin-bottom: 0.25rem;
+    }
+    .footer-links {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
     }
     .theme-controls {
         display: flex;
@@ -347,7 +363,6 @@
         background: none;
         border: none;
         padding: 0;
-        margin-top: 0.25rem;
         color: var(--color-text-secondary);
         text-decoration: underline;
         cursor: pointer;

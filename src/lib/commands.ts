@@ -243,6 +243,11 @@ export function getLinuxInstallType(): Promise<string> {
  */
 export const getAppUsageDays = () => invoke<number>("get_app_usage_days");
 
+/**
+ * Opens the application's log directory in the default file explorer.
+ */
+export const openLogDirectory = () => invoke<void>("open_log_directory");
+
 // --- Template Commands ---
 
 /**

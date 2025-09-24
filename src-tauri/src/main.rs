@@ -9,8 +9,11 @@
 
 use clap::Parser;
 use std::path::Path;
-use tauri::Manager; // Required for the app handle and runtime scope management.
-use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+use tauri::{AppHandle, Manager}; // Required for the app handle and runtime scope management.
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::{
+    fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter,
+};
 use world::World;
 
 mod commands;
@@ -49,7 +52,6 @@ struct Args {
 /// necessary state and command handlers.
 fn main() {
     let args = Args::parse();
-    setup_tracing(&args);
 
     tauri::Builder::default()
         // The World state is managed directly. Its fields are
@@ -59,13 +61,17 @@ fn main() {
         // another (e.g., indexer).
         .manage(World::new())
         // Add the .setup() hook here, before the plugins.
-        .setup(|app| {
+        .setup(move |app| {
             // Get a handle to the app instance to access Tauri's APIs.
             let app_handle = app.handle();
 
+            // --- Set up tracing (logging) ---
+            // This is done inside setup to get access to the app's log directory.
+            setup_tracing(&args, app_handle)?;
+
             // On startup, we read the config file to see if a vault path was
             // saved from a previous session.
-            if let Ok(Some(vault_path_str)) = config::get_vault_path(app_handle) {
+            if let Ok(Some(vault_path_str)) = config::get_vault_path(app.handle()) {
                 let vault_path = Path::new(&vault_path_str);
 
                 // Dynamically allow the asset protocol to access the last-used
@@ -120,27 +126,45 @@ fn main() {
             commands::delete_template,
             commands::get_all_broken_links,
             commands::get_user_fonts,
+            commands::open_log_directory,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);
 }
 
-/// Sets up the tracing subscriber for logging.
-fn setup_tracing(args: &Args) {
+/// Sets up the tracing subscriber for logging to both console and a rotating file.
+fn setup_tracing(args: &Args, app_handle: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let log_level = if args.debug { "debug" } else { "info" };
-
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| format!("chronicler={}", log_level).into());
 
-    let formatter = tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_timer(tracing_subscriber::fmt::time::LocalTime::rfc_3339())
+    // --- File Layer (Plain) ---
+    let log_dir = app_handle.path().app_log_dir()?;
+    let file_appender = RollingFileAppender::builder()
+        .rotation(Rotation::DAILY) // Rotate daily
+        .max_log_files(7) // Keep a maximum of 7 log files
+        .filename_prefix("chronicler")
+        .filename_suffix("log")
+        .build(log_dir)?;
+    let (non_blocking_appender, guard) = tracing_appender::non_blocking(file_appender);
+    Box::leak(Box::new(guard)); // Keep guard alive for the app's lifetime
+
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_ansi(false) // Explicitly disable ANSI color codes for the file
+        .with_writer(non_blocking_appender)
+        .with_span_events(FmtSpan::CLOSE); // Log when spans (like commands) complete
+
+    // --- Console Layer (Pretty) ---
+    let console_layer = tracing_subscriber::fmt::layer()
+        .pretty()
         .with_span_events(FmtSpan::CLOSE);
 
-    // Use a more human-readable format for debug builds
-    if cfg!(debug_assertions) {
-        formatter.pretty().init();
-    } else {
-        formatter.init();
-    }
+    // --- Combine Layers and Initialize ---
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(console_layer)
+        .with(file_layer)
+        .init();
+
+    Ok(())
 }

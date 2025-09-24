@@ -60,5 +60,6 @@ quick-xml = "0.38.3"
 natord = "1.0.9"
 path-clean = "1.0.1"
 font-kit = "0.14.3"
+tracing-appender = "0.2.3"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]

@@ -16,7 +16,7 @@ use crate::{
 };
 use chrono::{Local, NaiveDate};
 use std::path::PathBuf;
-use tauri::{command, AppHandle, State};
+use tauri::{command, AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 use tracing::instrument;
 
@@ -279,6 +279,17 @@ pub fn get_app_usage_days(app_handle: AppHandle) -> Result<i64> {
             Ok(0)
         }
     }
+}
+
+/// Opens the application's log directory in the default file explorer.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn open_log_directory(app_handle: AppHandle) -> Result<()> {
+    let log_dir = app_handle.path().app_log_dir()?;
+    app_handle
+        .opener()
+        .open_path(log_dir.to_string_lossy(), None::<&str>)?;
+    Ok(())
 }
 
 // --- Template Commands ---
