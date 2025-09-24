@@ -4,7 +4,7 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import FileExplorer from "./FileExplorer.svelte";
     import TagList from "./TagList.svelte";
-    import ReportListView from "./ReportListView.svelte";
+    import ReportList from "./ReportList.svelte";
     import SettingsModal from "./SettingsModal.svelte";
     import HelpModal from "./HelpModal.svelte";
     import Button from "./Button.svelte";
@@ -97,7 +97,7 @@
         {:else if activeTab === "tags"}
             <TagList tags={filteredTags} />
         {:else if activeTab === "reports"}
-            <ReportListView />
+            <ReportList />
         {/if}
     </div>
 
