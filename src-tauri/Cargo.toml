@@ -59,5 +59,6 @@ percent-encoding = "2.3.2"
 quick-xml = "0.38.3"
 natord = "1.0.9"
 path-clean = "1.0.1"
+tracing-appender = "0.2.3"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
