@@ -125,6 +125,7 @@ fn main() {
             commands::write_template,
             commands::delete_template,
             commands::get_all_broken_links,
+            commands::get_all_parse_errors,
             commands::get_user_fonts,
             commands::open_log_directory,
         ])

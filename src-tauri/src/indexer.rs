@@ -6,7 +6,7 @@
 use crate::{
     error::{ChroniclerError, Result},
     events::FileEvent,
-    models::{BrokenLink, FileNode, FileType, Link, Page, PageHeader},
+    models::{BrokenLink, FileNode, FileType, Link, Page, PageHeader, ParseError},
     parser,
     utils::{file_stem_string, is_image_file, is_markdown_file},
 };
@@ -29,6 +29,9 @@ pub struct Indexer {
     pub root_path: Option<PathBuf>,
     pub pages: HashMap<PathBuf, Page>,
     pub tags: HashMap<String, HashSet<PathBuf>>,
+    /// A map of files that failed to parse, storing their path and the error message.
+    /// This is used to generate the "Parse Errors" report.
+    pub parse_errors: HashMap<PathBuf, String>,
 
     /// Fast lookup for resolving a normalized link name (String) to a file path.
     pub link_resolver: HashMap<String, PathBuf>,
@@ -73,6 +76,7 @@ impl Indexer {
 
         self.root_path = Some(root_path.to_path_buf());
         self.pages.clear();
+        self.parse_errors.clear(); // Clear errors on a full rescan.
 
         // First pass: Parse all markdown files and populate the pages map
         for entry in WalkDir::new(root_path)
@@ -85,15 +89,14 @@ impl Indexer {
                 Ok(page) => {
                     self.pages.insert(path.to_path_buf(), page);
                 }
-
-                // If a file has malformed frontmatter, instead of just skipping it,
-                // we create a default Page object. This ensures the file is still
-                // "known" to the index and can be opened in the app to be fixed.
                 Err(e) => {
+                    // If parsing fails, log it, store the error for the report,
+                    // and create a default page so the file is still accessible.
                     warn!(
                         "Failed to parse file {:?}, creating a default entry: {}",
                         path, e
                     );
+                    self.parse_errors.insert(path.to_path_buf(), e.to_string());
                     let default_page = Page {
                         path: path.to_path_buf(),
                         title: file_stem_string(path),
@@ -184,6 +187,7 @@ impl Indexer {
     pub fn update_file(&mut self, path: &Path) {
         // Remove any existing page data to ensure we're working with fresh info.
         self.pages.remove(path);
+        self.parse_errors.remove(path); // Clear any previous error for this path.
 
         match parser::parse_file(path) {
             Ok(new_page) => {
@@ -194,6 +198,7 @@ impl Indexer {
                 // On failure, log the error but still create a default entry.
                 // This ensures the file remains accessible in the UI to be fixed.
                 warn!("Could not parse file for update {:?}: {}", path, e);
+                self.parse_errors.insert(path.to_path_buf(), e.to_string());
                 let default_page = Page {
                     path: path.to_path_buf(),
                     title: file_stem_string(path),
@@ -211,6 +216,7 @@ impl Indexer {
     #[instrument(level = "debug", skip(self))]
     fn remove_file(&mut self, path: &Path) {
         self.pages.remove(path);
+        self.parse_errors.remove(path);
     }
 
     /// Removes a folder and all its descendant pages from the index.
@@ -218,6 +224,8 @@ impl Indexer {
     fn remove_folder(&mut self, path: &Path) {
         // Retain only the pages that do NOT start with the deleted folder's path.
         self.pages
+            .retain(|page_path, _| !page_path.starts_with(path));
+        self.parse_errors
             .retain(|page_path, _| !page_path.starts_with(path));
     }
 
@@ -236,8 +244,9 @@ impl Indexer {
             .collect();
 
         for old_path in pages_to_update {
-            // Remove the old page from the index to be replaced.
+            // Remove the old page and any associated parse error.
             self.pages.remove(&old_path);
+            self.parse_errors.remove(&old_path);
 
             // --- Path Calculation Logic ---
             let new_path = if is_folder_rename {
@@ -263,6 +272,7 @@ impl Indexer {
                         "Could not re-parse renamed file {:?}, creating a default entry: {}",
                         new_path, e
                     );
+                    self.parse_errors.insert(new_path.clone(), e.to_string());
                     let default_page = Page {
                         path: new_path.clone(),
                         title: file_stem_string(&new_path),
@@ -515,6 +525,26 @@ impl Indexer {
         // Sort the final list of broken links by their target name using natural ordering.
         result.sort_by(|a, b| nat_compare(&a.target, &b.target));
 
+        Ok(result)
+    }
+
+    /// Finds all pages with parsing errors.
+    #[instrument(level = "debug", skip(self))]
+    pub fn get_all_parse_errors(&self) -> Result<Vec<ParseError>> {
+        let mut result: Vec<ParseError> = self
+            .parse_errors
+            .iter()
+            .map(|(path, error)| ParseError {
+                page: PageHeader {
+                    title: file_stem_string(path),
+                    path: path.clone(),
+                },
+                error: error.clone(),
+            })
+            .collect();
+
+        // Sort the results alphabetically by page title for a consistent report.
+        result.sort_by(|a, b| nat_compare(&a.page.title, &b.page.title));
         Ok(result)
     }
 }

@@ -14,6 +14,7 @@ import type {
     RenderedPage,
     TagMap,
     BrokenLink,
+    ParseError,
     UserFont,
 } from "./bindings";
 
@@ -60,6 +61,13 @@ export const getAllDirectoryPaths = () =>
  */
 export const getAllBrokenLinks = () =>
     invoke<BrokenLink[]>("get_all_broken_links");
+
+/**
+ * Returns a list of all pages with YAML parsing errors.
+ * @returns A promise that resolves to an array of ParseError objects.
+ */
+export const getAllParseErrors = () =>
+    invoke<ParseError[]>("get_all_parse_errors");
 
 // --- Page & File Operation Commands ---
 
@@ -164,6 +172,11 @@ export const openInExplorer = (path: string) =>
     invoke<void>("open_in_explorer", { path });
 
 /**
+ * Opens the directory where application logs are stored.
+ */
+export const openLogDirectory = () => invoke<void>("open_log_directory");
+
+/**
  * Converts an image at a given path to a Base64 Data URL.
  * @param path The absolute or relative path to the image file.
  * @returns A promise that resolves to the Base64 Data URL string.
@@ -242,11 +255,6 @@ export function getLinuxInstallType(): Promise<string> {
  * @returns {Promise<number>} A promise that resolves to the number of days.
  */
 export const getAppUsageDays = () => invoke<number>("get_app_usage_days");
-
-/**
- * Opens the application's log directory in the default file explorer.
- */
-export const openLogDirectory = () => invoke<void>("open_log_directory");
 
 // --- Template Commands ---
 
