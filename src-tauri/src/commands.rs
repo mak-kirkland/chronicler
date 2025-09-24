@@ -5,7 +5,7 @@
 
 use crate::licensing;
 use crate::licensing::License;
-use crate::models::{BrokenLink, FullPageData, PageHeader};
+use crate::models::{BrokenLink, FullPageData, PageHeader, ParseError};
 use crate::{
     config,
     error::Result,
@@ -65,6 +65,13 @@ pub fn get_all_directory_paths(world: State<World>) -> Result<Vec<PathBuf>> {
 #[instrument(skip(world))]
 pub fn get_all_broken_links(world: State<World>) -> Result<Vec<BrokenLink>> {
     world.get_all_broken_links()
+}
+
+/// Returns a list of all pages with YAML parsing errors.
+#[command]
+#[instrument(skip(world))]
+pub fn get_all_parse_errors(world: State<World>) -> Result<Vec<ParseError>> {
+    world.get_all_parse_errors()
 }
 
 // --- Page Rendering and Content ---

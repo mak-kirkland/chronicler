@@ -121,6 +121,17 @@ export interface BrokenLink {
 }
 
 /**
+ * Represents a single entry in the parse error report.
+ * This mirrors the `ParseError` struct in `src-tauri/src/models.rs`.
+ */
+export interface ParseError {
+    /** The header of the page that failed to parse. */
+    page: PageHeader;
+    /** The detailed error message. */
+    error: string;
+}
+
+/**
  * Represents a single user-provided font, prepared for frontend consumption.
  * This mirrors the `UserFont` struct in `src-tauri/src/fonts.rs`.
  */

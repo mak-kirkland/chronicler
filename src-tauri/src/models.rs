@@ -192,3 +192,12 @@ pub struct BrokenLink {
     /// A list of all pages that contain a link to this target.
     pub sources: Vec<PageHeader>,
 }
+
+/// Represents a single entry in the parse error report.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParseError {
+    /// The header of the page that failed to parse.
+    pub page: PageHeader,
+    /// The detailed error message.
+    pub error: String,
+}

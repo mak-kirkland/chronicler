@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { currentView, fileViewMode, rightSidebar } from "$lib/viewStores";
     import type { Component } from "svelte";
+    import { currentView, fileViewMode, rightSidebar } from "$lib/viewStores";
 
     // Import all possible main view components
     import WelcomeView from "$lib/components/WelcomeView.svelte";
@@ -9,6 +9,7 @@
     import ImageView from "$lib/components/ImageView.svelte";
     import BacklinksPanel from "$lib/components/BacklinksPanel.svelte";
     import BrokenLinksReportView from "$lib/components/BrokenLinksReportView.svelte";
+    import ParseErrorsReportView from "$lib/components/ParseErrorsReportView.svelte";
 
     // This is the component map. It associates view types with components.
     // The key for reports is namespaced to avoid conflicts (e.g., 'report:broken-links').
@@ -18,8 +19,7 @@
         file: FileView,
         image: ImageView,
         "report:broken-links": BrokenLinksReportView,
-        // Future reports can be added here, e.g.:
-        // "report:untagged-pages": UntaggedPagesView,
+        "report:parse-errors": ParseErrorsReportView,
     };
 
     // This reactive block determines which component and props to render

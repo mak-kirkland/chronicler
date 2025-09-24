@@ -19,9 +19,10 @@ import {
     getAllTags,
     getVaultPath,
     getAllBrokenLinks,
+    getAllParseErrors,
 } from "./commands";
 import { isMarkdown } from "./utils";
-import type { FileNode, TagMap, BrokenLink } from "./bindings";
+import type { FileNode, TagMap, BrokenLink, ParseError } from "./bindings";
 
 /**
  * The shape of the core application data.
@@ -31,6 +32,7 @@ export interface WorldState {
     files: FileNode | null;
     tags: TagMap;
     brokenLinks: BrokenLink[];
+    parseErrors: ParseError[];
     isLoaded: boolean;
     error: string | null;
 }
@@ -40,6 +42,7 @@ const initialState: WorldState = {
     files: null,
     tags: [],
     brokenLinks: [],
+    parseErrors: [],
     isLoaded: false,
     error: null,
 };
@@ -58,18 +61,21 @@ function createWorldStore() {
     const loadData = async () => {
         try {
             // Fetch all data in parallel for efficiency.
-            const [files, tags, vaultPath, brokenLinks] = await Promise.all([
-                getFileTree(),
-                getAllTags(),
-                getVaultPath(),
-                getAllBrokenLinks(),
-            ]);
+            const [files, tags, vaultPath, brokenLinks, parseErrors] =
+                await Promise.all([
+                    getFileTree(),
+                    getAllTags(),
+                    getVaultPath(),
+                    getAllBrokenLinks(),
+                    getAllParseErrors(),
+                ]);
             update((s) => ({
                 ...s,
                 files,
                 tags,
                 vaultPath,
                 brokenLinks,
+                parseErrors,
                 isLoaded: true,
                 error: null,
             }));
@@ -148,6 +154,11 @@ export const tags = derived(world, ($world) => $world.tags);
  * A derived store that only contains the list of broken links.
  */
 export const brokenLinks = derived(world, ($world) => $world.brokenLinks);
+
+/**
+ * A derived store that only contains the list of pages with parse errors.
+ */
+export const parseErrors = derived(world, ($world) => $world.parseErrors);
 
 /**
  * A derived store that reflects the loading status of the world data.

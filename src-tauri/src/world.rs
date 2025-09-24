@@ -18,7 +18,7 @@ use crate::{
     importer,
     indexer::Indexer,
     mediawiki_importer,
-    models::{BrokenLink, FileNode, FullPageData, PageHeader, RenderedPage},
+    models::{BrokenLink, FileNode, FullPageData, PageHeader, ParseError, RenderedPage},
     renderer::Renderer,
     template,
     watcher::Watcher,
@@ -295,6 +295,11 @@ impl World {
     /// Returns a list of all broken links in the vault.
     pub fn get_all_broken_links(&self) -> Result<Vec<BrokenLink>> {
         self.indexer.read().get_all_broken_links()
+    }
+
+    /// Returns a list of all pages with parsing errors.
+    pub fn get_all_parse_errors(&self) -> Result<Vec<ParseError>> {
+        self.indexer.read().get_all_parse_errors()
     }
 
     // --- Synchronous File System Operations (from UI) ---

@@ -1,19 +1,43 @@
 <script lang="ts">
-    import { brokenLinks } from "$lib/worldStore";
+    import { brokenLinks, parseErrors } from "$lib/worldStore";
     import { navigateToReport } from "$lib/actions";
 </script>
 
 <div class="report-list">
-    <div
-        class="report-item"
-        onclick={() => navigateToReport("broken-links")}
-        onkeydown={(e) => e.key === "Enter" && navigateToReport("broken-links")}
-        role="button"
-        tabindex="0"
-    >
-        <span class="report-name">Broken Links</span>
-        <span class="report-count">({$brokenLinks.length})</span>
-    </div>
+    <!-- Broken Links Report Item -->
+    {#if $brokenLinks.length > 0}
+        <div
+            class="report-item"
+            onclick={() => navigateToReport("broken-links")}
+            onkeydown={(e) =>
+                e.key === "Enter" && navigateToReport("broken-links")}
+            role="button"
+            tabindex="0"
+        >
+            <span class="report-name">Broken Links</span>
+            <span class="report-count">({$brokenLinks.length})</span>
+        </div>
+    {/if}
+
+    <!-- Parse Errors Report Item -->
+    {#if $parseErrors.length > 0}
+        <div
+            class="report-item"
+            onclick={() => navigateToReport("parse-errors")}
+            onkeydown={(e) =>
+                e.key === "Enter" && navigateToReport("parse-errors")}
+            role="button"
+            tabindex="0"
+        >
+            <span class="report-name">Parse Errors</span>
+            <span class="report-count">({$parseErrors.length})</span>
+        </div>
+    {/if}
+
+    {#if $brokenLinks.length === 0 && $parseErrors.length === 0}
+        <p class="text-muted text-center">No issues found.</p>
+    {/if}
+
     <!-- More reports can be added here in the future -->
 </div>
 
@@ -43,5 +67,8 @@
     .report-count {
         color: var(--color-text-secondary);
         font-size: 0.9em;
+    }
+    .text-muted.text-center {
+        margin-top: 1rem;
     }
 </style>
