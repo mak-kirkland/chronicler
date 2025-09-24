@@ -182,16 +182,27 @@ impl Indexer {
     /// Updates the index for a single file that has been created or modified.
     #[instrument(level = "debug", skip(self))]
     pub fn update_file(&mut self, path: &Path) {
-        // Remove any existing page data
+        // Remove any existing page data to ensure we're working with fresh info.
         self.pages.remove(path);
 
         match parser::parse_file(path) {
             Ok(new_page) => {
-                // Add the newly parsed page to the index.
+                // On success, add the newly parsed page to the index.
                 self.pages.insert(path.to_path_buf(), new_page);
             }
             Err(e) => {
+                // On failure, log the error but still create a default entry.
+                // This ensures the file remains accessible in the UI to be fixed.
                 warn!("Could not parse file for update {:?}: {}", path, e);
+                let default_page = Page {
+                    path: path.to_path_buf(),
+                    title: file_stem_string(path),
+                    tags: HashSet::new(),
+                    links: Vec::new(),
+                    backlinks: HashSet::new(),
+                    frontmatter: serde_json::Value::Null,
+                };
+                self.pages.insert(path.to_path_buf(), default_page);
             }
         };
     }
