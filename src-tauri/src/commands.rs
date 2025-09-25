@@ -201,12 +201,13 @@ pub fn import_docx_from_folder(
 
 /// Imports a MediaWiki XML dump file.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world, app_handle))]
 pub async fn import_mediawiki_dump(
     world: State<'_, World>,
+    app_handle: AppHandle,
     xml_path: PathBuf,
 ) -> Result<Vec<PathBuf>> {
-    world.import_mediawiki_dump(xml_path).await
+    world.import_mediawiki_dump(app_handle, xml_path).await
 }
 
 /// Checks if Pandoc is installed in the application's config directory.

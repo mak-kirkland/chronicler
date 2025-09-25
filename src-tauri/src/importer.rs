@@ -18,7 +18,7 @@ fn get_pandoc_dir(app_handle: &AppHandle) -> Result<PathBuf> {
 }
 
 /// Returns the full path to the Pandoc executable.
-fn get_pandoc_executable_path(app_handle: &AppHandle) -> Result<PathBuf> {
+pub fn get_pandoc_executable_path(app_handle: &AppHandle) -> Result<PathBuf> {
     let pandoc_dir = get_pandoc_dir(app_handle)?;
     let exe_name = if OS == "windows" {
         "pandoc.exe"

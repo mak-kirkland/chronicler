@@ -5,6 +5,7 @@
 
 use crate::config::IMAGES_DIR_NAME;
 use crate::error::{ChroniclerError, Result};
+use crate::importer::get_pandoc_executable_path;
 use crate::writer::atomic_write;
 use quick_xml::events::Event;
 use quick_xml::Reader;
@@ -17,6 +18,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::LazyLock;
+use tauri::AppHandle;
 use tracing::{debug, info, instrument, warn};
 
 // --- Regex Constants ---
@@ -79,8 +81,12 @@ struct ApiResponse {
 }
 
 /// Main entry point for the MediaWiki import process.
-#[instrument(skip(xml_path, output_dir))]
-pub async fn import_mediawiki_dump(xml_path: PathBuf, output_dir: PathBuf) -> Result<Vec<PathBuf>> {
+#[instrument(skip(xml_path, output_dir, app_handle))]
+pub async fn import_mediawiki_dump(
+    app_handle: AppHandle,
+    xml_path: PathBuf,
+    output_dir: PathBuf,
+) -> Result<Vec<PathBuf>> {
     info!("Starting MediaWiki XML import from {:?}", xml_path);
 
     // --- Pass 1: Build a map of Template -> [Categories] ---
@@ -150,6 +156,7 @@ pub async fn import_mediawiki_dump(xml_path: PathBuf, output_dir: PathBuf) -> Re
                             &output_dir,
                             wiki_domain.as_deref(),
                             &template_map,
+                            &app_handle,
                         )
                         .await?;
                         created_files.push(file_path);
@@ -243,6 +250,7 @@ async fn process_page(
     output_dir: &Path,
     wiki_domain: Option<&str>,
     template_map: &HashMap<String, Vec<String>>,
+    app_handle: &AppHandle,
 ) -> Result<PathBuf> {
     debug!("Processing page: {}", page.title);
     let mut wikitext = page.text;
@@ -293,7 +301,7 @@ async fn process_page(
     let cleaned_wikitext = BR_TAG_RE.replace_all(&wikitext, "");
 
     // 10. Convert the remaining wikitext to Markdown using Pandoc.
-    let mut markdown = convert_with_pandoc(&cleaned_wikitext, &page.title)?;
+    let mut markdown = convert_with_pandoc(&cleaned_wikitext, &page.title, app_handle)?;
     markdown = convert_links_to_wikilinks(markdown);
 
     // 11. Assemble the final file content and write it to disk.
@@ -660,8 +668,10 @@ fn parse_infobox(content: &str) -> (Option<String>, HashMap<String, String>) {
 }
 
 /// Calls Pandoc to convert MediaWiki text to Markdown.
-fn convert_with_pandoc(text: &str, title: &str) -> Result<String> {
-    let mut process = Command::new("pandoc")
+fn convert_with_pandoc(text: &str, title: &str, app_handle: &AppHandle) -> Result<String> {
+    let pandoc_exe = get_pandoc_executable_path(app_handle)?;
+
+    let mut process = Command::new(pandoc_exe)
         .arg("--from=mediawiki")
         .arg("--to=gfm")
         .arg("--wrap=none")

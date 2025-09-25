@@ -529,7 +529,11 @@ impl World {
     }
 
     /// Imports a MediaWiki XML dump, converting pages to Markdown.
-    pub async fn import_mediawiki_dump(&self, xml_path: PathBuf) -> Result<Vec<PathBuf>> {
+    pub async fn import_mediawiki_dump(
+        &self,
+        app_handle: AppHandle,
+        xml_path: PathBuf,
+    ) -> Result<Vec<PathBuf>> {
         let output_dir = self
             .root_path
             .read()
@@ -537,7 +541,7 @@ impl World {
             .ok_or(ChroniclerError::VaultNotInitialized)?;
 
         let imported_paths =
-            mediawiki_importer::import_mediawiki_dump(xml_path, output_dir).await?;
+            mediawiki_importer::import_mediawiki_dump(app_handle, xml_path, output_dir).await?;
 
         if imported_paths.is_empty() {
             return Ok(Vec::new());
