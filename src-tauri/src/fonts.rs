@@ -6,6 +6,7 @@
 
 use crate::error::Result;
 use base64::{engine::general_purpose, Engine as _};
+use font_kit::handle::Handle;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -63,16 +64,14 @@ pub fn get_user_fonts(app_handle: &AppHandle) -> Result<Vec<UserFont>> {
 
 /// Loads a single font file from a given path.
 ///
-/// It reads the file's binary content, extracts a name from the filename,
+/// It reads the file's binary content, extracts a name from the metadata,
 /// determines the font format from the extension, and constructs a
 /// Base64 Data URI.
 fn load_font(path: &Path) -> Option<UserFont> {
-    // Use the file stem (filename without extension) as the font family name.
-    let name = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .map(|s| s.to_string())?;
-
+    // Load the font from its path. font-kit handles all the complex parsing.
+    let font = Handle::from_path(path.to_path_buf(), 0).load().ok()?;
+    // Get the family name. The library finds the best name automatically.
+    let name = font.family_name();
     // Read the raw bytes of the font file.
     let content = fs::read(path).ok()?;
     // Encode the bytes into a Base64 string.
