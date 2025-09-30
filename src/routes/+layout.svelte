@@ -82,6 +82,7 @@
             const root = document.documentElement;
             const style = root.style;
             const themeName = $activeTheme;
+            const customTheme = $userThemes.find((t) => t.name === themeName);
 
             // --- A. Apply Font Size & Typography (Now Independent of Theme) ---
             style.fontSize = `${$fontSize}%`;
@@ -89,23 +90,23 @@
             style.setProperty("--font-family-body", $bodyFont);
 
             // --- B. Apply Theme Colors ---
-
-            // First, clear any lingering inline color styles from a previous custom theme.
-            for (const key of THEME_PALETTE_KEYS) {
-                style.removeProperty(key);
-            }
-
-            // Set the `data-theme` attribute, which handles all built-in themes via CSS.
-            root.setAttribute("data-theme", themeName || "light");
-
-            // If the active theme is a custom one, find it and apply its palette
-            // as inline style overrides.
-            const customTheme = $userThemes.find((t) => t.name === themeName);
             if (customTheme) {
+                // It's a custom theme.
+                root.removeAttribute("data-theme");
+
+                // Apply color palette
                 for (const [key, value] of Object.entries(
                     customTheme.palette,
                 )) {
                     style.setProperty(key, value);
+                }
+            } else {
+                // It's a built-in theme.
+                root.setAttribute("data-theme", themeName || "light");
+
+                // CRITICAL: Clean up any lingering variables from a previous custom theme.
+                for (const varName of THEME_PALETTE_KEYS) {
+                    style.removeProperty(varName);
                 }
             }
         }
