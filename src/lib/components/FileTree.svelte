@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { FileNode, PageHeader } from "$lib/bindings";
+    import type { FileNode } from "$lib/bindings";
     import type { ContextMenuHandler } from "$lib/types";
     import { currentView } from "$lib/viewStores";
     import { manuallyExpandedPaths } from "$lib/explorerStore";
