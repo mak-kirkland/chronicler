@@ -179,6 +179,7 @@ export async function renamePath(path: string, newName: string) {
         const view = get(currentView);
         const wasFileOpen =
             (view.type === "file" || view.type === "image") &&
+            view.data &&
             view.data.path === path;
 
         // Execute the rename command and get the new path from the backend.
@@ -292,6 +293,7 @@ export async function movePath(sourcePath: string, destinationDir: string) {
         const view = get(currentView);
         const wasFileOpen =
             (view.type === "file" || view.type === "image") &&
+            view.data &&
             view.data.path === sourcePath;
 
         // Execute the move command and get the new path.
