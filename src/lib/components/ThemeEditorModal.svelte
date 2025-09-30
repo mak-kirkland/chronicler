@@ -6,13 +6,11 @@
     import {
         activeTheme,
         userThemes,
-        userFonts,
         setActiveTheme,
         saveCustomTheme,
         deleteCustomTheme,
         forceThemeRefresh,
         THEME_PALETTE_KEYS,
-        AVAILABLE_FONTS,
         type CustomTheme,
         type ThemePalette,
         type ThemeName,
@@ -23,13 +21,6 @@
     // --- State ---
     let currentTheme: CustomTheme | null = $state(null);
     let originalName: ThemeName | null = $state(null);
-
-    // --- Derived State ---
-    /** A reactive list that combines the built-in fonts with the loaded user fonts. */
-    const allAvailableFonts = $derived([
-        ...AVAILABLE_FONTS,
-        ...$userFonts.map((f) => ({ name: f.name, value: `"${f.name}"` })),
-    ]);
 
     // --- Constants ---
     const colorLabels: Record<keyof ThemePalette, string> = {
@@ -66,8 +57,6 @@
         for (const key of THEME_PALETTE_KEYS) {
             document.documentElement.style.removeProperty(key);
         }
-        document.documentElement.style.removeProperty("--font-family-heading");
-        document.documentElement.style.removeProperty("--font-family-body");
     }
 
     // --- Component Logic ---
@@ -85,19 +74,6 @@
             for (const [key, value] of Object.entries(currentTheme.palette)) {
                 document.documentElement.style.setProperty(key, value);
             }
-            // Apply fonts
-            if (currentTheme.fontFamilyHeading) {
-                document.documentElement.style.setProperty(
-                    "--font-family-heading",
-                    currentTheme.fontFamilyHeading,
-                );
-            }
-            if (currentTheme.fontFamilyBody) {
-                document.documentElement.style.setProperty(
-                    "--font-family-body",
-                    currentTheme.fontFamilyBody,
-                );
-            }
 
             return () => {
                 clearLivePreviewStyles();
@@ -109,9 +85,6 @@
         currentTheme = {
             name: "My New Theme",
             palette: { ...defaultPalette },
-            // Set default fonts for new themes
-            fontFamilyHeading: AVAILABLE_FONTS[0].value, // "Classic (Serif)"
-            fontFamilyBody: AVAILABLE_FONTS[2].value, // "Classic (Serif)"
         };
         originalName = null;
     }
@@ -119,17 +92,6 @@
     function editTheme(theme: CustomTheme) {
         // Deep copy to avoid mutating the original store object.
         currentTheme = JSON.parse(JSON.stringify(theme));
-
-        if (currentTheme) {
-            // Ensure font properties exist for older themes being edited for the first time
-            if (!currentTheme.fontFamilyHeading) {
-                currentTheme.fontFamilyHeading = AVAILABLE_FONTS[0].value;
-            }
-            if (!currentTheme.fontFamilyBody) {
-                currentTheme.fontFamilyBody = AVAILABLE_FONTS[2].value;
-            }
-        }
-
         originalName = theme.name;
     }
 
@@ -213,34 +175,6 @@
                         type="text"
                         bind:value={currentTheme.name}
                     />
-                </div>
-
-                <h4>Typography</h4>
-                <div class="typography-grid">
-                    <div class="form-group">
-                        <label for="font-family-heading">Heading Font</label>
-                        <select
-                            id="font-family-heading"
-                            class="font-select"
-                            bind:value={currentTheme.fontFamilyHeading}
-                        >
-                            {#each allAvailableFonts as font (font.value)}
-                                <option value={font.value}>{font.name}</option>
-                            {/each}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="font-family-body">Body Font</label>
-                        <select
-                            id="font-family-body"
-                            class="font-select"
-                            bind:value={currentTheme.fontFamilyBody}
-                        >
-                            {#each allAvailableFonts as font (font.value)}
-                                <option value={font.value}>{font.name}</option>
-                            {/each}
-                        </select>
-                    </div>
                 </div>
 
                 <h4>Colors</h4>
@@ -406,24 +340,5 @@
         margin-bottom: 0.5rem;
         padding-bottom: 0.25rem;
         border-bottom: 1px solid var(--color-border-primary);
-    }
-    .typography-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1.5rem;
-        margin-top: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .font-select {
-        width: 100%;
-        padding: 0.5rem;
-        font-size: 1rem;
-        border: 1px solid var(--color-border-primary);
-        background-color: var(--color-background-secondary);
-        color: var(--color-text-primary);
-        border-radius: 4px;
-        box-sizing: border-box;
-        cursor: pointer;
     }
 </style>

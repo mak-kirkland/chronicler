@@ -18,6 +18,8 @@
         THEME_PALETTE_KEYS,
         sidebarWidth,
         loadUserFonts,
+        headingFont,
+        bodyFont,
     } from "$lib/settingsStore";
     import { licenseStore } from "$lib/licenseStore";
     import { openModal } from "$lib/modalStore";
@@ -77,51 +79,34 @@
         $themeRefresher;
 
         if (typeof document !== "undefined") {
-            const style = document.documentElement.style;
+            const root = document.documentElement;
+            const style = root.style;
             const themeName = $activeTheme;
-            const customTheme = $userThemes.find((t) => t.name === themeName);
 
-            // A. Apply font size.
+            // --- A. Apply Font Size & Typography (Now Independent of Theme) ---
             style.fontSize = `${$fontSize}%`;
+            style.setProperty("--font-family-heading", $headingFont);
+            style.setProperty("--font-family-body", $bodyFont);
 
-            // B. Apply theme.
+            // --- B. Apply Theme Colors ---
+
+            // First, clear any lingering inline color styles from a previous custom theme.
+            for (const key of THEME_PALETTE_KEYS) {
+                style.removeProperty(key);
+            }
+
+            // Set the `data-theme` attribute, which handles all built-in themes via CSS.
+            root.setAttribute("data-theme", themeName || "light");
+
+            // If the active theme is a custom one, find it and apply its palette
+            // as inline style overrides.
+            const customTheme = $userThemes.find((t) => t.name === themeName);
             if (customTheme) {
-                // It's a custom theme.
-                document.documentElement.removeAttribute("data-theme");
-
-                // Apply color palette
                 for (const [key, value] of Object.entries(
                     customTheme.palette,
                 )) {
                     style.setProperty(key, value);
                 }
-
-                if (customTheme.fontFamilyHeading) {
-                    style.setProperty(
-                        "--font-family-heading",
-                        customTheme.fontFamilyHeading,
-                    );
-                }
-                if (customTheme.fontFamilyBody) {
-                    style.setProperty(
-                        "--font-family-body",
-                        customTheme.fontFamilyBody,
-                    );
-                }
-            } else {
-                // It's a built-in theme.
-                document.documentElement.setAttribute(
-                    "data-theme",
-                    themeName || "light",
-                );
-
-                // CRITICAL: Clean up any lingering variables from a previous custom theme.
-                for (const varName of THEME_PALETTE_KEYS) {
-                    style.removeProperty(varName);
-                }
-
-                style.removeProperty("--font-family-heading");
-                style.removeProperty("--font-family-body");
             }
         }
     });
