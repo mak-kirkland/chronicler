@@ -8,6 +8,10 @@
         setFontSize,
         userThemes,
         type ThemeName,
+        headingFont,
+        bodyFont,
+        AVAILABLE_FONTS,
+        userFonts,
     } from "$lib/settingsStore";
     import { openModal, closeModal } from "$lib/modalStore";
     import { licenseStore } from "$lib/licenseStore";
@@ -34,6 +38,46 @@
     let appVersion = $state<string | null>(null);
     let showChangelog = $state(false);
 
+    /** A reactive list that combines the built-in fonts with the loaded user fonts. */
+    const allAvailableFonts = $derived([
+        ...AVAILABLE_FONTS,
+        ...$userFonts.map((f) => ({ name: f.name, value: `"${f.name}"` })),
+    ]);
+
+    /**
+     * This map defines the default fonts for each built-in theme.
+     * It's the single source of truth for theme-font pairings.
+     */
+    const BUILT_IN_THEME_FONTS: Record<
+        string,
+        { heading: string; body: string }
+    > = {
+        light: {
+            heading: `"Uncial Antiqua", cursive`,
+            body: `"IM Fell English", serif`,
+        },
+        burgundy: {
+            heading: `"Cinzel", serif`,
+            body: `"IM Fell English", serif`,
+        },
+        dark: {
+            heading: `"Uncial Antiqua", cursive`,
+            body: `"IM Fell English", serif`,
+        },
+        "slate-and-gold": {
+            heading: `"Cinzel", serif`,
+            body: `"IM Fell English", serif`,
+        },
+        hologram: {
+            heading: `"Orbitron", sans-serif`,
+            body: `"IBM Plex Mono", monospace`,
+        },
+        professional: {
+            heading: `"Merriweather", serif`,
+            body: `"Open Sans", sans-serif`,
+        },
+    };
+
     $effect(() => {
         // Get the application version
         getVersion()
@@ -44,6 +88,21 @@
                 console.error("Failed to get app version:", err);
             });
     });
+
+    /**
+     * Handles changing the theme and syncing the associated default fonts.
+     */
+    function handleThemeChange(newThemeName: ThemeName) {
+        setActiveTheme(newThemeName);
+
+        // Check if the selected theme is a built-in one with default fonts.
+        const defaultFonts = BUILT_IN_THEME_FONTS[newThemeName];
+        if (defaultFonts) {
+            // If it is, update the font stores to match the theme's defaults.
+            headingFont.set(defaultFonts.heading);
+            bodyFont.set(defaultFonts.body);
+        }
+    }
 
     /**
      * This function handles the logic for changing the vault.
@@ -120,51 +179,98 @@
 <Modal title="Settings" {onClose}>
     <div class="modal-body-content">
         <div class="setting-item">
-            <h4>Theme</h4>
-            <p>Change the appearance of the application.</p>
-            <div class="theme-controls">
-                <select
-                    class="theme-select"
-                    value={$activeTheme}
-                    onchange={(e) =>
-                        setActiveTheme(e.currentTarget.value as ThemeName)}
-                >
-                    <optgroup label="Built-in Themes">
-                        <option value="light">Parchment & Ink</option>
-                        <option value="burgundy">Parchment & Wine</option>
-                        <option value="dark">Slate & Chalk (Dark)</option>
-                        <option value="slate-and-gold"
-                            >Slate & Gold (Dark)</option
+            <h4>Appearance</h4>
+            <p>Change the colors, fonts, and text size of the application.</p>
+            <div class="appearance-controls">
+                <!-- Theme (Color Palette) Selector -->
+                <div class="form-group">
+                    <label for="theme-select">Theme</label>
+                    <div class="theme-controls">
+                        <select
+                            id="theme-select"
+                            class="theme-select"
+                            value={$activeTheme}
+                            onchange={(e) =>
+                                handleThemeChange(
+                                    e.currentTarget.value as ThemeName,
+                                )}
                         >
-                        <option value="hologram">Sci-Fi Hologram</option>
-                        <option value="professional">Professional</option>
-                    </optgroup>
-                    {#if $userThemes.length > 0}
-                        <optgroup label="Your Themes">
-                            {#each $userThemes as theme (theme.name)}
-                                <option value={theme.name}>{theme.name}</option>
-                            {/each}
-                        </optgroup>
-                    {/if}
-                </select>
-                <Button onclick={openThemeEditor}>Manage Themes</Button>
-            </div>
-        </div>
+                            <optgroup label="Built-in Themes">
+                                <option value="light">Parchment & Ink</option>
+                                <option value="burgundy"
+                                    >Parchment & Wine</option
+                                >
+                                <option value="dark"
+                                    >Slate & Chalk (Dark)</option
+                                >
+                                <option value="slate-and-gold">
+                                    Slate & Gold (Dark)
+                                </option>
+                                <option value="hologram">Sci-Fi Hologram</option
+                                >
+                                <option value="professional"
+                                    >Professional</option
+                                >
+                            </optgroup>
+                            {#if $userThemes.length > 0}
+                                <optgroup label="Your Themes">
+                                    {#each $userThemes as theme (theme.name)}
+                                        <option value={theme.name}>
+                                            {theme.name}
+                                        </option>
+                                    {/each}
+                                </optgroup>
+                            {/if}
+                        </select>
+                        <Button onclick={openThemeEditor}>Manage Themes</Button>
+                    </div>
+                </div>
 
-        <div class="setting-item">
-            <h4>Font Size</h4>
-            <p>Adjust the application's base font size.</p>
-            <div class="font-slider-container">
-                <input
-                    type="range"
-                    min="80"
-                    max="140"
-                    step="5"
-                    value={$fontSize}
-                    oninput={(e) =>
-                        setFontSize(parseInt(e.currentTarget.value))}
-                />
-                <span class="font-size-label">{$fontSize}%</span>
+                <!-- Font Selectors -->
+                <div class="font-selectors-grid">
+                    <div class="form-group">
+                        <label for="heading-font-select">Heading Font</label>
+                        <select
+                            id="heading-font-select"
+                            class="theme-select"
+                            bind:value={$headingFont}
+                        >
+                            {#each allAvailableFonts as font (font.value)}
+                                <option value={font.value}>{font.name}</option>
+                            {/each}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="body-font-select">Body Font</label>
+                        <select
+                            id="body-font-select"
+                            class="theme-select"
+                            bind:value={$bodyFont}
+                        >
+                            {#each allAvailableFonts as font (font.value)}
+                                <option value={font.value}>{font.name}</option>
+                            {/each}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Font Size Slider -->
+                <div class="form-group">
+                    <label for="font-size-slider">Font Size</label>
+                    <div class="font-slider-container">
+                        <input
+                            id="font-size-slider"
+                            type="range"
+                            min="80"
+                            max="140"
+                            step="5"
+                            value={$fontSize}
+                            oninput={(e) =>
+                                setFontSize(parseInt(e.currentTarget.value))}
+                        />
+                        <span class="font-size-label">{$fontSize}%</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -290,6 +396,17 @@
         color: var(--color-text-primary);
         font-size: 0.95rem;
     }
+    .appearance-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-top: 0.5rem;
+    }
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
     .import-message {
         font-size: 0.9rem;
         font-style: italic;
@@ -392,5 +509,10 @@
         outline: 2px solid var(--color-accent-primary);
         outline-offset: -1px;
         border-color: var(--color-accent-primary);
+    }
+    .font-selectors-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
     }
 </style>

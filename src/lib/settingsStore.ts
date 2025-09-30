@@ -30,6 +30,8 @@ interface GlobalSettings {
 /** Defines the shape of the PER-VAULT settings object saved to disk. */
 interface VaultSettings {
     activeTheme: ThemeName;
+    headingFont: string;
+    bodyFont: string;
     fontSize: number;
     sidebarWidth: number;
     isTocVisible: boolean;
@@ -85,12 +87,10 @@ export const AVAILABLE_FONTS = [
     { name: "Uncial Antiqua", value: `"Uncial Antiqua", cursive` },
 ] as const;
 
-/** Defines a full theme object, including its name, palette, and fonts. */
+/** Defines a theme's color palette. **/
 export interface CustomTheme {
     name: ThemeName;
     palette: ThemePalette;
-    fontFamilyHeading?: string;
-    fontFamilyBody?: string;
 }
 
 /** Represents a user-loaded font from the backend. */
@@ -118,6 +118,8 @@ export const userFonts = writable<UserFont[]>([]);
 
 // Per-Vault Stores
 export const activeTheme = writable<ThemeName>("light");
+export const headingFont = writable<string>(`"Uncial Antiqua", cursive`);
+export const bodyFont = writable<string>(`"IM Fell English", serif`);
 export const fontSize = writable<number>(100);
 export const sidebarWidth = writable<number>(SIDEBAR_INITIAL_WIDTH);
 export const isTocVisible = writable<boolean>(true); // Default to visible
@@ -146,6 +148,8 @@ async function saveVaultSettings() {
     if (!vaultSettingsFile) return;
     const settings: VaultSettings = {
         activeTheme: get(activeTheme),
+        headingFont: get(headingFont),
+        bodyFont: get(bodyFont),
         fontSize: get(fontSize),
         sidebarWidth: get(sidebarWidth),
         isTocVisible: get(isTocVisible),
@@ -192,6 +196,8 @@ export async function initializeVaultSettings(vaultPath: string) {
     if (settings) {
         // Once a vault is loaded, its specific settings take precedence.
         activeTheme.set(settings.activeTheme ?? "light");
+        headingFont.set(settings.headingFont ?? `"Uncial Antiqua", cursive`);
+        bodyFont.set(settings.bodyFont ?? `"IM Fell English", serif`);
         fontSize.set(settings.fontSize ?? 100);
         sidebarWidth.set(settings.sidebarWidth ?? SIDEBAR_INITIAL_WIDTH);
         isTocVisible.set(settings.isTocVisible ?? true); // Fallback to true
@@ -204,6 +210,8 @@ export async function initializeVaultSettings(vaultPath: string) {
 
     // Enable automatic saving for vault settings.
     activeTheme.subscribe(debouncedVaultSave);
+    headingFont.subscribe(debouncedVaultSave);
+    bodyFont.subscribe(debouncedVaultSave);
     fontSize.subscribe(debouncedVaultSave);
     sidebarWidth.subscribe(debouncedVaultSave);
     isTocVisible.subscribe(debouncedVaultSave);
@@ -216,8 +224,9 @@ export function destroyVaultSettings() {
     // Unsubscribe from automatic saving by replacing the stores.
     // This is simpler than managing unsubscribe functions for this use case.
 
-    // Do NOT reset the theme here. By leaving the activeTheme store untouched,
-    // the theme will persist on the vault selector screen.
+    // Do NOT reset the theme or fonts here. By leaving the activeTheme,
+    // headingFont and bodyFont stores untouched, the appearance will
+    // persist on the vault selector screen.
 
     fontSize.set(100);
     sidebarWidth.set(SIDEBAR_INITIAL_WIDTH);
