@@ -235,11 +235,52 @@ export function destroyVaultSettings() {
 }
 
 /**
- * Sets the application theme for the current vault.
+ * This map defines the default fonts for each built-in theme.
+ * It's the single source of truth for theme-font pairings, allowing
+ * JS to synchronize the font stores when a built-in theme is selected.
+ */
+const BUILT_IN_THEME_FONTS: Record<string, { heading: string; body: string }> =
+    {
+        light: {
+            heading: `"Uncial Antiqua", cursive`,
+            body: `"IM Fell English", serif`,
+        },
+        burgundy: {
+            heading: `"Cinzel", serif`,
+            body: `"IM Fell English", serif`,
+        },
+        dark: {
+            heading: `"Uncial Antiqua", cursive`,
+            body: `"IM Fell English", serif`,
+        },
+        "slate-and-gold": {
+            heading: `"Cinzel", serif`,
+            body: `"IM Fell English", serif`,
+        },
+        hologram: {
+            heading: `"Orbitron", sans-serif`,
+            body: `"IBM Plex Mono", monospace`,
+        },
+        professional: {
+            heading: `"Merriweather", serif`,
+            body: `"Open Sans", sans-serif`,
+        },
+    };
+
+/**
+ * Sets the application theme and synchronizes default fonts if it's a built-in theme.
  * @param newThemeName The name of the theme to activate.
  */
 export function setActiveTheme(newThemeName: ThemeName) {
     activeTheme.set(newThemeName);
+
+    // Check if the selected theme is a built-in one with default fonts.
+    const defaultFonts = BUILT_IN_THEME_FONTS[newThemeName];
+    if (defaultFonts) {
+        // If it is, update the font stores to match the theme's defaults.
+        headingFont.set(defaultFonts.heading);
+        bodyFont.set(defaultFonts.body);
+    }
 }
 
 /**
@@ -273,7 +314,8 @@ export function deleteCustomTheme(themeName: ThemeName) {
     userThemes.update((themes) => themes.filter((t) => t.name !== themeName));
     // If the deleted theme was active, fall back to the light theme.
     if (get(activeTheme) === themeName) {
-        activeTheme.set("light");
+        // Use the smart setter to ensure fonts reset correctly too
+        setActiveTheme("light");
     }
 }
 

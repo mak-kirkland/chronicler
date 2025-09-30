@@ -44,40 +44,6 @@
         ...$userFonts.map((f) => ({ name: f.name, value: `"${f.name}"` })),
     ]);
 
-    /**
-     * This map defines the default fonts for each built-in theme.
-     * It's the single source of truth for theme-font pairings.
-     */
-    const BUILT_IN_THEME_FONTS: Record<
-        string,
-        { heading: string; body: string }
-    > = {
-        light: {
-            heading: `"Uncial Antiqua", cursive`,
-            body: `"IM Fell English", serif`,
-        },
-        burgundy: {
-            heading: `"Cinzel", serif`,
-            body: `"IM Fell English", serif`,
-        },
-        dark: {
-            heading: `"Uncial Antiqua", cursive`,
-            body: `"IM Fell English", serif`,
-        },
-        "slate-and-gold": {
-            heading: `"Cinzel", serif`,
-            body: `"IM Fell English", serif`,
-        },
-        hologram: {
-            heading: `"Orbitron", sans-serif`,
-            body: `"IBM Plex Mono", monospace`,
-        },
-        professional: {
-            heading: `"Merriweather", serif`,
-            body: `"Open Sans", sans-serif`,
-        },
-    };
-
     $effect(() => {
         // Get the application version
         getVersion()
@@ -88,21 +54,6 @@
                 console.error("Failed to get app version:", err);
             });
     });
-
-    /**
-     * Handles changing the theme and syncing the associated default fonts.
-     */
-    function handleThemeChange(newThemeName: ThemeName) {
-        setActiveTheme(newThemeName);
-
-        // Check if the selected theme is a built-in one with default fonts.
-        const defaultFonts = BUILT_IN_THEME_FONTS[newThemeName];
-        if (defaultFonts) {
-            // If it is, update the font stores to match the theme's defaults.
-            headingFont.set(defaultFonts.heading);
-            bodyFont.set(defaultFonts.body);
-        }
-    }
 
     /**
      * This function handles the logic for changing the vault.
@@ -191,7 +142,7 @@
                             class="theme-select"
                             value={$activeTheme}
                             onchange={(e) =>
-                                handleThemeChange(
+                                setActiveTheme(
                                     e.currentTarget.value as ThemeName,
                                 )}
                         >
