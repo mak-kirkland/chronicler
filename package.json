@@ -14,7 +14,7 @@
     "license": "PolyForm Shield License 1.0.0",
     "dependencies": {
         "@codemirror/autocomplete": "^6.19.0",
-        "@codemirror/lang-markdown": "^6.3.4",
+        "@codemirror/lang-markdown": "^6.4.0",
         "@codemirror/view": "^6.38.4",
         "@tauri-apps/api": "^2.8.0",
         "@tauri-apps/plugin-dialog": "~2.3.3",
@@ -30,14 +30,14 @@
         "svelte-codemirror-editor": "^1.4.2"
     },
     "devDependencies": {
-        "@sveltejs/adapter-static": "^3.0.9",
-        "@sveltejs/kit": "^2.43.6",
+        "@sveltejs/adapter-static": "^3.0.10",
+        "@sveltejs/kit": "^2.44.0",
         "@sveltejs/vite-plugin-svelte": "^5.1.1",
         "@tauri-apps/cli": "^2.8.4",
         "@types/js-yaml": "^4.0.9",
         "prettier": "^3.6.2",
         "prettier-plugin-svelte": "^3.4.0",
-        "svelte": "^5.39.7",
+        "svelte": "^5.39.9",
         "svelte-check": "^4.3.2",
         "typescript": "~5.6.3",
         "vite": "^6.3.6"
