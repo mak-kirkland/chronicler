@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.26.0-alpha] - 2025-10-06
+
+### ✨ Added
+
+- **Reports**: A new "Parse Errors" report has been added to provide a centralized view of all files that contain malformed YAML frontmatter or other parse errors. The backend now tracks these files and their specific error messages in real-time. The new report view allows you to click on any file to navigate directly to it to fix the issue.
+- **Logging**: A file-based logging system has been implemented to aid in debugging and user support. Logs are now written to the standard application log directory, with a new file created daily (e.g., `chronicler.YYYY-MM-DD.log`). A new link has been added to the footer of the Settings modal that allows you to easily open the log directory from within the application.
+
+### 🔄 Changed
+
+- **Help**: The Help guide was rewritten and restructured into a three-part guide (Essentials, Customization, Advanced), simplifying technical language and improving readability.
+
+### 🐞 Fixed
+
+- **Indexer**: Fixed a critical bug where saving a file with invalid YAML frontmatter would cause it to be completely removed from the index, leading to a misleading "File not found" error. If parsing fails on an update, the indexer now creates a default "placeholder" page object to ensure the file remains accessible in the application.
+
+---
+
 ## [v0.25.0-alpha] - 2025-10-01
 
 ### ✨ Added
