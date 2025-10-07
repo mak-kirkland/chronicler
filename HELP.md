@@ -152,7 +152,7 @@ Chronicler stores global settings, themes, fonts, and templates in a dedicated f
 -   **Linux**: `~/.local/share/io.github.mak-kirkland.chronicler/`
 -   **macOS**: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
 
-## 📄 Creating Page Templates
+## 📄 Page Templates
 
 Use templates to create new pages with a pre-defined structure, saving you time and ensuring consistency across your vault. For example, you could have templates for characters, locations, or session notes, each with pre-defined YAML frontmatter and section headings.
 
