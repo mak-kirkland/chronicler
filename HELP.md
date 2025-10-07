@@ -2,24 +2,19 @@
 
 Welcome to **Chronicler** — your digital scriptorium for worldbuilding, notes, and knowledge management.
 
-Chronicler stores your notes as plain Markdown (.md) files in a folder on your computer (called a **vault**).
+This guide is split into three parts. Start with **The Essentials** to learn the basics and get writing in minutes. When you're ready for more power, move on to the **Customization** and **Advanced Guide**.
 
 ---
+
+# Part 1: The Essentials
 
 ## 📁 Vaults and Files
 
-Your **vault** is just a folder on your computer. You decide where the world is stored, e.g `C:\Users\Michael\MyWorld`.
+Chronicler stores your notes as plain Markdown (`.md`) files in a folder on your computer, called a **vault**.
 
-- ✅ Chronicler will index and render any Markdown file within the vault
-- 🔁 Changes in your file system (rename, move, delete) are instantly detected
-- 📂 You can create folders, drag-and-drop files, and organize content however you like
-
----
-
-## ➕ Creating Pages and Folders
-
-- Click the **+ New Page** button in the bottom left sidebar, or right-click on any folder in the file explorer to create a new **page** or **folder**.
-- New pages start with a default **YAML frontmatter** block (see below)
+-   ✅ You choose where your vault lives (e.g., `C:\Users\YourName\MyWorld`).
+-   📂 Create folders and organize your files however you like.
+-   🔁 Changes made on your computer are instantly reflected in the app.
 
 ---
 
@@ -36,173 +31,46 @@ Chronicler uses **Markdown** to format your pages.
 
 Use `[[Page Name]]` to link to other pages in your vault.
 
-- Autocompletion helps you insert links quickly
-- You can alias links with `[[Silverflow River|Silverflow]]`
-- Backlinks are shown in the right sidebar so you can see what links *to* the current page
-- When you rename a page, **all links to it are automatically updated**
+-   Create an alias with `[[Page Name|link text]]`.
+-   When you rename a page, all links to it are automatically updated.
+-   See all pages that link *to* your current page in the **Backlinks** panel.
 
 ---
 
-## 🔖 YAML Frontmatter
+## 🔖 Infoboxes
 
-Each page can start with an optional **YAML frontmatter** block to store metadata. This is used to generate the wiki-like "infobox" that acts as the page summary card. It's also used to add **tags** to your page (see below).
+At the top of each page is an **infobox** for at-a-glance details. This is controlled by a block of text at the very top of your file called **YAML frontmatter**. This is where you can set the page's title, add an image, and apply tags.
 
 ```yaml
 ---
 title: Rivertown
-infobox: Location
-tags: [city, trade, river]
 image: rivertown.jpg
+tags: [city, trade, river]
 ---
 ```
 
-All frontmatter fields are optional. There are four fields that have special behaviour:
-
-| Field      | Description |
-|------------|-------------|
-| `title`    | Page display and infobox title (otherwise filename is used) |
-| `subtitle` | Infobox subtitle |
-| `infobox`  | Header text below the infobox image |
-| `tags`     | List of tags for categorization |
-| `image`    | Image shown in the infobox (see below) |
-| `layout`   | Define specific layout rules like headers and columns (see below) |
-
-You can add any custom fields you want (e.g `height`, `age`, `capital`, `population` etc.). Any field that is not one of the four special fields above will be automatically added as a row in the infobox, giving you a flexible way to display structured data.
-
-### Special syntax inside frontmatter values
-
-Some values may contain special characters that need to be treated properly (for example `[[wikilinks]]` or `||spoilers||`). There are two safe ways to include these without breaking the frontmatter:
-
-1. **Wrap the value in quotes**:
-
-```yaml
-motto: 'Strength | Honor'
-race: '[[Elf|High Elf]]'
-```
-
-2. **Use a YAML block scalar (the pipe `|`) for multi-line or literal values**
-
-```yaml
-notes: |
-  This value can contain literal pipes without escaping: A | B | C
-  It can also contain wikilinks like [[Example Page]] or spoilers like ||secret||.
-```
-
-### ✍️ Inline Markdown in Field Values
-
-Field values in the YAML frontmatter support **inline Markdown** formatting.
-This means you can use emphasis like `**bold**`, `*italics*` etc., links, and even embed images.
-
-For example:
-
-```yaml
-motto: '*Strength and Honor*'
-homepage: '[Official Site](https://example.com)'
-```
-
-### 🖼🗺 Inline Images
-
-You can embed small images directly inside field values. This is especially useful for flags, icons, or emblems that should appear next to text in the infobox.
-
-- All image syntaxes are supported:
-  - Wikilink: `![[lynorian-flag.png]]` (✅ recommended for simplicity)
-  - Markdown: `![Alt text](lynorian-flag.png)`
-  - HTML: `<img src="lynorian-flag.jpg">`
-
-- Images must be relative to the `images/` folder in the vault root (see below).
-
-- Inline images automatically scale to match the surrounding font size and align with text, making them perfect for inline symbols.
-
-Example:
-
-```yaml
-allegiance: 'Lynorian Empire ![[lynorian-flag.png]]'
-```
-
-This will render the Lynorian Empire’s flag icon inline with the text in the infobox.
-
-### 🪄 Layout - Advanced Infobox Layout Control
-
-By default, infobox fields are displayed in the order they appear in your frontmatter. For more precise control, you can add an optional `layout` key. This allows you to inject headers and group fields into columns, creating a more professional, wiki-style infobox.
-
-The layout system works by **injecting** rules into the default flow. Fields not mentioned in a layout rule will still appear in their original position.
-
-#### Adding Headers
-
-You can insert a centered header above any field.
-
-* `type: header`: Defines the rule as a header.
-* `text: 'Your Text'`: The text to display in the header.
-* `position: { above: 'field_name' }`: Specifies that this header should be injected immediately before `field_name` is rendered.
-
-#### Grouping Fields into Columns
-
-You can group multiple fields to be displayed side-by-side in columns. This is ideal for "Belligerents" or "Commanders" in a battle, for example.
-
-* `type: group`: Defines the rule as a group.
-* `render_as: columns`: Specifies that the group should be rendered as columns.
-* `keys: [field1, field2]`: A list of the frontmatter keys to include in the group. The group will be rendered at the position of the *first* key (`field1`), and all keys in the list will be consumed by the group.
-
-#### Full Example
-
-Here is a complete example demonstrating both headers and column groups.
-
-```yaml
----
-title: Battle of the Somme
-date: 1 July – 18 November 1916
-belligerents_allies: ["United Kingdom", "France"]
-belligerents_central: ["German Empire"]
-commander_allies: ["Douglas Haig", "Ferdinand Foch"]
-commander_central: ["Erich von Falkenhayn", "Max von Gallwitz"]
-
-layout:
-  - type: header
-    text: Belligerents
-    position:
-      above: belligerents_allies
-  - type: group
-    render_as: columns
-    keys:
-      - belligerents_allies
-      - belligerents_central
-  - type: header
-    text: Commanders and leaders
-    position:
-      above: commander_allies
-  - type: group
-    render_as: columns
-    keys:
-      - commander_allies
-      - commander_central
-
 ---
 
-## 🏷️ Tags
+## 📂 Organizing with Tags & Folders
 
-You can tag pages using the `tags:` field in YAML frontmatter:
+There are two main ways to organize your vault:
+
+1.  🗂️ **Folders**: Create folders in the file explorer to group related pages, like `Places/`, `Characters/`, or `History/`.
+2.  🏷️ **Tags**: Add a list of tags to the `tags` field in the infobox. Click any tag to see all other pages with that tag.
 
 ```yaml
 tags: [city, coastal]
 ```
 
-- Click on any tag to see a list of all pages with that tag
+Tip: Pages and folders are ordered alphabetically. If you want to enforce a specific order, you can prefix them with numbers (e.g., `01_Characters`, `02_Places`, `03_History`).
 
 ---
 
-## 🖼️ Infoboxes and Images
+## 🖼️ Images
 
-You can display an image in a page’s **infobox** by adding the `image` field to the frontmatter:
+### Image Paths
 
-```yaml
-image: rivertown.jpg
-```
-
-You can also create a carousel by providing multiple images:
-
-```yaml
-image: [rivertown_day.jpg, rivertown_night.jpg, rivertown_castle.jpg]
-```
+Chronicler finds your images based on their path. It's highly recommended to create an `images` folder in the root of your vault.
 
 There are three supported ways to specify the image path:
 
@@ -219,28 +87,205 @@ There are three supported ways to specify the image path:
 
 - ⚠️ **Absolute paths** (not recommended)
   - `image: C:/Users/Michael/Pictures/map.png`
-  - This only works on your current machine and may break if you move the vault
+  - This path is tied to your current machine and will break if you move or rename your vault folder.
   - Using this method for large images can significantly slow down page loading.
 
-Supported formats: `.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`, `.svg`
+### Infobox Images
+
+You can display an image in a page’s **infobox** by adding the `image` field to the frontmatter:
+
+```yaml
+image: rivertown.jpg
+```
+
+You can also create a carousel by providing multiple images:
+
+```yaml
+image: [rivertown_day.jpg, rivertown_night.jpg, rivertown_castle.jpg]
+```
+
+### Page Images
+
+The easiest way to add an image to the body of your page is with the wikilink syntax:
+
+```markdown
+![[world-map.jpg]]
+```
+
+*For more control over image size and placement, see the Advanced Guide.*
 
 ---
 
-## ✨ Images in the Page Body
+## ✨ Simple Formatting
 
-You can also embed images directly within the main text of your page using standard HTML `<img>` tags. This gives you full control over styling like size, positioning, and text wrapping.
+### 🫣 Spoilers
 
-The path rules are the same as for infobox images. It's recommended to place your images in an `images` folder in your vault root and refer to them by filename.
+Hide text by wrapping it in double pipes `||like this||`. The text will be blacked out until a reader clicks on it.
 
-### Basic Image
+> The king’s advisor is ||secretly a vampire||.
 
-To add an image, simply use the `<img>` tag:
+### 🗄️ Tables
 
-```html
-<img src="world-map.jpg" alt="Map of the known world">
+Create simple tables with pipes `|` and dashes `-`.
+
+```markdown
+| Item   | Price |
+|--------|-------|
+| Sword  | 100gp |
+| Shield | 75gp  |
 ```
 
-### Inline Image (e.g., Flags or Icons)
+Tip: Links with custom text (e.g., `[[Page|Link text]]`) use the `|` symbol, which can break a table's structure. To fix this, just add a backslash `\` before it: `[[Page\|Link text]]`.
+
+*For more control over tables, see the Advanced Guide.*
+
+---
+
+# Part 2: Customization
+
+This section covers customization for your workflow and the appearance of your pages.
+
+## Application Settings Directory
+Chronicler stores global settings, themes, fonts, and templates in a dedicated folder on your computer. You can find it here:
+
+-   **Windows**: `%AppData%\io.github.mak-kirkland.chronicler\`
+-   **Linux**: `~/.local/share/io.github.mak-kirkland.chronicler/`
+-   **macOS**: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
+
+## 📄 Creating Page Templates
+
+Use templates to create new pages with a pre-defined structure, saving you time and ensuring consistency across your vault. For example, you could have templates for characters, locations, or session notes, each with pre-defined YAML frontmatter and section headings.
+
+-   **Manage Templates**: Go to **Settings → Manage Templates** to create and edit them.
+-   **Automatic Title**: Use the `{{title}}` placeholder in a template. It will be automatically replaced with the new page's name.
+
+## 🎨 Themes & Fonts
+-   **Themes**: Switch between built-in color schemes or create your own with the Theme Editor.
+-   **Custom Fonts**: Add your own `.woff2`, `.ttf`, or `.otf` font files to the `fonts` subfolder within the **Application Settings Directory**. After a restart, they will be available in the theme editor.hemes
+
+---
+
+# 🚀 Part 3: Advanced Guide
+
+This section covers powerful features for enhancing your workflow.
+
+## 🔖 Mastering the Infobox (YAML Frontmatter)
+
+The "infobox" at the top of each page is controlled by a block of text called **YAML frontmatter**. You can add any custom fields you want (e.g., `population`, `leader`, `age`), and they will automatically appear in the infobox.
+
+Several fields have special functionality:
+
+| Field      | Description                                                 |
+|------------|-------------------------------------------------------------|
+| `title`    | The display title for the page and infobox.                 |
+| `subtitle` | A subtitle shown in the infobox.                            |
+| `infobox`  | A header shown below the infobox image.                     |
+| `tags`     | A list of tags for organization.                            |
+| `image`    | An image or carousel of images for the infobox.             |
+| `layout`   | Rules for creating headers and columns in the infobox.      |
+
+### Special syntax inside frontmatter values
+
+Some values may contain special characters that need to be treated properly (for example `[[wikilinks]]` or `||spoilers||`). There are two safe ways to include these without breaking the frontmatter:
+
+1. **Wrap the value in quotes**:
+
+```yaml
+motto: 'Strength | Honor'
+race: '[[Elf|High Elf]]'
+```
+
+2. **For multi-line text, or to use special characters without quotes, start the line with a pipe symbol (`|`)**
+
+```yaml
+notes: |
+  This text can contain [[wikilinks]] or ||spoilers|| directly.
+  It can also span multiple lines.
+```
+
+### ✍️ Inline Markdown in Field Values
+
+You can use Markdown like `**bold**` and `*italic*` inside field values.
+
+```yaml
+motto: '*Strength and Honor*'
+homepage: '[Official Site](https://example.com)'
+```
+
+### 🗺 Inline Images
+
+You can embed small images like flags or icons directly into infobox fields. This is great for adding visual flair next to text.
+
+```yaml
+allegiance: 'Lynorian Empire ![[lynorian-flag.png]]'
+```
+
+### 🪄 Advanced Infobox Layouts
+
+Use the `layout` key to add headers and group fields into columns for a professional, wiki-style infobox.
+
+#### Adding Headers
+-   `type: header`: Defines the rule as a header.
+-   `text: 'Your Text'`: The text to display in the header.
+-   `position: { above: 'field_name' }`: Injects the header immediately before `field_name`.
+
+#### Grouping Fields into Columns
+-   `type: group`: Defines the rule as a group.
+-   `render_as: columns`: Specifies that the group should be rendered as columns.
+-   `keys: [field1, field2]`: A list of the frontmatter keys to include in the group.
+
+#### Full Example
+```yaml
+---
+title: Battle of the Somme
+belligerents_allies: ["United Kingdom", "France"]
+belligerents_central: ["German Empire"]
+commander_allies: ["Douglas Haig", "Ferdinand Foch"]
+commander_central: ["Erich von Falkenhayn"]
+
+layout:
+  - type: header
+    text: Belligerents
+    position: { above: belligerents_allies }
+  - type: group
+    render_as: columns
+    keys: [belligerents_allies, belligerents_central]
+  - type: header
+    text: Commanders
+    position: { above: commander_allies }
+  - type: group
+    render_as: columns
+    keys: [commander_allies, commander_central]
+---
+```
+
+---
+
+## 🖼️ Advanced Images
+
+### ✨ Images in the Page Body
+
+For full control over an image's size, alignment, and caption, use HTML tags in the body of your page.
+
+**Float an image to the right of your text:**
+```html
+<img
+  src="rivertown-market.png"
+  style="float: right; margin-left: 1em; width: 300px;"
+>
+```
+
+**Add a caption using `<figure>`:**
+```html
+<figure style="float: right; width: 250px;">
+  <img src="silverflow-river.jpg" style="width: 100%;">
+  <figcaption style="text-align: center; font-style: italic;">
+    The Silverflow River at dawn.
+  </figcaption>
+</figure>
+```
+
+### Inline Images (e.g., Flags or Icons)
 
 You can also place small images directly into a line of text. This is perfect for icons or flags. The `height: 1em;` style makes the image scale with the text, and `vertical-align: middle;` centers it nicely.
 
@@ -248,84 +293,9 @@ You can also place small images directly into a line of text. This is perfect fo
 The Gooblboys invaded the Lynorian Empire <img src="lynorian-flag.png" alt="Lynorian Empire Flag" style="height: 1em; vertical-align: middle;"> on a Saturday.
 ```
 
-### Styled Image (Float Right)
-
-You can add inline CSS styles to control the appearance. This example floats the image to the right of the text, adds some space around it, and sets its width.
-
-```html
-<img
-  src="rivertown-market.png"
-  alt="Bustling market square in Rivertown"
-  style="float: right; margin-left: 1em; margin-bottom: 1em; width: 300px;"
->
-```
-
-The text on your page will wrap around the image. This is a great way to illustrate points without breaking the flow of the text.
-
-### Image with a Caption
-
-For a more structured image with a caption, wrap the `<img>` tag in `<figure>` and `<figcaption>` tags. This is great for creating a clean, professional look.
-
-```html
-<figure style="float: right; width: 250px; margin: 0 0 1em 1em;">
-  <img src="silverflow-river.jpg" alt="The Silverflow River at dawn" style="width: 100%;">
-  <figcaption style="font-size: 0.9em; text-align: center; font-style: italic;">
-    The Silverflow River at dawn.
-  </figcaption>
-</figure>
-```
-
-### Simple Images
-
-In addition to HTML `<img>` tags, Chronicler supports two simpler image syntaxes. These are easier to type but **do not** support the advanced styling (size, float, captions etc.) available with HTML.
-
-#### Markdown image
-
-```markdown
-![Alt text](world-map.jpg)
-```
-
-#### Wikilink image
-
-```markdown
-![[world-map.jpg]]
-```
-
 ---
 
-## 🫣 Spoilers
-
-You can use the **spoiler syntax** by wrapping text in double pipes `||like this||`.
-
-Example:
-
-```
-The king’s advisor is ||secretly a vampire||
-```
-
-This will render as:
-> The king’s advisor is ▓▓▓▓▓▓▓▓▓▓▓▓
-
-Readers can click to reveal the hidden text, and click again to hide it.
-
----
-
-## 🗄️ Tables
-
-You can create tables using a combination of pipes (`|`) and hyphens (`-`). The first line contains the column headers, and the second line uses hyphens to separate the header from the rest of the table.
-
-### Basic Table
-
-To create a basic table, use the following syntax:
-
-```markdown
-| Header 1 | Header 2 | Header 3 |
-|---|---|---|
-| Row 1, Col 1 | Row 1, Col 2 | Row 1, Col 3 |
-| Row 2, Col 1 | Row 2, Col 2 | Row 2, Col 3 |
-```
-
-### Aligning Content
+## 🗄️ Advanced Tables
 
 You can control the alignment of content within columns by adding colons (`:`) to the header separator line.
 
@@ -346,29 +316,6 @@ You can also use **standard HTML `<table>` tags** to create more complex tables 
 
 ---
 
-## 🎨 Customizing Appearance
-
-### 🌈 Themes
-
-You can change the application's look and feel by going to **Settings**. Here you can switch between built-in themes, adjust the font size, or create your own custom themes with the Theme Editor.
-
-### 🖋 Custom Fonts
-
-Chronicler allows you to use your own font files for a truly custom appearance.
-
-**How to add custom fonts:**
-
-1. Find the application settings directory for your OS:
-  - Windows: `%AppData%\io.github.mak-kirkland.chronicler\`
-  - Linux: `~/.local/share/io.github.mak-kirkland.chronicler/`
-  - macOS: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
-
-2. Copy your desired font files (.woff2, .ttf, or .otf formats are supported) into the **fonts** folder within the settings directory.
-
-3. Restart Chronicler: The next time you open the application, your custom fonts will be available to select in the Theme Editor.
-
----
-
 ## 📥 Importing Word Docs
 
 You can import `.docx` files from Microsoft Word directly into your vault.
@@ -376,14 +323,6 @@ You can import `.docx` files from Microsoft Word directly into your vault.
 - Go to **Settings → Import from .docx** and choose your files
 - Formatting (headings, bold, italics, links) is preserved
 - Requires Pandoc (Chronicler can download it for you automatically)
-
----
-
-## 💡 Tips
-
-- Use folders to group related pages (e.g. `places/`, `people/`, `factions/`)
-- Pages and folders are ordered alphabetically. If you want to enforce ordering, you can number them (e.g `1_people/`, `2_places/`)
-- Use **tags** *and* folders — you can access pages in multiple ways
 
 ---
 
