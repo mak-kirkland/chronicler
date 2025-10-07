@@ -53,6 +53,10 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
+    // Load environment variables from .env file in debug builds
+    #[cfg(debug_assertions)]
+    dotenvy::dotenv().expect("Failed to load .env file");
+
     tauri::Builder::default()
         // The World state is managed directly. Its fields are
         // individually thread-safe.  This allows for more granular

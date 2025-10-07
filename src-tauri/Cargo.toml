@@ -35,7 +35,7 @@ notify-debouncer-full = "0.3"
 parking_lot = "0.12"
 tempfile = "3"
 base64 = "0.22"
-chrono = { version = "0.4", default-features = false, features = ["clock"] } # For getting current time
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] } # For getting current time
 ammonia = "4.1" # For HTML sanitization
 
 # Async runtime and utilities
@@ -61,5 +61,11 @@ natord = "1.0.9"
 path-clean = "1.0.1"
 font-kit = "0.14.3"
 tracing-appender = "0.2.3"
+machine-uid = "0.5.3"
+dotenvy = "0.15.7"
+ed25519-dalek = "2.2.0"
+hex = "0.4.3"
+sha2 = "0.10.9"
+hmac = "0.12.1"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
