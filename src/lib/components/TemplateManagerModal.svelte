@@ -251,7 +251,7 @@
         flex-grow: 1;
         border: 1px solid var(--color-border-primary);
         border-radius: 4px;
-        overflow: hidden;
+        overflow-y: auto;
         position: relative;
     }
     /* Override editor padding to be smaller in this context */
