@@ -230,7 +230,7 @@ pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
 #[command]
 #[instrument(skip(app_handle))]
 pub fn get_license_status(app_handle: AppHandle) -> Result<Option<License>> {
-    licensing::load_license(&app_handle)
+    licensing::load_and_verify_license(&app_handle)
 }
 
 /// Verifies a license key, and if valid, saves it to the config directory.
