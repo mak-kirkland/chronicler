@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.26.2-alpha] - 2025-10-08
+
+### 🔄 Changed
+
+- **Renderer**: The HTML sanitizer has been updated to allow the use of `width`, `cellspacing`, and `cellpadding` attributes on table elements, providing users with more layout control.
+- **Styling**: Removed the global CSS rule that explicitly forced all table cells to be left-aligned. This change restores the browser's default alignment behavior (centered headers, left-aligned data) and allows the HTML `align` attribute to function as expected.
+
+### 🐞 Fixed
+
+- **Styling**: Fixed an issue where a global CSS rule was applying a default border to all tables, ignoring the `border="0"` HTML attribute. A more specific CSS selector has been introduced to ensure that cells within borderless tables do not have a border.
+
+---
+
 ## [v0.26.1-alpha] - 2025-10-08
 
 ### 🔄 Changed
