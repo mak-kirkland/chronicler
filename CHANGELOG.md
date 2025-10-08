@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.26.1-alpha] - 2025-10-08
+
+### 🔄 Changed
+
+- **Renderer**: The HTML sanitizer has been updated to permit additional safe attributes for styling tables. You can now use `border` and `align` on `<table>` tags, and `valign` on `<th>` and `<td>` tags to create basic table layouts and control vertical alignment in cells.
+
+### 🐞 Fixed
+
+- **Templates**: Fixed an issue in the template editor where long templates could not be scrolled. The wrapper now correctly allows vertical scrolling when the content exceeds the container's height.
+
+---
+
 ## [v0.26.0-alpha] - 2025-10-06
 
 ### ✨ Added
