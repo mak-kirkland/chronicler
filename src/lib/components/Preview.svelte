@@ -160,4 +160,9 @@
         background-color: var(--color-overlay-light);
         font-weight: bold;
     }
+    /* This new rule removes borders only from cells inside a table with border="0" */
+    .main-content :global(table[border="0"] th),
+    .main-content :global(table[border="0"] td) {
+        border: none;
+    }
 </style>
