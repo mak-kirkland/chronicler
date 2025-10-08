@@ -62,8 +62,8 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         .add_tag_attributes("span", &["class"])
         .add_tag_attributes("details", &["open"])
         .add_tag_attributes("abbr", &["title"]) // Allow title for abbreviations
-        .add_tag_attributes("th", &["style", "align"]) // Allow table header alignment
-        .add_tag_attributes("td", &["style", "align"]) // Allow table cell alignment
+        .add_tag_attributes("th", &["style", "align", "valign"]) // Allow table header alignment
+        .add_tag_attributes("td", &["style", "align", "valign"]) // Allow table cell alignment
         // Allow 'id' attribute on all heading tags for TOC linking.
         .add_tag_attributes("h1", &["id"])
         .add_tag_attributes("h2", &["id"])
@@ -71,6 +71,7 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         .add_tag_attributes("h4", &["id"])
         .add_tag_attributes("h5", &["id"])
         .add_tag_attributes("h6", &["id"])
+        .add_tag_attributes("table", &["border", "align"]) // Allow border and align on tables
         .clean(dirty_html)
         .to_string()
 }
