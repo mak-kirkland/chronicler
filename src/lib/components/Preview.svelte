@@ -154,7 +154,6 @@
     .main-content :global(td) {
         border: 1px solid var(--color-border-primary);
         padding: 0.6em 0.8em;
-        text-align: left;
     }
     .main-content :global(th) {
         background-color: var(--color-overlay-light);
