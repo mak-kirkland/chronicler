@@ -36,9 +36,16 @@ static SPOILER_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// HTML img tag regex pattern.
-/// Captures: 1: src attribute content
-/// Used to find and replace local image paths with asset URLs.
-static IMG_TAG_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"<img src="([^"]+)""#).unwrap());
+/// Captures: 1: src attribute content, 2: all other attributes
+/// Used to find and replace local image paths while preserving other attributes.
+static IMG_TAG_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"<img src="([^"]+)"([^>]*)>"#).unwrap());
+
+/// Class attribute regex pattern.
+/// Captures: 1: `class="`, 2: attribute value
+/// Used to find and modify an existing class attribute.
+static CLASS_ATTR_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(class=")([^"]*)""#).unwrap());
 
 /// Wikilink Image regex pattern.
 /// Captures: 1: target/filename, 2: alias/alt-text
@@ -196,15 +203,17 @@ impl Renderer {
         );
     }
 
-    /// A post-processing step that finds all standard HTML `<img src="...">` tags
-    /// in a block of rendered HTML and converts their `src` paths.
+    /// A post-processing step that finds all standard HTML `<img ...>` tags
+    /// in a block of rendered HTML, converts their `src` paths, and ensures
+    /// they have the `embedded-image` class while preserving other attributes.
     fn process_body_image_tags(&self, html: &str) -> String {
         IMG_TAG_RE
             .replace_all(html, |caps: &Captures| {
-                // 1. Get the path, which might have both HTML and URL encoding
+                // 1. Get the original src path and all other attributes.
                 let encoded_path_str = &caps[1];
+                let other_attrs = &caps[2];
 
-                // 2. Decode the path string
+                // 2. Decode the path string.
                 let html_decoded_path = decode_html_entities(encoded_path_str);
                 let final_path_str = percent_decode_str(&html_decoded_path)
                     .decode_utf8_lossy()
@@ -222,8 +231,31 @@ impl Renderer {
                     self.convert_image_path_to_asset_url(&final_path_str)
                 };
 
-                // Reconstruct the img tag with the new src
-                format!(r#"<img src="{}" class="embedded-image""#, image_src)
+                // 4. Handle the class attribute, preserving all other attributes.
+                let final_other_attrs =
+                    if let Some(class_caps) = CLASS_ATTR_RE.captures(other_attrs) {
+                        // A class attribute was found.
+                        let existing_classes = &class_caps[2];
+                        if existing_classes
+                            .split_whitespace()
+                            .any(|c| c == "embedded-image")
+                        {
+                            // The class is already present, so no changes are needed.
+                            other_attrs.to_string()
+                        } else {
+                            // The class is not present; add it to the existing list.
+                            // The replacement adds a space before our class.
+                            CLASS_ATTR_RE
+                                .replace(other_attrs, r#"$1$2 embedded-image""#)
+                                .to_string()
+                        }
+                    } else {
+                        // No class attribute was found. Add it, preserving all other attributes.
+                        format!(r#"{} class="embedded-image""#, other_attrs)
+                    };
+
+                // 5. Reconstruct the full <img> tag with the new src and modified attributes.
+                format!(r#"<img src="{}"{}>"#, image_src, final_other_attrs)
             })
             .to_string()
     }
