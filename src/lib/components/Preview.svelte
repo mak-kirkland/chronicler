@@ -163,4 +163,40 @@
     .main-content :global(table[border="0"] td) {
         border: none;
     }
+
+    /* --- Rules for the opt-in user-facing float container --- */
+
+    /* The container itself. Using 'flow-root' makes it contain the
+       floated table properly, so content *after* the container
+       doesn't wrap around the table. */
+    .main-content :global(.float-container) {
+        display: flow-root;
+        margin-bottom: 1.5em; /* Give it some space at the bottom */
+    }
+
+    /* A general-purpose class to float elements left */
+    .main-content :global(.float-left) {
+        float: left;
+        margin-right: 1.5em;
+        margin-bottom: 0.5em;
+    }
+
+    /* A general-purpose class to float elements right */
+    .main-content :global(.float-right) {
+        float: right;
+        margin-left: 1.5em;
+        margin-bottom: 0.5em;
+    }
+    /* This is the key part: Override the default header behavior
+     *only* for headers inside our float container. */
+    .main-content :global(.float-container > h1),
+    .main-content :global(.float-container > h2),
+    .main-content :global(.float-container > h3),
+    .main-content :global(.float-container > h4),
+    .main-content :global(.float-container > h5),
+    .main-content :global(.float-container > h6) {
+        clear: none; /* Allows the header to sit next to the floated element */
+        display: block; /* Resets 'flow-root' back to a normal block */
+        overflow: hidden; /* This makes the header's block (and its border) wrap around the float */
+    }
 </style>

@@ -316,6 +316,28 @@ You can also use **standard HTML `<table>` tags** to create more complex tables 
 
 ---
 
+## 🪄 Advanced Layouts
+
+Use floating layouts to place tables or images beside your text instead of above or below it.
+
+Wrap your content in a `<div class="float-container">`, and add either `.float-left` or `.float-right` to the element you want to float.
+
+```html
+<div class="float-container">
+
+  <table class="float-left">
+    </table>
+
+  <h3>Level 1</h3>
+  To ease new players into the XP system...
+
+</div>
+```
+
+⚠️ Markdown headers (`##`) won't wrap inside the container. Use HTML tags instead (`<h2>`).
+
+---
+
 ## 📥 Importing Word Docs
 
 You can import `.docx` files from Microsoft Word directly into your vault.
