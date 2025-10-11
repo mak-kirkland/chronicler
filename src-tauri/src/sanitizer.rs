@@ -54,14 +54,19 @@ pub fn sanitize_html(dirty_html: &str) -> String {
             "summary", // Summary for the details element
             "kbd",     // Keyboard input
             "abbr",    // Abbreviation
+            "div",
         ]))
-        .add_tag_attributes("img", &["src", "data", "alt", "style", "width", "height"])
+        .add_tag_attributes(
+            "img",
+            &["src", "data", "alt", "style", "width", "height", "class"],
+        )
         .add_tag_attributes("figure", &["style"])
         .add_tag_attributes("figcaption", &["style"])
         .add_tag_attributes("a", &["href", "title", "class", "data-path", "data-target"])
         .add_tag_attributes("span", &["class"])
         .add_tag_attributes("details", &["open"])
         .add_tag_attributes("abbr", &["title"]) // Allow title for abbreviations
+        .add_tag_attributes("div", &["style", "class"])
         .add_tag_attributes("th", &["style", "align", "valign", "width"]) // Allow table header alignment
         .add_tag_attributes("td", &["style", "align", "valign", "width"]) // Allow table cell alignment
         // Allow 'id' attribute on all heading tags for TOC linking.
@@ -73,7 +78,15 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         .add_tag_attributes("h6", &["id"])
         .add_tag_attributes(
             "table",
-            &["border", "align", "width", "cellspacing", "cellpadding"],
+            &[
+                "border",
+                "align",
+                "width",
+                "cellspacing",
+                "cellpadding",
+                "style",
+                "class",
+            ],
         )
         .clean(dirty_html)
         .to_string()
