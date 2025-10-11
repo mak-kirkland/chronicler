@@ -90,7 +90,6 @@
     }
 
     .main-content-wrapper {
-        overflow: auto;
     }
 
     /* --- Global Styles for Rendered Content --- */
@@ -104,14 +103,14 @@
         margin-top: 1.5em;
         margin-bottom: 0.3em;
         /*
-	 * Display: flow-root creates a new block formatting context for
-	 * the heading itself, forcing its border to respect the floated
-	 * element, without preventing the rest of the .main-content text
-	 * from wrapping underneath the infobox.
-	 */
-        display: flow-root;
-        clear: both;
+         * Using 'overflow: hidden' creates a new block formatting context,
+         * which makes the header's block (including its border) correctly
+         * wrap around the floated infobox.
+         */
+        overflow: hidden;
+        clear: left;
     }
+
     .main-content :global(h1 + p),
     .main-content :global(h2 + p),
     .main-content :global(h3 + p) {
