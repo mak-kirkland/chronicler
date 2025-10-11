@@ -143,7 +143,6 @@
         padding: 0;
     }
     .main-content :global(table) {
-        width: auto;
         max-width: 100%;
         border-collapse: collapse;
         margin-block: 1.5em;
