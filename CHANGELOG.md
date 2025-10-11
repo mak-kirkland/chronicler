@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.26.3-alpha] - 2025-10-11
+
+### 🔄 Changed
+
+- **Themes & Fonts**: Font selection has been decoupled from color themes to provide a more flexible and intuitive customization experience. You can now mix and match any color theme with any available heading and body font.
+- **Styling**: The global CSS rule that forced `width: auto;` on all tables has been removed, allowing the HTML `width` attribute to function as expected.
+- **Internal**: All business logic for handling theme and font changes has been centralized into the `settingsStore`. There is now a single source of truth for orchestrating theme changes and automatically synchronizing fonts for built-in theme. UI components are now purely presentational, improving code maintainability and scalability.
+
+---
+
 ## [v0.26.2-alpha] - 2025-10-08
 
 ### 🔄 Changed
