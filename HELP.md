@@ -116,15 +116,15 @@ The easiest way to add an image to the body of your page is with the wikilink sy
 
 ---
 
-## ✨ Simple Formatting
-
-### 🫣 Spoilers
+## 🫣 Spoilers
 
 Hide text by wrapping it in double pipes `||like this||`. The text will be blacked out until a reader clicks on it.
 
 > The king’s advisor is ||secretly a vampire||.
 
-### 🗄️ Tables
+---
+
+## 🗄️ Tables
 
 Create simple tables with pipes `|` and dashes `-`.
 
@@ -138,6 +138,22 @@ Create simple tables with pipes `|` and dashes `-`.
 Tip: Links with custom text (e.g., `[[Page|Link text]]`) use the `|` symbol, which can break a table's structure. To fix this, just add a backslash `\` before it: `[[Page\|Link text]]`.
 
 *For more control over tables, see the Advanced Guide.*
+
+---
+
+## 🧩 Page Inserts
+
+Embed the content of one page directly inside another. This is great for reusing information (e.g navboxes, item cards, stat blocks...) so you only have to update it in one place.
+
+```markdown
+{{insert: Page Name}}
+```
+
+You can also set a custom title for the header:
+
+```markdown
+{{insert: The Great War | title="Summary of the Great War"}}
+```
 
 ---
 

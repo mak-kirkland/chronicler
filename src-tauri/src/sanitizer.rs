@@ -55,6 +55,7 @@ pub fn sanitize_html(dirty_html: &str) -> String {
             "kbd",     // Keyboard input
             "abbr",    // Abbreviation
             "div",
+            "button",
         ]))
         .add_tag_attributes(
             "img",
@@ -88,6 +89,7 @@ pub fn sanitize_html(dirty_html: &str) -> String {
                 "class",
             ],
         )
+        .add_tag_attributes("button", &["class"])
         .clean(dirty_html)
         .to_string()
 }

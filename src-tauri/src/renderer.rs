@@ -1,9 +1,17 @@
 //! Markdown and Wikilink rendering engine.
+//!
+//! This module is the heart of the content display system. It is responsible for:
+//! 1. Parsing Markdown text into a stream of events using `pulldown-cmark`.
+//! 2. Transforming custom syntax like `[[wikilinks]]`, `||spoilers||`, and `{{inserts}}` into HTML.
+//! 3. Generating a Table of Contents (TOC) from page headers.
+//! 4. Handling the recursive rendering of embedded files ("inserts" or transclusions).
+//! 5. Post-processing the final HTML to sanitize it and correctly handle image paths.
 
 use crate::config::IMAGES_DIR_NAME;
 use crate::error::ChroniclerError;
 use crate::models::{Backlink, FullPageData, TocEntry};
 use crate::sanitizer;
+use crate::utils::file_stem_string;
 use crate::wikilink::WIKILINK_RE;
 use crate::{error::Result, indexer::Indexer, models::RenderedPage, parser};
 use base64::{engine::general_purpose, Engine as _};
@@ -52,6 +60,33 @@ static CLASS_ATTR_RE: LazyLock<Regex> =
 /// Format: ![[filename.png|alt text]]
 static WIKILINK_IMAGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"!\[\[([^\|\]]+)(?:\|([^\]]+))?\]\]"#).unwrap());
+
+/// Insert/Transclusion regex pattern.
+/// Captures: 1: path, 2: optional title (double quoted), 3: optional title (single quoted)
+/// Format: {{insert: path/to/file with spaces.md | title="My Title"}}
+static INSERT_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?x) # Enable comments and insignificant whitespace
+        # Allow optional whitespace after {{ and after the colon
+        \{\{\s*insert:\s*
+        # Capture group 1: The path. It's a non-greedy match of any character,
+        # ending with a non-whitespace character (\S). This correctly handles spaces
+        # in the path while allowing trailing whitespace before the optional pipe.
+        (.*?\S)
+        \s* # Match trailing whitespace after the path
+        (?: # Optional group for the title attribute
+            \|\s*title\s*=\s*
+            (?: # Handle either single or double quotes
+                "([^"]*)" # Capture group 2: Double-quoted title
+                |
+                '([^']*)' # Capture group 3: Single-quoted title
+            )
+        )? # End optional title group
+        \s*\}\}
+        "#,
+    )
+    .unwrap()
+});
 
 /// A struct responsible for rendering Markdown content.
 #[derive(Debug)]
@@ -285,7 +320,10 @@ impl Renderer {
     /// (wikilinks, spoilers, image tags) into final HTML.
     fn render_frontmatter_string_as_html(&self, text: &str) -> String {
         // 1. Process custom syntax first (wikilinks, spoilers, etc.)
-        let with_custom_syntax = self.render_custom_syntax_in_string(text);
+        // An empty Vec is passed for the rendering stack as frontmatter cannot have inserts.
+        let with_custom_syntax = self
+            .render_custom_syntax_in_string(text, &mut Vec::new())
+            .unwrap_or_else(|e| e.to_string());
 
         // 2. Render standard Markdown on the result of step 1.
         let with_markdown = self.render_inline_markdown(&with_custom_syntax);
@@ -356,7 +394,8 @@ impl Renderer {
         self.process_frontmatter(&mut frontmatter_json);
 
         // 3. Render the main body content to HTML, correctly handling custom syntax.
-        let (html_before_toc, html_after_toc, toc) = self.render_body_to_html_with_toc(body);
+        let (html_before_toc, html_after_toc, toc) =
+            self.render_body_to_html_with_toc(body, &mut Vec::new())?;
 
         // 4. Return the complete structure.
         Ok(RenderedPage {
@@ -367,8 +406,96 @@ impl Renderer {
         })
     }
 
-    /// Replaces all custom syntax (spoilers and wikilinks) in a string with valid HTML.
-    fn render_custom_syntax_in_string(&self, text: &str) -> String {
+    /// Helper function to process a single `{{insert: ...}}` match.
+    /// This function contains all the logic for resolving, rendering, and error-handling
+    /// an individual insert, which simplifies the main `render_custom_syntax_in_string` function.
+    fn process_single_insert(
+        &self,
+        caps: &Captures,
+        rendering_stack: &mut Vec<PathBuf>,
+    ) -> Result<String> {
+        // 1. Capture the target name (e.g., "Count Viscar") and optional title.
+        let target = caps.get(1).map_or("", |m| m.as_str()).trim();
+        let title = caps
+            .get(2) // Check double-quoted title
+            .or_else(|| caps.get(3)) // Fallback to single-quoted title
+            .map(|m| m.as_str().trim());
+
+        // 2. Use the indexer to find the full path from the target name.
+        let indexer = self.indexer.read();
+        let normalized_target = target.to_lowercase();
+        // We clone the path to release the read lock on the indexer quickly.
+        let maybe_path = indexer.link_resolver.get(&normalized_target).cloned();
+        drop(indexer);
+
+        // 3. Process the result of the path lookup.
+        if let Some(insert_path) = maybe_path {
+            // --- Logic for a successfully found insert path ---
+
+            // a. Circular Dependency Check: Prevent infinite recursion.
+            if rendering_stack.contains(&insert_path) {
+                return Err(ChroniclerError::CircularInsert(insert_path.clone()));
+            }
+
+            // b. Read the content of the target file.
+            match fs::read_to_string(&insert_path) {
+                Ok(content) => {
+                    // --- Recursion Step ---
+                    // Push the current path onto the stack to track the recursion depth.
+                    rendering_stack.push(insert_path.clone());
+                    // Recursively render the body of the inserted file.
+                    let (before_toc, after_toc, _) =
+                        self.render_body_to_html_with_toc(&content, rendering_stack)?;
+                    let rendered_html = before_toc + &after_toc;
+                    // Pop from the stack after the recursive call returns successfully.
+                    rendering_stack.pop();
+
+                    // c. Determine the title: use the one from syntax, or default to the file name.
+                    let default_title = file_stem_string(&insert_path);
+                    let final_title = title.unwrap_or(&default_title);
+
+                    // d. Build the final HTML for the insert container.
+                    let final_html = format!(
+                        r#"<div class="insert-container">
+                            <div class="insert-header">
+                                <span class="insert-title-wrapper">
+                                    <span>{}</span>
+                                </span>
+                                <button class="insert-toggle">[hide]</button>
+                            </div>
+                           <div class="insert-content">{}</div>
+                        </div>"#,
+                        final_title, rendered_html
+                    );
+
+                    Ok(final_html)
+                }
+                Err(_) => {
+                    // This handles the case where a file exists in the index but is unreadable.
+                    let error_html = format!(
+                        "<div class=\"error-box\">Could not read insert: {}</div>",
+                        html_escape::encode_text(&insert_path.to_string_lossy())
+                    );
+                    Ok(error_html)
+                }
+            }
+        } else {
+            // --- This handles a "broken" insert link ---
+            // If the target wasn't found in the link_resolver, show an error.
+            let error_html = format!(
+                "<div class=\"error-box\">Insert not found: {}</div>",
+                html_escape::encode_text(target)
+            );
+            Ok(error_html)
+        }
+    }
+
+    /// Replaces all custom syntax (spoilers, wikilinks, inserts) in a string with valid HTML.
+    fn render_custom_syntax_in_string(
+        &self,
+        text: &str,
+        rendering_stack: &mut Vec<PathBuf>,
+    ) -> Result<String> {
         // 1. Process spoilers first.
         let with_spoilers = SPOILER_RE.replace_all(text, |caps: &Captures| {
             format!("<span class=\"spoiler\">{}</span>", &caps[1])
@@ -389,10 +516,27 @@ impl Renderer {
             )
         });
 
-        // 3. Finally, process standard wikilinks [[...]] on the remaining text.
+        // 3. Process inserts: {{insert: Page Name}}
+        // The `try_fold` iterates through all matches, replacing them one by one.
+        // It's wrapped in a Result to allow any step in the chain to fail.
+        let with_inserts_result: Result<String> =
+            INSERT_RE
+                .captures_iter(&with_images)
+                .try_fold(with_images.to_string(), |acc, caps| {
+                    // Get the full text of the matched insert syntax (e.g., "{{insert: ...}}")
+                    let whole_match = caps.get(0).unwrap().as_str();
+                    // Call our dedicated helper function to get the replacement HTML.
+                    let replacement_html = self.process_single_insert(&caps, rendering_stack)?;
+                    // Replace the original syntax in the accumulated string with the generated HTML.
+                    Ok(acc.replace(whole_match, &replacement_html))
+                });
+
+        let with_inserts = with_inserts_result?;
+
+        // 4. Finally, process standard wikilinks: [[Page Name|alias]]
         let indexer = self.indexer.read();
-        WIKILINK_RE
-            .replace_all(&with_images, |caps: &Captures| {
+        let final_html = WIKILINK_RE
+            .replace_all(&with_inserts, |caps: &Captures| {
                 let target = caps.get(1).map_or("", |m| m.as_str()).trim();
                 let alias = caps.get(3).map(|m| m.as_str().trim()).unwrap_or(target);
                 let normalized_target = target.to_lowercase();
@@ -411,7 +555,9 @@ impl Renderer {
                     )
                 }
             })
-            .to_string()
+            .to_string();
+
+        Ok(final_html)
     }
 
     /// Extracts the display text from wikilinks within a string, leaving other text intact.
@@ -472,7 +618,11 @@ impl Renderer {
     /// - `html_after_toc`: Rendered HTML of all content *from* the first header onwards.
     /// - `toc`: A `Vec<TocEntry>` representing the structured Table of Contents.
     ///
-    fn render_body_to_html_with_toc(&self, markdown: &str) -> (String, String, Vec<TocEntry>) {
+    fn render_body_to_html_with_toc(
+        &self,
+        markdown: &str,
+        rendering_stack: &mut Vec<PathBuf>,
+    ) -> Result<(String, String, Vec<TocEntry>)> {
         // --- 1. Initial Setup ---
 
         // Standard pulldown-cmark options to enable features like tables and strikethrough.
@@ -552,19 +702,23 @@ impl Renderer {
         // --- 2a. The Flushing Closure ---
         // This closure contains the logic to process the contents of `text_buffer`.
         // It's called whenever we need to "flush" the text we've gathered.
-        let flush_text_buffer = |buffer: &mut String, events: &mut Vec<Event>| {
+        let flush_text_buffer = |buffer: &mut String,
+                                 events: &mut Vec<Event>,
+                                 stack: &mut Vec<PathBuf>|
+         -> Result<()> {
             // If the buffer is empty, there's nothing to do.
             if buffer.is_empty() {
-                return;
+                return Ok(());
             }
 
             // Process all custom syntax on the buffer and push the result as a single HTML event.
             // This is more efficient than splitting the text into multiple events.
-            let final_html = self.render_custom_syntax_in_string(buffer);
+            let final_html = self.render_custom_syntax_in_string(buffer, stack)?;
             events.push(Event::Html(final_html.into()));
 
             // Reset the buffer so it's ready for the next block of text.
             buffer.clear();
+            Ok(())
         };
 
         // --- 2b. The Main Event Loop ---
@@ -583,15 +737,16 @@ impl Renderer {
                 // If the event is raw HTML, process its content for wikilinks.
                 Event::Html(html_content) => {
                     // First, flush any pending text to maintain order.
-                    flush_text_buffer(&mut text_buffer, current_event_list);
+                    flush_text_buffer(&mut text_buffer, current_event_list, rendering_stack)?;
                     // Now, process the HTML content itself for our custom syntax.
-                    let processed_html = self.render_custom_syntax_in_string(&html_content);
+                    let processed_html =
+                        self.render_custom_syntax_in_string(&html_content, rendering_stack)?;
                     // Push the processed HTML back into the event stream.
                     current_event_list.push(Event::Html(processed_html.into()));
                 }
                 Event::Start(Tag::Heading { level, .. }) => {
                     // This signals the end of our consecutive text block. So, first, we flush.
-                    flush_text_buffer(&mut text_buffer, current_event_list);
+                    flush_text_buffer(&mut text_buffer, current_event_list, rendering_stack)?;
                     found_first_header = true;
 
                     // Get the pre-calculated ID for this header from our TOC data.
@@ -611,7 +766,7 @@ impl Renderer {
                 // it also signals the end of our consecutive text block.
                 _ => {
                     // So, first, we flush the text buffer we've built up.
-                    flush_text_buffer(&mut text_buffer, current_event_list);
+                    flush_text_buffer(&mut text_buffer, current_event_list, rendering_stack)?;
                     // Then, we push the non-text event that triggered the flush.
                     current_event_list.push(event);
                 }
@@ -624,7 +779,7 @@ impl Renderer {
         } else {
             &mut events_before_toc
         };
-        flush_text_buffer(&mut text_buffer, final_event_list);
+        flush_text_buffer(&mut text_buffer, final_event_list, rendering_stack)?;
 
         // --- 4. Final HTML Rendering ---
 
@@ -647,7 +802,7 @@ impl Renderer {
         let final_before = self.process_body_image_tags(&sanitized_before);
         let final_after = self.process_body_image_tags(&sanitized_after);
 
-        (final_before, final_after, toc)
+        Ok((final_before, final_after, toc))
     }
 
     /// Renders a full Markdown string to an HTML string using pulldown-cmark.
@@ -762,7 +917,9 @@ mod tests {
     fn test_render_custom_syntax_in_string() {
         let (renderer, page1_path) = setup_renderer();
         let content = "Link to [[Page One]] and a ||spoiler||.";
-        let rendered = renderer.render_custom_syntax_in_string(content);
+        let rendered = renderer
+            .render_custom_syntax_in_string(content, &mut Vec::new())
+            .unwrap();
 
         let expected_path_str = path_to_web_str(&page1_path);
         let expected = format!(
@@ -899,7 +1056,9 @@ Case 3: Inline with single backticks `[[Page One]]`.
 A normal link for comparison: [[Page One]].
 "#;
 
-        let (body_html, _, _) = renderer.render_body_to_html_with_toc(content);
+        let (body_html, _, _) = renderer
+            .render_body_to_html_with_toc(content, &mut Vec::new())
+            .unwrap();
         let expected_path_str = path_to_web_str(&page1_path);
 
         // The expected HTML now asserts that wikilinks ARE rendered inside
@@ -920,7 +1079,9 @@ A normal link for comparison: [[Page One]].
 A normal link to [[Page One]].
 A spoiler with a ||secret [[link]] inside||.
 "#;
-        let (body_html, _, _) = renderer.render_body_to_html_with_toc(content);
+        let (body_html, _, _) = renderer
+            .render_body_to_html_with_toc(content, &mut Vec::new())
+            .unwrap();
         let page1_path_str = path_to_web_str(&page1_path);
         let link_path_str = path_to_web_str(&link_path);
 
