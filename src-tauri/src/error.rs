@@ -83,6 +83,9 @@ pub enum ChroniclerError {
 
     #[error("License is invalid: {0}")]
     LicenseInvalid(String),
+
+    #[error("Circular insert detected: a page is trying to insert itself, creating a loop.")]
+    CircularInsert(PathBuf),
 }
 
 // We need to implement Serialize for the error type to be able to return

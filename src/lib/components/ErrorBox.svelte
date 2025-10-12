@@ -1,6 +1,9 @@
 <script lang="ts">
     // This component displays a consistently styled error message.
     // It accepts an optional title and uses a slot for the error content.
+    // The styling for `.error-box` has been moved to the global `app.css`
+    // to ensure consistency between errors generated from the frontend
+    // (using this component) and errors generated from the backend HTML renderer.
     let { children, title = "Error" } = $props<{
         children: any;
         title?: string;
@@ -13,19 +16,3 @@
     {/if}
     {@render children()}
 </div>
-
-<style>
-    .error-box {
-        background-color: var(--color-background-error);
-        color: var(--color-text-error);
-        padding: 0.75rem;
-        border-radius: 4px;
-        margin-bottom: 1rem;
-        font-size: 0.85rem;
-        border: 1px solid var(--color-border-error);
-    }
-    strong {
-        display: block;
-        margin-bottom: 0.25rem;
-    }
-</style>
