@@ -8,6 +8,7 @@ license = "PolyForm Shield License 1.0.0"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+dotenvy = "0.15.7"
 
 [dependencies]
 # Tauri
