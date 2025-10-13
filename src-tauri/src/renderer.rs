@@ -496,18 +496,18 @@ impl Renderer {
         text: &str,
         rendering_stack: &mut Vec<PathBuf>,
     ) -> Result<String> {
-        // 1. Process spoilers first.
+        // 1. Process spoilers first: ||spoiler||
         let with_spoilers = SPOILER_RE.replace_all(text, |caps: &Captures| {
             format!("<span class=\"spoiler\">{}</span>", &caps[1])
         });
 
-        // 2. Process image wikilinks ![[...]] into <img> tags.
+        // 2. Process image wikilinks: ![[image.png|alt text]]
         let with_images = WIKILINK_IMAGE_RE.replace_all(&with_spoilers, |caps: &Captures| {
             let path_str = caps.get(1).map_or("", |m| m.as_str()).trim();
             let alt_text = caps.get(2).map_or(path_str, |m| m.as_str().trim());
 
-            // Generate the simple <img> tag with the given path.
-            // This will then be handled by the `process_body_image_tags` post-processor.
+            // Generate a standard <img> tag. This will be post-processed later
+            // by `process_body_image_tags` to handle the src path correctly.
             format!(
                 r#"<img src="{}" alt="{}">"#,
                 // Use the normalized path directly as the src
