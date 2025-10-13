@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.26.5-alpha] - 2025-10-13
+
+### 🐞 Fixed
+
+- **Licensing**: Fixed a critical bug where the license validation token was missing from the application binary, causing all license checks to fail. The build process has been corrected to inject the necessary secrets at compile-time.
+
+---
+
 ## [v0.26.4-alpha] - 2025-10-13
 
 ### 🔄 Changed
