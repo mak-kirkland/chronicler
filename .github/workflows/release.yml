@@ -100,6 +100,7 @@ jobs:
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
                   # Keygen licensing
                   KEYGEN_PRODUCT_TOKEN: ${{ secrets.KEYGEN_PRODUCT_TOKEN }}
+                  LICENSE_SECRET: ${{ secrets.LICENSE_SECRET }}
               with:
                   # Pass the target triple to the build command
                   args: --target ${{ matrix.target }}

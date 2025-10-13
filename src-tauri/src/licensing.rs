@@ -74,13 +74,8 @@ const KEYGEN_PRODUCT_ID: &str = "834d79c0-16f7-401f-b3a9-a176c39a1723";
 /// machine is not yet activated, this function will perform the activation.
 #[instrument(skip(license_key))]
 pub async fn validate_license(license_key: &str) -> Result<License> {
-    // Read the product token at RUN TIME instead of compile time
-    let product_token = env::var("KEYGEN_PRODUCT_TOKEN").map_err(|_| {
-        error!("The KEYGEN_PRODUCT_TOKEN environment variable is not set.");
-        ChroniclerError::LicenseInvalid(
-            "The KEYGEN_PRODUCT_TOKEN environment variable is not set.".to_string(),
-        )
-    })?;
+    // Read the product token at COMPILE TIME and bake it into the binary.
+    let product_token = env!("KEYGEN_PRODUCT_TOKEN");
 
     // 1. Get a unique identifier for this machine.
     let fingerprint = machine_uid::get()
@@ -253,11 +248,8 @@ type HmacSha256 = Hmac<Sha256>;
 
 /// Creates a machine-specific secret key for signing the license file.
 fn get_signing_key() -> Result<Vec<u8>> {
-    // 1. Get the application secret from an environment variable.
-    let app_secret = env::var("LICENSE_SECRET").map_err(|_| {
-        error!("The LICENSE_SECRET environment variable is not set.");
-        ChroniclerError::LicenseInvalid("Application secret is not configured.".to_string())
-    })?;
+    // 1. Get the application secret at COMPILE TIME.
+    let app_secret = env!("LICENSE_SECRET");
 
     // 2. Get the unique machine ID.
     let fingerprint = machine_uid::get()
