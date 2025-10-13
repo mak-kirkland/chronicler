@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.26.4-alpha] - 2025-10-13
+
+### 🔄 Changed
+
+- **Licensing**: The licensing system has been overhauled to fully support machine activation, correctly handling the device lifecycle required by the Keygen policy.
+- **Internal**: The build process has been updated to securely manage secrets for the licensing system.
+
+### 🔒 Security
+
+- **Licensing**: Implemented a tamper-proof verification system for the local license file using HMAC-SHA256 signatures. The license data is now signed using a secret key and the unique machine ID when it's saved. This signature is verified on every startup using a constant-time comparison to prevent tampering with the license's contents, such as its expiry date.
+
+---
+
 ## [v0.26.3-alpha] - 2025-10-11
 
 ### 🔄 Changed
