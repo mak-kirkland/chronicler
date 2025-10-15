@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.27.0-alpha] - 2025-10-15
+
+### ✨ Added
+
+- **Preview**: A new `.float-container` class has been introduced to allow for more flexible, custom layouts. This feature lets you float elements like images or tables and have subsequent content, including headers, wrap correctly around them. Helper classes like `.float-left` and `.float-right` are also available for easy styling.
+
+### 🔄 Changed
+
+- **Renderer**: The image processing logic has been improved to be non-destructive. Previously, it would discard all existing attributes (like `alt` or `style`) from an `<img>` tag during processing. The renderer now preserves all attributes and intelligently adds the necessary `embedded-image` class.
+
+### 🐞 Fixed
+
+- **Styling**: Fixed a series of CSS layout issues that prevented content from flowing correctly around the right-floated infobox and other floated elements, which often created large vertical gaps. The fix allows text to properly wrap underneath the infobox for the desired "wiki-style" layout.
+
+---
+
 ## [v0.26.5-alpha] - 2025-10-13
 
 ### 🐞 Fixed
