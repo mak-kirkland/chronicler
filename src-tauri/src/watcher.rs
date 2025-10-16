@@ -18,7 +18,7 @@ use notify_debouncer_full::{
     },
     DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::sync::broadcast;
 use tracing::{error, info, instrument};
 
@@ -152,6 +152,23 @@ fn handle_debounced_events(
     events: Vec<DebouncedEvent>,
 ) {
     for event in events {
+        // A closure to contain the heuristic for resolving ambiguous removals.
+        let resolve_ambiguous_removal = |paths: &[PathBuf]| {
+            paths
+                .iter()
+                .filter(|path| !is_temp_file(path))
+                .map(|path| {
+                    // This is an educated guess. If a path doesn't have an extension
+                    // that we track, we'll assume it was a folder.
+                    if !is_markdown_file(path) && !is_image_file(path) {
+                        FileEvent::FolderDeleted(path.to_path_buf())
+                    } else {
+                        FileEvent::Deleted(path.to_path_buf())
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+
         // Convert raw filesystem events to our FileEvent enum
         let file_events: Vec<FileEvent> = match event.kind {
             EventKind::Create(CreateKind::File) => event
@@ -187,6 +204,9 @@ fn handle_debounced_events(
                 .map(|path| FileEvent::FolderDeleted(path.clone()))
                 .collect::<Vec<_>>(),
 
+            // This handles ambiguous "delete" events, common on Windows.
+            EventKind::Remove(RemoveKind::Any) => resolve_ambiguous_removal(&event.paths),
+
             EventKind::Modify(ModifyKind::Name(rename_mode)) => match rename_mode {
                 // This is a true rename within the watched directory
                 RenameMode::Both => {
@@ -204,20 +224,7 @@ fn handle_debounced_events(
                 }
 
                 // This is a move OUT of the watched folder, which we treat as a deletion
-                RenameMode::From => event
-                    .paths
-                    .iter()
-                    .filter(|path| !is_temp_file(path))
-                    // This now correctly creates either a Deleted or FolderDeleted event
-                    .map(|path| {
-                        // Check if it's a directory first
-                        if path.is_dir() {
-                            FileEvent::FolderDeleted(path.clone())
-                        } else {
-                            FileEvent::Deleted(path.clone())
-                        }
-                    })
-                    .collect(),
+                RenameMode::From => resolve_ambiguous_removal(&event.paths),
 
                 // We can ignore RenameMode::To (moved into folder) and RenameMode::Any,
                 // as Create events will handle the discovery of new files.
