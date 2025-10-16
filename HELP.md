@@ -354,6 +354,20 @@ Wrap your content in a `<div class="float-container">`, and add either `.float-l
 
 ---
 
+## ✒️ Inline Styling
+
+Use basic HTML tags directly in your Markdown to style specific pieces of text. This is useful for adding thematic fonts or colors. The `style` attribute is supported on `<p>` and `<span>` tags.
+
+```html
+<p style="font-family:'Your Custom Font'; color:blue; font-size:2rem">This paragraph will be big and blue.</p>
+```
+
+```html
+This text is normal, but <span style="font-family:'Your Custom Font';">these words</span> are special.
+```
+
+---
+
 ## 📥 Importing Word Docs
 
 You can import `.docx` files from Microsoft Word directly into your vault.

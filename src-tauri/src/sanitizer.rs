@@ -64,7 +64,8 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         .add_tag_attributes("figure", &["style"])
         .add_tag_attributes("figcaption", &["style"])
         .add_tag_attributes("a", &["href", "title", "class", "data-path", "data-target"])
-        .add_tag_attributes("span", &["class"])
+        .add_tag_attributes("span", &["class", "style"])
+        .add_tag_attributes("p", &["style"])
         .add_tag_attributes("details", &["open"])
         .add_tag_attributes("abbr", &["title"]) // Allow title for abbreviations
         .add_tag_attributes("div", &["style", "class"])
