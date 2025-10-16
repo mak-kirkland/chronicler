@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import Codemirror from "svelte-codemirror-editor";
     import { markdown } from "@codemirror/lang-markdown";
-    import { EditorView } from "@codemirror/view";
+    import { EditorView, keymap } from "@codemirror/view";
     import {
         autocompletion,
         type CompletionContext,
@@ -10,12 +10,14 @@
     } from "@codemirror/autocomplete";
     import { get } from "svelte/store";
     import { allFileTitles, tags } from "$lib/worldStore";
+    import { toggleBold, toggleItalic } from "$lib/editor";
+    import EditorToolbar from "./EditorToolbar.svelte";
 
     let { content = $bindable() } = $props<{ content?: string }>();
-    let editor: EditorView;
+    let editor: EditorView | undefined = $state();
 
     onMount(() => {
-        editor.focus();
+        editor?.focus();
     });
 
     /**
@@ -84,8 +86,27 @@
 
     // --- CODEMIRROR CONFIGURATION ---
 
+    // Define custom keybindings
+    const customKeymap = [
+        {
+            key: "Mod-b",
+            run: (view: EditorView) => {
+                toggleBold(view);
+                return true;
+            },
+        },
+        {
+            key: "Mod-i",
+            run: (view: EditorView) => {
+                toggleItalic(view);
+                return true;
+            },
+        },
+    ];
+
     const customTheme = EditorView.theme({
         "&": {
+            // No fixed height, let it grow with content
             width: "100%",
             backgroundColor: "transparent",
             color: "var(--color-text-primary)",
@@ -123,31 +144,44 @@
         },
     });
 
-    // Add the new autocompletion extension to the list.
+    // The svelte-codemirror-editor wrapper handles basic setup like history and default keymaps.
+    // We only need to provide the extensions that are truly custom to our application.
     const extensions = [
         markdown(),
+        keymap.of(customKeymap),
         EditorView.lineWrapping,
         customTheme,
         autocompletion({ override: [customCompletions] }),
     ];
 </script>
 
-<div class="editor-wrapper">
-    <Codemirror
-        on:ready={(e) => (editor = e.detail)}
-        bind:value={content}
-        {extensions}
-        placeholder="Let your story unfold..."
-    />
+<div class="editor-container">
+    <EditorToolbar editorView={editor} />
+    <div class="editor-wrapper">
+        <Codemirror
+            on:ready={(e) => (editor = e.detail)}
+            bind:value={content}
+            {extensions}
+            placeholder="Let your story unfold..."
+        />
+    </div>
 </div>
 
 <style>
+    .editor-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+    }
     .editor-wrapper {
         display: flex;
         flex-direction: column;
-        min-height: 100%;
         width: 100%;
-        padding: 2em;
         box-sizing: border-box;
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 0 2rem 2rem 2rem;
     }
 </style>
