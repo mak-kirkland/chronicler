@@ -13,9 +13,10 @@
     },
     "license": "PolyForm Shield License 1.0.0",
     "dependencies": {
-        "@codemirror/autocomplete": "^6.19.0",
-        "@codemirror/lang-markdown": "^6.4.0",
-        "@codemirror/view": "^6.38.6",
+        "@codemirror/autocomplete": "^6.18.7",
+        "@codemirror/commands": "^6.9.0",
+        "@codemirror/lang-markdown": "^6.3.4",
+        "@codemirror/view": "^6.38.2",
         "@tauri-apps/api": "^2.8.0",
         "@tauri-apps/plugin-dialog": "~2.3.3",
         "@tauri-apps/plugin-fs": "~2.4.2",

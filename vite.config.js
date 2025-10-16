@@ -13,6 +13,7 @@ export default defineConfig(async () => ({
 	  'svelte-codemirror-editor',
 	  'codemirror',
 	  '@codemirror/lang-markdown',
+          '@codemirror/state',
 	  '@codemirror/view',
           '@codemirror/autocomplete'
       ]
