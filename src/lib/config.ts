@@ -33,3 +33,8 @@ export const SIDEBAR_MAX_WIDTH = 400;
  * The number of pixels to adjust the sidebar width by when using keyboard controls.
  */
 export const SIDEBAR_KEYBOARD_RESIZE_STEP = 10;
+
+/**
+ * The URL for donating to the development of Chronicler.
+ */
+export const DONATE_URL = "https://chronicler.pro/#support";

@@ -262,13 +262,14 @@
                 {/if}
             {:else}
                 <p>
-                    To keep Chronicler alive, please consider purchasing a
+                    To keep Chronicler alive and disable the donation prompts,
+                    please consider
                     <a
                         href="https://chronicler.pro/#support"
                         onclick={(event) => {
                             event.preventDefault();
-                            openUrl("https://chronicler.pro/#support");
-                        }}>Community License</a
+                            openUrl(DONATE_URL);
+                        }}>supporting</a
                     >.
                 </p>
             {/if}

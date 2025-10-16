@@ -4,10 +4,10 @@
     import Button from "$lib/components/Button.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { closeModal } from "$lib/modalStore";
+    import { DONATE_URL } from "$lib/config";
 
     let { daysUsed } = $props<{ daysUsed: number }>();
 
-    const DONATE_URL = "https://chronicler.pro/#support";
     const COUNTDOWN_SECONDS = 6;
 
     let countdown = $state(COUNTDOWN_SECONDS);
@@ -46,15 +46,12 @@
         </p>
         <p>
             This app is developed and maintained by a single person (hi, I'm
-            Michael!). If you find it valuable, please consider purchasing a
-            Community License to support its future and <strong
-                >keep the project alive</strong
-            >
-            :)
+            Michael!). If you find it valuable, please consider supporting its
+            future and <strong>keeping the project alive</strong> :)
         </p>
         <div class="button-group">
             <Button variant="primary" size="large" onclick={handlePurchase}>
-                ❤️ Purchase a License
+                ❤️ Support
             </Button>
             <Button
                 variant="primary"

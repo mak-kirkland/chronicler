@@ -3,8 +3,7 @@
     import Button from "$lib/components/Button.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { exit } from "@tauri-apps/plugin-process";
-
-    const DONATE_URL = "https://chronicler.pro/#support";
+    import { DONATE_URL } from "$lib/config";
 
     async function handleDonate() {
         await openUrl(DONATE_URL);
