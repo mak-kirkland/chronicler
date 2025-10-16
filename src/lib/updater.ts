@@ -111,11 +111,8 @@ export function formatChangelog(
         return 0;
     });
 
-    // 4. Format the sorted list for display.
+    // 4. Format the sorted list for display as a Markdown list.
     return changes
-        .map(
-            (change) =>
-                `+ <strong>${change.category}</strong>: ${change.description}`,
-        )
-        .join("<br>");
+        .map((change) => `- **${change.category}**: ${change.description}`)
+        .join("\n");
 }
