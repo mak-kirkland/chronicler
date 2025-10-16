@@ -86,7 +86,6 @@
 
     const customTheme = EditorView.theme({
         "&": {
-            height: "100%",
             width: "100%",
             backgroundColor: "transparent",
             color: "var(--color-text-primary)",
@@ -146,7 +145,7 @@
     .editor-wrapper {
         display: flex;
         flex-direction: column;
-        height: 100%;
+        min-height: 100%;
         width: 100%;
         padding: 2em;
         box-sizing: border-box;
