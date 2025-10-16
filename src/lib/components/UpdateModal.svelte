@@ -7,9 +7,12 @@
         openReleasePage,
         formatChangelog,
     } from "$lib/updater";
+    import { renderMarkdown } from "$lib/commands";
+    import type { RenderedPage } from "$lib/bindings";
     import Modal from "$lib/components/Modal.svelte";
     import ErrorBox from "./ErrorBox.svelte";
     import Button from "./Button.svelte";
+    import Preview from "./Preview.svelte";
 
     let { update, manualUpdateRequired, onClose } = $props<{
         update: Update;
@@ -20,18 +23,20 @@
     let isUpdating = $state(false);
     let installError = $state<string | null>(null);
     let currentVersion = $state<string | null>(null);
+    let renderedChangelog = $state<RenderedPage | null>(null);
 
-    // The formatted changelog is derived directly from the update's body property.
-    const formattedChangelog = $derived(
-        formatChangelog(update.body, currentVersion),
-    );
-
-    // Fetch the current app version when the component is mounted.
+    // Fetch the current app version and render the changelog when the component is mounted.
     onMount(async () => {
         try {
-            currentVersion = await getVersion();
+            const version = await getVersion();
+            currentVersion = version;
+
+            const markdownContent = formatChangelog(update.body, version);
+            if (markdownContent) {
+                renderedChangelog = await renderMarkdown(markdownContent);
+            }
         } catch (e) {
-            console.error("Failed to get app version:", e);
+            console.error("Failed to get app version or render changelog:", e);
         }
     });
 
@@ -58,9 +63,9 @@
         {#if currentVersion}(you have {currentVersion}){/if}.
     </p>
 
-    {#if formattedChangelog}
+    {#if renderedChangelog}
         <div class="release-notes">
-            <div class="notes-content">{@html formattedChangelog}</div>
+            <Preview renderedData={renderedChangelog} />
         </div>
     {/if}
 
@@ -111,12 +116,20 @@
         overflow: auto;
         border: 1px solid var(--color-border-primary);
     }
-    .notes-content {
-        font-size: 0.8rem;
+
+    .release-notes :global(.main-content) {
+        font-size: 0.9rem;
         line-height: 1.7;
-        white-space: pre;
-        font-family: monospace;
+        /* Remove default padding/margin for the changelog view */
+        padding-left: 0;
+        margin-left: 0;
     }
+
+    .release-notes :global(ul) {
+        padding-left: 1.25rem; /* Adjust if needed to align bullet points */
+        margin-left: 0;
+    }
+
     .manual-update-notice {
         background-color: var(--color-background-tertiary);
         border: 1px solid var(--color-background-tertiary);
