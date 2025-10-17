@@ -9,7 +9,7 @@
 
 use crate::config::IMAGES_DIR_NAME;
 use crate::error::ChroniclerError;
-use crate::models::{Backlink, FullPageData, TocEntry};
+use crate::models::{Backlink, FullPageData, TocEntry, VaultAsset};
 use crate::sanitizer;
 use crate::utils::file_stem_string;
 use crate::wikilink::WIKILINK_RE;
@@ -120,20 +120,34 @@ impl Renderer {
         }
     }
 
-    /// Resolves a potentially relative image path to an absolute path within the vault.
+    /// Resolves an image path with a clear priority order for maximum flexibility.
     ///
-    /// This helper centralizes the logic for handling image paths. It correctly
-    /// handles both absolute paths and relative paths, which are assumed to be
-    /// inside the vault's "images" subdirectory.
+    /// The resolution logic is:
+    /// 1. **Absolute Path:** If the input is an absolute path, it is used directly.
+    ///    This allows linking to images outside the vault.
+    /// 2. **Indexed Filename:** If the input is a simple filename (e.g., "map.png"),
+    ///    it is looked up in the `media_resolver` index. This is the new, preferred method.
+    /// 3. **Relative Path (Legacy):** As a fallback for backward compatibility, the input
+    ///    is treated as a path relative to the vault's `images` subdirectory.
     fn resolve_image_path(&self, path_str: &str) -> PathBuf {
         let path = Path::new(path_str);
-        let resolved_path = if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            // Assumes relative paths start from the vault's "images" directory.
-            self.vault_path.join(IMAGES_DIR_NAME).join(path)
-        };
-        resolved_path.clean()
+
+        // --- Priority 1: Absolute Path ---
+        if path.is_absolute() {
+            return path.to_path_buf().clean();
+        }
+
+        // --- Priority 2: Indexed Filename Lookup ---
+        let indexer = self.indexer.read();
+        // The path string itself is treated as a potential filename.
+        if let Some(resolved_path) = indexer.media_resolver.get(&path_str.to_lowercase()) {
+            return resolved_path.clone();
+        }
+        // Release the read lock as soon as possible.
+        drop(indexer);
+
+        // --- Priority 3: Legacy Relative Path Fallback ---
+        self.vault_path.join(IMAGES_DIR_NAME).join(path).clean()
     }
 
     /// Processes an image source path, returning a correctly formatted Tauri v2 asset URL.
@@ -187,22 +201,20 @@ impl Renderer {
         let mut image_absolute_paths = Vec::new();
 
         let mut process_single_image = |path_str: &str| {
-            let path = Path::new(path_str);
+            let resolved_path = self.resolve_image_path(path_str);
 
             // Apply the hybrid logic: use the best method based on the path type.
-            let image_src = if path.is_absolute() {
-                // For absolute paths, use the secure Base64 fallback. This is necessary
-                // because the path is outside Tauri's asset protocol scope.
-                self.convert_image_path_to_data_url(path_str)
+            let image_src = if resolved_path.starts_with(&self.vault_path) {
+                // If the resolved path is inside the vault, use the performant asset protocol.
+                self.convert_image_path_to_asset_url(&path_to_web_str(&resolved_path))
             } else {
-                // For relative (in-vault) paths, use the performant asset protocol.
-                self.convert_image_path_to_asset_url(path_str)
+                // For absolute paths outside the vault, use the secure Base64 fallback.
+                self.convert_image_path_to_data_url(&path_to_web_str(&resolved_path))
             };
             image_srcs.push(Value::String(image_src));
 
             // Also resolve the absolute path for the frontend to use (e.g., for an "open file" button).
-            let absolute_path = self.resolve_image_path(path_str);
-            image_absolute_paths.push(Value::String(absolute_path.to_string_lossy().to_string()));
+            image_absolute_paths.push(Value::String(resolved_path.to_string_lossy().to_string()));
         };
 
         match image_value {
@@ -245,16 +257,15 @@ impl Renderer {
                     .decode_utf8_lossy()
                     .to_string();
 
-                let final_path = Path::new(&final_path_str);
+                let resolved_path = self.resolve_image_path(&final_path_str);
 
-                // 3. Check if the path is absolute or relative and choose the best method.
-                let image_src = if final_path.is_absolute() {
-                    // If it's an absolute path outside the vault, convert it to a Data URL.
-                    // This reads the file on the backend and embeds it directly in the HTML.
-                    self.convert_image_path_to_data_url(&final_path_str)
+                // 3. Check if the path is inside the vault or external and choose the best method.
+                let image_src = if resolved_path.starts_with(&self.vault_path) {
+                    // If it's inside the vault, use the performant asset protocol.
+                    self.convert_image_path_to_asset_url(&path_to_web_str(&resolved_path))
                 } else {
-                    // If it's a relative path, use the existing secure and performant asset protocol.
-                    self.convert_image_path_to_asset_url(&final_path_str)
+                    // If it's an absolute path outside the vault, convert it to a Data URL.
+                    self.convert_image_path_to_data_url(&path_to_web_str(&resolved_path))
                 };
 
                 // 4. Handle the class attribute, preserving all other attributes.
@@ -859,28 +870,38 @@ impl Renderer {
         let page_path = Path::new(path);
 
         let page = indexer
-            .pages
+            .assets
             .get(page_path)
+            .and_then(|asset| match asset {
+                VaultAsset::Page(p) => Some(p),
+                _ => None,
+            })
             .ok_or(ChroniclerError::FileNotFound(page_path.to_path_buf()))?;
 
         let mut backlinks: Vec<Backlink> = page
             .backlinks
             .iter()
             .filter_map(|backlink_path| {
-                indexer.pages.get(backlink_path).map(|p| {
-                    // Get the count of links from the source (backlink_path) to the target (page_path)
-                    let count = indexer
-                        .link_graph
-                        .get(backlink_path)
-                        .and_then(|targets| targets.get(page_path))
-                        .map_or(0, |links| links.len());
+                indexer
+                    .assets
+                    .get(backlink_path)
+                    .and_then(|asset| match asset {
+                        VaultAsset::Page(p) => {
+                            // Get the count of links from the source (backlink_path) to the target (page_path)
+                            let count = indexer
+                                .link_graph
+                                .get(backlink_path)
+                                .and_then(|targets| targets.get(page_path))
+                                .map_or(0, |links| links.len());
 
-                    Backlink {
-                        title: p.title.clone(),
-                        path: p.path.clone(),
-                        count,
-                    }
-                })
+                            Some(Backlink {
+                                title: p.title.clone(),
+                                path: p.path.clone(),
+                                count,
+                            })
+                        }
+                        _ => None,
+                    })
             })
             .collect();
 
