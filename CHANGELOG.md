@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.28.1-alpha] - 2025-10-19
+
+### ✨ Added
+
+- **Page Inserts**: Content inserted from other pages can now be set to appear collapsed by default. This is done by adding the `| hidden` attribute to the insert syntax (e.g., `{{insert: Page Name | hidden}}`).
+- **Styling**: The HTML sanitizer now permits the use of the `style` attribute on `<p>` and `<span>` tags. This allows for applying inline CSS to change properties like `font-family`, `color`, and `font-size` for specific text sections.
+
+### 🐞 Fixed
+
+- **Editor**: Resolved a scrolling issue where the down arrow key would fail to scroll the editor pane when the cursor reached the end of the document. The editor's height is no longer fixed, allowing it to grow with its content and ensuring the parent container handles scrolling correctly.
+
+---
+
 ## [v0.28.0-alpha] - 2025-10-17
 
 ### ✨ Added
