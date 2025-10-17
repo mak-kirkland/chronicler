@@ -24,6 +24,14 @@
 
     // --- Derived State ---
     const hasCarousel = $derived(data?.images && data.images.length > 1);
+    const hasCaptions = $derived(
+        hasCarousel &&
+            data?.image_captions &&
+            data.image_captions.length === data.images.length &&
+            data.image_captions.some(
+                (c) => typeof c === "string" && c.length > 0,
+            ),
+    );
 
     // --- Carousel Navigation ---
     function nextImage() {
@@ -77,6 +85,7 @@
             "infobox",
             "images",
             "image_paths",
+            "image_captions",
             "error",
             "details", // Error details
             "layout", // The layout key itself is for rules, not display.
@@ -158,6 +167,23 @@
             <p class="infobox-subtitle">{@html data.subtitle}</p>
         {/if}
 
+        <!-- Render Image Tabs here if they exist -->
+        {#if hasCaptions}
+            <div class="carousel-tabs">
+                {#each data.images as _, i}
+                    {#if data.image_captions?.[i]}
+                        <button
+                            class="tab"
+                            class:active={currentImageIndex === i}
+                            onclick={() => goToImage(i)}
+                        >
+                            {@html data.image_captions[i]}
+                        </button>
+                    {/if}
+                {/each}
+            </div>
+        {/if}
+
         <!-- Image Column -->
         {#if data?.images && data.images.length > 0}
             <div class="image-column">
@@ -200,16 +226,19 @@
                                 ></path></svg
                             >
                         </button>
-                        <div class="carousel-dots">
-                            {#each data.images as _, i}
-                                <button
-                                    class="dot"
-                                    class:active={currentImageIndex === i}
-                                    onclick={() => goToImage(i)}
-                                    aria-label="Go to image {i + 1}"
-                                ></button>
-                            {/each}
-                        </div>
+                        <!-- Only show dots as a fallback if there are no tabs -->
+                        {#if !hasCaptions}
+                            <div class="carousel-dots">
+                                {#each data.images as _, i}
+                                    <button
+                                        class="dot"
+                                        class:active={currentImageIndex === i}
+                                        onclick={() => goToImage(i)}
+                                        aria-label="Go to image {i + 1}"
+                                    ></button>
+                                {/each}
+                            </div>
+                        {/if}
                     {/if}
                 </div>
             </div>
@@ -435,6 +464,42 @@
         background-color: white;
     }
 
+    /* --- Tab Styles --- */
+    .carousel-tabs {
+        display: flex;
+        gap: var(--space-sm);
+        border-bottom: 1px solid var(--color-border-primary);
+        margin-bottom: var(--space-md);
+        overflow-x: auto;
+        /* Hide scrollbar for a cleaner look */
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+    }
+    .carousel-tabs::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, and Opera */
+    }
+    .tab {
+        background: none;
+        border: none;
+        padding: var(--space-sm) var(--space-md);
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--color-text-secondary);
+        border-bottom: 3px solid transparent;
+        /* Pull the button up slightly to align with the bottom border */
+        margin-bottom: -1px;
+        white-space: nowrap;
+        transition: all 0.2s ease-in-out;
+    }
+    .tab:hover {
+        color: var(--color-text-primary);
+    }
+    .tab.active {
+        color: var(--color-text-accent);
+        border-bottom-color: var(--color-text-accent);
+    }
+
     /* --- Data Styles --- */
     .no-fields-message {
         grid-column: 1 / -1;
@@ -540,8 +605,9 @@
             flex-wrap: wrap;
         }
         .infobox-title,
-        .infobox-subtitle {
-            flex-basis: 100%; /* Make the title span the full width */
+        .infobox-subtitle,
+        .carousel-tabs {
+            flex-basis: 100%; /* Make the title/tabs span the full width */
         }
         .image-column {
             flex: 0 0 270px;
