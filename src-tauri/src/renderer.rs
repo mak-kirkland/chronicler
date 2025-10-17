@@ -61,27 +61,18 @@ static CLASS_ATTR_RE: LazyLock<Regex> =
 static WIKILINK_IMAGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"!\[\[([^\|\]]+)(?:\|([^\]]+))?\]\]"#).unwrap());
 
-/// Insert/Transclusion regex pattern.
-/// Captures: 1: path, 2: optional title (double quoted), 3: optional title (single quoted)
-/// Format: {{insert: path/to/file with spaces.md | title="My Title"}}
+// Insert/Transclusion regex pattern.
+// Captures: 'path': the path to the file, 'attrs': an optional string of attributes like `| title="My Title" | hidden`
+// Format: {{insert: path/to/file.md | title="My Title" | hidden}}
 static INSERT_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r#"(?x) # Enable comments and insignificant whitespace
-        # Allow optional whitespace after {{ and after the colon
         \{\{\s*insert:\s*
-        # Capture group 1: The path. It's a non-greedy match of any character,
-        # ending with a non-whitespace character (\S). This correctly handles spaces
-        # in the path while allowing trailing whitespace before the optional pipe.
-        (.*?\S)
-        \s* # Match trailing whitespace after the path
-        (?: # Optional group for the title attribute
-            \|\s*title\s*=\s*
-            (?: # Handle either single or double quotes
-                "([^"]*)" # Capture group 2: Double-quoted title
-                |
-                '([^']*)' # Capture group 3: Single-quoted title
-            )
-        )? # End optional title group
+        # Capture group 'path': The file path. Non-greedy, ends with non-whitespace.
+        (?P<path>.*?\S)
+        \s*
+        # Capture group 'attrs': The optional attributes string starting with a pipe.
+        (?P<attrs>(?:\|.*?)?)
         \s*\}\}
         "#,
     )
@@ -414,21 +405,37 @@ impl Renderer {
         caps: &Captures,
         rendering_stack: &mut Vec<PathBuf>,
     ) -> Result<String> {
-        // 1. Capture the target name (e.g., "Count Viscar") and optional title.
-        let target = caps.get(1).map_or("", |m| m.as_str()).trim();
-        let title = caps
-            .get(2) // Check double-quoted title
-            .or_else(|| caps.get(3)) // Fallback to single-quoted title
-            .map(|m| m.as_str().trim());
+        // 1. Capture the target name (e.g., "Count Viscar") and attributes string.
+        let target = caps.name("path").map_or("", |m| m.as_str()).trim();
+        let attrs_str = caps.name("attrs").map_or("", |m| m.as_str());
 
-        // 2. Use the indexer to find the full path from the target name.
+        // 2. Parse attributes like `title="..."` and `hidden` from the attributes string.
+        let mut title: Option<&str> = None;
+        let mut is_hidden = false;
+        let title_re = Regex::new(r#"^title\s*=\s*(?:"([^"]*)"|'([^']*)')$"#).unwrap();
+
+        // The attributes string may start with a pipe, so we trim it and then split by the pipe.
+        for attr in attrs_str.trim_start_matches('|').split('|') {
+            let part = attr.trim();
+            if part == "hidden" {
+                is_hidden = true;
+            } else if let Some(title_caps) = title_re.captures(part) {
+                // Get the title from either the double-quoted or single-quoted capture group.
+                title = title_caps
+                    .get(1)
+                    .or_else(|| title_caps.get(2))
+                    .map(|m| m.as_str());
+            }
+        }
+
+        // 3. Use the indexer to find the full path from the target name.
         let indexer = self.indexer.read();
         let normalized_target = target.to_lowercase();
         // We clone the path to release the read lock on the indexer quickly.
         let maybe_path = indexer.link_resolver.get(&normalized_target).cloned();
         drop(indexer);
 
-        // 3. Process the result of the path lookup.
+        // 4. Process the result of the path lookup.
         if let Some(insert_path) = maybe_path {
             // --- Logic for a successfully found insert path ---
 
@@ -454,18 +461,25 @@ impl Renderer {
                     let default_title = file_stem_string(&insert_path);
                     let final_title = title.unwrap_or(&default_title);
 
-                    // d. Build the final HTML for the insert container.
+                    // d. Build the final HTML for the insert container, accounting for the 'hidden' state.
+                    let container_class = if is_hidden {
+                        "insert-container collapsed"
+                    } else {
+                        "insert-container"
+                    };
+                    let button_text = if is_hidden { "[show]" } else { "[hide]" };
+
                     let final_html = format!(
-                        r#"<div class="insert-container">
+                        r#"<div class="{}">
                             <div class="insert-header">
                                 <span class="insert-title-wrapper">
                                     <span>{}</span>
                                 </span>
-                                <button class="insert-toggle">[hide]</button>
+                                <button class="insert-toggle">{}</button>
                             </div>
                            <div class="insert-content">{}</div>
                         </div>"#,
-                        final_title, rendered_html
+                        container_class, final_title, button_text, rendered_html
                     );
 
                     Ok(final_html)

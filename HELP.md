@@ -149,10 +149,10 @@ Embed the content of one page directly inside another. This is great for reusing
 {{insert: Page Name}}
 ```
 
-You can also set a custom title for the header:
+You can also set a custom title for the header, or make the insert start hidden.
 
 ```markdown
-{{insert: The Great War | title="Summary of the Great War"}}
+{{insert: The Great War | title="Summary of the Great War" | hidden}}
 ```
 
 ---
