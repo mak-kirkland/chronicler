@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.28.0-alpha] - 2025-10-17
+
+### ✨ Added
+
+- **Page Inserts**: You can now embed the content of one page directly into another using the new `{{insert: Page Name | title="Optional Title"}}` syntax. This is useful for creating and re-using navboxes, item cards, stat blocks etc.
+
+### 🐞 Fixed
+
+- **Updater**: Fixed a bug where Markdown in the update changelog modal was rendering incorrectly. For instance, inline code like `<table>` would be interpreted as HTML and disappear instead of showing the literal text.
+
+---
+
 ## [v0.27.0-alpha] - 2025-10-15
 
 ### ✨ Added
