@@ -84,6 +84,12 @@ You can also create a carousel by providing multiple images:
 image: [rivertown_day.jpg, rivertown_night.jpg, rivertown_castle.jpg]
 ```
 
+...and with optional captions too:
+
+```yaml
+image: [[rivertown_day.jpg, "Day"], [rivertown_night.jpg, "Night"]]
+```
+
 ### Page Images
 
 The easiest way to add an image to the body of your page is with the wikilink syntax:

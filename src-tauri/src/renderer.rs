@@ -202,18 +202,25 @@ impl Renderer {
         }
     }
 
-    /// Processes the `image` field from the frontmatter, which can be a single
-    /// string or a list of strings, preparing it for the frontend.
+    /// Processes the `image` field from the frontmatter, preparing it for the frontend.
     ///
     /// This function handles all logic for the infobox image:
-    /// 1. Determines if a path is absolute or relative.
-    /// 2. Uses the performant `asset://` protocol for relative (in-vault) images.
-    /// 3. Uses a secure Base64 Data URL fallback for absolute (external) images.
+    /// - It can process a single string: `image: "cover.jpg"`
+    /// - It can process an array of strings: `image: ["cover.jpg", "screenshot.png"]`
+    /// - It can process an array of arrays with paths and optional captions:
+    ///   `image: [["us.jpg", "USA"], ["jp.jpg"]]`
+    ///
+    /// It populates three fields for the frontend:
+    /// - `images`: A list of processed image sources (asset URLs or data URLs).
+    /// - `image_paths`: A list of the absolute file paths for each image.
+    /// - `image_captions`: A list of captions, with `null` for images without one.
     fn process_infobox_images(&self, map: &mut Map<String, Value>, image_value: &Value) {
         let mut image_srcs = Vec::new();
         let mut image_absolute_paths = Vec::new();
+        let mut image_captions = Vec::new();
 
-        let mut process_single_image = |path_str: &str| {
+        // Helper closure to process a single path string.
+        let mut process_image_path = |path_str: &str| {
             let resolved_path = self.resolve_image_path(path_str);
 
             // Apply the hybrid logic: use the best method based on the path type.
@@ -232,12 +239,33 @@ impl Renderer {
 
         match image_value {
             Value::String(s) => {
-                process_single_image(s);
+                process_image_path(s);
+                image_captions.push(Value::Null); // No caption for a single image string.
             }
             Value::Array(arr) => {
                 for item in arr {
-                    if let Value::String(s) = item {
-                        process_single_image(s);
+                    match item {
+                        Value::String(s) => {
+                            process_image_path(s);
+                            image_captions.push(Value::Null); // No caption for a simple string in an array.
+                        }
+                        Value::Array(inner_arr) => {
+                            // The inner array should have the path at index 0 and optional caption at index 1.
+                            if let Some(path_val) = inner_arr.get(0).and_then(Value::as_str) {
+                                process_image_path(path_val);
+                                // Get the caption from index 1 if it exists, otherwise use null.
+                                let caption = inner_arr
+                                    .get(1)
+                                    .and_then(Value::as_str)
+                                    .map_or(Value::Null, |c| {
+                                        Value::String(self.render_frontmatter_string_as_html(c))
+                                    });
+                                image_captions.push(caption);
+                            }
+                        }
+                        _ => {
+                            // Ignore other value types in the array, like objects or numbers.
+                        }
                     }
                 }
             }
@@ -252,6 +280,7 @@ impl Renderer {
             "image_paths".to_string(),
             Value::Array(image_absolute_paths),
         );
+        map.insert("image_captions".to_string(), Value::Array(image_captions));
     }
 
     /// A post-processing step that finds all standard HTML `<img ...>` tags
