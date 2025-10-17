@@ -68,27 +68,7 @@ Tip: Pages and folders are ordered alphabetically. If you want to enforce a spec
 
 ## 🖼️ Images
 
-### Image Paths
-
-Chronicler finds your images based on their path. It's highly recommended to create an `images` folder in the root of your vault.
-
-There are three supported ways to specify the image path:
-
-- ✅ **Relative to the `images/` folder** (recommended)
-  - `image: rivertown.jpg` → loads `vault/images/rivertown.jpg`
-  - `image: maps/northlands.png` → loads
-    `vault/images/maps/northlands.png`
-  - This method assumes you have created an `images` folder directly inside the vault root.
-
-- 🗂️ **Relative to the vault root using `../`**
-  - `image: ../factions/champions/banner.jpg` → loads
-    `vault/factions/champions/banner.jpg`
-  - Use this if you want to store images next to your Markdown files instead of inside `images/`
-
-- ⚠️ **Absolute paths** (not recommended)
-  - `image: C:/Users/Michael/Pictures/map.png`
-  - This path is tied to your current machine and will break if you move or rename your vault folder.
-  - Using this method for large images can significantly slow down page loading.
+You can store your images in any folder within your vault, e.g a central `images/` folder, or right next to your notes. Chronicler will find them automatically.
 
 ### Infobox Images
 

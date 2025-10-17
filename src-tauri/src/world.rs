@@ -18,7 +18,9 @@ use crate::{
     importer,
     indexer::Indexer,
     mediawiki_importer,
-    models::{BrokenLink, FileNode, FullPageData, PageHeader, ParseError, RenderedPage},
+    models::{
+        BrokenLink, FileNode, FullPageData, PageHeader, ParseError, RenderedPage, VaultAsset,
+    },
     renderer::Renderer,
     template,
     watcher::Watcher,
@@ -196,9 +198,12 @@ impl World {
                             let backlinks = {
                                 let index = indexer.read();
                                 index
-                                    .pages
+                                    .assets
                                     .get(from)
-                                    .map(|p| p.backlinks.clone())
+                                    .and_then(|asset| match asset {
+                                        VaultAsset::Page(p) => Some(p.backlinks.clone()),
+                                        _ => None,
+                                    })
                                     .unwrap_or_default()
                             };
 
@@ -374,9 +379,12 @@ impl World {
         let backlinks = {
             let index = self.indexer.read();
             index
-                .pages
+                .assets
                 .get(&path)
-                .map(|p| p.backlinks.clone())
+                .and_then(|asset| match asset {
+                    VaultAsset::Page(p) => Some(p.backlinks.clone()),
+                    _ => None,
+                })
                 .unwrap_or_default()
         };
 
@@ -407,9 +415,12 @@ impl World {
         let backlinks = {
             let index = self.indexer.read();
             index
-                .pages
+                .assets
                 .get(&source_path)
-                .map(|p| p.backlinks.clone())
+                .and_then(|asset| match asset {
+                    VaultAsset::Page(p) => Some(p.backlinks.clone()),
+                    _ => None,
+                })
                 .unwrap_or_default()
         };
 

@@ -26,6 +26,22 @@ where
     serializer.serialize_str(&web_path)
 }
 
+/// Represents any uniquely identifiable asset within the vault.
+/// This enum is the core of the unified indexing strategy, allowing the indexer
+/// to treat all file types generically while still storing specific data where needed.
+/// It can be easily extended with new variants like `Audio` in the future.
+#[derive(Debug, Clone)]
+pub enum VaultAsset {
+    /// A Markdown page with all its parsed metadata.
+    /// The `Page` is boxed to prevent the enum from becoming too large,
+    /// which would make smaller variants like `Image` inefficient to store.
+    Page(Box<Page>),
+    /// An image file. For now, we only need to know it exists; its path is the key.
+    Image,
+    // Example of future extension:
+    // Audio,
+}
+
 /// Represents the location of a link within a source file.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct LinkPosition {
@@ -54,7 +70,7 @@ pub struct Link {
 /// Represents a single Markdown file (a "page") in the vault.
 /// This struct holds all the metadata we extract from a file, which is
 /// then used to power features like linking, tagging, and infoboxes.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Page {
     /// The absolute path to the Markdown file.
     pub path: PathBuf,
