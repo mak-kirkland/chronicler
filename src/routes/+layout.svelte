@@ -24,6 +24,7 @@
     import { licenseStore } from "$lib/licenseStore";
     import { openModal } from "$lib/modalStore";
     import { getCurrentWindow } from "@tauri-apps/api/window";
+    import { initializeKeybindings } from "$lib/keybindings";
 
     // Import UI Components
     import VaultSelector from "$lib/components/VaultSelector.svelte";
@@ -38,12 +39,20 @@
     let { children } = $props();
     let isResizing = $state(false);
 
-    // --- App Initialization ---
+    // --- App Initialization & Global Listeners ---
     $effect(() => {
         // Kick off the main application startup sequence once.
         initializeApp();
         // Also load and inject any custom user fonts.
         loadUserFonts();
+
+        // Initialize global keybindings and get the cleanup function.
+        const destroyKeybindings = initializeKeybindings();
+
+        // The effect's cleanup function will run when the component is destroyed.
+        return () => {
+            destroyKeybindings();
+        };
     });
 
     // --- Donation Prompt on Close ---
