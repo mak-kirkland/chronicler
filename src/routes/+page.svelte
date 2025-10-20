@@ -31,7 +31,7 @@
 
         switch (view.type) {
             case "file":
-                props = { file: view.data };
+                props = { file: view.data, sectionId: view.sectionId };
                 break;
             case "image":
                 props = { data: view.data };

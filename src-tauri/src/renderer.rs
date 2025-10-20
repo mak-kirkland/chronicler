@@ -605,14 +605,22 @@ impl Renderer {
         let final_html = WIKILINK_RE
             .replace_all(&with_inserts, |caps: &Captures| {
                 let target = caps.get(1).map_or("", |m| m.as_str()).trim();
+                let section = caps.get(2).map(|m| m.as_str().trim());
                 let alias = caps.get(3).map(|m| m.as_str().trim()).unwrap_or(target);
                 let normalized_target = target.to_lowercase();
+
+                let href = if let Some(sec) = section {
+                    let id = slug::slugify(sec);
+                    format!("#{}", id)
+                } else {
+                    "#".to_string()
+                };
 
                 if let Some(path) = indexer.link_resolver.get(&normalized_target) {
                     let web_path = path_to_web_str(path);
                     format!(
-                        "<a href=\"#\" class=\"internal-link\" data-path=\"{}\">{}</a>",
-                        web_path, alias
+                        "<a href=\"{}\" class=\"internal-link\" data-path=\"{}\">{}</a>",
+                        href, web_path, alias
                     )
                 } else {
                     format!(

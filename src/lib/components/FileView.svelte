@@ -18,7 +18,10 @@
     import { findFileInTree } from "$lib/utils";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
 
-    let { file } = $props<{ file: PageHeader }>();
+    let { file, sectionId } = $props<{
+        file: PageHeader;
+        sectionId?: string;
+    }>();
 
     let pageData = $state<FullPageData | null>(null);
     let error = $state<string | null>(null);
@@ -109,6 +112,17 @@
                 `Current file ${file.path} not found in tree. Closing view.`,
             );
             currentView.set({ type: "welcome" });
+        }
+    });
+
+    // This effect handles scrolling to a specific section when the page loads.
+    $effect(() => {
+        if (sectionId && pageData) {
+            // A small delay ensures the DOM has been updated with the new page content.
+            setTimeout(() => {
+                const element = document.getElementById(sectionId);
+                element?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
         }
     });
 </script>
