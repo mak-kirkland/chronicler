@@ -21,9 +21,10 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 /**
  * Navigates the main view to display a specific file.
  * @param page The header of the page to navigate to, containing its path and title.
+ * @param sectionId Optional header ID to scroll to after navigation.
  */
-export function navigateToPage(page: PageHeader) {
-    currentView.set({ type: "file", data: page });
+export function navigateToPage(page: PageHeader, sectionId?: string | null) {
+    currentView.set({ type: "file", data: page, sectionId });
 }
 
 /**
@@ -53,10 +54,27 @@ export function handleContentClick(event: Event) {
     const link = target.closest("a");
     if (link) {
         const href = link.getAttribute("href");
+        const path = link.getAttribute("data-path");
+        const view = get(currentView);
 
         // A) Handle internal wikilinks
         if (link.classList.contains("internal-link")) {
-            event.preventDefault(); // Prevent default for this case
+            // Check if it's a link to a section on the *same page*.
+            if (
+                path &&
+                view.type === "file" &&
+                view.data?.path === path &&
+                href &&
+                href.startsWith("#")
+            ) {
+                // It is a same-page anchor link. Let the browser handle it.
+                return;
+            }
+
+            // If we're here, it's either a cross-page link or a broken link.
+            // We must prevent the default browser action.
+            event.preventDefault();
+
             if (
                 link.classList.contains("broken") &&
                 link.hasAttribute("data-target")
@@ -66,10 +84,14 @@ export function handleContentClick(event: Event) {
                 if (currentVaultPath) {
                     promptAndCreateItem("file", currentVaultPath, targetName);
                 }
-            } else if (link.hasAttribute("data-path")) {
-                const path = link.getAttribute("data-path")!;
+            } else if (path) {
                 const title = getTitleFromPath(path);
-                navigateToPage({ path, title });
+                // Extract the section ID from the href if it exists.
+                const sectionId =
+                    href && href.startsWith("#")
+                        ? href.substring(1)
+                        : undefined;
+                navigateToPage({ path, title }, sectionId);
             }
             return;
         }
@@ -82,7 +104,7 @@ export function handleContentClick(event: Event) {
         }
 
         // C) Handle and neutralize any other non-TOC links to prevent 404s
-        // We check if the href starts with '#' to allow TOC links to pass through.
+        // We check if the href starts with '#' to allow TOC and same-page links to pass through.
         if (href && !href.startsWith("#")) {
             event.preventDefault(); // Prevent default for this case
             console.warn(
