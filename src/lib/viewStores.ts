@@ -15,7 +15,7 @@ import type { PageHeader, Backlink } from "./bindings";
 export type ViewState =
     | { type: "welcome" }
     | { type: "tag"; tagName: string }
-    | { type: "file"; data: PageHeader | null }
+    | { type: "file"; data: PageHeader | null; sectionId?: string | null }
     | { type: "image"; data: PageHeader | null }
     | { type: "report"; name: string };
 
