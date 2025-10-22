@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.29.2-alpha] - 2025-10-22
+
+### 🐞 Fixed
+
+- **Editor**: Fixed a bug where custom keyboard shortcuts (e.g. `Mod-i` for italic) would work in development but fail in the production build. This was caused by a build optimization that allowed CodeMirror's default keybindings to override the custom ones.
+
+---
+
 ## [v0.29.1-alpha] - 2025-10-22
 
 ### 🐞 Fixed
