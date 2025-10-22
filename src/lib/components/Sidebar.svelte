@@ -9,6 +9,7 @@
     import HelpModal from "./HelpModal.svelte";
     import Button from "./Button.svelte";
     import SearchInput from "./SearchInput.svelte";
+    import { licenseStore } from "$lib/licenseStore";
 
     let { width = $bindable() } = $props();
     let activeTab = $state<"files" | "tags" | "reports">("files");
@@ -38,6 +39,12 @@
     function showCreateFolder() {
         if ($vaultPath) {
             promptAndCreateItem("folder", $vaultPath);
+        }
+    }
+
+    function showCreateMap() {
+        if ($vaultPath) {
+            promptAndCreateItem("map", $vaultPath);
         }
     }
 
@@ -110,6 +117,17 @@
         >
             + New Page
         </Button>
+        {#if $licenseStore.status === "licensed"}
+            <Button
+                size="small"
+                class="new-path-button"
+                title="New Map"
+                onclick={showCreateMap}
+            >
+                + New Map
+            </Button>
+        {/if}
+
         <Button
             size="small"
             class="new-path-button"

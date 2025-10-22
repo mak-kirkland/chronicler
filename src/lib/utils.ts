@@ -39,6 +39,15 @@ export function isImage(node: FileNode): boolean {
 }
 
 /**
+ * A helper function to check if a FileNode is a map file.
+ * @param node The FileNode to check.
+ * @returns True if the node's file_type is 'Map'.
+ */
+export function isMap(node: FileNode): boolean {
+    return node.file_type === "Map";
+}
+
+/**
  * Checks if a given path string points to a Markdown file based on its extension.
  * This is useful for client-side logic where we only have the path string.
  * @param path The file path string.
@@ -46,6 +55,15 @@ export function isImage(node: FileNode): boolean {
  */
 export function isMarkdownFile(path: string): boolean {
     return path.toLowerCase().endsWith(".md");
+}
+
+/**
+ * Checks if a given path string points to a map file based on its extension.
+ * @param path The file path string.
+ * @returns True if the path ends with .cmap (case-insensitive).
+ */
+export function isMapFile(path: string): boolean {
+    return path.toLowerCase().endsWith(".cmap");
 }
 
 /**
@@ -60,14 +78,14 @@ export function isImageFile(path: string): boolean {
 
 /**
  * Extracts a display-friendly title from a file path.
- * It gets the last part of the path (the filename) and removes the .md extension if present.
+ * It gets the last part of the path (the filename) and removes the extension if present.
  * @param path The full path to the file.
  * @returns A clean title string.
  */
 export function getTitleFromPath(path: string): string {
     const fileName = path.split(/[\\/]/).pop() || "Untitled";
-    // Use a regex to remove the .md extension only if it's at the end of the string.
-    return fileName.replace(/\.md$/, "");
+    // Use a regex to remove known extensions.
+    return fileName.replace(/\.(md|cmap)$/, "");
 }
 
 /**
@@ -152,4 +170,26 @@ export async function readBundledResource(filename: string): Promise<string> {
  */
 export function normalizePath(path: string): string {
     return path.replace(/\\/g, "/");
+}
+
+/**
+ * Recursively flattens the file tree into a simple array of PageHeader objects.
+ * This is used for search and autocomplete features.
+ * @param node The root FileNode to start flattening from.
+ * @returns An array of PageHeader objects.
+ */
+export function flattenFileTree(node: FileNode | null): PageHeader[] {
+    if (!node) return [];
+    const pages: PageHeader[] = [];
+
+    if (isMarkdown(node)) {
+        pages.push({ title: node.name, path: node.path });
+    }
+
+    if (node.children) {
+        for (const child of node.children) {
+            pages.push(...flattenFileTree(child));
+        }
+    }
+    return pages;
 }

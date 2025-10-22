@@ -21,8 +21,14 @@ import {
     getAllBrokenLinks,
     getAllParseErrors,
 } from "./commands";
-import { isMarkdown } from "./utils";
-import type { FileNode, TagMap, BrokenLink, ParseError } from "./bindings";
+import { flattenFileTree } from "./utils";
+import type {
+    FileNode,
+    PageHeader,
+    TagMap,
+    BrokenLink,
+    ParseError,
+} from "./bindings";
 
 /**
  * The shape of the core application data.
@@ -166,27 +172,8 @@ export const parseErrors = derived(world, ($world) => $world.parseErrors);
 export const isWorldLoaded = derived(world, ($world) => $world.isLoaded);
 
 /**
- * Recursively flattens the file tree into a simple array of file titles.
- * This is used to generate link suggestions for autocompletion.
- */
-function flattenFileTree(node: FileNode | null): string[] {
-    if (!node) return [];
-    const titles: string[] = [];
-    if (node.name && isMarkdown(node)) {
-        // Extract title from path, removing extension
-        titles.push(node.name);
-    }
-    if (node.children) {
-        for (const child of node.children) {
-            titles.push(...flattenFileTree(child));
-        }
-    }
-    return titles;
-}
-
-/**
- * A derived store that provides a flattened list of all page titles.
- * Useful for autocompletion features.
+ * A derived store that provides a flattened list of all pages as PageHeader objects.
+ * Useful for autocompletion and search features.
  */
 export const allFileTitles = derived(files, ($files) =>
     flattenFileTree($files),

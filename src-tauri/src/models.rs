@@ -38,8 +38,8 @@ pub enum VaultAsset {
     Page(Box<Page>),
     /// An image file. For now, we only need to know it exists; its path is the key.
     Image,
-    // Example of future extension:
-    // Audio,
+    /// A map file with its associated data.
+    Map(Box<MapData>),
 }
 
 /// Represents the location of a link within a source file.
@@ -91,6 +91,26 @@ pub struct Page {
     pub frontmatter: serde_json::Value,
 }
 
+/// Represents a single interactive map.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MapData {
+    pub title: String,
+    pub image_path: String,
+    pub pins: Vec<MapPin>,
+}
+
+/// Represents a single pin on an interactive map.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MapPin {
+    pub id: String,
+    pub name: String,
+    pub x: f64,
+    pub y: f64,
+    pub linked_page_path: Option<String>,
+    pub icon: String,
+    pub color: String,
+}
+
 /// Represents the category of a node in the file system tree.
 ///
 /// This provides a type-safe way to distinguish between directories and different
@@ -103,6 +123,8 @@ pub enum FileType {
     Markdown,
     /// A supported image file (e.g., `.png`, `.jpg`).
     Image,
+    /// A Chronicler map file (`.cmap`).
+    Map,
 }
 
 /// Implements partial ordering for `FileType`.

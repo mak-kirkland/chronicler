@@ -10,7 +10,7 @@
  * A specific type for the file node category. This improves type safety
  * over using a generic string. It mirrors the `FileType` enum in Rust.
  */
-export type FileType = "Directory" | "Markdown" | "Image";
+export type FileType = "Directory" | "Markdown" | "Image" | "Map";
 
 /**
  * A lightweight representation of a page, containing only the data needed
@@ -140,4 +140,28 @@ export interface UserFont {
     name: string;
     /** The full Base64-encoded Data URI of the font file. */
     base64: string;
+}
+
+/**
+ * Represents a single interactive map.
+ * This mirrors the `MapData` struct in Rust.
+ */
+export interface MapData {
+    title: string;
+    image_path: string;
+    pins: MapPin[];
+}
+
+/**
+ * Represents a single pin on an interactive map.
+ * This mirrors the `MapPin` struct in Rust.
+ */
+export interface MapPin {
+    id: string;
+    name: string;
+    x: number;
+    y: number;
+    linked_page_path: string | null;
+    icon: string;
+    color: string;
 }

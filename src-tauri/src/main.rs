@@ -132,6 +132,9 @@ fn main() {
             commands::get_all_parse_errors,
             commands::get_user_fonts,
             commands::open_log_directory,
+            commands::create_map,
+            commands::get_map_data,
+            commands::update_map_data,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);
