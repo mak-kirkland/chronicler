@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { defaultKeymap } from "@codemirror/commands";
     import Codemirror from "svelte-codemirror-editor";
     import { markdown } from "@codemirror/lang-markdown";
     import { EditorView, keymap } from "@codemirror/view";
@@ -148,7 +149,7 @@
     // We only need to provide the extensions that are truly custom to our application.
     const extensions = [
         markdown(),
-        keymap.of(customKeymap),
+        keymap.of([...customKeymap, ...defaultKeymap]),
         EditorView.lineWrapping,
         customTheme,
         autocompletion({ override: [customCompletions] }),
