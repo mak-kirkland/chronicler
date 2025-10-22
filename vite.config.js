@@ -15,7 +15,8 @@ export default defineConfig(async () => ({
 	  '@codemirror/lang-markdown',
           '@codemirror/state',
 	  '@codemirror/view',
-          '@codemirror/autocomplete'
+          '@codemirror/autocomplete',
+          '@codemirror/commands'
       ]
   },
 
