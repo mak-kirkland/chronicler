@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.29.0-alpha] - 2025-10-22
+
+### ✨ Added
+
+- **Editor**: A new Markdown formatting toolbar has been added to the editor, providing buttons for Bold, Italic, Strikethrough, and Headings (H1-H3). Keyboard shortcuts for **Bold** (`Mod-b`) and **Italic** (`Mod-i`) have also been added.
+
+### 🔄 Changed
+
+- **Images / Indexer**: Images can now be found entirely by their filename, regardless of their location within the vault. The core indexing system has been significantly refactored to use a unified `VaultAsset` model that can generically handle any file type. Backward compatibility for older image path formats is retained as a fallback to ensure existing content continues to work.
+
+### 🐞 Fixed
+
+- **File Watcher / Windows**: Fixed a critical bug, particularly on Windows, that prevented the application from detecting when files or folders were deleted externally (e.g., in Windows File Explorer), which led to an inconsistent vault state. The watcher now correctly handles ambiguous "remove" events, ensuring the index remains synchronized across all platforms.
+
+---
+
 ## [v0.28.1-alpha] - 2025-10-19
 
 ### ✨ Added
