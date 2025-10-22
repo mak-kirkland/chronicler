@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.29.1-alpha] - 2025-10-22
+
+### 🐞 Fixed
+
+- **Editor**: The editor now preserves the text selection after applying formatting. Applying italics to an already bolded selection now correctly nests the formatting. A bug where the default CodeMirror keybinding for `Mod-i` (select line) overrode the custom "Italic" action has been resolved by giving custom keymaps the correct priority.
+
+---
+
 ## [v0.29.0-alpha] - 2025-10-22
 
 ### ✨ Added
