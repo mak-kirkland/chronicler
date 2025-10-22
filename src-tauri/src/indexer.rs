@@ -6,9 +6,11 @@
 use crate::{
     error::{ChroniclerError, Result},
     events::FileEvent,
-    models::{BrokenLink, FileNode, FileType, Link, Page, PageHeader, ParseError, VaultAsset},
+    models::{
+        BrokenLink, FileNode, FileType, Link, MapData, Page, PageHeader, ParseError, VaultAsset,
+    },
     parser,
-    utils::{file_stem_string, is_image_file, is_markdown_file},
+    utils::{file_stem_string, is_image_file, is_map_file, is_markdown_file},
 };
 use natord::compare as nat_compare;
 use std::{
@@ -96,12 +98,13 @@ impl Indexer {
         // Second pass: Build relationships between pages now that all assets are indexed.
         self.rebuild_relations();
 
-        let (page_count, image_count) =
+        let (page_count, image_count, map_count) =
             self.assets
                 .values()
-                .fold((0, 0), |(p, i), asset| match asset {
-                    VaultAsset::Page(_) => (p + 1, i),
-                    VaultAsset::Image => (p, i + 1),
+                .fold((0, 0, 0), |(p, i, m), asset| match asset {
+                    VaultAsset::Page(_) => (p + 1, i, m),
+                    VaultAsset::Image => (p, i + 1, m),
+                    VaultAsset::Map(_) => (p, i, m + 1),
                 });
 
         let links_found = self
@@ -114,6 +117,7 @@ impl Indexer {
         info!(
             pages_indexed = page_count,
             images_indexed = image_count,
+            maps_indexed = map_count,
             tags_found = self.tags.len(),
             links_found,
             duration_ms = start_time.elapsed().as_millis(),
@@ -202,6 +206,23 @@ impl Indexer {
             };
         } else if is_image_file(path) {
             self.assets.insert(path.to_path_buf(), VaultAsset::Image);
+        } else if is_map_file(path) {
+            match fs::read_to_string(path) {
+                Ok(content) => match serde_json::from_str::<MapData>(&content) {
+                    Ok(map_data) => {
+                        self.assets
+                            .insert(path.to_path_buf(), VaultAsset::Map(Box::new(map_data)));
+                    }
+                    Err(e) => {
+                        warn!("Could not parse map file {:?}: {}", path, e);
+                        self.parse_errors.insert(path.to_path_buf(), e.to_string());
+                    }
+                },
+                Err(e) => {
+                    warn!("Could not read map file {:?}: {}", path, e);
+                    self.parse_errors.insert(path.to_path_buf(), e.to_string());
+                }
+            }
         }
         // Future: else if is_audio_file(path) { ... }
     }
@@ -264,7 +285,7 @@ impl Indexer {
         // --- PASS 1: Build resolver maps ---
         // This pass ensures that all potential link targets are known before we process any links.
         for path in self.assets.keys() {
-            if is_markdown_file(path) {
+            if is_markdown_file(path) || is_map_file(path) {
                 if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                     new_link_resolver.insert(stem.to_lowercase(), path.clone());
                 }
@@ -388,6 +409,8 @@ impl Indexer {
             FileType::Directory
         } else if is_image_file(path) {
             FileType::Image
+        } else if is_map_file(path) {
+            FileType::Map
         } else {
             FileType::Markdown
         };
@@ -404,6 +427,7 @@ impl Indexer {
                     if child_path.is_dir()
                         || is_markdown_file(&child_path)
                         || is_image_file(&child_path)
+                        || is_map_file(&child_path)
                     {
                         entries.push(Self::build_tree_recursive(&child_path, file_name)?);
                     }
@@ -420,7 +444,7 @@ impl Indexer {
             None
         };
 
-        let name = if file_type == FileType::Markdown {
+        let name = if file_type == FileType::Markdown || file_type == FileType::Map {
             file_stem_string(path)
         } else {
             name.to_string()

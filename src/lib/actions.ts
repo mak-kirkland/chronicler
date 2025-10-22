@@ -9,7 +9,12 @@ import { currentView, fileViewMode } from "./viewStores";
 import type { PageHeader } from "./bindings";
 // Import all commands under a 'commands' namespace to prevent naming conflicts.
 import * as commands from "./commands";
-import { getTitleFromPath, isImageFile, isMarkdownFile } from "./utils";
+import {
+    getTitleFromPath,
+    isImageFile,
+    isMapFile,
+    isMarkdownFile,
+} from "./utils";
 import { world } from "./worldStore";
 import NewPageModal from "./components/NewPageModal.svelte";
 import TextInputModal from "./components/TextInputModal.svelte";
@@ -17,6 +22,8 @@ import { openModal, closeModal } from "./modalStore";
 import { dirname } from "@tauri-apps/api/path";
 import { get } from "svelte/store";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import NewMapModal from "./components/NewMapModal.svelte";
+
 
 /**
  * Navigates the main view to display a specific file.
@@ -142,6 +149,14 @@ export function navigateToImage(image: PageHeader) {
 }
 
 /**
+ * Navigates the main view to display a map.
+ * @param map The header of the map to open.
+ */
+export function navigateToMap(map: PageHeader) {
+    currentView.set({ type: "map", data: map });
+}
+
+/**
  * Initializes the vault at the given path.
  * This is the main entry point after a user selects a vault folder.
  * @param path The absolute path to the vault directory.
@@ -200,7 +215,9 @@ export async function renamePath(path: string, newName: string) {
         // Before the operation, check if the file being renamed is the one currently open.
         const view = get(currentView);
         const wasFileOpen =
-            (view.type === "file" || view.type === "image") &&
+            (view.type === "file" ||
+                view.type === "image" ||
+                view.type === "map") &&
             view.data &&
             view.data.path === path;
 
@@ -215,6 +232,8 @@ export async function renamePath(path: string, newName: string) {
                 navigateToPage({ path: newPath, title: newTitle });
             } else if (isImageFile(newPath)) {
                 navigateToImage({ path: newPath, title: newTitle });
+            } else if (isMapFile(newPath)) {
+                navigateToMap({ path: newPath, title: newTitle });
             }
         }
     } catch (e) {
@@ -263,7 +282,7 @@ export async function createFolder(parentDir: string, name: string) {
  * @param initialName An optional pre-filled name for the item.
  */
 export function promptAndCreateItem(
-    itemType: "file" | "folder",
+    itemType: "file" | "folder" | "map",
     parentDir: string,
     initialName?: string,
 ) {
@@ -277,7 +296,7 @@ export function promptAndCreateItem(
                 onClose: closeModal,
             },
         });
-    } else {
+    } else if (itemType === "folder") {
         // For folders, the simple text input is still sufficient.
         openModal({
             component: TextInputModal,
@@ -290,6 +309,13 @@ export function promptAndCreateItem(
                     createFolder(parentDir, name);
                     closeModal();
                 },
+            },
+        });
+    } else if (itemType === "map") {
+        openModal({
+            component: NewMapModal,
+            props: {
+                onClose: closeModal,
             },
         });
     }
@@ -314,7 +340,9 @@ export async function movePath(sourcePath: string, destinationDir: string) {
         // Before the operation, check if the file being moved is the one currently open.
         const view = get(currentView);
         const wasFileOpen =
-            (view.type === "file" || view.type === "image") &&
+            (view.type === "file" ||
+                view.type === "image" ||
+                view.type === "map") &&
             view.data &&
             view.data.path === sourcePath;
 
@@ -329,6 +357,8 @@ export async function movePath(sourcePath: string, destinationDir: string) {
                 navigateToPage({ path: newPath, title: newTitle });
             } else if (isImageFile(newPath)) {
                 navigateToImage({ path: newPath, title: newTitle });
+            } else if (isMapFile(newPath)) {
+                navigateToMap({ path: newPath, title: newTitle });
             }
         }
     } catch (e) {

@@ -19,7 +19,8 @@ use crate::{
     indexer::Indexer,
     mediawiki_importer,
     models::{
-        BrokenLink, FileNode, FullPageData, PageHeader, ParseError, RenderedPage, VaultAsset,
+        BrokenLink, FileNode, FullPageData, MapData, PageHeader, ParseError, RenderedPage,
+        VaultAsset,
     },
     renderer::Renderer,
     template,
@@ -566,6 +567,56 @@ impl World {
         indexer.rebuild_relations();
 
         Ok(imported_paths)
+    }
+
+    // --- Map Operations (Gated) ---
+
+    pub fn create_map(&self, title: String, image_path: String) -> Result<PathBuf> {
+        let writer = self
+            .writer
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+        let root_path = self
+            .root_path
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+
+        let new_map_path = writer.create_map_file(&root_path, &title, &image_path)?;
+
+        self.indexer
+            .write()
+            .handle_event_and_rebuild(&FileEvent::Created(new_map_path.clone()));
+
+        Ok(new_map_path)
+    }
+
+    pub fn get_map_data(&self, path: &str) -> Result<MapData> {
+        let indexer = self.indexer.read();
+        let map_path = Path::new(path);
+
+        match indexer.assets.get(map_path) {
+            Some(VaultAsset::Map(map_data)) => Ok(*map_data.clone()),
+            _ => Err(ChroniclerError::FileNotFound(map_path.to_path_buf())),
+        }
+    }
+
+    pub fn update_map_data(&self, path: &str, data: MapData) -> Result<()> {
+        let writer = self
+            .writer
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+
+        let map_path = Path::new(path);
+        writer.update_map_file(map_path, &data)?;
+
+        self.indexer
+            .write()
+            .handle_event_and_rebuild(&FileEvent::Modified(map_path.to_path_buf()));
+
+        Ok(())
     }
 }
 

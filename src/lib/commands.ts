@@ -10,6 +10,7 @@ import type {
     FileNode,
     FullPageData,
     License,
+    MapData,
     PageHeader,
     RenderedPage,
     TagMap,
@@ -238,6 +239,34 @@ export const getLicenseStatus = () =>
  */
 export const verifyAndStoreLicense = (licenseKey: string) =>
     invoke<License>("verify_and_store_license", { licenseKey });
+
+// --- Map Commands (Gated) ---
+
+/**
+ * Creates a new .cmap file. This is a licensed feature.
+ * @param title The title of the new map.
+ * @param imagePath The path to the image for the map.
+ * @returns A promise that resolves to the path of the newly created map file.
+ */
+export const createMap = (title: string, imagePath: string) =>
+    invoke<string>("create_map", { title, imagePath });
+
+/**
+ * Retrieves the data for a specific map file. This is a licensed feature.
+ * @param path The path to the .cmap file.
+ * @returns A promise that resolves to the map's data.
+ */
+export const getMapData = (path: string) =>
+    invoke<MapData>("get_map_data", { path });
+
+/**
+ * Updates the data for a specific map file. This is a licensed feature.
+ * @param path The path to the .cmap file.
+ * @param data The new data to save for the map.
+ * @returns A promise that resolves when the data has been saved.
+ */
+export const updateMapData = (path: string, data: MapData) =>
+    invoke<void>("update_map_data", { path, data });
 
 // --- System Commands ---
 

@@ -13,6 +13,12 @@ pub fn is_markdown_file(path: &Path) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
 }
 
+/// Helper function to check if a path points to a map file.
+pub fn is_map_file(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("cmap"))
+}
+
 /// Checks if a path points to a supported image file.
 pub fn is_image_file(path: &Path) -> bool {
     path.extension()

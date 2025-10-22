@@ -6,7 +6,7 @@
 
 use crate::{
     error::{ChroniclerError, Result},
-    models::PageHeader,
+    models::{MapData, PageHeader},
     utils::{file_stem_string, is_markdown_file},
     wikilink::WIKILINK_RE,
 };
@@ -382,6 +382,39 @@ tags: [add, your, tags]
             title,
             path: new_path,
         })
+    }
+
+    /// Creates a new .cmap file with default data.
+    #[instrument(skip(self))]
+    pub fn create_map_file(
+        &self,
+        root_path: &Path,
+        title: &str,
+        image_path: &str,
+    ) -> Result<PathBuf> {
+        let path = root_path.join(format!("{}.cmap", title.trim()));
+
+        if path.exists() {
+            return Err(ChroniclerError::FileAlreadyExists(path));
+        }
+
+        let map_data = MapData {
+            title: title.to_string(),
+            image_path: image_path.to_string(),
+            pins: Vec::new(),
+        };
+
+        let content = serde_json::to_string_pretty(&map_data)?;
+        atomic_write(&path, &content)?;
+
+        Ok(path)
+    }
+
+    /// Updates an existing .cmap file with new data.
+    #[instrument(skip(self, data))]
+    pub fn update_map_file(&self, path: &Path, data: &MapData) -> Result<()> {
+        let content = serde_json::to_string_pretty(data)?;
+        atomic_write(path, &content)
     }
 }
 

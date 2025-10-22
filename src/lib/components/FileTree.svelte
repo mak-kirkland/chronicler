@@ -8,11 +8,12 @@
         movePath,
         navigateToPage,
         navigateToImage,
+        navigateToMap,
     } from "$lib/actions";
     import { draggable, droppable } from "$lib/domActions";
     import FileTree from "./FileTree.svelte";
     import Button from "./Button.svelte";
-    import { isDirectory, isImage, isMarkdown } from "$lib/utils";
+    import { isDirectory, isImage, isMap, isMarkdown } from "$lib/utils";
     let {
         node,
         onContextMenu,
@@ -37,6 +38,8 @@
             navigateToPage({ title: node.name, path: node.path });
         } else if (isImage(node)) {
             navigateToImage({ title: node.name, path: node.path });
+        } else if (isMap(node)) {
+            navigateToMap({ title: node.name, path: node.path });
         }
     }
 
@@ -111,7 +114,8 @@
         <div
             class="file"
             class:active={($currentView.type === "file" ||
-                $currentView.type === "image") &&
+                $currentView.type === "image" ||
+                $currentView.type === "map") &&
                 $currentView.data?.path === node.path}
             onclick={() => handleNodeClick(node)}
             onkeydown={(e) => e.key === "Enter" && handleNodeClick(node)}
@@ -122,7 +126,9 @@
             }}
             use:draggable={{ path: node.path }}
         >
-            <span class="icon">{isImage(node) ? "🖼️" : "📜"}</span>
+            <span class="icon"
+                >{isImage(node) ? "🖼️" : isMap(node) ? "🗺️" : "📜"}</span
+            >
             <span class="node-name-text">{node.name}</span>
         </div>
     {/if}

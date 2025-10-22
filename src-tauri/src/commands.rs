@@ -5,10 +5,10 @@
 
 use crate::licensing;
 use crate::licensing::License;
-use crate::models::{BrokenLink, FullPageData, PageHeader, ParseError};
+use crate::models::{BrokenLink, FullPageData, MapData, PageHeader, ParseError};
 use crate::{
     config,
-    error::Result,
+    error::{ChroniclerError, Result},
     fonts, importer,
     models::{FileNode, RenderedPage},
     template,
@@ -19,6 +19,16 @@ use std::path::PathBuf;
 use tauri::{command, AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 use tracing::instrument;
+
+// --- Helper for License Gating ---
+fn check_license(app_handle: &AppHandle) -> Result<()> {
+    match licensing::load_and_verify_license(app_handle) {
+        Ok(Some(license)) if license.status == "ACTIVE" => Ok(()),
+        _ => Err(ChroniclerError::LicenseInvalid(
+            "A valid license is required to use this feature.".to_string(),
+        )),
+    }
+}
 
 // --- Vault and Initialization ---
 
@@ -243,6 +253,42 @@ pub async fn verify_and_store_license(
     let license = licensing::validate_license(&license_key).await?;
     licensing::save_license(&app_handle, &license)?;
     Ok(license)
+}
+
+// --- Map Commands (Gated) ---
+
+/// Creates a new .cmap file. This is a licensed feature.
+#[command]
+#[instrument(skip(world, app_handle))]
+pub fn create_map(
+    world: State<World>,
+    app_handle: AppHandle,
+    title: String,
+    image_path: String,
+) -> Result<PathBuf> {
+    check_license(&app_handle)?;
+    world.create_map(title, image_path)
+}
+
+/// Retrieves the data for a specific map file. This is a licensed feature.
+#[command]
+#[instrument(skip(world, app_handle))]
+pub fn get_map_data(world: State<World>, app_handle: AppHandle, path: String) -> Result<MapData> {
+    check_license(&app_handle)?;
+    world.get_map_data(&path)
+}
+
+/// Updates the data for a specific map file. This is a licensed feature.
+#[command]
+#[instrument(skip(world, app_handle, data))]
+pub fn update_map_data(
+    world: State<World>,
+    app_handle: AppHandle,
+    path: String,
+    data: MapData,
+) -> Result<()> {
+    check_license(&app_handle)?;
+    world.update_map_data(&path, data)
 }
 
 // --- System ---
