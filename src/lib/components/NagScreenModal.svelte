@@ -47,7 +47,11 @@
         <p>
             This app is developed and maintained by a single person (hi, I'm
             Michael!). If you find it valuable, please consider supporting its
-            future and <strong>keeping the project alive</strong> :)
+            future and <strong>keeping the project alive</strong>.
+        </p>
+        <p>
+            Supporters are given a Community License to disable all donation
+            prompts :)
         </p>
         <div class="button-group">
             <Button variant="primary" size="large" onclick={handlePurchase}>
