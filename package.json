@@ -16,6 +16,7 @@
         "@codemirror/autocomplete": "^6.19.0",
         "@codemirror/commands": "^6.9.0",
         "@codemirror/lang-markdown": "^6.4.0",
+        "@codemirror/state": "^6.5.2",
         "@codemirror/view": "^6.38.6",
         "@tauri-apps/api": "^2.9.0",
         "@tauri-apps/plugin-dialog": "~2.3.3",

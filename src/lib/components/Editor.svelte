@@ -4,6 +4,7 @@
     import Codemirror from "svelte-codemirror-editor";
     import { markdown } from "@codemirror/lang-markdown";
     import { EditorView, keymap } from "@codemirror/view";
+    import { Prec } from "@codemirror/state";
     import {
         autocompletion,
         type CompletionContext,
@@ -149,7 +150,7 @@
     // We only need to provide the extensions that are truly custom to our application.
     const extensions = [
         markdown(),
-        keymap.of([...customKeymap, ...defaultKeymap]),
+        Prec.highest(keymap.of([...customKeymap, ...defaultKeymap])),
         EditorView.lineWrapping,
         customTheme,
         autocompletion({ override: [customCompletions] }),
