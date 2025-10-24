@@ -17,9 +17,11 @@
 
 <Modal title="Enjoying Chronicler?" showCloseButton={false}>
     <div class="donation-content">
+        <p>Thank you for using Chronicler!</p>
         <p>
-            Thank you for using Chronicler! As a solo developer, your support is
-            invaluable for maintaining and improving this application.
+            As a solo developer, your support is invaluable for <strong
+                >keeping the project alive</strong
+            >.
         </p>
         <p>If you find it useful, please consider supporting its future.</p>
         <div class="button-group">
