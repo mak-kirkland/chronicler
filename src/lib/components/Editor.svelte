@@ -117,6 +117,7 @@
             fontFamily: "var(--font-family-body)",
             fontSize: "1.1rem",
             lineHeight: "1.8",
+            paddingBottom: "50vh",
         },
         ".cm-gutters": {
             backgroundColor: "transparent",
