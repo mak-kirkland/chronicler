@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.29.5-alpha] - 2025-10-25
+
+### 🐞 Fixed
+
+- **Indexer / Windows**: Fixed a critical bug on Windows where a recent change to support symbolic links caused paths to be stored in a non-standard format that the application could not process. This has been resolved by using a specialized library that correctly handles Windows path edge cases, ensuring all assets are indexed and rendered reliably.
+
+---
+
 ## [v0.29.4-alpha] - 2025-10-25
 
 ### 🔄 Changed
