@@ -89,7 +89,13 @@ impl Indexer {
         self.link_graph.clear();
 
         // Use a single WalkDir iterator for efficiency.
-        for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
+        // Configure WalkDir to follow symbolic links (`.follow_links(true)`)
+        // to ensure assets linked into the vault are discovered and indexed.
+        for entry in WalkDir::new(root_path)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             self.update_file(entry.path());
         }
 
@@ -177,6 +183,20 @@ impl Indexer {
     /// Updates or creates an index entry for a single file path.
     #[instrument(level = "debug", skip(self))]
     pub fn update_file(&mut self, path: &Path) {
+        // RESOLVE SYMLINKS: Get the canonical path for consistent indexing.
+        let canonical_path = match fs::canonicalize(path) {
+            Ok(p) => p,
+            Err(e) => {
+                warn!("Could not get canonical path for {:?}: {}", path, e);
+                // If canonicalization fails (e.g., file doesn't exist or broken symlink),
+                // we can't index it reliably. Still remove any previous entry.
+                self.remove_file_from_index(path);
+                return;
+            }
+        };
+        // Use the canonical path for all subsequent indexing operations.
+        let path = &canonical_path;
+
         // Always remove the old entry first to ensure a clean update.
         self.remove_file_from_index(path);
 

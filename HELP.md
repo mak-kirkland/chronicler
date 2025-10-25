@@ -68,7 +68,7 @@ Tip: Pages and folders are ordered alphabetically. If you want to enforce a spec
 
 ## 🖼️ Images
 
-You can store your images in any folder within your vault, e.g a central `images/` folder, or right next to your notes. Chronicler will find them automatically.
+You can store your images in any folder within your vault, e.g a central `images/` folder, or right next to your notes. Chronicler will find them automatically. You can also refer to images outside your vault by providing the full path (e.g `C:\Users\Michael\map.png`), or by using shortcuts/symlinks within the vault, however this is *not* recommended as it may slow down your pages.
 
 ### Infobox Images
 
