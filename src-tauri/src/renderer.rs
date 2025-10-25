@@ -129,25 +129,38 @@ impl Renderer {
     ///    it is looked up in the `media_resolver` index. This is the new, preferred method.
     /// 3. **Relative Path (Legacy):** As a fallback for backward compatibility, the input
     ///    is treated as a path relative to the vault's `images` subdirectory.
+    ///
+    /// The final path is canonicalized to resolve symbolic links.
     fn resolve_image_path(&self, path_str: &str) -> PathBuf {
         let path = Path::new(path_str);
+        let mut resolved_path;
 
         // --- Priority 1: Absolute Path ---
         if path.is_absolute() {
-            return path.to_path_buf().clean();
+            resolved_path = path.to_path_buf();
+        } else {
+            // --- Priority 2: Indexed Filename Lookup ---
+            let indexer = self.indexer.read();
+            // The path string itself is treated as a potential filename.
+            if let Some(indexed_path) = indexer.media_resolver.get(&path_str.to_lowercase()) {
+                resolved_path = indexed_path.clone();
+            } else {
+                // Release the read lock as soon as possible.
+                drop(indexer);
+
+                // --- Priority 3: Legacy Relative Path Fallback ---
+                resolved_path = self.vault_path.join(IMAGES_DIR_NAME).join(path);
+            }
         }
 
-        // --- Priority 2: Indexed Filename Lookup ---
-        let indexer = self.indexer.read();
-        // The path string itself is treated as a potential filename.
-        if let Some(resolved_path) = indexer.media_resolver.get(&path_str.to_lowercase()) {
-            return resolved_path.clone();
-        }
-        // Release the read lock as soon as possible.
-        drop(indexer);
+        // Final canonicalization step to resolve symlinks and '..' segments.
+        // We use a clean() fallback because canonicalize will fail if the file doesn't exist.
+        resolved_path = match dunce::canonicalize(&resolved_path) {
+            Ok(canonical) => canonical,
+            Err(_) => resolved_path.clean(),
+        };
 
-        // --- Priority 3: Legacy Relative Path Fallback ---
-        self.vault_path.join(IMAGES_DIR_NAME).join(path).clean()
+        resolved_path
     }
 
     /// Processes an image source path, returning a correctly formatted Tauri v2 asset URL.

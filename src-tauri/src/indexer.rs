@@ -184,7 +184,7 @@ impl Indexer {
     #[instrument(level = "debug", skip(self))]
     pub fn update_file(&mut self, path: &Path) {
         // RESOLVE SYMLINKS: Get the canonical path for consistent indexing.
-        let canonical_path = match fs::canonicalize(path) {
+        let canonical_path = match dunce::canonicalize(path) {
             Ok(p) => p,
             Err(e) => {
                 warn!("Could not get canonical path for {:?}: {}", path, e);
