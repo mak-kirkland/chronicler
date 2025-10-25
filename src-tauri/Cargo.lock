@@ -585,6 +585,7 @@ dependencies = [
  "chrono",
  "clap",
  "dotenvy",
+ "dunce",
  "ed25519-dalek",
  "flate2",
  "font-kit",

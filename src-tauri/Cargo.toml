@@ -68,5 +68,6 @@ ed25519-dalek = "2.2.0"
 hex = "0.4.3"
 sha2 = "0.10.9"
 hmac = "0.12.1"
+dunce = "1.0.5"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
