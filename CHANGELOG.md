@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.29.4-alpha] - 2025-10-25
+
+### 🔄 Changed
+
+- **Assets**: Assets, such as images, included in the vault via symbolic links are now indexed and rendered.
+
+---
+
 ## [v0.29.3-alpha] - 2025-10-24
 
 ### 🐞 Fixed
