@@ -242,4 +242,21 @@
         display: block; /* Resets 'flow-root' back to a normal block */
         overflow: hidden; /* This makes the header's block (and its border) wrap around the float */
     }
+
+    /* * This rule targets all paragraphs inside the rendered content area.
+     * We reset them to 0 to remove the browser's default, oversized margins
+     * when using inline <p> tags.
+     */
+    .main-content :global(p) {
+        margin-block: 0;
+    }
+
+    /*
+     * This rule targets any paragraph that directly follows another paragraph.
+     * We add a top margin using the 'rem' unit. This ensures the space
+     * between paragraphs scales proportionally with the font size set by the user's slider.
+     */
+    .main-content :global(p + p) {
+        margin-block-start: 1rem;
+    }
 </style>
