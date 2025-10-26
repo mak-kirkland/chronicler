@@ -35,6 +35,7 @@ interface VaultSettings {
     fontSize: number;
     sidebarWidth: number;
     isTocVisible: boolean;
+    areInfoboxTagsVisible: boolean;
 }
 
 export type ThemeName = string;
@@ -123,6 +124,7 @@ export const bodyFont = writable<string>(`"IM Fell English", serif`);
 export const fontSize = writable<number>(100);
 export const sidebarWidth = writable<number>(SIDEBAR_INITIAL_WIDTH);
 export const isTocVisible = writable<boolean>(true); // Default to visible
+export const areInfoboxTagsVisible = writable<boolean>(true);
 
 // --- Private Save Functions ---
 
@@ -153,6 +155,7 @@ async function saveVaultSettings() {
         fontSize: get(fontSize),
         sidebarWidth: get(sidebarWidth),
         isTocVisible: get(isTocVisible),
+        areInfoboxTagsVisible: get(areInfoboxTagsVisible),
     };
     await vaultSettingsFile.set("vaultSettings", settings);
     await vaultSettingsFile.save();
@@ -201,6 +204,7 @@ export async function initializeVaultSettings(vaultPath: string) {
         fontSize.set(settings.fontSize ?? 100);
         sidebarWidth.set(settings.sidebarWidth ?? SIDEBAR_INITIAL_WIDTH);
         isTocVisible.set(settings.isTocVisible ?? true); // Fallback to true
+        areInfoboxTagsVisible.set(settings.areInfoboxTagsVisible ?? true);
     } else {
         // If the vault has no settings file, it should adopt the current theme.
         // We immediately save the current settings to create the vault file,
@@ -215,6 +219,7 @@ export async function initializeVaultSettings(vaultPath: string) {
     fontSize.subscribe(debouncedVaultSave);
     sidebarWidth.subscribe(debouncedVaultSave);
     isTocVisible.subscribe(debouncedVaultSave);
+    areInfoboxTagsVisible.subscribe(debouncedVaultSave);
 }
 
 /**
@@ -231,6 +236,7 @@ export function destroyVaultSettings() {
     fontSize.set(100);
     sidebarWidth.set(SIDEBAR_INITIAL_WIDTH);
     isTocVisible.set(true); // Reset to default
+    areInfoboxTagsVisible.set(true);
     vaultSettingsFile = null; // Ensure no further saves can happen.
 }
 

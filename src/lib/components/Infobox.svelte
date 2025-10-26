@@ -8,6 +8,9 @@
         LayoutGroup,
         RenderItem,
     } from "$lib/types";
+    import { openModal, closeModal } from "$lib/modalStore";
+    import { areInfoboxTagsVisible } from "$lib/settingsStore";
+    import InfoboxSettingsModal from "./InfoboxSettingsModal.svelte";
 
     // --- Props ---
     let { data } = $props<{
@@ -62,6 +65,16 @@
                 title: imageTitle,
             });
         }
+    }
+
+    /**
+     * Opens the infobox settings modal.
+     */
+    function openSettingsModal() {
+        openModal({
+            component: InfoboxSettingsModal,
+            props: { onClose: closeModal },
+        });
     }
 
     // --- Effects ---
@@ -160,9 +173,18 @@
 
 <div class="infobox">
     <div class="infobox-content-wrapper">
-        {#if data?.title}
-            <h3 class="infobox-title">{@html data.title}</h3>
-        {/if}
+        <div class="infobox-header">
+            {#if data?.title}
+                <h3 class="infobox-title">{@html data.title}</h3>
+            {/if}
+            <button
+                class="infobox-controls-button"
+                onclick={openSettingsModal}
+                title="Infobox settings"
+            >
+                ⚙️
+            </button>
+        </div>
 
         {#if data?.subtitle}
             <p class="infobox-subtitle">{@html data.subtitle}</p>
@@ -300,26 +322,28 @@
                     {/if}
                 {/each}
 
-                <!-- Tags are always rendered at the end of the list. -->
-                {#if data?.tags && Array.isArray(data.tags) && data.tags.length > 0}
-                    <dt>Tags</dt>
-                    <dd class="tag-container">
-                        <!--
-                          Add unique key to prevent error from duplicate tags in its frontmatter.
-                        -->
-                        {#each data.tags as tag, i (`${tag}-${i}`)}
-                            <button
-                                class="tag-link"
-                                onclick={() => navigateToTag(tag)}
-                            >
-                                #{tag}
-                            </button>
-                        {/each}
-                    </dd>
+                <!-- Tags are rendered conditionally based on the global store -->
+                {#if $areInfoboxTagsVisible}
+                    {#if data?.tags && Array.isArray(data.tags) && data.tags.length > 0}
+                        <dt>Tags</dt>
+                        <dd class="tag-container">
+                            <!--
+                              Add unique key to prevent error from duplicate tags in its frontmatter.
+                            -->
+                            {#each data.tags as tag, i (`${tag}-${i}`)}
+                                <button
+                                    class="tag-link"
+                                    onclick={() => navigateToTag(tag)}
+                                >
+                                    #{tag}
+                                </button>
+                            {/each}
+                        </dd>
+                    {/if}
                 {/if}
             </dl>
 
-            {#if data && !data.error && renderItems.length === 0 && (!data.tags || data.tags.length === 0)}
+            {#if data && !data.error && renderItems.length === 0 && (!data.tags || data.tags.length === 0 || !$areInfoboxTagsVisible)}
                 <div class="no-fields-message text-muted text-center">
                     No additional fields to display.
                 </div>
@@ -352,12 +376,45 @@
         /* Defaults to a stacked layout */
         display: block;
     }
+
+    /* --- Header Styles --- */
+    .infobox-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--space-sm);
+        border-bottom: 1px solid var(--color-border-primary);
+        padding-bottom: var(--space-sm);
+        margin-bottom: var(--space-md);
+    }
+
+    .infobox-controls-button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        font-size: 1.1rem; /* Adjust size of the emoji icon */
+        color: var(--color-text-secondary);
+        flex-shrink: 0; /* Prevents the button from shrinking */
+        transition: color 0.2s ease;
+        line-height: 1.2; /* Align emoji better with title */
+    }
+
+    .infobox-controls-button:hover,
+    .infobox-controls-button:focus-visible {
+        color: var(--color-text-primary);
+        outline: none;
+    }
+    /* --- End Header Styles --- */
+
     .infobox-title {
         font-family: var(--font-family-heading);
         font-size: 1.2rem;
-        margin: 0 0 var(--space-md) 0;
-        padding-bottom: var(--space-sm);
-        border-bottom: 1px solid var(--color-border-primary);
+        margin: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+        flex-grow: 1; /* Allow title to take available space */
+        line-height: 1.2;
     }
     .infobox-subtitle {
         font-size: 1rem;
@@ -604,7 +661,9 @@
             align-items: flex-start;
             flex-wrap: wrap;
         }
-        .infobox-title,
+        .infobox-header {
+            flex-basis: 100%; /* Make the header span the full width */
+        }
         .infobox-subtitle,
         .carousel-tabs {
             flex-basis: 100%; /* Make the title/tabs span the full width */
