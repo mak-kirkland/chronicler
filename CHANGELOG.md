@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.30.1-alpha] - 2025-10-27
+
+### 🐞 Fixed
+
+- **Infobox**: Fixed an issue where data keys containing parentheses were capitalized incorrectly (e.g., "main language(s)" would display as "Main Language(S)"). The rendering logic now capitalizes only the first letter of the entire key.
+
+---
+
 ## [v0.30.0-alpha] - 2025-10-27
 
 ### ✨ Added
