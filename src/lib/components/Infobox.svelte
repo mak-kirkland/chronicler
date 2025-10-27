@@ -1,5 +1,6 @@
 <script lang="ts">
     import { navigateToTag, navigateToImage } from "$lib/actions";
+    import { capitalizeFirstLetter } from "$lib/utils";
     import ErrorBox from "./ErrorBox.svelte";
     import type {
         InfoboxData,
@@ -284,7 +285,7 @@
                     {:else if renderItem.type === "default"}
                         <!-- Default items render as a standard key-value pair. -->
                         {@const [key, value] = renderItem.item}
-                        <dt>{key}</dt>
+                        <dt>{@html capitalizeFirstLetter(key)}</dt>
                         <dd>
                             {#if Array.isArray(value)}
                                 <ul>
@@ -520,7 +521,6 @@
     }
     dt {
         font-weight: bold;
-        text-transform: capitalize;
         color: var(--color-text-secondary);
     }
     dd {
