@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.30.0-alpha] - 2025-10-27
+
+### ✨ Added
+
+- **Navigation**: You can now link directly to specific headers within a page using wikilinks with a hash section (e.g., `[[My Page#Some Header]]`).
+- **Infobox**: The image carousel now supports captions, which are displayed as a tab-based navigation system. This is enabled by using a new nested array format in the YAML frontmatter (e.g., `image: [["path/to/image.jpg", "My Caption"]]`).
+
+---
+
 ## [v0.29.5-alpha] - 2025-10-25
 
 ### 🐞 Fixed
