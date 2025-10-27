@@ -193,3 +193,16 @@ export function flattenFileTree(node: FileNode | null): PageHeader[] {
     }
     return pages;
 }
+
+/**
+ * Capitalizes the first letter of a string, leaving the rest of the string unchanged.
+ * Handles empty strings gracefully.
+ * @param text The string to capitalize.
+ * @returns The capitalized string, or an empty string if the input was empty.
+ */
+export function capitalizeFirstLetter(text: string): string {
+    if (!text) {
+        return "";
+    }
+    return text.charAt(0).toUpperCase() + text.slice(1);
+}
