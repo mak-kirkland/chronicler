@@ -72,22 +72,10 @@ You can store your images in any folder within your vault, e.g a central `images
 
 ### Infobox Images
 
-You can display an image in a page’s **infobox** by adding the `image` field to the frontmatter:
+You can display an image in a page’s **infobox** by adding the `image` field to the frontmatter at the top of your file:
 
 ```yaml
 image: rivertown.jpg
-```
-
-You can also create a carousel by providing multiple images:
-
-```yaml
-image: [rivertown_day.jpg, rivertown_night.jpg, rivertown_castle.jpg]
-```
-
-...and with optional captions too:
-
-```yaml
-image: [[rivertown_day.jpg, "Day"], [rivertown_night.jpg, "Night"]]
 ```
 
 ### Page Images
@@ -186,7 +174,21 @@ Several fields have special functionality:
 | `image`    | An image or carousel of images for the infobox.             |
 | `layout`   | Rules for creating headers and columns in the infobox.      |
 
-### Special syntax inside frontmatter values
+### 🖼️ Image Carousels
+
+Besides a single image, you can provide a list of images to create a carousel in the **infobox**:
+
+```yaml
+image: [rivertown_day.jpg, rivertown_night.jpg, rivertown_castle.jpg]
+```
+
+You can also add captions to each image in the carousel:
+
+```
+image: [[rivertown_day.jpg, "Day"], [rivertown_night.jpg, "Night"]]
+```
+
+### ⚠️ Special syntax inside frontmatter values
 
 Some values may contain special characters that need to be treated properly (for example `[[wikilinks]]` or `||spoilers||`). There are two safe ways to include these without breaking the frontmatter:
 
@@ -214,7 +216,7 @@ motto: '*Strength and Honor*'
 homepage: '[Official Site](https://example.com)'
 ```
 
-### 🗺 Inline Images
+### ⚜️ Inline Images
 
 You can embed small images like flags or icons directly into infobox fields. This is great for adding visual flair next to text.
 
@@ -287,7 +289,7 @@ For full control over an image's size, alignment, and caption, use HTML tags in 
 </figure>
 ```
 
-### Inline Images (e.g., Flags or Icons)
+### ⚜️ Inline Images (e.g., Flags or Icons)
 
 You can also place small images directly into a line of text. This is perfect for icons or flags. The `height: 1em;` style makes the image scale with the text, and `vertical-align: middle;` centers it nicely.
 
