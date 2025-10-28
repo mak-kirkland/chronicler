@@ -117,7 +117,9 @@ pub async fn validate_license(license_key: &str) -> Result<License> {
     // --- STEP 2: CHECK THE RESPONSE & ACTIVATE IF NEEDED ---
     if validation_response.meta.valid {
         info!("License is valid and machine is already activated.");
-    } else if validation_response.meta.code == "NO_MACHINES" {
+    } else if validation_response.meta.code == "NO_MACHINES"
+        || validation_response.meta.code == "FINGERPRINT_SCOPE_MISMATCH"
+    {
         info!("Step 2: Activating machine...");
         let activation_url = format!(
             "https://api.keygen.sh/v1/accounts/{}/machines",
