@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.30.2-alpha] - 2025-10-28
+
+### 🐞 Fixed
+
+- **Licensing**: Fixed an issue that prevented licenses from being activated on multiple machines.
+
+---
+
 ## [v0.30.1-alpha] - 2025-10-27
 
 ### 🐞 Fixed
