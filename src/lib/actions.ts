@@ -85,7 +85,7 @@ export function handleContentClick(event: Event) {
                     promptAndCreateItem("file", currentVaultPath, targetName);
                 }
             } else if (path) {
-                const title = getTitleFromPath(path);
+                const title = fileStemString(path);
                 // Extract the section ID from the href if it exists.
                 const sectionId =
                     href && href.startsWith("#")
@@ -210,7 +210,7 @@ export async function renamePath(path: string, newName: string) {
 
         // If the file was open, navigate the view to its new path.
         if (wasFileOpen) {
-            const newTitle = getTitleFromPath(newPath);
+            const newTitle = fileStemString(newPath);
             if (isMarkdownFile(newPath)) {
                 navigateToPage({ path: newPath, title: newTitle });
             } else if (isImageFile(newPath)) {
@@ -324,7 +324,7 @@ export async function movePath(sourcePath: string, destinationDir: string) {
 
         // If the file was open, navigate the view to its new path.
         if (wasFileOpen) {
-            const newTitle = getTitleFromPath(newPath);
+            const newTitle = fileStemString(newPath);
             if (isMarkdownFile(newPath)) {
                 navigateToPage({ path: newPath, title: newTitle });
             } else if (isImageFile(newPath)) {

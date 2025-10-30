@@ -59,15 +59,21 @@ export function isImageFile(path: string): boolean {
 }
 
 /**
- * Extracts a display-friendly title from a file path.
- * It gets the last part of the path (the filename) and removes the .md extension if present.
- * @param path The full path to the file.
- * @returns A clean title string.
+ * Extracts a display-friendly title (the file stem) from a file path.
+ * It gets the last part of the path (the filename) and removes the final extension.
+ * @param path The full path or filename.
+ * @returns A clean title string without the extension.
  */
-export function getTitleFromPath(path: string): string {
+export function fileStemString(path: string): string {
     const fileName = path.split(/[\\/]/).pop() || "Untitled";
-    // Use a regex to remove the .md extension only if it's at the end of the string.
-    return fileName.replace(/\.md$/, "");
+    const lastDotIndex = fileName.lastIndexOf(".");
+
+    // Check if a dot exists and it's not the first character (to handle hidden files)
+    if (lastDotIndex < 1) {
+        return fileName;
+    }
+
+    return fileName.slice(0, lastDotIndex);
 }
 
 /**
