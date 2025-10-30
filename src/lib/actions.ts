@@ -9,7 +9,7 @@ import { currentView, fileViewMode } from "./viewStores";
 import type { PageHeader } from "./bindings";
 // Import all commands under a 'commands' namespace to prevent naming conflicts.
 import * as commands from "./commands";
-import { getTitleFromPath, isImageFile, isMarkdownFile } from "./utils";
+import { fileStemString, isImageFile, isMarkdownFile } from "./utils";
 import { world } from "./worldStore";
 import NewPageModal from "./components/NewPageModal.svelte";
 import TextInputModal from "./components/TextInputModal.svelte";
