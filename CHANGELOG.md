@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.31.1-alpha] - 2025-10-30
+
+### 🐞 Fixed
+
+- **Navigation**: Fixed a critical regression that broke all wikilink navigation. This was caused by a bad merge during a recent code refactor, which left a stale function import. The import has been corrected, and navigation now works as expected.
+
+---
+
 ## [v0.31.0-alpha] - 2025-10-30
 
 ### ✨ Added
