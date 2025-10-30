@@ -59,6 +59,9 @@ importers:
       svelte-codemirror-editor:
         specifier: ^1.4.2
         version: 1.4.2(codemirror@6.0.2)(svelte@5.41.1)
+      tabulator-tables:
+        specifier: ^6.3.1
+        version: 6.3.1
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: ^3.0.10
@@ -778,6 +781,9 @@ packages:
     resolution: {integrity: sha512-0a/huwc8e2es+7KFi70esqsReRfRbrT8h1cJSY/+z1lF0yKM6TT+//HYu28Yxstr50H7ifaqZRDGd0KuKDxP7w==}
     engines: {node: '>=18'}
 
+  tabulator-tables@6.3.1:
+    resolution: {integrity: sha512-qFW7kfadtcaISQIibKAIy0f3eeIXUVi8242Vly1iJfMD79kfEGzfczNuPBN/80hDxHzQJXYbmJ8VipI40hQtfA==}
+
   tinyglobby@0.2.15:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
     engines: {node: '>=12.0.0'}
@@ -1484,6 +1490,8 @@ snapshots:
       locate-character: 3.0.0
       magic-string: 0.30.19
       zimmerframe: 1.1.4
+
+  tabulator-tables@6.3.1: {}
 
   tinyglobby@0.2.15:
     dependencies:

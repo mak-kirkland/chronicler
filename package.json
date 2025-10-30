@@ -29,7 +29,8 @@
         "codemirror": "^6.0.2",
         "js-yaml": "^4.1.0",
         "marked": "^16.4.1",
-        "svelte-codemirror-editor": "^1.4.2"
+        "svelte-codemirror-editor": "^1.4.2",
+        "tabulator-tables": "^6.3.1"
     },
     "devDependencies": {
         "@sveltejs/adapter-static": "^3.0.10",
