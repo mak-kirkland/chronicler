@@ -3,6 +3,24 @@
     import Infobox from "./Infobox.svelte";
     import TableOfContents from "./TableOfContents.svelte";
     import { isTocVisible } from "$lib/settingsStore";
+    import { htmlTableToTabulatorData } from "$lib/tabulator";
+
+    import {
+        Tabulator,
+        SortModule,
+        FilterModule,
+        MoveColumnsModule,
+        EditModule,
+    } from "tabulator-tables";
+    import "tabulator-tables/dist/css/tabulator.min.css";
+
+    // Register the modules once when the component is first loaded.
+    Tabulator.registerModule([
+        SortModule,
+        FilterModule,
+        MoveColumnsModule,
+        EditModule,
+    ]);
 
     // The type for the infobox data is complex, so we can use `any` here.
     // It's the `processed_frontmatter` object from the Rust backend.
@@ -18,29 +36,62 @@
         mode?: "split" | "unified";
     }>();
 
-    let previewEl: HTMLElement | undefined = $state();
-
     /**
-     * This effect hook is the key to making inserts interactive.
-     * It runs after the component renders and whenever the `renderedData` changes.
-     * It finds all toggle buttons rendered by the backend and attaches a click event listener.
+     * A custom Svelte Action to safely integrate Tabulator and other interactive elements.
      */
-    $effect(() => {
-        if (!previewEl || !renderedData) return;
+    function interactiveContent(node: HTMLElement, htmlContent: string) {
+        let tabulatorInstances: Tabulator[] = [];
 
-        const toggles = previewEl.querySelectorAll(".insert-toggle");
-        toggles.forEach((button) => {
-            button.addEventListener("click", handleToggleClick);
-        });
+        function initialize(content: string) {
+            node.innerHTML = content;
 
-        // Cleanup function: This runs when the component is destroyed
-        // or before the effect runs again. It prevents memory leaks.
-        return () => {
+            // Initialize insert toggles
+            const toggles = node.querySelectorAll(".insert-toggle");
             toggles.forEach((button) => {
-                button.removeEventListener("click", handleToggleClick);
+                button.addEventListener("click", handleToggleClick);
             });
+
+            // Find and initialize Tabulator on tables
+            const tables = node.querySelectorAll("table");
+            tables.forEach((table) => {
+                // Manually parse the table to get data and columns
+                const { columns, data } = htmlTableToTabulatorData(table);
+                if (columns.length === 0) return;
+
+                // Create a new div container to replace the original table
+                const container = document.createElement("div");
+                table.parentNode?.replaceChild(container, table);
+
+                const instance = new Tabulator(container, {
+                    data: data,
+                    columns: columns,
+                    layout: "fitData",
+                    headerSort: true,
+                    // Tell Tabulator to render HTML content in cells
+                    htmlOutput: true,
+                });
+                tabulatorInstances.push(instance);
+            });
+        }
+
+        function destroy() {
+            tabulatorInstances.forEach((instance) => instance.destroy());
+            tabulatorInstances = [];
+            node.innerHTML = "";
+        }
+
+        initialize(htmlContent);
+
+        return {
+            update(newHtmlContent: string) {
+                destroy();
+                initialize(newHtmlContent);
+            },
+            destroy() {
+                destroy();
+            },
         };
-    });
+    }
 
     /**
      * Handles clicks on the [hide]/[show] buttons within an insert.
@@ -63,12 +114,7 @@
   The main content is wrapped in its own div to create a distinct flex item.
   -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex -->
-<div
-    class="preview-container mode-{mode}"
-    role="document"
-    tabindex="0"
-    bind:this={previewEl}
->
+<div class="preview-container mode-{mode}" role="document" tabindex="0">
     {#if infoboxData}
         <!-- Use <aside> for better semantics. It's floated, so order in HTML matters. -->
         <aside class="infobox-wrapper">
@@ -79,7 +125,7 @@
     {#if renderedData}
         <div class="main-content-wrapper">
             <div class="main-content">
-                {@html renderedData.html_before_toc}
+                <div use:interactiveContent={renderedData.html_before_toc} />
 
                 {#if renderedData.toc.length > 0 && $isTocVisible}
                     <aside class="toc-wrapper">
@@ -87,7 +133,7 @@
                     </aside>
                 {/if}
 
-                {@html renderedData.html_after_toc}
+                <div use:interactiveContent={renderedData.html_after_toc} />
             </div>
         </div>
     {/if}
@@ -185,23 +231,7 @@
         background-color: transparent;
         padding: 0;
     }
-    .main-content :global(table) {
-        max-width: 100%;
-        border-collapse: collapse;
-        margin-block: 1.5em;
-        font-size: 0.95rem;
-        line-height: 1.5;
-    }
-    .main-content :global(th),
-    .main-content :global(td) {
-        border: 1px solid var(--color-border-primary);
-        padding: 0.6em 0.8em;
-    }
-    .main-content :global(th) {
-        background-color: var(--color-overlay-light);
-        font-weight: bold;
-    }
-    /* This new rule removes borders only from cells inside a table with border="0" */
+
     .main-content :global(table[border="0"] th),
     .main-content :global(table[border="0"] td) {
         border: none;
@@ -258,5 +288,65 @@
      */
     .main-content :global(p + p) {
         margin-block-start: 1rem;
+    }
+
+    /* --- Tabulator Theming using CSS Variables --- */
+
+    /* Main table container */
+    .main-content :global(.tabulator) {
+        border: 1px solid var(--color-border-primary);
+        background-color: var(--color-background-primary);
+        border-radius: var(--radius-base);
+        font-size: 0.95rem;
+        margin-block: 1.5em;
+        width: max-content; /* Shrink container to fit table content */
+        max-width: 100%; /* And prevent overflow on small screens */
+    }
+
+    /* Header section */
+    .main-content :global(.tabulator .tabulator-header) {
+        background-color: var(--color-background-secondary);
+        border-bottom: 1px solid var(--color-border-primary);
+        color: var(--color-text-secondary);
+    }
+
+    /* Header titles and sort arrows */
+    .main-content :global(.tabulator .tabulator-col .tabulator-col-content) {
+        padding: 0.6em 0.8em;
+    }
+
+    /* Header filter input fields */
+    .main-content
+        :global(
+            .tabulator
+                .tabulator-header
+                .tabulator-col
+                .tabulator-header-filter
+                input
+        ) {
+        background-color: var(--color-background-primary);
+        color: var(--color-text-primary);
+        border: 1px solid var(--color-border-primary);
+        border-radius: 3px;
+        padding: 0.3rem;
+        margin-top: 4px;
+    }
+
+    /* Table rows */
+    .main-content :global(.tabulator .tabulator-tableHolder .tabulator-row) {
+        background-color: var(--color-background-primary);
+        color: var(--color-text-primary);
+    }
+
+    /* Row hover effect */
+    .main-content
+        :global(.tabulator .tabulator-tableHolder .tabulator-row:hover) {
+        background-color: var(--color-overlay-medium);
+    }
+
+    /* Individual cells */
+    .main-content :global(.tabulator .tabulator-row .tabulator-cell) {
+        border-right: 1px solid var(--color-border-primary);
+        padding: 0.6em 0.8em;
     }
 </style>
