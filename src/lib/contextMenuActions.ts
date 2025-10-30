@@ -14,7 +14,7 @@ import {
     promptAndCreateItem,
     duplicatePage,
 } from "$lib/actions";
-import { isDirectory, isMarkdown } from "$lib/utils";
+import { isDirectory, isMarkdown, fileStemString } from "$lib/utils";
 import { openInExplorer } from "$lib/commands";
 // Import modal components that can be triggered from the context menu
 import TextInputModal from "./components/TextInputModal.svelte";
@@ -49,7 +49,7 @@ export function getContextMenuActions(
                         props: {
                             title: `Rename ${isDir ? "Folder" : "File"}`,
                             label: `New name for '${node.name}'`,
-                            initialValue: node.name,
+                            initialValue: fileStemString(node.name),
                             buttonText: "Rename",
                             onClose: closeModal,
                             onSubmit: (newValue: string) => {
