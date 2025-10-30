@@ -61,9 +61,9 @@ static CLASS_ATTR_RE: LazyLock<Regex> =
 static WIKILINK_IMAGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"!\[\[([^\|\]]+)(?:\|([^\]]+))?\]\]"#).unwrap());
 
-// Insert/Transclusion regex pattern.
-// Captures: 'path': the path to the file, 'attrs': an optional string of attributes like `| title="My Title" | hidden`
-// Format: {{insert: path/to/file.md | title="My Title" | hidden}}
+/// Insert/Transclusion regex pattern.
+/// Captures: 'path': the path to the file, 'attrs': an optional string of attributes like `| title="My Title" | hidden`
+/// Format: {{insert: path/to/file.md | title="My Title" | hidden}}
 static INSERT_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r#"(?x) # Enable comments and insignificant whitespace
@@ -78,6 +78,12 @@ static INSERT_RE: LazyLock<Regex> = LazyLock::new(|| {
     )
     .unwrap()
 });
+
+/// Insert Title Attribute regex pattern.
+/// Captures: 1: double-quoted title, 2: single-quoted title
+/// Format: title="My Title" or title='My Title'
+static INSERT_TITLE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"^title\s*=\s*(?:"([^"]*)"|'([^']*)')$"#).unwrap());
 
 /// A struct responsible for rendering Markdown content.
 #[derive(Debug)]
@@ -251,7 +257,7 @@ impl Renderer {
                         }
                         Value::Array(inner_arr) => {
                             // The inner array should have the path at index 0 and optional caption at index 1.
-                            if let Some(path_val) = inner_arr.get(0).and_then(Value::as_str) {
+                            if let Some(path_val) = inner_arr.first().and_then(Value::as_str) {
                                 process_image_path(path_val);
                                 // Get the caption from index 1 if it exists, otherwise use null.
                                 let caption = inner_arr
@@ -465,14 +471,16 @@ impl Renderer {
         // 2. Parse attributes like `title="..."` and `hidden` from the attributes string.
         let mut title: Option<&str> = None;
         let mut is_hidden = false;
-        let title_re = Regex::new(r#"^title\s*=\s*(?:"([^"]*)"|'([^']*)')$"#).unwrap();
+        let mut is_centered = false;
 
         // The attributes string may start with a pipe, so we trim it and then split by the pipe.
         for attr in attrs_str.trim_start_matches('|').split('|') {
             let part = attr.trim();
             if part == "hidden" {
                 is_hidden = true;
-            } else if let Some(title_caps) = title_re.captures(part) {
+            } else if part == "centered" {
+                is_centered = true;
+            } else if let Some(title_caps) = INSERT_TITLE_RE.captures(part) {
                 // Get the title from either the double-quoted or single-quoted capture group.
                 title = title_caps
                     .get(1)
@@ -514,25 +522,34 @@ impl Renderer {
                     let default_title = file_stem_string(&insert_path);
                     let final_title = title.unwrap_or(&default_title);
 
-                    // d. Build the final HTML for the insert container, accounting for the 'hidden' state.
+                    // d. Build the final HTML for the insert container, accounting for all attributes.
                     let container_class = if is_hidden {
                         "insert-container collapsed"
                     } else {
                         "insert-container"
                     };
                     let button_text = if is_hidden { "[show]" } else { "[hide]" };
+                    let title_wrapper_class = if is_centered {
+                        "insert-title-wrapper centered"
+                    } else {
+                        "insert-title-wrapper"
+                    };
 
                     let final_html = format!(
                         r#"<div class="{}">
                             <div class="insert-header">
-                                <span class="insert-title-wrapper">
+                                <span class="{}">
                                     <span>{}</span>
                                 </span>
                                 <button class="insert-toggle">{}</button>
                             </div>
                            <div class="insert-content">{}</div>
                         </div>"#,
-                        container_class, final_title, button_text, rendered_html
+                        container_class,
+                        title_wrapper_class,
+                        final_title,
+                        button_text,
+                        rendered_html
                     );
 
                     Ok(final_html)
