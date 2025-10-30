@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.31.0-alpha] - 2025-10-30
+
+### ✨ Added
+
+- **Navigation**: You can now use keyboard and mouse shortcuts to navigate back and forward through your viewing history for a more native and efficient experience. Supported shortcuts include `Alt+ArrowLeft` / `Alt+ArrowRight` and the side buttons on most mice.
+- **Inserts**: The title of an embedded page can now be centered by adding the `| centered` attribute to the insert syntax (e.g., `{{insert: Page Name | centered}}`).
+
+### 🐞 Fixed
+
+- **UI**: Fixed an inconsistency in the "Rename" prompt, which previously showed the full filename for images but only the file stem for Markdown files. The prompt now consistently shows the filename without the extension for all file types, preventing users from accidentally adding a duplicate extension.
+
+---
+
 ## [v0.30.2-alpha] - 2025-10-28
 
 ### 🐞 Fixed
