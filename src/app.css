@@ -389,6 +389,11 @@ span.spoiler.revealed a.internal-link.broken {
     gap: 0.5rem;
 }
 
+.insert-title-wrapper.centered {
+    flex: 1;
+    justify-content: center;
+}
+
 .insert-toggle {
     background: none;
     border: none;
