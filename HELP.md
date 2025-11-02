@@ -123,10 +123,12 @@ Embed the content of one page directly inside another. This is great for reusing
 {{insert: Page Name}}
 ```
 
-You can also set a custom title for the header, center the title, or make the entire insert start hidden.
+You can also set a custom title for the header, start the insert hidden, or remove all styling entirely and make the insert borderless.
 
 ```markdown
 {{insert: The Great War | title="Summary of the Great War" | centered | hidden}}
+
+{{insert: Enchanted Dagger | borderless}}
 ```
 
 ---
