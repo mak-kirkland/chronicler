@@ -472,6 +472,7 @@ impl Renderer {
         let mut title: Option<&str> = None;
         let mut is_hidden = false;
         let mut is_centered = false;
+        let mut is_borderless = false;
 
         // The attributes string may start with a pipe, so we trim it and then split by the pipe.
         for attr in attrs_str.trim_start_matches('|').split('|') {
@@ -480,6 +481,8 @@ impl Renderer {
                 is_hidden = true;
             } else if part == "centered" {
                 is_centered = true;
+            } else if part == "borderless" {
+                is_borderless = true;
             } else if let Some(title_caps) = INSERT_TITLE_RE.captures(part) {
                 // Get the title from either the double-quoted or single-quoted capture group.
                 title = title_caps
@@ -518,41 +521,47 @@ impl Renderer {
                     // Pop from the stack after the recursive call returns successfully.
                     rendering_stack.pop();
 
-                    // c. Determine the title: use the one from syntax, or default to the file name.
-                    let default_title = file_stem_string(&insert_path);
-                    let final_title = title.unwrap_or(&default_title);
-
-                    // d. Build the final HTML for the insert container, accounting for all attributes.
-                    let container_class = if is_hidden {
-                        "insert-container collapsed"
+                    if is_borderless {
+                        // If 'borderless' is specified, just return the raw rendered HTML
+                        // and nothing else.
+                        Ok(rendered_html)
                     } else {
-                        "insert-container"
-                    };
-                    let button_text = if is_hidden { "[show]" } else { "[hide]" };
-                    let title_wrapper_class = if is_centered {
-                        "insert-title-wrapper centered"
-                    } else {
-                        "insert-title-wrapper"
-                    };
+                        // c. Determine the title: use the one from syntax, or default to the file name.
+                        let default_title = file_stem_string(&insert_path);
+                        let final_title = title.unwrap_or(&default_title);
 
-                    let final_html = format!(
-                        r#"<div class="{}">
-                            <div class="insert-header">
-                                <span class="{}">
-                                    <span>{}</span>
-                                </span>
-                                <button class="insert-toggle">{}</button>
-                            </div>
-                           <div class="insert-content">{}</div>
-                        </div>"#,
-                        container_class,
-                        title_wrapper_class,
-                        final_title,
-                        button_text,
-                        rendered_html
-                    );
+                        // d. Build the final HTML for the insert container, accounting for all attributes.
+                        let container_class = if is_hidden {
+                            "insert-container collapsed"
+                        } else {
+                            "insert-container"
+                        };
+                        let button_text = if is_hidden { "[show]" } else { "[hide]" };
+                        let title_wrapper_class = if is_centered {
+                            "insert-title-wrapper centered"
+                        } else {
+                            "insert-title-wrapper"
+                        };
 
-                    Ok(final_html)
+                        let final_html = format!(
+                            r#"<div class="{}">
+                                <div class="insert-header">
+                                    <span class="{}">
+                                        <span>{}</span>
+                                    </span>
+                                    <button class="insert-toggle">{}</button>
+                                </div>
+                               <div class="insert-content">{}</div>
+                            </div>"#,
+                            container_class,
+                            title_wrapper_class,
+                            final_title,
+                            button_text,
+                            rendered_html
+                        );
+
+                        Ok(final_html)
+                    }
                 }
                 Err(_) => {
                     // This handles the case where a file exists in the index but is unreadable.
