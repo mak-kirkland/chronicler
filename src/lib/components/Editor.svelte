@@ -165,6 +165,7 @@
             bind:value={content}
             {extensions}
             placeholder="Let your story unfold..."
+            nodebounce={true}
         />
     </div>
 </div>
