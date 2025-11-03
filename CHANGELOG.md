@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.32.0-alpha] - 2025-11-04
+
+### ✨ Added
+
+- **Infobox**: You can now show or hide the tags section in the infobox. A new settings icon (⚙️) has been added to the infobox header, which opens a modal to toggle the visibility of the tags. This preference is saved as a persistent vault setting.
+
+### 🔄 Changed
+
+- **Editor**: Added padding to the bottom of the editor. This allows you to scroll past the end of the document, making it more comfortable to type new content in the middle of the screen.
+
+### 🐞 Fixed
+
+- **Styling**: Fixed an issue where paragraphs in the preview could have massive vertical gaps, especially when using larger font sizes.
+
+---
+
 ## [v0.31.2-alpha] - 2025-11-03
 
 ### 🐞 Fixed
