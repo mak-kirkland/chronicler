@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.31.2-alpha] - 2025-11-03
+
+### 🐞 Fixed
+
+- **Editor**: Fixed a critical race condition where rapidly switching files after an edit could cause the content of the previous file to overwrite the newly opened file. This was caused by a delayed (debounced) content update firing *after* the navigation was complete. The content binding is now synchronous, eliminating the bug.
+
+---
+
 ## [v0.31.1-alpha] - 2025-10-30
 
 ### 🐞 Fixed
