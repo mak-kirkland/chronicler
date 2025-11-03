@@ -230,6 +230,10 @@ allegiance: 'Lynorian Empire ![[lynorian-flag.png]]'
 
 Use the `layout` key to add headers and group fields into columns for a professional, wiki-style infobox.
 
+#### Adding Separators
+-   `type: separator`: Defines the rule as a horizontal separator.
+-   `position: { below: 'field_name' }`: Injects the separator immediately after `field_name`.
+
 #### Adding Headers
 -   `type: header`: Defines the rule as a header.
 -   `text: 'Your Text'`: The text to display in the header.

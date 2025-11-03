@@ -42,7 +42,19 @@ export type InfoboxData = {
 export type LayoutHeader = {
     type: "header";
     text: string;
-    position: { above: string };
+    position: {
+        above?: string;
+        below?: string;
+    };
+};
+
+/** A rule to inject a horizontal line into the infobox layout. */
+export type LayoutSeparator = {
+    type: "separator";
+    position: {
+        above?: string;
+        below?: string;
+    };
 };
 
 /** A rule to group multiple fields together and render them in a specific way. */
@@ -53,15 +65,16 @@ export type LayoutGroup = {
 };
 
 /** A union type for any possible layout rule. */
-export type LayoutItem = LayoutHeader | LayoutGroup;
+export type LayoutItem = LayoutHeader | LayoutGroup | LayoutSeparator;
 
 /** A union type representing the final, structured items to be rendered by the template. */
 export type RenderItem =
     | { type: "header"; text: string }
+    | { type: "separator" }
     | {
           type: "group";
           render_as: "columns";
-          // CHANGE: This now holds an array of the group's *values* only, not key-value pairs.
+          // This holds an array of the group's *values*
           items: any[];
       }
     | { type: "default"; item: [string, any] }; // A single default key-value pair
