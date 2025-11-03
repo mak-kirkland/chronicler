@@ -4,9 +4,9 @@
     import ErrorBox from "./ErrorBox.svelte";
     import type {
         InfoboxData,
-        LayoutHeader,
         LayoutGroup,
         RenderItem,
+        LayoutItem,
     } from "$lib/types";
     import { openModal, closeModal } from "$lib/modalStore";
     import { areInfoboxTagsVisible } from "$lib/settingsStore";
@@ -117,16 +117,42 @@
 
         // 2. Pre-process layout rules into Maps for efficient O(1) lookups.
         //    This avoids re-iterating the layout array for every frontmatter key.
-        const headerRules = new Map<string, LayoutHeader>();
+
+        // Generic maps for any "positioned" items (headers, separators, etc.)
+        const aboveRules = new Map<string, LayoutItem[]>();
+        const belowRules = new Map<string, LayoutItem[]>();
+        // Specific map for groups, as they are processed differently.
         const groupRules = new Map<string, LayoutGroup>();
 
         if (layout && Array.isArray(layout)) {
             for (const rule of layout) {
-                if (rule.type === "header" && rule.position?.above) {
-                    headerRules.set(rule.position.above, rule);
+                if (rule.type === "header" || rule.type === "separator") {
+                    if (rule.position?.above) {
+                        const key = rule.position.above;
+                        if (!aboveRules.has(key)) aboveRules.set(key, []);
+                        aboveRules.get(key)!.push(rule);
+                    } else if (rule.position?.below) {
+                        const key = rule.position.below;
+                        if (!belowRules.has(key)) belowRules.set(key, []);
+                        belowRules.get(key)!.push(rule);
+                    }
                 } else if (rule.type === "group" && rule.keys?.length > 0) {
                     // A group rule is triggered by its *first* key.
                     groupRules.set(rule.keys[0], rule);
+                }
+            }
+        }
+
+        /**
+         * Helper function to push positioned rules (headers, separators)
+         * onto the final render list.
+         */
+        function pushPositionedRules(rules: LayoutItem[]) {
+            for (const rule of rules) {
+                if (rule.type === "header") {
+                    finalItems.push({ type: "header", text: rule.text });
+                } else if (rule.type === "separator") {
+                    finalItems.push({ type: "separator" });
                 }
             }
         }
@@ -139,10 +165,9 @@
                 continue;
             }
 
-            // INJECTION POINT 1: Check if a header should be inserted *before* this key.
-            if (headerRules.has(key)) {
-                const rule = headerRules.get(key)!;
-                finalItems.push({ type: "header", text: rule.text });
+            // INJECTION POINT 1: Check for 'above' rules
+            if (aboveRules.has(key)) {
+                pushPositionedRules(aboveRules.get(key)!);
             }
 
             // INJECTION POINT 2: Check if this key is the trigger for a group.
@@ -162,9 +187,21 @@
                     render_as: rule.render_as,
                     items: groupValues,
                 });
+
+                // INJECTION POINT 3 (Groups): Check for 'below' rules on the *last*
+                // key of the group.
+                const lastKeyInGroup = rule.keys[rule.keys.length - 1];
+                if (belowRules.has(lastKeyInGroup)) {
+                    pushPositionedRules(belowRules.get(lastKeyInGroup)!);
+                }
             } else {
                 // If the key is not part of any special rule, render it as a default item.
                 finalItems.push({ type: "default", item: [key, value] });
+
+                // INJECTION POINT 3 (Default): Check for 'below' rules.
+                if (belowRules.has(key)) {
+                    pushPositionedRules(belowRules.get(key)!);
+                }
             }
         }
         renderItems = finalItems;
@@ -285,6 +322,8 @@
                     {#if renderItem.type === "header"}
                         <!-- Injected headers span the full width of the grid. -->
                         <h4 class="layout-header">{@html renderItem.text}</h4>
+                    {:else if renderItem.type === "separator"}
+                        <hr class="layout-separator" />
                     {:else if renderItem.type === "group"}
                         <!-- Groups also span the full width to contain their own layout. -->
                         <div class="layout-group-wrapper">
@@ -627,6 +666,14 @@
         border-bottom: 1px solid var(--color-border-primary);
         font-size: 0.95rem;
     }
+
+    .layout-separator {
+        grid-column: 1 / -1;
+        border: none;
+        border-top: 1px solid var(--color-border-primary);
+        margin: var(--space-xs) 0;
+    }
+
     .layout-group-wrapper {
         /* Groups also span all columns to contain their own layout context. */
         grid-column: 1 / -1;
