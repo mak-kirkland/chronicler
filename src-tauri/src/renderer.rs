@@ -299,6 +299,14 @@ impl Renderer {
                 let encoded_path_str = &caps[1];
                 let other_attrs = &caps[2];
 
+                // If the path is already an external URL, leave it alone.
+                if encoded_path_str.starts_with("http://")
+                    || encoded_path_str.starts_with("https://")
+                {
+                    // Reconstruct the original tag and do nothing else.
+                    return format!(r#"<img src="{}"{}>"#, encoded_path_str, other_attrs);
+                }
+
                 // 2. Decode the path string.
                 let html_decoded_path = decode_html_entities(encoded_path_str);
                 let final_path_str = percent_decode_str(&html_decoded_path)
