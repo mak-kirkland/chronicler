@@ -387,15 +387,16 @@ impl Renderer {
         let with_markdown = self.render_inline_markdown(&with_custom_syntax);
 
         // 3. Process any <img> tags to embed images.
-        self.process_body_image_tags(&with_markdown)
+        let with_images = self.process_body_image_tags(&with_markdown);
+
+        // 4. Sanitize the FINAL rendered HTML to prevent XSS.
+        sanitizer::sanitize_html(&with_images)
     }
 
-    /// Takes a parsed serde_json::Value representing the frontmatter, sanitizes it,
-    /// and recursively processes all string fields to render custom syntax. This
-    /// function modifies the `Value` in place.
+    /// Takes a parsed serde_json::Value representing the frontmatter, and recursively
+    /// processes all string fields to render custom syntax. This function modifies
+    /// the `Value` in place.
     fn process_frontmatter(&self, frontmatter: &mut Value) {
-        sanitizer::sanitize_json_values(frontmatter);
-
         if let Value::Object(map) = frontmatter {
             // Take ownership of the original map's content, leaving the original empty.
             let original_map = std::mem::take(map);

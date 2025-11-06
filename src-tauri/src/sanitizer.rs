@@ -4,7 +4,6 @@
 //! It uses a strict allow-list of approved tags and attributes, ensuring only safe content is displayed.
 
 use ammonia::Builder;
-use serde_json::Value;
 use std::collections::HashSet;
 
 /// Cleans user-provided HTML, removing potentially dangerous tags and attributes
@@ -93,29 +92,4 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         .add_tag_attributes("button", &["class"])
         .clean(dirty_html)
         .to_string()
-}
-
-/// Recursively sanitizes all string values within a `serde_json::Value`.
-/// This is crucial for cleaning frontmatter data before it is sent to the frontend.
-pub fn sanitize_json_values(value: &mut Value) {
-    match value {
-        Value::String(s) => {
-            // Sanitize the string in place.
-            *s = sanitize_html(&s);
-        }
-        Value::Array(a) => {
-            // Recursively sanitize each element in the array.
-            for item in a.iter_mut() {
-                sanitize_json_values(item);
-            }
-        }
-        Value::Object(m) => {
-            // Recursively sanitize each value in the map.
-            for (_, v) in m.iter_mut() {
-                sanitize_json_values(v);
-            }
-        }
-        // Other types like Number, Bool, Null are skipped.
-        _ => {}
-    }
 }
