@@ -46,14 +46,23 @@ function toggleBlock(
     } else {
         // --- WRAP ---
         const wrapped = `${prefix}${selection}${suffix}`;
-        // Calculate the selection range to include the markers
-        const newSelectionFrom = from;
-        const newSelectionTo = to + prefix.length + suffix.length;
-        view.dispatch({
-            changes: { from, to, insert: wrapped },
-            // Select the entire wrapped text including markers
-            selection: { anchor: newSelectionFrom, head: newSelectionTo },
-        });
+        // Check if the selection was empty (a collapsed cursor)
+        if (from === to) {
+            // Insert the markers and place the cursor in the middle
+            view.dispatch({
+                changes: { from, to, insert: wrapped },
+                selection: { anchor: from + prefix.length },
+            });
+        } else {
+            // Text was selected, so wrap it and select the whole new block
+            const newSelectionFrom = from;
+            const newSelectionTo = to + prefix.length + suffix.length;
+            view.dispatch({
+                changes: { from, to, insert: wrapped },
+                // Select the entire wrapped text including markers
+                selection: { anchor: newSelectionFrom, head: newSelectionTo },
+            });
+        }
     }
 }
 
