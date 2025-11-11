@@ -24,6 +24,13 @@ Chronicler uses **Markdown** to format your pages.
 
 - Use `# heading`, `## subheading`, `**bold**`, `*italic*`, `-` for bullet lists, and so on
 - Use `---` to insert horizontal separators to divide long pages into readable sections.
+- Use `[^1]`,`[^2]` etc. for footnotes.
+
+```
+Here is a simple footnote[^1]. With some additional text after it.
+
+[^1]: My reference.
+```
 
 ---
 
