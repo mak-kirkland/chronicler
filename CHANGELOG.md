@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.33.0-alpha] - 2025-11-11
+
+### ✨ Added
+
+- **Infobox**: You can now add **horizontal separator lines** to your custom infobox layouts using a new `type: separator` rule.
+- **Infobox**: Layout rules can now be positioned *below* a specific data field using the new `position: { below: 'field_name'}` syntax, in addition to the existing `above` positioning.
+- **Inserts**: A new `| borderless` attribute can be added to the insert syntax (e.g., `{{insert: Page Name | borderless}}`). This enables **"transparent" embedding**, where the inserted content appears as a natural part of the parent page without the surrounding box and title.
+- **Footnotes**: The HTML sanitizer now permits the `id` attribute on `<p>` and `<div>` tags. This enables **support for native Markdown footnote links**.
+
+---
+
 ## [v0.32.0-alpha] - 2025-11-04
 
 ### ✨ Added
