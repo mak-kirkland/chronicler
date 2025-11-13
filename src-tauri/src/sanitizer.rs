@@ -55,6 +55,8 @@ pub fn sanitize_html(dirty_html: &str) -> String {
             "abbr",    // Abbreviation
             "div",
             "button",
+            "small",
+            "meter",
         ]))
         .add_tag_attributes(
             "img",
@@ -90,6 +92,7 @@ pub fn sanitize_html(dirty_html: &str) -> String {
             ],
         )
         .add_tag_attributes("button", &["class"])
+        .add_tag_attributes("meter", &["value", "min", "max"])
         .clean(dirty_html)
         .to_string()
 }
