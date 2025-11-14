@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.33.1-alpha] - 2025-11-14
+
+### ✨ Added
+
+- **Styling**: The HTML sanitizer now permits the use of the `<small>` and `<meter>` HTML tags in your page content.
+
+### 🔄 Changed
+
+- **Images**: You can now include **external images** (starting with `http://` or `https://`) directly in your Markdown content.
+
+### 🔒 Security
+
+- **Security**: The process for rendering YAML frontmatter has been updated. HTML sanitization now runs on the final, rendered HTML output to ensure security. Previously, it ran on the raw Markdown strings before processing.
+
+### 🐞 Fixed
+
+- **Editor**: When applying formatting (Bold, Italic, or Strikethrough) to an **empty text selection**, the cursor will now be placed **inside** the formatting markers (e.g., `**|**`). This allows you to immediately begin typing with the new style. Previously, the cursor would land outside the markers (e.g., `****|`).
+
+---
+
 ## [v0.33.0-alpha] - 2025-11-11
 
 ### ✨ Added
