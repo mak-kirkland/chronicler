@@ -1,13 +1,8 @@
 <script lang="ts">
     import { navigateToTag, navigateToImage } from "$lib/actions";
-    import { capitalizeFirstLetter } from "$lib/utils";
+    import { capitalizeFirstLetter, buildInfoboxLayout } from "$lib/utils";
     import ErrorBox from "./ErrorBox.svelte";
-    import type {
-        InfoboxData,
-        LayoutGroup,
-        RenderItem,
-        LayoutItem,
-    } from "$lib/types";
+    import type { InfoboxData } from "$lib/types";
     import { openModal, closeModal } from "$lib/modalStore";
     import { areInfoboxTagsVisible } from "$lib/settingsStore";
     import InfoboxSettingsModal from "./InfoboxSettingsModal.svelte";
@@ -19,14 +14,13 @@
 
     // --- State ---
     let currentImageIndex = $state(0);
-    /**
-     * This state variable holds the final, structured list of items to be rendered.
-     * It's built by the $effect hook, which processes the raw `data` prop and
-     * applies the custom `layout` rules.
-     */
-    let renderItems = $state<RenderItem[]>([]);
 
     // --- Derived State ---
+    /**
+     * This state variable holds the final, structured list of items to be rendered.
+     */
+    const renderItems = $derived(buildInfoboxLayout(data));
+
     const hasCarousel = $derived(data?.images && data.images.length > 1);
     const hasCaptions = $derived(
         hasCarousel &&
@@ -79,132 +73,9 @@
 
     // --- Effects ---
     $effect(() => {
-        // This effect is the core of the dynamic layout logic. It runs whenever the
-        // `data` prop changes and transforms the raw frontmatter into a structured
-        // list of `RenderItem` objects that the template can easily display.
-
-        currentImageIndex = 0; // Reset image index on data change
-
-        if (!data || typeof data !== "object") {
-            renderItems = [];
-            return;
-        }
-
-        // Define keys that are handled by dedicated UI elements (like the title,
-        // image carousel, and tags) and should be excluded from the main data list.
-        const excludedKeys = new Set([
-            "title",
-            "subtitle",
-            "tags",
-            "infobox",
-            "images",
-            "image_paths",
-            "image_captions",
-            "error",
-            "details", // Error details
-            "layout", // The layout key itself is for rules, not display.
-        ]);
-
-        // 1. Get all renderable key-value pairs from the frontmatter, preserving
-        //    their original order as defined in the YAML file.
-        const allEntries = Object.entries(data).filter(
-            ([key]) => !excludedKeys.has(key),
-        );
-
-        const layout = data.layout;
-        const finalItems: RenderItem[] = [];
-        const processedKeys = new Set<string>();
-
-        // 2. Pre-process layout rules into Maps for efficient O(1) lookups.
-        //    This avoids re-iterating the layout array for every frontmatter key.
-
-        // Generic maps for any "positioned" items (headers, separators, etc.)
-        const aboveRules = new Map<string, LayoutItem[]>();
-        const belowRules = new Map<string, LayoutItem[]>();
-        // Specific map for groups, as they are processed differently.
-        const groupRules = new Map<string, LayoutGroup>();
-
-        if (layout && Array.isArray(layout)) {
-            for (const rule of layout) {
-                if (rule.type === "header" || rule.type === "separator") {
-                    if (rule.position?.above) {
-                        const key = rule.position.above;
-                        if (!aboveRules.has(key)) aboveRules.set(key, []);
-                        aboveRules.get(key)!.push(rule);
-                    } else if (rule.position?.below) {
-                        const key = rule.position.below;
-                        if (!belowRules.has(key)) belowRules.set(key, []);
-                        belowRules.get(key)!.push(rule);
-                    }
-                } else if (rule.type === "group" && rule.keys?.length > 0) {
-                    // A group rule is triggered by its *first* key.
-                    groupRules.set(rule.keys[0], rule);
-                }
-            }
-        }
-
-        /**
-         * Helper function to push positioned rules (headers, separators)
-         * onto the final render list.
-         */
-        function pushPositionedRules(rules: LayoutItem[]) {
-            for (const rule of rules) {
-                if (rule.type === "header") {
-                    finalItems.push({ type: "header", text: rule.text });
-                } else if (rule.type === "separator") {
-                    finalItems.push({ type: "separator" });
-                }
-            }
-        }
-
-        // 3. Iterate through the original frontmatter entries to build the final
-        //    render list, applying the injection rules as we go.
-        for (const [key, value] of allEntries) {
-            // Skip this key if it was already rendered as part of a group.
-            if (processedKeys.has(key)) {
-                continue;
-            }
-
-            // INJECTION POINT 1: Check for 'above' rules
-            if (aboveRules.has(key)) {
-                pushPositionedRules(aboveRules.get(key)!);
-            }
-
-            // INJECTION POINT 2: Check if this key is the trigger for a group.
-            if (groupRules.has(key)) {
-                const rule = groupRules.get(key)!;
-                const groupValues: any[] = [];
-
-                // Collect all values specified in the group rule.
-                for (const groupKey of rule.keys) {
-                    if (data[groupKey] !== undefined) {
-                        groupValues.push(data[groupKey]);
-                        processedKeys.add(groupKey); // Mark key as processed.
-                    }
-                }
-                finalItems.push({
-                    type: "group",
-                    render_as: rule.render_as,
-                    items: groupValues,
-                });
-
-                // INJECTION POINT 3 (Groups): Check for 'below' rules on the *last*
-                // key of the group.
-                const lastKeyInGroup = rule.keys[rule.keys.length - 1];
-                if (belowRules.has(lastKeyInGroup)) {
-                    pushPositionedRules(belowRules.get(lastKeyInGroup)!);
-                }
-            } else {
-                // If the key is not part of any special rule, render it as a default item.
-                finalItems.push({ type: "default", item: [key, value] });
-
-                // INJECTION POINT 3 (Default): Check for 'below' rules.
-                if (belowRules.has(key)) {
-                    pushPositionedRules(belowRules.get(key)!);
-                }
-            }
-        }
-        renderItems = finalItems;
+        // This small effect remains to reset the image index when the data changes.
+        // The main layout logic is gone.
+        currentImageIndex = 0;
     });
 </script>
 
