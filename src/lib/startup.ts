@@ -12,6 +12,7 @@ import {
     initializeVaultSettings,
     destroyVaultSettings,
 } from "$lib/settingsStore";
+import { loadActiveFonts } from "$lib/fonts";
 import { checkForAppUpdates } from "$lib/updater";
 import { licenseStore } from "./licenseStore";
 import { get } from "svelte/store";
@@ -32,7 +33,13 @@ export async function handleVaultSelected(path: string) {
         await world.initialize();
         // 3. Initialize the settings specific to this vault
         await initializeVaultSettings(path);
-        // 4. Set status to ready ONLY after everything is finished
+
+        // 4. Load active fonts *after* vault settings are loaded
+        // and *before* we set the app to "ready". This ensures the
+        // correct @font-face rules exist before the UI renders.
+        await loadActiveFonts();
+
+        // 5. Set status to ready ONLY after everything is finished
         appStatus.set({ state: "ready" });
 
         // After the app is ready, check for updates in the background.

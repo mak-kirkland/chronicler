@@ -138,6 +138,6 @@ export interface ParseError {
 export interface UserFont {
     /** The name of the font, derived from its filename (e.g., "FiraCode-Regular"). */
     name: string;
-    /** The full Base64-encoded Data URI of the font file. */
-    base64: string;
+    /** The absolute path to the font file. */
+    path: string;
 }

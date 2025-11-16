@@ -17,7 +17,6 @@
         themeRefresher,
         THEME_PALETTE_KEYS,
         sidebarWidth,
-        loadUserFonts,
         headingFont,
         bodyFont,
     } from "$lib/settingsStore";
@@ -43,8 +42,6 @@
     $effect(() => {
         // Kick off the main application startup sequence once.
         initializeApp();
-        // Also load and inject any custom user fonts.
-        loadUserFonts();
 
         // Initialize global keybindings and get the cleanup function.
         const destroyKeybindings = initializeKeybindings();

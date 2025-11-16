@@ -1,6 +1,7 @@
 <script lang="ts">
     import { getVersion } from "@tauri-apps/api/app";
     import { selectNewVault } from "$lib/startup";
+    import { onMount } from "svelte";
     import {
         activeTheme,
         setActiveTheme,
@@ -13,6 +14,7 @@
         AVAILABLE_FONTS,
         userFonts,
     } from "$lib/settingsStore";
+    import { loadAllUserFonts } from "$lib/fonts";
     import { openModal, closeModal } from "$lib/modalStore";
     import { licenseStore } from "$lib/licenseStore";
     import Button from "./Button.svelte";
@@ -39,7 +41,13 @@
     let appVersion = $state<string | null>(null);
     let showChangelog = $state(false);
 
-    /** A reactive list that combines the built-in fonts with the loaded user fonts. */
+    // This effect lazily-loads the full font list.
+    onMount(() => {
+        loadAllUserFonts();
+    });
+
+    /** A reactive list that combines the built-in fonts with the loaded user fonts.
+     */
     const allAvailableFonts = $derived([
         ...AVAILABLE_FONTS,
         ...$userFonts.map((f) => ({ name: f.name, value: `"${f.name}"` })),

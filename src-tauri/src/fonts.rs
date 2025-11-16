@@ -2,14 +2,14 @@
 //!
 //! This module provides the functionality to scan a dedicated `fonts` directory
 //! within the application's config folder, read valid font files (.woff2, .ttf, .otf),
-//! and prepare them for use in the frontend by encoding them as Base64 Data URIs.
+//! and prepare them for use in the frontend.
 
 use crate::error::Result;
-use base64::{engine::general_purpose, Engine as _};
+use crate::utils::serialize_pathbuf_as_web_str;
 use font_kit::handle::Handle;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 use tracing::warn;
 
@@ -18,9 +18,9 @@ use tracing::warn;
 pub struct UserFont {
     /// The name of the font, derived from its filename (e.g., "FiraCode-Regular").
     pub name: String,
-    /// The full Base64-encoded Data URI of the font file.
-    /// This allows the font to be embedded directly into CSS @font-face rules.
-    pub base64: String,
+    /// The absolute path to the font file.
+    #[serde(serialize_with = "serialize_pathbuf_as_web_str")]
+    pub path: PathBuf,
 }
 
 /// Scans the app's config/fonts directory for valid font files and returns them.
@@ -64,26 +64,14 @@ pub fn get_user_fonts(app_handle: &AppHandle) -> Result<Vec<UserFont>> {
 
 /// Loads a single font file from a given path.
 ///
-/// It reads the file's binary content, extracts a name from the metadata,
-/// determines the font format from the extension, and constructs a
-/// Base64 Data URI.
+/// It reads the file's binary content and extracts a name from the metadata.
 fn load_font(path: &Path) -> Option<UserFont> {
     // Load the font from its path. font-kit handles all the complex parsing.
     let font = Handle::from_path(path.to_path_buf(), 0).load().ok()?;
     // Get the family name. The library finds the best name automatically.
     let name = font.family_name();
-    // Read the raw bytes of the font file.
-    let content = fs::read(path).ok()?;
-    // Encode the bytes into a Base64 string.
-    let base64_str = general_purpose::STANDARD.encode(&content);
-    // Determine the CSS font format from the file extension.
-    let format = path.extension().and_then(|s| s.to_str()).unwrap_or("otf");
-
-    // Construct the final Data URI. This format can be used directly in CSS.
-    let data_uri = format!("data:font/{};base64,{}", format, base64_str);
-
     Some(UserFont {
         name,
-        base64: data_uri,
+        path: path.to_path_buf(),
     })
 }
