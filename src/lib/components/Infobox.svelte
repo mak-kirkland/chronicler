@@ -33,7 +33,7 @@
             data?.image_captions &&
             data.image_captions.length === data.images.length &&
             data.image_captions.some(
-                (c) => typeof c === "string" && c.length > 0,
+                (c: any) => typeof c === "string" && c.length > 0,
             ),
     );
 
