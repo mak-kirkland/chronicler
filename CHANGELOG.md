@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.33.2-alpha] - 2025-11-16
+
+### 🐞 Fixed
+
+- **Infobox**: Fixed a critical regression where images embedded in the YAML frontmatter (e.g., in the infobox) stopped loading. This was caused by the HTML sanitizer incorrectly running *after* the image path was processed, which stripped the necessary protocol and broke the link. The rendering order has been corrected.
+
+---
+
 ## [v0.33.1-alpha] - 2025-11-14
 
 ### ✨ Added
