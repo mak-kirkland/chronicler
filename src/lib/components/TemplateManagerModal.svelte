@@ -12,6 +12,7 @@
     import Modal from "./Modal.svelte";
     import Button from "./Button.svelte";
     import Editor from "./Editor.svelte";
+    import ErrorBox from "./ErrorBox.svelte";
 
     let { onClose } = $props<{
         onClose: () => void;
@@ -38,7 +39,7 @@
         try {
             templates = await listTemplates();
         } catch (e: any) {
-            error = `Failed to load templates: ${e.message}`;
+            error = `Failed to load templates: ${e}`;
         } finally {
             isLoading = false;
         }
@@ -61,7 +62,7 @@
             editorContent = content;
             originalContent = content;
         } catch (e: any) {
-            error = `Failed to load template content: ${e.message}`;
+            error = `Failed to load template content: ${e}`;
         } finally {
             isLoading = false;
         }
@@ -76,7 +77,7 @@
             originalContent = editorContent; // Mark as no longer dirty
             await loadTemplates(); // Refresh list in case of rename
         } catch (e: any) {
-            error = `Failed to save template: ${e.message}`;
+            error = `Failed to save template: ${e}`;
         } finally {
             isLoading = false;
         }
@@ -107,7 +108,7 @@
                 originalContent = "";
                 await loadTemplates();
             } catch (e: any) {
-                error = `Failed to delete template: ${e.message}`;
+                error = `Failed to delete template: ${e}`;
             }
         }
     }
@@ -159,6 +160,9 @@
                         {/if}
                     </div>
                 </div>
+                {#if error}
+                    <ErrorBox>{error}</ErrorBox>
+                {/if}
                 <div class="editor-wrapper">
                     <Editor bind:content={editorContent} />
                 </div>
