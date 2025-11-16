@@ -38,7 +38,7 @@
         border-radius: 8px;
         /* Provide vertical padding only */
         padding: 1rem 0;
-        margin-bottom: 2rem;
+        margin: 2rem 0;
     }
     .toc-header {
         display: flex;
