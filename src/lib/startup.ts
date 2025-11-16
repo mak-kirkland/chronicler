@@ -27,22 +27,22 @@ import NagScreenModal from "./components/NagScreenModal.svelte";
 export async function handleVaultSelected(path: string) {
     appStatus.set({ state: "loading" });
     try {
-        // 1. Initialize the backend state
+        // 1. Initialize the backend state. This must complete first.
         await initializeVault(path);
-        // 2. Initialize the frontend stores
-        await world.initialize();
-        // 3. Initialize the settings specific to this vault
-        await initializeVaultSettings(path);
 
-        // 4. Load active fonts *after* vault settings are loaded
-        // and *before* we set the app to "ready". This ensures the
-        // correct @font-face rules exist before the UI renders.
+        // 2. Initialize frontend stores and vault-specific settings
+        //    in parallel, as they do not depend on each other.
+        await Promise.all([world.initialize(), initializeVaultSettings(path)]);
+
+        // 3. Load active fonts *after* vault settings are loaded
+        //    (since it depends on them) and *before* we set the app to "ready".
+        //    This ensures the correct @font-face rules exist before the UI renders.
         await loadActiveFonts();
 
-        // 5. Set status to ready ONLY after everything is finished
+        // 4. Set status to ready ONLY after everything is finished
         appStatus.set({ state: "ready" });
 
-        // After the app is ready, check for updates in the background.
+        // 5. After the app is ready, check for updates in the background.
         checkForAppUpdates();
     } catch (e: any) {
         appStatus.set({ state: "error", message: e.message });
@@ -58,18 +58,6 @@ export async function initializeApp() {
         // Load global settings and license status that apply to the whole application first.
         await Promise.all([loadGlobalSettings(), licenseStore.initialize()]);
 
-        // After license is checked, see if we need to show the nag screen.
-        const license = get(licenseStore);
-        if (license.status !== "licensed") {
-            const daysUsed = await getAppUsageDays();
-            if (daysUsed >= 30) {
-                openModal({
-                    component: NagScreenModal,
-                    props: { daysUsed },
-                });
-            }
-        }
-
         // Then, check if a vault was already open from the last session.
         const path = await getVaultPath();
         if (path) {
@@ -77,6 +65,21 @@ export async function initializeApp() {
         } else {
             appStatus.set({ state: "selecting_vault" });
         }
+
+        // Defer the non-critical "nag screen" check. We wrap it in an async
+        // IIFE (Immediately Invoked Function Expression) to "fire-and-forget".
+        (async () => {
+            const license = get(licenseStore);
+            if (license.status !== "licensed") {
+                const daysUsed = await getAppUsageDays();
+                if (daysUsed >= 30) {
+                    openModal({
+                        component: NagScreenModal,
+                        props: { daysUsed },
+                    });
+                }
+            }
+        })();
     } catch (e: any) {
         console.error("Failed during startup initialization:", e);
         const errorMessage = e.message || `Failed to read configuration: ${e}`;
