@@ -485,7 +485,7 @@
     }
     /* Adds a visible outline for keyboard users, which is an accessibility best practice */
     .image-button:focus-visible {
-        outline: 2px solid var(--color-accent, Highlight);
+        outline: 2px solid var(--color-accent-primary);
         outline-offset: 2px;
         border-radius: 2px;
     }
@@ -593,7 +593,7 @@
         color: var(--color-text-primary);
     }
     .tab.active {
-        color: var(--color-text-accent);
+        color: var(--color-accent-primary);
         border-bottom-color: var(--color-text-accent);
     }
 
