@@ -66,7 +66,6 @@
     /* The TOC behaves as a block element */
     .preview-container.mode-unified .toc-wrapper {
         width: clamp(20rem, 22vw, 28rem);
-        margin-bottom: 1rem;
     }
 
     /* --- Layout for Split Mode (Infobox on top) --- */
