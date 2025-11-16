@@ -17,45 +17,6 @@
         infoboxData?: InfoboxData | null;
         mode?: "split" | "unified";
     }>();
-
-    let previewEl: HTMLElement | undefined = $state();
-
-    /**
-     * This effect hook is the key to making inserts interactive.
-     * It runs after the component renders and whenever the `renderedData` changes.
-     * It finds all toggle buttons rendered by the backend and attaches a click event listener.
-     */
-    $effect(() => {
-        if (!previewEl || !renderedData) return;
-
-        const toggles = previewEl.querySelectorAll(".insert-toggle");
-        toggles.forEach((button) => {
-            button.addEventListener("click", handleToggleClick);
-        });
-
-        // Cleanup function: This runs when the component is destroyed
-        // or before the effect runs again. It prevents memory leaks.
-        return () => {
-            toggles.forEach((button) => {
-                button.removeEventListener("click", handleToggleClick);
-            });
-        };
-    });
-
-    /**
-     * Handles clicks on the [hide]/[show] buttons within an insert.
-     */
-    function handleToggleClick(event: Event) {
-        const button = event.currentTarget as HTMLElement;
-        const container = button.closest(".insert-container");
-        if (!container) return;
-
-        // Toggle the 'collapsed' class on the main container.
-        const isCollapsed = container.classList.toggle("collapsed");
-
-        // Update the button's text based on the new state.
-        button.textContent = isCollapsed ? "[show]" : "[hide]";
-    }
 </script>
 
 <!--
@@ -63,12 +24,7 @@
   The main content is wrapped in its own div to create a distinct flex item.
   -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex -->
-<div
-    class="preview-container mode-{mode}"
-    role="document"
-    tabindex="0"
-    bind:this={previewEl}
->
+<div class="preview-container mode-{mode}" role="document" tabindex="0">
     {#if infoboxData}
         <!-- Use <aside> for better semantics. It's floated, so order in HTML matters. -->
         <aside class="infobox-wrapper">

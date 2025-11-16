@@ -50,6 +50,23 @@ export function handleContentClick(event: Event) {
         spoiler.classList.toggle("revealed");
     }
 
+    // --- Handle Insert Toggles ---
+    const toggleButton = target.closest(".insert-toggle");
+    if (toggleButton) {
+        // We handle this click, so prevent any further action (like link navigation).
+        event.preventDefault();
+
+        const container = toggleButton.closest(".insert-container");
+        if (container) {
+            // Toggle the 'collapsed' class on the main container.
+            const isCollapsed = container.classList.toggle("collapsed");
+            // Update the button's text based on the new state.
+            toggleButton.textContent = isCollapsed ? "[show]" : "[hide]";
+        }
+        // This click has been fully handled, so we can exit.
+        return;
+    }
+
     // --- Handle Links ---
     const link = target.closest("a");
     if (link) {
