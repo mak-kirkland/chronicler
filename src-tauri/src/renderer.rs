@@ -386,11 +386,11 @@ impl Renderer {
         // 2. Render standard Markdown on the result of step 1.
         let with_markdown = self.render_inline_markdown(&with_custom_syntax);
 
-        // 3. Process any <img> tags to embed images.
-        let with_images = self.process_body_image_tags(&with_markdown);
+        // 3. Sanitize the rendered HTML to prevent XSS.
+        let with_sanitized = sanitizer::sanitize_html(&with_markdown);
 
-        // 4. Sanitize the FINAL rendered HTML to prevent XSS.
-        sanitizer::sanitize_html(&with_images)
+        // 4. Process any <img> tags to embed images. Must do this AFTER sanitizing.
+        self.process_body_image_tags(&with_sanitized)
     }
 
     /// Takes a parsed serde_json::Value representing the frontmatter, and recursively
