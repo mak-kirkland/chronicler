@@ -23,6 +23,7 @@
     import { openUrl } from "@tauri-apps/plugin-opener";
     import ImporterModal from "./ImporterModal.svelte";
     import { openLogDirectory } from "$lib/commands";
+    import { DONATE_URL } from "$lib/config";
 
     let { onClose = () => {} } = $props<{
         onClose?: () => void;
