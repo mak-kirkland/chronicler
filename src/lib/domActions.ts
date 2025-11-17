@@ -6,6 +6,7 @@
  */
 
 import { isDragging } from "$lib/dragStore";
+import type { RenderedPage } from "$lib/bindings";
 
 /**
  * A reusable Svelte action to programmatically focus an element when it is mounted to the DOM.
@@ -192,6 +193,130 @@ export function autoscrollOnDrag(
             document.removeEventListener("drop", stopScrolling);
             // Final cleanup
             stopScrolling();
+        },
+    };
+}
+
+/**
+ * Attaches a lightweight, dependency-free sorting listener to tables.
+ *
+ * A table is considered "sortable" if it *does not* contain any `colspan` or
+ * `rowspan` attributes.
+ *
+ * This action will also automatically create a `<thead>` from the first row
+ * if one is not present, ensuring the header is not sorted.
+ *
+ * @param node The root HTML element containing the rendered Markdown.
+ * @param renderedData The rendered page data. The action will react to changes in this object.
+ */
+export function tablesort(
+    node: HTMLElement,
+    renderedData: RenderedPage | null,
+) {
+    // Store pairs of (element, eventListener) for proper cleanup
+    let listeners: [HTMLElement, (e: Event) => void][] = [];
+
+    /**
+     * The main sort function.
+     * @param th The <th> element that was clicked.
+     * @param table The <table> being sorted.
+     */
+    function sortTable(th: HTMLTableCellElement, table: HTMLTableElement) {
+        const colIndex = th.cellIndex;
+        const tbody = table.tBodies[0];
+        if (!tbody) return;
+
+        const rows = Array.from(tbody.rows);
+
+        // Determine sort direction
+        let currentSort = th.getAttribute("aria-sort") || "none";
+        const newSort =
+            currentSort === "ascending" ? "descending" : "ascending";
+
+        // Reset other columns
+        for (const header of table.querySelectorAll("th")) {
+            header.removeAttribute("aria-sort");
+        }
+        th.setAttribute("aria-sort", newSort);
+
+        // The sorting comparator function
+        const comparator = (a: HTMLTableRowElement, b: HTMLTableRowElement) => {
+            const valA = a.cells[colIndex]?.textContent || "";
+            const valB = b.cells[colIndex]?.textContent || "";
+
+            // Use localeCompare. It handles "10" vs "2" and "Item 10" vs "Item 2"
+            // and mixed content like "100" vs "N/A".
+            const compareResult = valA.localeCompare(valB, undefined, {
+                numeric: true,
+            });
+
+            return newSort === "ascending" ? compareResult : -compareResult;
+        };
+
+        // Sort the rows and re-append them
+        rows.sort(comparator);
+        tbody.append(...rows);
+    }
+
+    function initialize(data: RenderedPage | null) {
+        // 1. Destroy any existing listeners
+        for (const [el, listener] of listeners) {
+            el.removeEventListener("click", listener);
+        }
+        listeners = [];
+
+        // 2. Do nothing if there's no data to render
+        if (!data) return;
+
+        // 3. Find all tables within the node
+        const allTables = node.querySelectorAll<HTMLTableElement>("table");
+
+        for (const table of allTables) {
+            // Heuristic 1: Must not have merged cells
+            const hasMergedCells = table.querySelector("[colspan], [rowspan]");
+            if (hasMergedCells) {
+                continue; // Skip this table
+            }
+
+            // Heuristic 2: Ensure a <thead> exists
+            let thead = table.querySelector("thead");
+            if (!thead) {
+                continue;
+            }
+
+            // 4. Add the 'sortable-table' class for styling
+            table.classList.add("sortable-table");
+
+            // 5. Add click listeners to each header cell
+            for (const th of thead.querySelectorAll("th")) {
+                th.setAttribute("role", "columnheader");
+                const listener = () => sortTable(th, table);
+                th.addEventListener("click", listener);
+                // Store the listener so we can remove it later
+                listeners.push([th, listener]);
+            }
+        }
+    }
+
+    // Run the logic when the action is first mounted
+    initialize(renderedData);
+
+    return {
+        /**
+         * The `update` function is called by Svelte whenever the parameter
+         * (renderedData) changes.
+         */
+        update(newData: RenderedPage | null) {
+            initialize(newData);
+        },
+
+        /**
+         * The `destroy` function is called by Svelte when the component is unmounted.
+         */
+        destroy() {
+            for (const [el, listener] of listeners) {
+                el.removeEventListener("click", listener);
+            }
         },
     };
 }
