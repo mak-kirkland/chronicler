@@ -102,6 +102,31 @@ export function findFileInTree(node: FileNode | null, path: string): boolean {
 }
 
 /**
+ * Recursively searches the file tree for a node whose path ends with a specific target string.
+ * This is useful for finding nodes when absolute paths might vary but the relative structure is known.
+ *
+ * @param root The root FileNode to start searching from.
+ * @param targetPath The path segment to match at the end of a node's full path (e.g. "_system/templates").
+ * @returns The matching FileNode if found, otherwise undefined.
+ */
+export function findNodeByPath(
+    root: FileNode | null,
+    targetPath: string,
+): FileNode | undefined {
+    if (!root) return undefined;
+    // Normalize paths to ensure consistent comparison (handling forward/backslashes)
+    if (normalizePath(root.path).endsWith(targetPath)) return root;
+
+    if (root.children) {
+        for (const child of root.children) {
+            const found = findNodeByPath(child, targetPath);
+            if (found) return found;
+        }
+    }
+    return undefined;
+}
+
+/**
  * Recursively filters the file tree based on a search term, preserving directory structure.
  * @param node The root FileNode to start filtering from.
  * @param term The search term to filter by.

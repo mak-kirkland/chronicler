@@ -22,12 +22,12 @@ use crate::{
         BrokenLink, FileNode, FullPageData, PageHeader, ParseError, RenderedPage, VaultAsset,
     },
     renderer::Renderer,
-    template,
     watcher::Watcher,
     writer::Writer,
 };
 use parking_lot::{Mutex, RwLock};
 use std::{
+    fs,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -336,7 +336,7 @@ impl World {
 
         // Read the template content if a path is provided.
         let template_content = template_path
-            .map(|p| template::read_template(Path::new(&p)))
+            .map(|p| fs::read_to_string(Path::new(&p)))
             .transpose()?;
 
         let page_header = writer.create_new_file(&parent_dir, &file_name, template_content)?;

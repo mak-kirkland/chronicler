@@ -34,7 +34,24 @@ export const SIDEBAR_MAX_WIDTH = 400;
  */
 export const SIDEBAR_KEYBOARD_RESIZE_STEP = 10;
 
+// --- Paths & URLS ---
+
 /**
  * The URL for donating to the development of Chronicler.
  */
 export const DONATE_URL = "https://chronicler.pro/#support";
+
+/**
+ * The name of the top-level system folder.
+ */
+export const SYSTEM_FOLDER_NAME = "_system";
+
+/**
+ * The name of the templates folder.
+ */
+export const TEMPLATE_FOLDER_NAME = "templates";
+
+/**
+ * The full path to the templates folder relative to the vault root.
+ */
+export const TEMPLATE_FOLDER_PATH = `${SYSTEM_FOLDER_NAME}/${TEMPLATE_FOLDER_NAME}`;
