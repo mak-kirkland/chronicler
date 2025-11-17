@@ -22,9 +22,9 @@ const actionHandlers: Record<ActionName, () => void> = {
 // The default keybinding configuration.
 // In the future, this could be loaded from and merged with user settings.
 const KEYBINDINGS: { keys: string[]; action: ActionName }[] = [
-    { keys: ["Alt+ArrowLeft", "Control+ArrowLeft"], action: "navigateBack" },
+    { keys: ["Alt+ArrowLeft"], action: "navigateBack" },
     {
-        keys: ["Alt+ArrowRight", "Control+ArrowRight"],
+        keys: ["Alt+ArrowRight"],
         action: "navigateForward",
     },
 ];
