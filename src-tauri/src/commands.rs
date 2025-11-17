@@ -11,7 +11,6 @@ use crate::{
     error::Result,
     fonts, importer,
     models::{FileNode, RenderedPage},
-    template,
     world::World,
 };
 use chrono::{Local, NaiveDate};
@@ -297,36 +296,6 @@ pub fn open_log_directory(app_handle: AppHandle) -> Result<()> {
         .opener()
         .open_path(log_dir.to_string_lossy(), None::<&str>)?;
     Ok(())
-}
-
-// --- Template Commands ---
-
-/// Retrieves a list of all available templates.
-#[command]
-#[instrument(skip(app_handle))]
-pub fn list_templates(app_handle: AppHandle) -> Result<Vec<PageHeader>> {
-    template::list_templates(&app_handle)
-}
-
-/// Reads the raw content of a specific template file.
-#[command]
-#[instrument]
-pub fn read_template(path: String) -> Result<String> {
-    template::read_template(&PathBuf::from(path))
-}
-
-/// Saves content to a template file.
-#[command]
-#[instrument(skip(app_handle, content))]
-pub fn write_template(app_handle: AppHandle, name: String, content: String) -> Result<PathBuf> {
-    template::write_template(&app_handle, &name, &content)
-}
-
-/// Deletes a template file.
-#[command]
-#[instrument]
-pub fn delete_template(path: String) -> Result<()> {
-    template::delete_template(&PathBuf::from(path))
 }
 
 // --- Custom Fonts ---

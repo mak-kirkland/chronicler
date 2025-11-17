@@ -1,273 +1,278 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { confirm } from "@tauri-apps/plugin-dialog";
+    import { onMount, tick } from "svelte";
+    import { files, vaultPath, world } from "$lib/worldStore";
     import {
-        listTemplates,
-        readTemplate,
-        writeTemplate,
-        deleteTemplate,
+        createNewFile,
+        createNewFolder,
+        deletePath,
+        writePageContent,
     } from "$lib/commands";
-    import { autofocus } from "$lib/domActions";
+    import { navigateToPage } from "$lib/actions";
+    import { openModal, closeModal } from "$lib/modalStore";
+    import { isMarkdown, normalizePath, findNodeByPath } from "$lib/utils";
+    import {
+        SYSTEM_FOLDER_NAME,
+        TEMPLATE_FOLDER_NAME,
+        TEMPLATE_FOLDER_PATH,
+    } from "$lib/config";
     import type { PageHeader } from "$lib/bindings";
     import Modal from "./Modal.svelte";
     import Button from "./Button.svelte";
-    import Editor from "./Editor.svelte";
-    import ErrorBox from "./ErrorBox.svelte";
+    import TextInputModal from "./TextInputModal.svelte";
+    import ConfirmModal from "./ConfirmModal.svelte";
+    import { fileViewMode } from "$lib/viewStores";
 
     let { onClose } = $props<{
         onClose: () => void;
     }>();
 
-    // --- State ---
-    let templates = $state<PageHeader[]>([]);
-    let selectedTemplate = $state<PageHeader | null>(null);
-    let editorContent = $state("");
-    let originalContent = $state("");
-    let isDirty = $derived(editorContent !== originalContent);
-    let isLoading = $state(false);
-    let error = $state<string | null>(null);
+    // --- Constants ---
+    const DEFAULT_TEMPLATE_CONTENT =
+        '---\ntitle: "{{title}}"\ntags: []\n---\n\n';
+
+    // --- Derived State ---
+    const fullTemplatePath = $derived(
+        $vaultPath
+            ? normalizePath(`${$vaultPath}/${TEMPLATE_FOLDER_PATH}`)
+            : null,
+    );
+
+    const templateFolderNode = $derived(
+        fullTemplatePath ? findNodeByPath($files, fullTemplatePath) : undefined,
+    );
+
+    const activeTemplateFolderPath = $derived(
+        templateFolderNode
+            ? normalizePath(templateFolderNode.path)
+            : fullTemplatePath,
+    );
+
+    const templateFiles = $derived(
+        templateFolderNode?.children?.filter(isMarkdown).map(
+            (node): PageHeader => ({
+                title: node.name,
+                path: normalizePath(node.path),
+            }),
+        ) ?? [],
+    );
 
     // --- Lifecycle ---
-    onMount(() => {
-        loadTemplates();
+    onMount(async () => {
+        // Wait for Svelte to register the derived stores
+        await tick();
+        if (!templateFolderNode && $vaultPath) {
+            handleCreateTemplateFolder();
+        }
     });
 
-    // --- Data Fetching ---
-    async function loadTemplates() {
-        isLoading = true;
-        error = null;
-        try {
-            templates = await listTemplates();
-        } catch (e: any) {
-            error = `Failed to load templates: ${e}`;
-        } finally {
-            isLoading = false;
-        }
-    }
-
-    async function selectTemplate(template: PageHeader) {
-        if (isDirty) {
-            if (
-                !(await confirm(
-                    "You have unsaved changes. Are you sure you want to switch?",
-                ))
-            ) {
-                return;
-            }
-        }
-        selectedTemplate = template;
-        isLoading = true;
-        try {
-            const content = await readTemplate(template.path);
-            editorContent = content;
-            originalContent = content;
-        } catch (e: any) {
-            error = `Failed to load template content: ${e}`;
-        } finally {
-            isLoading = false;
-        }
-    }
-
     // --- Actions ---
-    async function handleSave() {
-        if (!selectedTemplate) return;
-        isLoading = true;
+
+    /**
+     * Creates the `_system/templates` folder structure.
+     */
+    async function handleCreateTemplateFolder() {
+        if (!$vaultPath) return;
+
         try {
-            await writeTemplate(selectedTemplate.title, editorContent);
-            originalContent = editorContent; // Mark as no longer dirty
-            await loadTemplates(); // Refresh list in case of rename
-        } catch (e: any) {
-            error = `Failed to save template: ${e}`;
-        } finally {
-            isLoading = false;
-        }
-    }
-
-    function createNewTemplate() {
-        const newName = "New Template";
-        // A simple default template to get users started.
-        const defaultContent =
-            '---\ntitle: "{{title}}"\ntags: []\n---\n\nStart writing here...';
-
-        selectedTemplate = { title: newName, path: "" }; // Path is temporary
-        editorContent = defaultContent;
-        originalContent = ""; // Force dirty state to encourage saving
-    }
-
-    async function handleDelete() {
-        if (!selectedTemplate) return;
-        if (
-            await confirm(
-                `Are you sure you want to delete the template "${selectedTemplate.title}"?`,
-            )
-        ) {
+            // 1. Ensure parent _system folder exists
+            const systemPath = `${$vaultPath}/${SYSTEM_FOLDER_NAME}`;
             try {
-                await deleteTemplate(selectedTemplate.path);
-                selectedTemplate = null;
-                editorContent = "";
-                originalContent = "";
-                await loadTemplates();
-            } catch (e: any) {
-                error = `Failed to delete template: ${e}`;
+                await createNewFolder($vaultPath, SYSTEM_FOLDER_NAME);
+            } catch (e) {
+                // Ignore if exists
+            }
+
+            // 2. Ensure nested templates folder exists
+            await createNewFolder(systemPath, TEMPLATE_FOLDER_NAME);
+
+            await world.initialize(); // Refresh the file tree
+        } catch (e: any) {
+            if (!e.toString().includes("exists")) {
+                alert(`Failed to create folder structure: ${e}`);
+            } else {
+                await world.initialize();
             }
         }
+    }
+
+    /**
+     * This function contains all the logic for creating a new template.
+     * It's called by `promptForNewTemplate` after the user submits a name.
+     */
+    async function handleCreateNewTemplate(name: string) {
+        if (!activeTemplateFolderPath) return;
+
+        let newTemplate: PageHeader | null = null;
+        try {
+            // Call createNewFile with null template path
+            newTemplate = await createNewFile(
+                activeTemplateFolderPath,
+                name,
+                null, // Create a default "blank" page first
+            );
+
+            // Immediately overwrite it with the desired template content
+            await writePageContent(newTemplate.path, DEFAULT_TEMPLATE_CONTENT);
+
+            // We call initialize() to force an immediate refresh of the file list
+            // in the modal, rather than waiting for the file watcher.
+            await world.initialize();
+
+            // Navigate to the new template *after* everything is done
+            fileViewMode.set("split");
+            navigateToPage(newTemplate);
+        } catch (e: any) {
+            alert(`Failed to create template: ${e}`);
+            if (newTemplate) {
+                await deletePath(newTemplate.path);
+            }
+        }
+    }
+
+    /**
+     * Opens a modal to prompt for a new template name, then creates it.
+     */
+    function promptForNewTemplate() {
+        if (!activeTemplateFolderPath) return;
+
+        openModal({
+            component: TextInputModal,
+            props: {
+                title: "New Template",
+                label: "Enter the name for the new template:",
+                buttonText: "Create",
+                onClose: closeModal,
+                onSubmit: (name: string) => {
+                    closeModal();
+                    handleCreateNewTemplate(name);
+                },
+            },
+        });
+    }
+
+    /**
+     * Navigates to the main editor to edit the selected template.
+     */
+    function handleEdit(template: PageHeader) {
+        fileViewMode.set("split");
+        navigateToPage(template);
+        onClose();
+    }
+
+    /**
+     * Opens a modal to confirm deletion, then deletes the template.
+     */
+    function handleDelete(template: PageHeader) {
+        openModal({
+            component: ConfirmModal,
+            props: {
+                title: "Delete Template",
+                message: `Are you sure you want to delete "${template.title}"?`,
+                onClose: closeModal,
+                onConfirm: async () => {
+                    closeModal();
+                    try {
+                        await deletePath(template.path);
+                    } catch (e: any) {
+                        alert(`Failed to delete template: ${e}`);
+                    }
+                },
+            },
+        });
     }
 </script>
 
 <Modal title="Template Manager" {onClose}>
     <div class="template-manager-container">
-        <aside class="template-list-panel">
-            <h4>Templates</h4>
-            {#if templates.length > 0}
-                <ul class="template-list">
-                    {#each templates as template (template.path)}
-                        <li>
-                            <button
-                                class="template-item"
-                                class:active={selectedTemplate?.path ===
-                                    template.path}
-                                onclick={() => selectTemplate(template)}
+        {#if templateFolderNode}
+            <p class="description">
+                Manage templates from your vault's
+                <code>{TEMPLATE_FOLDER_PATH}</code> folder.
+            </p>
+            <ul class="template-list">
+                {#each templateFiles as template (template.path)}
+                    <li class="template-item">
+                        <span class="template-name">{template.title}</span>
+                        <div class="template-actions">
+                            <Button
+                                size="small"
+                                onclick={() => handleEdit(template)}
+                                >Edit</Button
                             >
-                                {template.title}
-                            </button>
-                        </li>
-                    {/each}
-                </ul>
-            {:else}
-                <p class="no-templates-message">No templates yet.</p>
-            {/if}
-            <Button onclick={createNewTemplate}>+ New Template</Button>
-        </aside>
-        <main class="template-editor-panel">
-            {#if selectedTemplate}
-                <div class="editor-header">
-                    <input
-                        type="text"
-                        bind:value={selectedTemplate.title}
-                        class="template-name-input"
-                        use:autofocus
-                    />
-                    <div class="editor-actions">
-                        <Button
-                            onclick={handleSave}
-                            disabled={!isDirty || isLoading}>Save</Button
-                        >
-                        {#if selectedTemplate.path}
-                            <!-- Only show delete for existing templates -->
-                            <Button onclick={handleDelete} disabled={isLoading}
+                            <Button
+                                size="small"
+                                onclick={() => handleDelete(template)}
                                 >Delete</Button
                             >
-                        {/if}
-                    </div>
-                </div>
-                {#if error}
-                    <ErrorBox>{error}</ErrorBox>
-                {/if}
-                <div class="editor-wrapper">
-                    <Editor bind:content={editorContent} />
-                </div>
-            {:else}
-                <div class="placeholder">
-                    <p>Select a template to edit, or create a new one.</p>
-                </div>
+                        </div>
+                    </li>
+                {/each}
+            </ul>
+            {#if templateFiles.length === 0}
+                <p class="no-templates-message">
+                    No templates found in your
+                    <code>{TEMPLATE_FOLDER_PATH}</code> folder.
+                </p>
             {/if}
-        </main>
+            <Button onclick={promptForNewTemplate}>+ New Template</Button>
+        {:else}
+            <p>
+                The <code>{TEMPLATE_FOLDER_PATH}</code> folder structure could not
+                be found or is being created.
+            </p>
+            <Button onclick={handleCreateTemplateFolder}
+                >Create Folder Structure</Button
+            >
+        {/if}
     </div>
 </Modal>
 
 <style>
     .template-manager-container {
         display: flex;
-        gap: 2rem;
-        max-height: 70vh;
-        min-height: 500px;
-    }
-    .template-list-panel {
-        flex: 0 0 200px;
-        border-right: 1px solid var(--color-border-primary);
-        padding-right: 2rem;
-        display: flex;
         flex-direction: column;
+        gap: 1rem;
+        min-height: 400px;
+        max-height: 70vh;
+    }
+    .description {
+        font-size: 0.95rem;
+        color: var(--color-text-secondary);
+        margin: 0;
     }
     .template-list {
         list-style: none;
         padding: 0;
-        margin: 0 0 1rem 0;
+        margin: 0;
         flex-grow: 1;
         overflow-y: auto;
-    }
-    .template-item {
-        width: 100%;
-        background: none;
-        border: none;
-        color: var(--color-text-link);
-        text-align: left;
-        padding: 0.5rem;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 1rem;
-    }
-    .template-item:hover {
+        border: 1px solid var(--color-border-primary);
+        border-radius: 6px;
         background-color: var(--color-background-secondary);
     }
-    .template-item.active {
-        background-color: var(--color-background-tertiary);
-        color: var(--color-text-primary);
-        font-weight: bold;
+    .template-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--color-border-primary);
+    }
+    .template-item:last-child {
+        border-bottom: none;
+    }
+    .template-name {
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    .template-actions {
+        display: flex;
+        gap: 0.5rem;
     }
     .no-templates-message {
         font-style: italic;
         color: var(--color-text-secondary);
-        padding: 1rem 0.5rem;
+        padding: 2rem;
+        text-align: center;
         flex-grow: 1;
-    }
-    .template-editor-panel {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-    }
-    .editor-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-        flex-shrink: 0;
-    }
-    .template-name-input {
-        flex-grow: 1;
-        font-size: 1.2rem;
-        font-weight: bold;
-        padding: 0.5rem;
-        border: 1px solid var(--color-border-primary);
-        background-color: var(--color-background-secondary);
-        color: var(--color-text-primary);
-        border-radius: 4px;
-        min-width: 0; /* This is the new fix */
-    }
-    .editor-actions {
-        display: flex;
-        gap: 0.5rem;
-        flex-shrink: 0;
-    }
-    .editor-wrapper {
-        flex-grow: 1;
-        border: 1px solid var(--color-border-primary);
-        border-radius: 4px;
-        overflow-y: auto;
-        position: relative;
-    }
-    /* Override editor padding to be smaller in this context */
-    .editor-wrapper :global(.editor-wrapper) {
-        padding: 1em;
-    }
-    .placeholder {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-        color: var(--color-text-secondary);
-        font-style: italic;
     }
 </style>

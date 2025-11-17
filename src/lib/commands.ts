@@ -256,39 +256,6 @@ export function getLinuxInstallType(): Promise<string> {
  */
 export const getAppUsageDays = () => invoke<number>("get_app_usage_days");
 
-// --- Template Commands ---
-
-/**
- * Retrieves a list of all available templates.
- * @returns A promise that resolves to an array of PageHeader objects for the templates.
- */
-export const listTemplates = () => invoke<PageHeader[]>("list_templates");
-
-/**
- * Reads the raw content of a specific template file.
- * @param path The path of the template file to read.
- * @returns A promise that resolves to the string content of the template.
- */
-export const readTemplate = (path: string) =>
-    invoke<string>("read_template", { path });
-
-/**
- * Saves content to a template file.
- * @param name The name of the template (without extension).
- * @param content The new content to save.
- * @returns A promise that resolves to the path of the saved template file.
- */
-export const writeTemplate = (name: string, content: string) =>
-    invoke<string>("write_template", { name, content });
-
-/**
- * Deletes a template file.
- * @param path The path of the template file to delete.
- * @returns A promise that resolves when the template has been deleted.
- */
-export const deleteTemplate = (path: string) =>
-    invoke<void>("delete_template", { path });
-
 // --- Custom Font Commands ---
 
 /**

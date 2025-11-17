@@ -1,14 +1,15 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { listTemplates, getAllDirectoryPaths } from "$lib/commands";
+    import { getAllDirectoryPaths } from "$lib/commands";
     import { createFile } from "$lib/actions";
     import { closeModal } from "$lib/modalStore";
     import { autofocus } from "$lib/domActions";
     import type { PageHeader } from "$lib/bindings";
     import Modal from "./Modal.svelte";
     import Button from "./Button.svelte";
-    import { vaultPath } from "$lib/worldStore";
-    import { normalizePath } from "$lib/utils";
+    import { vaultPath, files } from "$lib/worldStore";
+    import { normalizePath, isMarkdown } from "$lib/utils";
+    import { SYSTEM_FOLDER_NAME, TEMPLATE_FOLDER_NAME } from "$lib/config";
 
     let {
         parentDir,
@@ -21,28 +22,47 @@
     }>();
 
     // --- State ---
-    let templates = $state<PageHeader[]>([]);
     let allDirs = $state<string[]>([]);
-    let isLoading = $state(true);
-    let error = $state<string | null>(null);
     let pageName = $state(initialName);
     let selectedTemplatePath = $state<string | null>(null); // Use null for "Blank Page"
     let selectedParentDir = $state(normalizePath(parentDir));
 
+    // --- Derived State for Templates ---
+    const templates = $derived.by(() => {
+        if (!$files || !$files.children) return [];
+
+        // 1. Find the System folder
+        const systemFolder = $files.children.find(
+            (node) => node.name === SYSTEM_FOLDER_NAME,
+        );
+        if (!systemFolder || !systemFolder.children) return [];
+
+        // 2. Find the Templates folder inside System
+        const templateFolder = systemFolder.children.find(
+            (node) => node.name === TEMPLATE_FOLDER_NAME,
+        );
+        if (!templateFolder || !templateFolder.children) return [];
+
+        // 3. Map the markdown files inside
+        return templateFolder.children.filter(isMarkdown).map(
+            (node): PageHeader => ({
+                title: node.name,
+                path: normalizePath(node.path),
+            }),
+        );
+    });
+
     // --- Lifecycle ---
     onMount(async () => {
         try {
-            const [templateList, dirList] = await Promise.all([
-                listTemplates(),
-                getAllDirectoryPaths(),
-            ]);
-
-            templates = templateList;
-            allDirs = dirList.map(normalizePath);
+            allDirs = (await getAllDirectoryPaths()).map(normalizePath);
         } catch (e: any) {
-            error = `Failed to load data: ${e.message}`;
-        } finally {
-            isLoading = false;
+            // We can still function if this fails, the dropdown will just be less populated.
+            console.error("Failed to load directories:", e);
+            // Ensure the current directory is at least in the list.
+            if (!allDirs.includes(selectedParentDir)) {
+                allDirs = [selectedParentDir, ...allDirs];
+            }
         }
     });
 
@@ -84,11 +104,7 @@
 
         <div class="form-group">
             <label for="folder-select">Folder</label>
-            <select
-                id="folder-select"
-                bind:value={selectedParentDir}
-                disabled={isLoading}
-            >
+            <select id="folder-select" bind:value={selectedParentDir}>
                 {#each allDirs as dir (dir)}
                     <option value={dir}>{getDisplayDir(dir)}</option>
                 {/each}
@@ -97,11 +113,7 @@
 
         <div class="form-group">
             <label for="template-select">Template</label>
-            <select
-                id="template-select"
-                bind:value={selectedTemplatePath}
-                disabled={isLoading}
-            >
+            <select id="template-select" bind:value={selectedTemplatePath}>
                 <option value={null}>Blank Page (Default)</option>
                 {#if templates.length > 0}
                     <optgroup label="Your Templates">
@@ -113,9 +125,6 @@
                     </optgroup>
                 {/if}
             </select>
-            {#if error}
-                <p class="error-text">{error}</p>
-            {/if}
         </div>
 
         <div class="modal-actions">
@@ -171,10 +180,5 @@
         justify-content: flex-end;
         gap: 0.5rem;
         margin-top: 1rem;
-    }
-    .error-text {
-        font-size: 0.9rem;
-        color: var(--color-text-error);
-        margin: 0.25rem 0 0 0;
     }
 </style>
