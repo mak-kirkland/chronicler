@@ -141,23 +141,27 @@ You can also set a custom title for the header, start the insert hidden, or remo
 
 ---
 
-# 🛠️ Part 2: Customization
-
-This section covers customization for your workflow and the appearance of your pages.
-
-## ⚙️ Application Settings Directory
-Chronicler stores global settings, themes, fonts, and templates in a dedicated folder on your computer. You can find it here:
-
-- **Windows**: `%AppData%\io.github.mak-kirkland.chronicler\`
-- **Linux**: `~/.local/share/io.github.mak-kirkland.chronicler/`
-- **macOS**: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
-
 ## 📄 Page Templates
 
 Use templates to create new pages with a pre-defined structure, saving you time and ensuring consistency across your vault. For example, you could have templates for characters, locations, or session notes, each with pre-defined YAML frontmatter and section headings.
 
 - **Manage Templates**: Go to **Settings → Manage Templates** to create and edit them.
 - **Automatic Title**: Use the `{{title}}` placeholder in a template. It will be automatically replaced with the new page's name.
+
+---
+
+# 🛠️ Part 2: Customization
+
+This section covers customization for your workflow and the appearance of your pages.
+
+## ⚙️ Application Settings Directory
+Chronicler stores global settings, themes and fonts in a dedicated folder on your computer. You can find it here:
+
+- **Windows**: `%AppData%\io.github.mak-kirkland.chronicler\`
+- **Linux**: `~/.local/share/io.github.mak-kirkland.chronicler/`
+- **macOS**: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
+
+---
 
 ## 🎨 Themes & Fonts
 
