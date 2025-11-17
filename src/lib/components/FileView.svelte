@@ -26,21 +26,30 @@
     let pageData = $state<FullPageData | null>(null);
     let error = $state<string | null>(null);
     let isLoading = $state(true);
+    let showLoading = $state(false); // Controls the visual "Loading..." message
     let pristineContent = $state("");
     let saveStatus: "idle" | "dirty" | "saving" | "error" = $state("idle");
     let lastSaveTime = $state<Date | null>(null);
     let saveTimeout: number;
+    let loadingTimer: number; // Timer to delay showing the loading message
 
     // This effect handles loading the page data whenever the `file` prop changes.
     $effect(() => {
         // --- State Reset ---
         isLoading = true;
+        showLoading = false; // Reset the visual loading state
         pageData = null;
         error = null;
         pristineContent = "";
         saveStatus = "idle"; // Reset save status for the new file
         lastSaveTime = null; // Reset last save time for the new file
+        clearTimeout(loadingTimer); // Clear any pending loading message timer
         rightSidebar.update((state) => ({ ...state, backlinks: [] })); // Reset backlinks
+
+        // --- Set a timer to show the "Loading..." message only if it takes too long ---
+        loadingTimer = window.setTimeout(() => {
+            showLoading = true;
+        }, 500); // Only show "Loading..." after 500ms
 
         // --- Data Fetching ---
         buildPageView(file.path)
@@ -53,17 +62,21 @@
                     backlinks: data.backlinks,
                 }));
             })
+
             .catch((e) => {
                 console.error("Failed to get page data:", e);
                 error = `Could not load file: ${e}`;
             })
             .finally(() => {
                 isLoading = false;
+                showLoading = false; // Hide loading message
+                clearTimeout(loadingTimer); // Clear timer as loading is finished
             });
 
         // Cleanup function clears any pending save timeouts when the file changes or component unmounts.
         return () => {
             clearTimeout(saveTimeout);
+            clearTimeout(loadingTimer); // Also clear the loading timer on cleanup
         };
     });
 
@@ -128,7 +141,7 @@
 </script>
 
 <div class="file-view-container">
-    {#if isLoading}
+    {#if isLoading && showLoading}
         <div class="status-container">
             <p>Loading...</p>
         </div>
