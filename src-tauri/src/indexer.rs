@@ -10,7 +10,7 @@ use crate::{
     parser,
     utils::{file_stem_string, is_image_file, is_markdown_file},
 };
-use natord::compare as nat_compare;
+use natord::compare_ignore_case as nat_compare;
 use std::{
     collections::{HashMap, HashSet},
     fs, mem,
@@ -429,10 +429,24 @@ impl Indexer {
                     }
                 }
             }
-            // Sort children: directories first (based on Ord impl), then alphanumerically by name.
+            // Sort children by:
+            // 1. Directories first (based on Ord impl)
+            // 2. Special folders (starting with '_') next
+            // 3. All other items, sorted case-insensitively
             entries.sort_by(|a, b| {
                 a.file_type
-                    .cmp(&b.file_type)
+                    .cmp(&b.file_type) // 1. Directories
+                    .then_with(|| {
+                        // 2. Folders/files starting with '_' come first
+                        let a_is_special = a.name.starts_with('_');
+                        let b_is_special = b.name.starts_with('_');
+                        // This is a reverse-order sort. In Rust, `false` < `true`.
+                        // By comparing `b.cmp(a)`, a `false` value for `b` and a `true`
+                        // value for `a` results in `Ordering::Less`, pushing `a`
+                        // (the special file) to the top of the list.
+                        b_is_special.cmp(&a_is_special)
+                    })
+                    // 3. Then sort all names case-insensitively
                     .then_with(|| nat_compare(&a.name, &b.name))
             });
             Some(entries)
