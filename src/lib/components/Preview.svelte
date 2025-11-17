@@ -3,6 +3,7 @@
     import Infobox from "./Infobox.svelte";
     import TableOfContents from "./TableOfContents.svelte";
     import { isTocVisible } from "$lib/settingsStore";
+    import { tablesort } from "$lib/domActions";
 
     // The type for the infobox data is complex, so we can use `any` here.
     // It's the `processed_frontmatter` object from the Rust backend.
@@ -24,7 +25,12 @@
   The main content is wrapped in its own div to create a distinct flex item.
   -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex -->
-<div class="preview-container mode-{mode}" role="document" tabindex="0">
+<div
+    class="preview-container mode-{mode}"
+    role="document"
+    tabindex="0"
+    use:tablesort={renderedData}
+>
     {#if infoboxData}
         <!-- Use <aside> for better semantics. It's floated, so order in HTML matters. -->
         <aside class="infobox-wrapper">
@@ -213,5 +219,33 @@
      */
     .main-content :global(p + p) {
         margin-block-start: 1rem;
+    }
+
+    /** Global styles for the sortable table */
+
+    .main-content :global(.sortable-table thead th) {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .main-content :global(.sortable-table thead th:hover) {
+        background-color: var(--color-background-secondary);
+    }
+
+    /* These styles add the little sort-indicator arrows */
+    .main-content :global(.sortable-table th[role="columnheader"]::after) {
+        content: " \25B2"; /* Up arrow */
+        font-size: 0.8em;
+        opacity: 0.3;
+    }
+
+    .main-content :global(.sortable-table th[aria-sort="descending"]::after) {
+        content: " \25BC"; /* Down arrow */
+        opacity: 1;
+    }
+
+    .main-content :global(.sortable-table th[aria-sort="ascending"]::after) {
+        content: " \25B2"; /* Up arrow */
+        opacity: 1;
     }
 </style>
