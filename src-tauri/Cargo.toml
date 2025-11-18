@@ -69,5 +69,6 @@ hex = "0.4.3"
 sha2 = "0.10.9"
 hmac = "0.12.1"
 dunce = "1.0.5"
+rayon = "1.11.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
