@@ -1,12 +1,41 @@
 <script lang="ts">
+    import { onDestroy } from "svelte";
+
     let { value = $bindable(), placeholder = "Search..." } = $props<{
         value?: string;
         placeholder?: string;
     }>();
+
+    // Internal state for the input field's display value
+    let inputValue = $state(value || "");
+    let timer: ReturnType<typeof setTimeout>;
+
+    function handleInput(e: Event) {
+        const target = e.target as HTMLInputElement;
+        inputValue = target.value;
+
+        // Clear the previous timer
+        clearTimeout(timer);
+
+        // Set a new timer to update the bound 'value' prop after 300ms
+        timer = setTimeout(() => {
+            value = inputValue;
+        }, 300);
+    }
+
+    onDestroy(() => {
+        clearTimeout(timer);
+    });
 </script>
 
 <div class="search-container">
-    <input type="search" bind:value {placeholder} class="search-input" />
+    <input
+        type="search"
+        value={inputValue}
+        oninput={handleInput}
+        {placeholder}
+        class="search-input"
+    />
 </div>
 
 <style>
