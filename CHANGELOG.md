@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.33.3-alpha] - 2025-11-18
+
+### 🚀 Performance
+
+- **Performance / Startup / Fonts**: The custom font loading system has been completely overhauled to be significantly faster and more efficient. Previously, all custom fonts were loaded into memory as large Base64 strings during startup. The new system streams fonts directly from the disk on-demand using a secure asset protocol. This reduces application memory usage, speeds up startup time, and eliminates the "Flash of Unstyled Text" (FOUC).
+
+### 🐞 Fixed
+
+- **Settings**: Fixed a broken link in the "License" section of the Settings modal.
+- **Styling**: Fixed a visual regression where dropdown arrows were missing from select menus due to a missing CSS rule.
+
+### 🔄 Changed
+
+- **Internal**: Refactored the click handling logic for page inserts. The logic has been moved from the `Preview` component to the global action handler, centralizing how all interactive elements (links, spoilers, inserts) are processed.
+
+---
+
 ## [v0.33.2-alpha] - 2025-11-16
 
 ### 🐞 Fixed
