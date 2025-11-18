@@ -11,6 +11,7 @@ use crate::{
     utils::{file_stem_string, is_image_file, is_markdown_file},
 };
 use natord::compare_ignore_case as nat_compare;
+use rayon::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
     fs, mem,
@@ -46,6 +47,13 @@ pub struct Indexer {
     pub link_graph: HashMap<PathBuf, HashMap<PathBuf, Vec<Link>>>,
 }
 
+/// Helper struct to hold the result of processing a single file during scan.
+struct ScanResult {
+    path: PathBuf,
+    asset: Option<VaultAsset>,
+    error: Option<String>,
+}
+
 impl Indexer {
     /// Creates a new indexer for the specified root path.
     ///
@@ -58,11 +66,71 @@ impl Indexer {
         }
     }
 
+    /// A helper function that processes a single file path.
+    ///
+    /// This function performs the I/O (reading) and CPU work (parsing) for a file
+    /// and returns a `ScanResult`. It does not modify the Indexer state directly,
+    /// making it safe to use in parallel iterators.
+    fn process_path(path: PathBuf) -> ScanResult {
+        // RESOLVE SYMLINKS: Get the canonical path for consistent indexing.
+        let canonical_path = match dunce::canonicalize(&path) {
+            Ok(p) => p,
+            Err(e) => {
+                warn!("Could not get canonical path for {:?}: {}", path, e);
+                return ScanResult {
+                    path,
+                    asset: None,
+                    error: Some(format!("Canonicalization error: {}", e)),
+                };
+            }
+        };
+
+        if is_markdown_file(&canonical_path) {
+            match parser::parse_file(&canonical_path) {
+                Ok(page) => ScanResult {
+                    path: canonical_path,
+                    asset: Some(VaultAsset::Page(Box::new(page))),
+                    error: None,
+                },
+                Err(e) => {
+                    warn!("Could not parse file {:?}: {}", path, e);
+                    // Create a default page entry so the file is still visible in the UI
+                    let default_page = Page {
+                        path: canonical_path.clone(),
+                        title: file_stem_string(&canonical_path),
+                        ..Default::default()
+                    };
+                    ScanResult {
+                        path: canonical_path,
+                        asset: Some(VaultAsset::Page(Box::new(default_page))),
+                        error: Some(e.to_string()),
+                    }
+                }
+            }
+        } else if is_image_file(&canonical_path) {
+            ScanResult {
+                path: canonical_path,
+                asset: Some(VaultAsset::Image),
+                error: None,
+            }
+        } else {
+            // Ignore other file types
+            ScanResult {
+                path: canonical_path,
+                asset: None,
+                error: None,
+            }
+        }
+    }
+
     /// Performs a complete scan of the vault directory to build the initial index.
     ///
     /// This is typically called once during application startup before starting
     /// the event-driven updates. After this completes, the indexer will maintain
     /// its state through file change events.
+    ///
+    /// This uses `rayon` to parse files in parallel, significantly speeding up
+    /// the initialization process for large vaults.
     ///
     /// # Arguments
     /// * `root_path` - The root directory to scan
@@ -88,15 +156,28 @@ impl Indexer {
         self.media_resolver.clear();
         self.link_graph.clear();
 
-        // Use a single WalkDir iterator for efficiency.
-        // Configure WalkDir to follow symbolic links (`.follow_links(true)`)
-        // to ensure assets linked into the vault are discovered and indexed.
-        for entry in WalkDir::new(root_path)
-            .follow_links(true)
+        // 1. Collect all file paths first.
+        let paths: Vec<PathBuf> = WalkDir::new(root_path)
+            .follow_links(true) // Handle symlinks
             .into_iter()
             .filter_map(|e| e.ok())
-        {
-            self.update_file(entry.path());
+            .map(|e| e.path().to_path_buf())
+            .collect();
+
+        // 2. Process files in PARALLEL using Rayon.
+        let results: Vec<ScanResult> = paths
+            .into_par_iter() // Parallel iterator taking ownership of paths
+            .map(Self::process_path)
+            .collect();
+
+        // 3. Update the index sequentially (very fast map insertion).
+        for result in results {
+            if let Some(asset) = result.asset {
+                self.assets.insert(result.path.clone(), asset);
+            }
+            if let Some(error) = result.error {
+                self.parse_errors.insert(result.path, error);
+            }
         }
 
         // Second pass: Build relationships between pages now that all assets are indexed.
@@ -183,47 +264,21 @@ impl Indexer {
     /// Updates or creates an index entry for a single file path.
     #[instrument(level = "debug", skip(self))]
     pub fn update_file(&mut self, path: &Path) {
-        // RESOLVE SYMLINKS: Get the canonical path for consistent indexing.
-        let canonical_path = match dunce::canonicalize(path) {
-            Ok(p) => p,
-            Err(e) => {
-                warn!("Could not get canonical path for {:?}: {}", path, e);
-                // If canonicalization fails (e.g., file doesn't exist or broken symlink),
-                // we can't index it reliably. Still remove any previous entry.
-                self.remove_file_from_index(path);
-                return;
-            }
-        };
-        // Use the canonical path for all subsequent indexing operations.
-        let path = &canonical_path;
-
         // Always remove the old entry first to ensure a clean update.
+        // Note: We might remove an entry based on the raw path before canonicalization,
+        // which is correct behavior if the path itself is changing.
         self.remove_file_from_index(path);
 
-        if is_markdown_file(path) {
-            match parser::parse_file(path) {
-                Ok(page) => {
-                    self.assets
-                        .insert(path.to_path_buf(), VaultAsset::Page(Box::new(page)));
-                }
-                Err(e) => {
-                    // On failure, log the error but still create a default entry.
-                    // This ensures the file remains accessible in the UI to be fixed.
-                    warn!("Could not parse file {:?}: {}", path, e);
-                    self.parse_errors.insert(path.to_path_buf(), e.to_string());
-                    let default_page = Page {
-                        path: path.to_path_buf(),
-                        title: file_stem_string(path),
-                        ..Default::default()
-                    };
-                    self.assets
-                        .insert(path.to_path_buf(), VaultAsset::Page(Box::new(default_page)));
-                }
-            };
-        } else if is_image_file(path) {
-            self.assets.insert(path.to_path_buf(), VaultAsset::Image);
+        // Parse and process the file
+        let result = Self::process_path(path.to_path_buf());
+
+        // Apply the result to the index.
+        if let Some(asset) = result.asset {
+            self.assets.insert(result.path.clone(), asset);
         }
-        // Future: else if is_audio_file(path) { ... }
+        if let Some(error) = result.error {
+            self.parse_errors.insert(result.path, error);
+        }
     }
 
     /// Removes a file from the index.
