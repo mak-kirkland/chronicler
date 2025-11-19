@@ -42,19 +42,15 @@ export type InfoboxData = {
 export type LayoutHeader = {
     type: "header";
     text: string;
-    position: {
-        above?: string;
-        below?: string;
-    };
+    above?: string;
+    below?: string;
 };
 
 /** A rule to inject a horizontal line into the infobox layout. */
 export type LayoutSeparator = {
     type: "separator";
-    position: {
-        above?: string;
-        below?: string;
-    };
+    above?: string;
+    below?: string;
 };
 
 /** A rule to group multiple fields together and render them in a specific way. */
