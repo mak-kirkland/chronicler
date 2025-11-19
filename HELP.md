@@ -239,12 +239,12 @@ Use the `layout` key to add headers and group fields into columns for a professi
 
 #### Adding Separators
 -   `type: separator`: Defines the rule as a horizontal separator.
--   `position: { below: 'field_name' }`: Injects the separator immediately after `field_name`.
+-   `above: 'field_name'`: Injects the separator immediately before `field_name`.
 
 #### Adding Headers
 -   `type: header`: Defines the rule as a header.
 -   `text: 'Your Text'`: The text to display in the header.
--   `position: { above: 'field_name' }`: Injects the header immediately before `field_name`.
+-   `below: 'field_name'`: Injects the header immediately after `field_name`.
 
 #### Grouping Fields into Columns
 -   `type: group`: Defines the rule as a group.
@@ -263,13 +263,13 @@ commander_central: ["Erich von Falkenhayn"]
 layout:
   - type: header
     text: Belligerents
-    position: { above: belligerents_allies }
+    above: belligerents_allies
   - type: group
     render_as: columns
     keys: [belligerents_allies, belligerents_central]
   - type: header
     text: Commanders
-    position: { above: commander_allies }
+    above: commander_allies
   - type: group
     render_as: columns
     keys: [commander_allies, commander_central]

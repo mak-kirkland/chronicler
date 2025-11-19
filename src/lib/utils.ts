@@ -7,12 +7,7 @@
 import type { FileNode } from "./bindings";
 import { resolveResource } from "@tauri-apps/api/path";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import type {
-    InfoboxData,
-    LayoutGroup,
-    LayoutItem,
-    RenderItem,
-} from "./types";
+import type { InfoboxData, LayoutGroup, LayoutItem, RenderItem } from "./types";
 
 /** A list of common image file extensions. */
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
@@ -230,33 +225,37 @@ export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
         "layout", // The layout key itself is for rules, not display.
     ]);
 
-    // 1. Get all renderable key-value pairs from the frontmatter, preserving
-    //    their original order as defined in the YAML file.
-    const allEntries = Object.entries(data).filter(
-        ([key]) => !excludedKeys.has(key),
-    );
-    const layout = data.layout;
     const finalItems: RenderItem[] = [];
     const processedKeys = new Set<string>();
-    // 2. Pre-process layout rules into Maps for efficient O(1) lookups.
-    //    This avoids re-iterating the layout array for every frontmatter key.
-    // Generic maps for any "positioned" items (headers, separators, etc.)
-    const aboveRules = new Map<string, LayoutItem[]>();
-    const belowRules = new Map<string, LayoutItem[]>();
-    // Specific map for groups, as they are processed differently.
+
+    // Maps to hold rules associated with specific keys
+    // key -> list of items to inject BEFORE this key
+    const aboveRules = new Map<string, RenderItem[]>();
+    // key -> list of items to inject AFTER this key
+    const belowRules = new Map<string, RenderItem[]>();
+    // key -> the group definition that starts at this key
     const groupRules = new Map<string, LayoutGroup>();
 
-    if (layout && Array.isArray(layout)) {
-        for (const rule of layout) {
+    // 1. Pre-process Layout Rules
+    if (data.layout && Array.isArray(data.layout)) {
+        for (const rule of data.layout) {
+            // Protect against malformed YAML (nulls, strings, numbers)
+            if (!rule || typeof rule !== "object") continue;
             if (rule.type === "header" || rule.type === "separator") {
-                if (rule.position?.above) {
-                    const key = rule.position.above;
-                    if (!aboveRules.has(key)) aboveRules.set(key, []);
-                    aboveRules.get(key)!.push(rule);
-                } else if (rule.position?.below) {
-                    const key = rule.position.below;
-                    if (!belowRules.has(key)) belowRules.set(key, []);
-                    belowRules.get(key)!.push(rule);
+                // Convert LayoutItem to RenderItem for storage
+                const item: RenderItem =
+                    rule.type === "header"
+                        ? { type: "header", text: rule.text }
+                        : { type: "separator" };
+
+                if (rule.above) {
+                    if (!aboveRules.has(rule.above))
+                        aboveRules.set(rule.above, []);
+                    aboveRules.get(rule.above)!.push(item);
+                } else if (rule.below) {
+                    if (!belowRules.has(rule.below))
+                        belowRules.set(rule.below, []);
+                    belowRules.get(rule.below)!.push(item);
                 }
             } else if (rule.type === "group" && rule.keys?.length > 0) {
                 // A group rule is triggered by its *first* key.
@@ -265,65 +264,59 @@ export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
         }
     }
 
-    /**
-     * Helper function to push positioned rules (headers, separators)
-     * onto the final render list.
-     */
-    function pushPositionedRules(rules: LayoutItem[]) {
-        for (const rule of rules) {
-            if (rule.type === "header") {
-                finalItems.push({ type: "header", text: rule.text });
-            } else if (rule.type === "separator") {
-                finalItems.push({ type: "separator" });
-            }
-        }
-    }
+    // 2. Iterate Data Entries
+    const allEntries = Object.entries(data).filter(
+        ([key]) => !excludedKeys.has(key),
+    );
 
-    // 3. Iterate through the original frontmatter entries to build the final
-    //    render list, applying the injection rules as we go.
     for (const [key, value] of allEntries) {
-        // Skip this key if it was already rendered as part of a group.
-        if (processedKeys.has(key)) {
-            continue;
-        }
+        // Skip if this key was already consumed by a group
+        if (processedKeys.has(key)) continue;
 
-        // INJECTION POINT 1: Check for 'above' rules
+        // A. Inject items positioned "Above" this key
         if (aboveRules.has(key)) {
-            pushPositionedRules(aboveRules.get(key)!);
+            finalItems.push(...aboveRules.get(key)!);
         }
 
-        // INJECTION POINT 2: Check if this key is the trigger for a group.
+        // B. Render Content (Group or Default)
         if (groupRules.has(key)) {
             const rule = groupRules.get(key)!;
             const groupValues: any[] = [];
+            let lastKeyInGroup = key; // Track the last key for "Below" injections
 
             // Collect all values specified in the group rule.
             for (const groupKey of rule.keys) {
                 if (data[groupKey] !== undefined) {
                     groupValues.push(data[groupKey]);
                     processedKeys.add(groupKey); // Mark key as processed.
+                    lastKeyInGroup = groupKey;
                 }
             }
-            finalItems.push({
-                type: "group",
-                render_as: rule.render_as,
-                items: groupValues,
-            });
-            // INJECTION POINT 3 (Groups): Check for 'below' rules on the *last*
-            // key of the group.
-            const lastKeyInGroup = rule.keys[rule.keys.length - 1];
+
+            // Only render group if it has data
+            if (groupValues.length > 0) {
+                finalItems.push({
+                    type: "group",
+                    render_as: rule.render_as,
+                    items: groupValues,
+                });
+            }
+
+            // Check if there are injections below the *last* key of the group
+            // (Since the group "consumes" the space of all its keys)
             if (belowRules.has(lastKeyInGroup)) {
-                pushPositionedRules(belowRules.get(lastKeyInGroup)!);
+                finalItems.push(...belowRules.get(lastKeyInGroup)!);
             }
         } else {
             // If the key is not part of any special rule, render it as a default item.
             finalItems.push({ type: "default", item: [key, value] });
 
-            // INJECTION POINT 3 (Default): Check for 'below' rules.
+            // C. Inject items positioned "Below" this key
             if (belowRules.has(key)) {
-                pushPositionedRules(belowRules.get(key)!);
+                finalItems.push(...belowRules.get(key)!);
             }
         }
     }
+
     return finalItems;
 }
