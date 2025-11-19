@@ -235,6 +235,7 @@
                 <!-- Tags are rendered conditionally based on the global store -->
                 {#if $areInfoboxTagsVisible}
                     {#if data?.tags && Array.isArray(data.tags) && data.tags.length > 0}
+                        <hr class="layout-separator" />
                         <dt>Tags</dt>
                         <dd class="tag-container">
                             <!--
@@ -550,7 +551,6 @@
         grid-column: 1 / -1;
         margin-bottom: var(--space-xs);
         padding-bottom: var(--space-xs);
-        border-bottom: 1px solid var(--color-border-primary);
     }
     .layout-columns {
         display: flex;
