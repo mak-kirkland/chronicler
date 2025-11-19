@@ -225,6 +225,7 @@ export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
         "layout", // The layout key itself is for rules, not display.
     ]);
 
+    // The final list we will give to the UI
     const finalItems: RenderItem[] = [];
     const processedKeys = new Set<string>();
 
@@ -236,31 +237,43 @@ export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
     // key -> the group definition that starts at this key
     const groupRules = new Map<string, LayoutGroup>();
 
+    /** Helper to register an item in the injection maps */
+    const addInjection = (
+        target: string | string[] | undefined,
+        item: RenderItem,
+        map: Map<string, RenderItem[]>,
+    ) => {
+        if (!target) return;
+        const targets = Array.isArray(target) ? target : [target];
+        for (const t of targets) {
+            if (!map.has(t)) map.set(t, []);
+            map.get(t)!.push(item);
+        }
+    };
+
     // 1. Pre-process Layout Rules
     if (data.layout && Array.isArray(data.layout)) {
         for (const rule of data.layout) {
             // Protect against malformed YAML (nulls, strings, numbers)
             if (!rule || typeof rule !== "object") continue;
-            if (rule.type === "header" || rule.type === "separator") {
-                // Convert LayoutItem to RenderItem for storage
-                const item: RenderItem =
-                    rule.type === "header"
-                        ? { type: "header", text: rule.text }
-                        : { type: "separator" };
-
-                if (rule.above) {
-                    if (!aboveRules.has(rule.above))
-                        aboveRules.set(rule.above, []);
-                    aboveRules.get(rule.above)!.push(item);
-                } else if (rule.below) {
-                    if (!belowRules.has(rule.below))
-                        belowRules.set(rule.below, []);
-                    belowRules.get(rule.below)!.push(item);
-                }
-            } else if (rule.type === "group" && rule.keys?.length > 0) {
-                // A group rule is triggered by its *first* key.
+            // Case A: Header
+            if (rule.type === "header") {
+                const item: RenderItem = { type: "header", text: rule.text };
+                addInjection(rule.above, item, aboveRules);
+                addInjection(rule.below, item, belowRules);
+            }
+            // Case B: Separator (Can be an array)
+            else if (rule.type === "separator") {
+                const item: RenderItem = { type: "separator" };
+                addInjection(rule.above, item, aboveRules);
+                addInjection(rule.below, item, belowRules);
+            }
+            // Case C: Groups
+            else if (rule.type === "group" && rule.keys?.length > 0) {
+                // Register the group logic against the FIRST key in the group.
                 groupRules.set(rule.keys[0], rule);
             }
+            // Case D: Simple Strings (ignored in this pass, handled implicitly by order)
         }
     }
 
