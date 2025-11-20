@@ -7,6 +7,7 @@
     import type { PageHeader } from "$lib/bindings";
     import Modal from "./Modal.svelte";
     import Button from "./Button.svelte";
+    import SearchableSelect from "./SearchableSelect.svelte";
     import { vaultPath, files } from "$lib/worldStore";
     import { normalizePath, isMarkdown } from "$lib/utils";
     import { SYSTEM_FOLDER_NAME, TEMPLATE_FOLDER_NAME } from "$lib/config";
@@ -24,7 +25,8 @@
     // --- State ---
     let allDirs = $state<string[]>([]);
     let pageName = $state(initialName);
-    let selectedTemplatePath = $state<string | null>(null); // Use null for "Blank Page"
+    // We use an empty string to represent "Blank Page" for the Select component
+    let selectedTemplatePath = $state<string>("");
     let selectedParentDir = $state(normalizePath(parentDir));
 
     // --- Derived State for Templates ---
@@ -52,6 +54,10 @@
         );
     });
 
+    // Create a simple array of paths for the SearchableSelect
+    // The first option "" represents the default blank page
+    const templateOptions = $derived(["", ...templates.map((t) => t.path)]);
+
     // --- Lifecycle ---
     onMount(async () => {
         try {
@@ -74,7 +80,11 @@
             return;
         }
 
-        createFile(selectedParentDir, pageName.trim(), selectedTemplatePath);
+        // Convert empty string back to null for the backend action
+        const templateToUse =
+            selectedTemplatePath === "" ? null : selectedTemplatePath;
+
+        createFile(selectedParentDir, pageName.trim(), templateToUse);
         closeModal();
     }
 
@@ -86,6 +96,13 @@
         }
         // Remove the root path and the leading slash for a cleaner display
         return fullPath.replace(rootPath, "").replace(/^\//, "");
+    }
+
+    /** Helper to display template names based on their path */
+    function getTemplateDisplay(path: string): string {
+        if (path === "") return "Blank Page (Default)";
+        const t = templates.find((item) => item.path === path);
+        return t ? t.title : path;
     }
 </script>
 
@@ -104,27 +121,22 @@
 
         <div class="form-group">
             <label for="folder-select">Folder</label>
-            <select id="folder-select" bind:value={selectedParentDir}>
-                {#each allDirs as dir (dir)}
-                    <option value={dir}>{getDisplayDir(dir)}</option>
-                {/each}
-            </select>
+            <SearchableSelect
+                options={allDirs}
+                bind:value={selectedParentDir}
+                formatLabel={getDisplayDir}
+                placeholder="Search folders..."
+            />
         </div>
 
         <div class="form-group">
             <label for="template-select">Template</label>
-            <select id="template-select" bind:value={selectedTemplatePath}>
-                <option value={null}>Blank Page (Default)</option>
-                {#if templates.length > 0}
-                    <optgroup label="Your Templates">
-                        {#each templates as template (template.path)}
-                            <option value={template.path}
-                                >{template.title}</option
-                            >
-                        {/each}
-                    </optgroup>
-                {/if}
-            </select>
+            <SearchableSelect
+                options={templateOptions}
+                bind:value={selectedTemplatePath}
+                formatLabel={getTemplateDisplay}
+                placeholder="Search templates..."
+            />
         </div>
 
         <div class="modal-actions">
@@ -151,8 +163,7 @@
         font-weight: bold;
         color: var(--color-text-secondary);
     }
-    input,
-    select {
+    input {
         width: 100%;
         padding: 0.5rem 0.75rem;
         border-radius: 6px;
@@ -162,18 +173,9 @@
         font-size: 1rem;
         box-sizing: border-box;
     }
-    input:focus,
-    select:focus {
+    input:focus {
         outline: 1px solid var(--color-accent-primary);
         border-color: var(--color-accent-primary);
-    }
-    select {
-        appearance: none;
-        background-image: var(--select-arrow);
-        background-repeat: no-repeat;
-        background-position: right 0.75rem center;
-        background-size: 1.2em;
-        padding-right: 2.5rem;
     }
     .modal-actions {
         display: flex;
