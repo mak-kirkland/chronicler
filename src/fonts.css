@@ -1,0 +1,164 @@
+/* --- IM Fell English (Body: Light/Classic) --- */
+@font-face {
+    font-family: "IM Fell English";
+    src: url("/fonts/im-fell-english-v14-latin/im-fell-english-v14-latin-regular.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "IM Fell English";
+    src: url("/fonts/im-fell-english-v14-latin/im-fell-english-v14-latin-italic.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* --- Uncial Antiqua (Heading: Fantasy) --- */
+@font-face {
+    font-family: "Uncial Antiqua";
+    src: url("/fonts/Uncial-Antiqua-regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* --- Cinzel (Heading: Roman/Formal) --- */
+@font-face {
+    font-family: "Cinzel";
+    src: url("/fonts/cinzel-v26-latin/cinzel-v26-latin-regular.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Cinzel";
+    src: url("/fonts/cinzel-v26-latin/cinzel-v26-latin-700.woff2")
+        format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* --- Orbitron (Heading: Sci-Fi) --- */
+@font-face {
+    font-family: "Orbitron";
+    src: url("/fonts/orbitron-v35-latin/orbitron-v35-latin-regular.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Orbitron";
+    src: url("/fonts/orbitron-v35-latin/orbitron-v35-latin-700.woff2")
+        format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* --- IBM Plex Mono (Body: Sci-Fi/Code) --- */
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("/fonts/ibm-plex-mono-v20-latin/ibm-plex-mono-v20-latin-regular.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("/fonts/ibm-plex-mono-v20-latin/ibm-plex-mono-v20-latin-italic.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("/fonts/ibm-plex-mono-v20-latin/ibm-plex-mono-v20-latin-700.woff2")
+        format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("/fonts/ibm-plex-mono-v20-latin/ibm-plex-mono-v20-latin-700italic.woff2")
+        format("woff2");
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* --- Merriweather (Heading: Professional) --- */
+@font-face {
+    font-family: "Merriweather";
+    src: url("/fonts/merriweather-v33-latin/merriweather-v33-latin-regular.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Merriweather";
+    src: url("/fonts/merriweather-v33-latin/merriweather-v33-latin-italic.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Merriweather";
+    src: url("/fonts/merriweather-v33-latin/merriweather-v33-latin-700.woff2")
+        format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Merriweather";
+    src: url("/fonts/merriweather-v33-latin/merriweather-v33-latin-700italic.woff2")
+        format("woff2");
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* --- Open Sans (Body: Professional) --- */
+@font-face {
+    font-family: "Open Sans";
+    src: url("/fonts/open-sans-v44-latin/open-sans-v44-latin-regular.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Open Sans";
+    src: url("/fonts/open-sans-v44-latin/open-sans-v44-latin-italic.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Open Sans";
+    src: url("/fonts/open-sans-v44-latin/open-sans-v44-latin-700.woff2")
+        format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Open Sans";
+    src: url("/fonts/open-sans-v44-latin/open-sans-v44-latin-700italic.woff2")
+        format("woff2");
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+}

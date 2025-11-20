@@ -1,3 +1,5 @@
+@import "./fonts.css";
+
 /* --- Root Variables (Default Light Theme) --- */
 :root {
     /* Typography */
@@ -139,87 +141,6 @@
     --color-text-error: #dc3545; /* Standard "danger" red */
     --color-background-error: rgba(220, 53, 69, 0.1);
     --color-border-error: rgba(220, 53, 69, 0.2);
-}
-
-/* --- Local Font Definitions (from /static folder) --- */
-
-/* Old style printing */
-@font-face {
-    font-family: "IM Fell English";
-    font-style: normal;
-    font-weight: 400;
-    src: url("/fonts/IM-Fell-English-regular.woff2") format("woff2");
-}
-
-@font-face {
-    font-family: "IM Fell English";
-    font-style: italic;
-    font-weight: 400;
-    src: url("/fonts/IM-Fell-English-italic.woff2") format("woff2");
-}
-
-/* Decorative script */
-@font-face {
-    font-family: "Uncial Antiqua";
-    font-style: normal;
-    font-weight: 400;
-    src: url("/fonts/Uncial-Antiqua-regular.woff2") format("woff2");
-}
-
-/* Hologram heading */
-@font-face {
-    font-family: "Orbitron";
-    font-style: normal;
-    font-weight: 400;
-    src: url("/fonts/Orbitron Regular.woff2") format("woff2");
-}
-
-/* Hologram body */
-@font-face {
-    font-family: "IBM Plex Mono";
-    font-style: normal;
-    font-weight: 400;
-    src: url("/fonts/IBM-Plex-Mono-regular.woff2") format("woff2");
-}
-
-/* Hologram body */
-@font-face {
-    font-family: "IBM Plex Mono";
-    font-style: italic;
-    font-weight: 400;
-    src: url("/fonts/IBM-Plex-Mono-italic.woff2") format("woff2");
-}
-
-/* Roman header */
-@font-face {
-    font-family: "Cinzel";
-    font-style: normal;
-    font-weight: 700; /* This font looks best in bold */
-    src: url("/fonts/Cinzel Bold.woff2") format("woff2");
-}
-
-/* Professional header */
-@font-face {
-    font-family: "Merriweather";
-    font-style: normal;
-    font-weight: 700; /* This font looks best in bold */
-    src: url("/fonts/merriweather-v32-latin-700.woff2") format("woff2");
-}
-
-/* Professional body */
-@font-face {
-    font-family: "Open Sans";
-    font-style: normal;
-    font-weight: 400;
-    src: url("/fonts/open-sans-v43-latin-regular.woff2") format("woff2");
-}
-
-/* Professional italics */
-@font-face {
-    font-family: "Open Sans";
-    font-style: italic;
-    font-weight: 400;
-    src: url("/fonts/open-sans-v43-latin-italic.woff2") format("woff2");
 }
 
 /* Global Styles */
