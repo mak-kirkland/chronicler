@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.33.4-alpha] - 2025-11-20
+
+### 🚀 Performance
+
+- **Performance / Startup**: Optimized the application startup sequence. Vault data and settings are now loaded in parallel, and non-critical background checks are deferred until the application is fully ready, resulting in a faster launch time.
+
+### 🐞 Fixed
+
+- **Editor**: Removed (`Ctrl+ArrowLeft` / `Ctrl+ArrowRight`) as navigation shortcuts, as they were overriding standard text editing behavior. Use (`Alt+ArrowLeft` / `Alt+ArrowRight`) instead to navigate pages.
+- **Templates**: The Template Manager now correctly displays an error message if it encounters a problem, rather than failing silently.
+- **Styling**: Added missing vertical spacing above the Table of Contents in the preview pane.
+
+---
+
 ## [v0.33.3-alpha] - 2025-11-18
 
 ### 🚀 Performance
