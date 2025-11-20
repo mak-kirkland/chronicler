@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v0.33.5-alpha] - 2025-11-14
+
+### ✨ Added
+
+- **Styling / Tables**: The HTML sanitizer now permits the use of the `bgcolor` attribute on `<td>` tags to colour table cells.
+
+---
+
 ## [v0.33.4-alpha] - 2025-11-20
 
 ### 🚀 Performance
