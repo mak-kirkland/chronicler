@@ -40,7 +40,6 @@ Use `[[Page Name]]` to link to other pages in your vault.
 
 -   Create an alias with `[[Page Name|link text]]`.
 -   When you rename a page, all links to it are automatically updated.
--   See all pages that link *to* your current page in the **Backlinks** panel.
 
 ---
 
@@ -69,7 +68,7 @@ There are two main ways to organize your vault:
 tags: [city, coastal]
 ```
 
-Tip: Pages and folders are ordered alphabetically. If you want to enforce a specific order, you can prefix them with numbers (e.g., `01_Characters`, `02_Places`, `03_History`).
+> Tip: Pages and folders are ordered alphabetically. If you want to enforce a specific order, you can prefix them with numbers (e.g., `01_Characters`, `02_Places`, `03_History`).
 
 ---
 
@@ -101,7 +100,9 @@ The easiest way to add an image to the body of your page is with the wikilink sy
 
 Hide text by wrapping it in double pipes `||like this||`. The text will be blacked out until a reader clicks on it.
 
-> The king’s advisor is ||secretly a vampire||.
+```markdown
+The king’s advisor is ||secretly a vampire||.
+```
 
 ---
 
@@ -116,7 +117,7 @@ Create simple tables with pipes `|` and dashes `-`.
 | Shield | 75gp  |
 ```
 
-Tip: Links with custom text (e.g., `[[Page|Link text]]`) use the `|` symbol, which can break a table's structure. To fix this, just add a backslash `\` before it: `[[Page\|Link text]]`.
+> Tip: Links with custom text (e.g., `[[Page|Link text]]`) use the `|` symbol, which can break a table's structure. To fix this, just add a backslash `\` before it: `[[Page\|Link text]]`.
 
 *For more control over tables, see the Advanced Guide.*
 
@@ -147,20 +148,21 @@ This section covers customization for your workflow and the appearance of your p
 ## Application Settings Directory
 Chronicler stores global settings, themes, fonts, and templates in a dedicated folder on your computer. You can find it here:
 
--   **Windows**: `%AppData%\io.github.mak-kirkland.chronicler\`
--   **Linux**: `~/.local/share/io.github.mak-kirkland.chronicler/`
--   **macOS**: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
+- **Windows**: `%AppData%\io.github.mak-kirkland.chronicler\`
+- **Linux**: `~/.local/share/io.github.mak-kirkland.chronicler/`
+- **macOS**: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
 
 ## 📄 Page Templates
 
 Use templates to create new pages with a pre-defined structure, saving you time and ensuring consistency across your vault. For example, you could have templates for characters, locations, or session notes, each with pre-defined YAML frontmatter and section headings.
 
--   **Manage Templates**: Go to **Settings → Manage Templates** to create and edit them.
--   **Automatic Title**: Use the `{{title}}` placeholder in a template. It will be automatically replaced with the new page's name.
+- **Manage Templates**: Go to **Settings → Manage Templates** to create and edit them.
+- **Automatic Title**: Use the `{{title}}` placeholder in a template. It will be automatically replaced with the new page's name.
 
 ## 🎨 Themes & Fonts
--   **Themes**: Switch between built-in color schemes or create your own with the Theme Editor.
--   **Custom Fonts**: Add your own `.woff2`, `.ttf`, or `.otf` font files to the `fonts` subfolder within the **Application Settings Directory**. After a restart, they will be available in the theme editor.hemes
+
+- **Themes**: Switch between built-in color schemes or create your own with the Theme Editor.
+- **Custom Fonts**: Add your own `.woff2`, `.ttf`, or `.otf` font files to the `fonts` subfolder within the **Application Settings Directory**. After a restart, they will be available in the theme editor.hemes
 
 ---
 
@@ -351,7 +353,7 @@ Wrap your content in a `<div class="float-container">`, and add either `.float-l
 </div>
 ```
 
-⚠️ Markdown headers (`##`) won't wrap inside the container. Use HTML tags instead (`<h2>`).
+> ⚠️ Markdown headers (`##`) won't wrap inside the container. Use HTML tags instead (`<h2>`).
 
 ---
 
