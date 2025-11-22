@@ -1,0 +1,17 @@
+name: Trigger Website Rebuild
+
+on:
+    push:
+        branches:
+            - master
+        paths:
+            # Only run this workflow if these specific files are modified
+            - "CHANGELOG.md"
+            - "HELP.md"
+
+jobs:
+    rebuild-site:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Trigger Vercel Deploy Hook
+              run: curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_vTn3yvzowoajlthFqRD7nkUkS3xh/Xo85UeugHm"
