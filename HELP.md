@@ -57,11 +57,11 @@ tags: [city, trade, river]
 
 ---
 
-## 📂 Organizing with Tags & Folders
+## 🗂️ Organizing with Tags & Folders
 
 There are two main ways to organize your vault:
 
-1.  🗂️ **Folders**: Create folders in the file explorer to group related pages, like `Places/`, `Characters/`, or `History/`.
+1.  📂 **Folders**: Create folders in the file explorer to group related pages, like `Places/`, `Characters/`, or `History/`.
 2.  🏷️ **Tags**: Add a list of tags to the `tags` field in the infobox. Click any tag to see all other pages with that tag.
 
 ```yaml
@@ -235,7 +235,7 @@ You can embed small images like flags or icons directly into infobox fields. Thi
 allegiance: 'Lynorian Empire ![[lynorian-flag.png]]'
 ```
 
-### 🪄 Advanced Infobox Layouts
+### 🏗️ Infobox Layout
 
 Use the `layout` key to add headers and group fields into columns for a professional, wiki-style infobox.
 
@@ -335,7 +335,7 @@ You can also use **standard HTML `<table>` tags** to create more complex tables 
 
 ---
 
-## 🪄 Advanced Layouts
+## 🪄 Floating Content
 
 Use floating layouts to place tables or images beside your text instead of above or below it.
 
