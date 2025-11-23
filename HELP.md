@@ -6,9 +6,9 @@ This guide is split into three parts. Start with **The Essentials** to learn the
 
 ---
 
-# Part 1: The Essentials
+# 🧱 Part 1: The Essentials
 
-## 📁 Vaults and Files
+## 📦 Vaults and Files
 
 Chronicler stores your notes as plain Markdown (`.md`) files in a folder on your computer, called a **vault**.
 
@@ -76,7 +76,7 @@ tags: [city, coastal]
 
 You can store your images in any folder within your vault, e.g a central `images/` folder, or right next to your notes. Chronicler will find them automatically. You can also refer to images outside your vault by providing the full path (e.g `C:\Users\Michael\map.png`), or by using shortcuts/symlinks within the vault, however this is *not* recommended as it may slow down your pages.
 
-### Infobox Images
+### 👤 Infobox Images
 
 You can display an image in a page’s **infobox** by adding the `image` field to the frontmatter at the top of your file:
 
@@ -84,7 +84,7 @@ You can display an image in a page’s **infobox** by adding the `image` field t
 image: rivertown.jpg
 ```
 
-### Page Images
+### 🏞️ Page Images
 
 The easiest way to add an image to the body of your page is with the wikilink syntax:
 
@@ -141,11 +141,11 @@ You can also set a custom title for the header, start the insert hidden, or remo
 
 ---
 
-# Part 2: Customization
+# 🛠️ Part 2: Customization
 
 This section covers customization for your workflow and the appearance of your pages.
 
-## Application Settings Directory
+## ⚙️ Application Settings Directory
 Chronicler stores global settings, themes, fonts, and templates in a dedicated folder on your computer. You can find it here:
 
 - **Windows**: `%AppData%\io.github.mak-kirkland.chronicler\`
@@ -170,7 +170,7 @@ Use templates to create new pages with a pre-defined structure, saving you time 
 
 This section covers powerful features for enhancing your workflow.
 
-## 🔖 Mastering the Infobox (YAML Frontmatter)
+## 🪪 Mastering the Infobox (YAML Frontmatter)
 
 The "infobox" at the top of each page is controlled by a block of text called **YAML frontmatter**. You can add any custom fields you want (e.g., `population`, `leader`, `age`), and they will automatically appear in the infobox.
 
@@ -185,7 +185,7 @@ Several fields have special functionality:
 | `image`    | An image or carousel of images for the infobox.             |
 | `layout`   | Rules for creating headers and columns in the infobox.      |
 
-### 🖼️ Image Carousels
+### 🎠 Image Carousels
 
 Besides a single image, you can provide a list of images to create a carousel in the **infobox**:
 
@@ -199,7 +199,7 @@ You can also add captions to each image in the carousel:
 image: [[rivertown_day.jpg, "Day"], [rivertown_night.jpg, "Night"]]
 ```
 
-### ⚠️ Special syntax inside frontmatter values
+### 🚨 Special syntax inside frontmatter values
 
 Some values may contain special characters that need to be treated properly (for example `[[wikilinks]]` or `||spoilers||`). There are two safe ways to include these without breaking the frontmatter:
 
@@ -218,7 +218,7 @@ notes: |
   It can also span multiple lines.
 ```
 
-### ✍️ Inline Markdown in Field Values
+### ✒️ Inline Markdown in Field Values
 
 You can use Markdown like `**bold**` and `*italic*` inside field values.
 
@@ -280,9 +280,9 @@ layout:
 
 ---
 
-## 🖼️ Advanced Images
+## 📸 Advanced Images
 
-### ✨ Images in the Page Body
+### 📐 Images in the Page Body
 
 For full control over an image's size, alignment, and caption, use HTML tags in the body of your page.
 
@@ -304,7 +304,7 @@ For full control over an image's size, alignment, and caption, use HTML tags in 
 </figure>
 ```
 
-### ⚜️ Inline Images (e.g., Flags or Icons)
+### 🎌 Inline Images (e.g., Flags or Icons)
 
 You can also place small images directly into a line of text. This is perfect for icons or flags. The `height: 1em;` style makes the image scale with the text, and `vertical-align: middle;` centers it nicely.
 
@@ -314,7 +314,7 @@ The Gooblboys invaded the Lynorian Empire <img src="lynorian-flag.png" alt="Lyno
 
 ---
 
-## 🗄️ Advanced Tables
+## 📊 Advanced Tables
 
 You can control the alignment of content within columns by adding colons (`:`) to the header separator line.
 
