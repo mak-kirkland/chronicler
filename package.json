@@ -13,7 +13,7 @@
     },
     "license": "PolyForm Shield License 1.0.0",
     "dependencies": {
-        "@codemirror/autocomplete": "^6.19.1",
+        "@codemirror/autocomplete": "^6.20.0",
         "@codemirror/commands": "^6.10.0",
         "@codemirror/lang-markdown": "^6.5.0",
         "@codemirror/state": "^6.5.2",
@@ -33,13 +33,13 @@
     },
     "devDependencies": {
         "@sveltejs/adapter-static": "^3.0.10",
-        "@sveltejs/kit": "^2.48.5",
+        "@sveltejs/kit": "^2.49.0",
         "@sveltejs/vite-plugin-svelte": "^5.1.1",
         "@tauri-apps/cli": "^2.9.4",
         "@types/js-yaml": "^4.0.9",
         "prettier": "^3.6.2",
         "prettier-plugin-svelte": "^3.4.0",
-        "svelte": "^5.43.10",
+        "svelte": "^5.43.14",
         "svelte-check": "^4.3.4",
         "typescript": "~5.6.3",
         "vite": "^6.4.1"
