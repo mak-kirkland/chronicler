@@ -2,7 +2,24 @@
 
 ---
 
-## [v0.33.5-alpha] - 2025-11-14
+## [v0.34.0-alpha] - 2025-11-24
+
+### ✨ Added
+
+- **Preview**: You can now **sort tables** with `<thead>` tags directly in the preview pane by clicking on the column headers. The sorting logic is alphanumeric, meaning it correctly handles numbered lists (e.g., placing "10" after "2" rather than "1").
+
+### 🔄 Changed
+
+- **BREAKING CHANGE: Templates**: The template system has been completely overhauled. Templates are no longer stored in the global application configuration but are now managed as standard Markdown files within a `_system/templates` folder inside your vault. This allows you to use the main editor to create and modify your templates. **Note**: This is a breaking change; if you had existing templates, you will need to manually move them to the new folder.
+- **Explorer**: Improved the file tree sorting logic to be more intuitive. "Special" folders starting with an underscore (e.g., `_templates`) are now consistently pinned to the top, and all items are now sorted in a a case-insensitive way.
+
+### 🐞 Fixed
+
+- **UI**: Fixed a visual "stutter" where the "Loading..." screen would flash briefly when navigating between pages that load quickly. The loading indicator now has a 500ms delay and will only appear if the data fetching takes longer than that.
+
+---
+
+## [v0.33.5-alpha] - 2025-11-20
 
 ### ✨ Added
 
