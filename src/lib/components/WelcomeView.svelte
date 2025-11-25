@@ -4,11 +4,15 @@
 
 <div class="welcome-container">
     <div class="welcome-screen">
-        <img src="/compass.png" alt="Compass" class="welcome-icon" />
-        <h1 class="welcome-title">Chronicler</h1>
-        <p class="welcome-text">
-            Select a page from the sidebar to begin your journey.
-        </p>
+        <div class="hero-banner">
+            <img src="/banner.png" alt="Chronicler Banner" />
+            <div class="hero-overlay">
+                <h1 class="welcome-title">Chronicler</h1>
+                <p class="welcome-text">
+                    Your digital scriptorium — where knowledge links together.
+                </p>
+            </div>
+        </div>
     </div>
 
     <div class="welcome-footer">
@@ -49,50 +53,105 @@
 </div>
 
 <style>
-    /* New container to manage layout */
     .welcome-container {
         display: flex;
         flex-direction: column;
         width: 100%;
         height: 100%;
+        background-color: var(--color-background-primary);
+        overflow: hidden; /* Prevent main scrollbar */
     }
 
     .welcome-screen {
         flex-grow: 1; /* Takes up most of the space */
         display: flex;
         flex-direction: column;
+        width: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-banner {
+        position: relative;
+        width: 100%;
+        height: 100%; /* Fill the available space above footer */
+        display: flex;
         align-items: center;
         justify-content: center;
-        text-align: center;
+    }
+
+    .hero-banner img {
+        position: absolute;
+        top: 0;
+        left: 0;
         width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0.4; /* Fade image slightly so text pops */
+        /* Ensure image stays to the right so the left fade works well */
+        object-position: center right;
     }
-    .welcome-icon {
-        width: 150px;
-        height: 150px;
-        opacity: 0.8;
-        margin-bottom: 2rem;
+
+    /* Gradient Overlay:
+       1. Fades to background color at the bottom (vertical fade).
+       2. Fades to background color on the left (horizontal fade).
+       This creates a smooth "L" shaped blend into the UI.
+    */
+    .hero-banner::after {
+        content: "";
+        position: absolute;
+        inset: 0; /* Covers the entire container */
+        background:
+            linear-gradient(
+                to bottom,
+                transparent 50%,
+                var(--color-background-primary) 100%
+            ),
+            linear-gradient(
+                to right,
+                var(--color-background-primary) 0%,
+                transparent 30%
+            );
+        pointer-events: none;
     }
+
+    .hero-overlay {
+        position: relative; /* Sit above the image */
+        z-index: 1;
+        text-align: center;
+        padding: 2rem;
+        max-width: 800px;
+    }
+
     .welcome-title {
         font-family: var(--font-family-heading);
-        font-size: 4rem;
-        margin-bottom: 1rem;
+        font-size: 5rem;
+        margin: 0 0 1rem 0;
         color: var(--color-text-heading);
+        text-shadow: 0 4px 12px var(--color-background-primary); /* Shadow for contrast */
     }
+
     .welcome-text {
-        font-size: 1.2rem;
+        font-size: 1.6rem;
+        color: var(--color-text-primary);
+        text-shadow: 0 2px 6px var(--color-background-primary);
     }
+
     .welcome-footer {
-        flex-shrink: 0; /* Prevents it from shrinking */
-        padding: 2rem;
+        flex-shrink: 0;
+        padding: 1.5rem;
         text-align: center;
         border-top: 1px solid var(--color-border-primary);
         background-color: var(--color-overlay-subtle);
+        z-index: 2; /* Ensure footer sits above any absolute positioning */
     }
+
     .welcome-footer p {
-        margin: 0.5rem 0;
-        font-size: 1rem;
+        margin: 0.25rem 0;
+        font-size: 0.95rem;
         color: var(--color-text-secondary);
     }
+
     .welcome-footer a {
         color: var(--color-text-link);
         text-decoration: none;
