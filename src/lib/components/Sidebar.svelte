@@ -7,6 +7,7 @@
     import ReportList from "./ReportList.svelte";
     import SettingsModal from "./SettingsModal.svelte";
     import HelpModal from "./HelpModal.svelte";
+    import AboutModal from "./AboutModal.svelte";
     import Button from "./Button.svelte";
     import SearchInput from "./SearchInput.svelte";
 
@@ -44,6 +45,15 @@
     function showHelp() {
         openModal({
             component: HelpModal,
+            props: {
+                onClose: closeModal,
+            },
+        });
+    }
+
+    function showAbout() {
+        openModal({
+            component: AboutModal,
             props: {
                 onClose: closeModal,
             },
@@ -102,28 +112,32 @@
     </div>
 
     <div class="sidebar-footer">
-        <Button
-            size="small"
-            class="new-path-button"
-            title="New Page"
-            onclick={showCreateFile}
-        >
-            + New Page
-        </Button>
-        <Button
-            size="small"
-            class="new-path-button"
-            title="New Folder"
-            onclick={showCreateFolder}
-        >
-            + New Folder
-        </Button>
+        <div class="primary-actions">
+            <Button
+                size="small"
+                class="new-path-button"
+                title="New Page"
+                onclick={showCreateFile}
+            >
+                + Page
+            </Button>
+            <Button
+                size="small"
+                class="new-path-button"
+                title="New Folder"
+                onclick={showCreateFolder}
+            >
+                + Folder
+            </Button>
+        </div>
 
-        <Button variant="ghost" title="Help" onclick={showHelp}>?</Button>
-
-        <Button variant="ghost" title="Settings" onclick={showSettings}>
-            ⚙️
-        </Button>
+        <div class="secondary-actions">
+            <Button variant="ghost" title="Help" onclick={showHelp}>?</Button>
+            <Button variant="ghost" title="About" onclick={showAbout}>ℹ</Button>
+            <Button variant="ghost" title="Settings" onclick={showSettings}
+                >⚙️</Button
+            >
+        </div>
     </div>
 </aside>
 
@@ -176,24 +190,32 @@
         padding: 1rem 0 1rem 1rem;
     }
     .sidebar-footer {
-        padding: 0.75rem;
+        padding: 0.5rem 0.75rem 0.25rem;
         border-top: 1px solid var(--color-border-primary);
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
         gap: 0.5rem;
     }
-    /* Use :global() to apply styles to a class passed to a child component */
-    .sidebar-footer :global(.new-path-button) {
+
+    .primary-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .primary-actions :global(.new-path-button) {
         flex-grow: 1;
     }
-    .sidebar-footer {
-        gap: 0.25rem;
+
+    .secondary-actions {
+        display: flex;
+        justify-content: space-between;
+        border-top: 1px solid var(--color-border-primary);
+        padding-top: 0.25rem;
     }
-    .sidebar-footer > :global(button.ghost) {
-        flex-shrink: 0;
-        width: 38px; /* Give a fixed width */
-        font-size: 1.2rem;
+
+    .secondary-actions > :global(button.ghost) {
+        flex-grow: 1;
+        font-size: 1.1rem;
         font-weight: bold;
     }
 </style>

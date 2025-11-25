@@ -179,8 +179,8 @@
 {:else if $appStatus.state === "loading"}
     <div class="loading-screen">
         <img
-            src="/compass.png"
-            alt="Compass"
+            src="/logo.png"
+            alt="Chronicler Logo"
             class="welcome-icon animate-spin"
         />
         <h1 class="welcome-title">Opening Vault...</h1>
@@ -258,7 +258,6 @@
     .welcome-icon {
         width: 150px;
         height: 150px;
-        opacity: 0.8;
         margin-bottom: 2rem;
     }
     .welcome-title {
