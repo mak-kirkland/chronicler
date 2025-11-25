@@ -1,3 +1,5 @@
+<img width="2560" height="1440" alt="Chronicler_Banner" src="https://github.com/user-attachments/assets/aca2a28f-8ad0-4c36-a75c-17ccab26e347" />
+
 # 🧭 Chronicler
 
 > **Your digital scriptorium – where knowledge links together.** 🧙‍♂️  
@@ -22,11 +24,11 @@
 
 ---
 
-<img width="948" height="493" alt="Wine" src="https://github.com/user-attachments/assets/e8704700-f4ae-4793-9b91-523e0c0dccf2" />
+![Saltstead](https://github.com/user-attachments/assets/bed41146-77c9-445e-bda3-cf15422488ac)
 
 ---
 
-<img width="950" height="492" alt="Hologram" src="https://github.com/user-attachments/assets/3b31d808-4525-4347-874b-ee8f0a96584c" />
+![Void Strider](https://github.com/user-attachments/assets/396dfcef-64bc-4562-b6de-e682984a66f2)
 
 ---
 
@@ -161,3 +163,9 @@ This project is source-available and licensed under the **PolyForm Shield 1.0.0*
 - ❌ You are not permitted to modify, redistribute, or use the source code to create competition.
 
 Please see the [LICENSE](https://github.com/mak-kirkland/chronicler/blob/main/LICENSE) file for the full license text.
+
+---
+
+## 🙏 Credits
+
+- 🎨 **App banner & social card artwork** created by **[Sigmaeus](https://www.youtube.com/@SigmaeusDrafts)**.
