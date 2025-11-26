@@ -44,12 +44,17 @@ export function getContextMenuActions(
             {
                 label: "Rename",
                 handler: () => {
+                    // Folders use the full name. Files use the stem.
+                    const initialName = isDir
+                        ? node.name
+                        : fileStemString(node.name);
+
                     openModal({
                         component: TextInputModal,
                         props: {
                             title: `Rename ${isDir ? "Folder" : "File"}`,
                             label: `New name for '${node.name}'`,
-                            initialValue: fileStemString(node.name),
+                            initialValue: initialName,
                             buttonText: "Rename",
                             onClose: closeModal,
                             onSubmit: (newValue: string) => {

@@ -60,21 +60,39 @@ export function isImageFile(path: string): boolean {
 }
 
 /**
- * Extracts a display-friendly title (the file stem) from a file path.
- * It gets the last part of the path (the filename) and removes the final extension.
+ * Extracts a display-friendly title from a path or filename.
+ * It strictly removes extensions only if they are known (.md or images).
+ * This safely handles cases like:
+ * - "My Note.md" -> "My Note" (Stripped)
+ * - "My Note" -> "My Note" (Passthrough)
+ * - "Mr. Husk" -> "Mr. Husk" (Passthrough, dot is preserved)
+ * - "image.png" -> "image" (Stripped)
  * @param path The full path or filename.
- * @returns A clean title string without the extension.
+ * @returns A clean title string.
  */
 export function fileStemString(path: string): string {
-    const fileName = path.split(/[\\/]/).pop() || "Untitled";
-    const lastDotIndex = fileName.lastIndexOf(".");
+    const fileName = path.split(/[\\/]/).pop() || "";
 
-    // Check if a dot exists and it's not the first character (to handle hidden files)
-    if (lastDotIndex < 1) {
-        return fileName;
+    // 1. Handle Markdown (Case-insensitive)
+    // We need this because this function is also used on full paths (e.g. in links),
+    // which DO have the .md extension.
+    if (fileName.toLowerCase().endsWith(".md")) {
+        return fileName.slice(0, -3);
     }
 
-    return fileName.slice(0, lastDotIndex);
+    // 2. Handle Images
+    // We check against our known list. If it matches, we strip it.
+    const lastDotIndex = fileName.lastIndexOf(".");
+    if (lastDotIndex > 0) {
+        const ext = fileName.slice(lastDotIndex + 1).toLowerCase();
+        if (IMAGE_EXTENSIONS.includes(ext)) {
+            return fileName.slice(0, lastDotIndex);
+        }
+    }
+
+    // 3. Fallback: Return as-is.
+    // This correctly handles "Mr. Husk" (folder) or "Chapter 1.5" (file without visible extension)
+    return fileName;
 }
 
 /**
