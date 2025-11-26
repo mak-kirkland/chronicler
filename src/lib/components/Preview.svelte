@@ -204,6 +204,75 @@
         overflow: hidden; /* This makes the header's block (and its border) wrap around the float */
     }
 
+    /* --- Rules for the opt-in user-facing image gallery --- */
+
+    /* --- 1. CONTAINER & DEFAULTS --- */
+    .main-content :global(.gallery) {
+        --gallery-height: 300px; /* Default */
+        display: grid;
+        /* Magic grid: creates as many 200px columns as will fit */
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-block: 1.5em;
+        align-items: start;
+    }
+
+    /* Preset Overrides */
+    .main-content :global(.gallery.small) {
+        --gallery-height: 150px;
+    }
+    .main-content :global(.gallery.large) {
+        --gallery-height: 450px;
+    }
+
+    /* --- 2. SHARED IMAGE STYLES --- */
+    /* Apply these base styles to ALL images inside a gallery */
+    .main-content :global(.gallery img) {
+        width: 100%;
+        height: var(--gallery-height);
+        object-fit: contain;
+        background-color: var(--color-background-secondary);
+        display: block;
+        margin: 0;
+    }
+
+    /* --- 3. CASE A: FIGURE WRAPPERS --- */
+    .main-content :global(.gallery figure) {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--color-border-primary);
+        border-radius: 4px;
+        overflow: hidden; /* Clips the corners of the image inside */
+    }
+
+    /* Add the separator line specifically for images inside figures */
+    .main-content :global(.gallery figure img) {
+        border-bottom: 1px solid var(--color-border-primary);
+    }
+
+    /* If a figure has NO caption, the image is the last child.
+       Remove the separator line so we don't get a double border at the bottom. */
+    .main-content :global(.gallery figure > img:last-child) {
+        border-bottom: none;
+    }
+
+    /* --- 4. CASE B: BARE IMAGES --- */
+    /* Add the outer border specifically for images that are direct children */
+    .main-content :global(.gallery > img) {
+        border: 1px solid var(--color-border-primary);
+        border-radius: 4px;
+    }
+
+    /* --- 5. CAPTIONS --- */
+    .main-content :global(.gallery figcaption) {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+        text-align: center;
+        color: var(--color-text-secondary);
+        background-color: var(--color-background-secondary);
+    }
+
     /* * This rule targets all paragraphs inside the rendered content area.
      * We reset them to 0 to remove the browser's default, oversized margins
      * when using inline <p> tags.
