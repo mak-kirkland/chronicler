@@ -33,8 +33,12 @@ export function autofocus(node: HTMLElement) {
  * - `path`: The unique identifier (e.g., file path) for the dragged item.
  */
 export function draggable(node: HTMLElement, params: { path: string }) {
+    // We keep a local reference to the current path
+    let currentPath = params.path;
+
     function handleDragStart(e: DragEvent) {
-        e.dataTransfer!.setData("text/plain", params.path);
+        // Use the currentPath, which matches the latest update
+        e.dataTransfer!.setData("text/plain", currentPath);
         e.dataTransfer!.effectAllowed = "move";
         // Set the global store to true
         isDragging.set(true);
@@ -50,6 +54,11 @@ export function draggable(node: HTMLElement, params: { path: string }) {
     node.addEventListener("dragend", handleDragEnd);
 
     return {
+        update(newParams: { path: string }) {
+            // When the component updates, just swap the path variable.
+            // No need to destroy listeners or the draggable attribute.
+            currentPath = newParams.path;
+        },
         destroy() {
             node.draggable = false;
             node.removeEventListener("dragstart", handleDragStart);
