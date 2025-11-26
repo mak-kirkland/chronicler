@@ -132,6 +132,11 @@ export function filterFileTree(
     term: string,
 ): FileNode | null {
     if (!node) return null;
+
+    // If no search term, return the original node reference.
+    // This prevents downstream components from thinking props have changed.
+    if (!term) return node;
+
     const lowerCaseTerm = term.toLowerCase();
 
     if (isDirectory(node)) {
