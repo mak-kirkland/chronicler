@@ -73,7 +73,7 @@
             oncontextmenu={(e) => {
                 onContextMenu(e, node);
             }}
-            use:draggable={{ path: node.path }}
+            use:draggable={node.path}
             use:droppable
             onfilesdropped={handleFilesDropped}
         >
@@ -120,7 +120,7 @@
             oncontextmenu={(e) => {
                 onContextMenu(e, node);
             }}
-            use:draggable={{ path: node.path }}
+            use:draggable={node.path}
         >
             <span class="icon">{isImage(node) ? "🖼️" : "📜"}</span>
             <span class="node-name-text">{node.name}</span>
