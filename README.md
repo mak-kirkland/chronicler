@@ -1,7 +1,7 @@
 # 🧭 Chronicler
 
-> **Your digital scriptorium – where knowledge links together.** 🧙‍♂️  
-> 
+> **Your digital scriptorium – where knowledge links together.** 🧙‍♂️
+>
 > 🔒 *Chronicler is **source-available**, not open-source.* You can **view and audit** the code, but you **cannot modify, redistribute, or reuse** it. See [LICENSE](https://github.com/mak-kirkland/chronicler/blob/main/LICENSE) for details.
 
 [![Website](https://img.shields.io/badge/Website-chronicler.pro-blue?logo=google-chrome&logoColor=white)](https://chronicler.pro)
@@ -14,7 +14,7 @@
 
 🎉 Download the [Latest Release](https://github.com/mak-kirkland/chronicler/releases/latest)!
 
-❤️ [Support on Patreon](https://patreon.com/ChroniclerNotes) or [Buy Me a Coffee](https://buymeacoffee.com/chronicler) to help fund development.
+❤️ [Support on Patreon](https://patreon.com/ChroniclerPro) or [Buy Me a Coffee](https://buymeacoffee.com/chronicler) to help fund development.
 
 💬 [Join us on Discord](https://discord.gg/cXJwcbe2b7)
 
@@ -128,7 +128,7 @@ Chronicler is a project driven by a passion for privacy and user ownership.
 
 Your financial support directly funds development time, helping to build new features, fix bugs, and design a better user experience.
 
--   👉 [Join on Patreon](https://patreon.com/ChroniclerNotes) to vote on features.
+-   👉 [Join on Patreon](https://patreon.com/ChroniclerPro) to vote on features.
 
 -   👉 [Buy Me a Coffee](https://buymeacoffee.com/chronicler) for a one-time donation.
 
