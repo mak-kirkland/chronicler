@@ -312,6 +312,64 @@ You can also place small images directly into a line of text. This is perfect fo
 The Gooblboys invaded the Lynorian Empire <img src="lynorian-flag.png" alt="Lynorian Empire Flag" style="height: 1em; vertical-align: middle;"> on a Saturday.
 ```
 
+#### 🖼️ Image Galleries
+
+Create responsive, wiki-style image galleries that automatically arrange themselves into a grid. Images in a gallery are uniform in size and look great on any screen.
+
+##### Basic Gallery
+
+Wrap your images in a `<div class="gallery">`.
+
+```html
+<div class="gallery">
+  ![[Map of the Realm]]
+  ![[Castle Blueprint]]
+  ![[Character Sketch]]
+</div>
+```
+
+##### Captions
+
+To add captions, wrap each image in a `<figure>` tag and add a `<figcaption>`.
+
+```html
+<div class="gallery">
+  <figure>
+    ![[King Alaric]]
+    <figcaption>Alaric II, roughly 340 AC</figcaption>
+  </figure>
+  <figure>
+    ![[Magic Sword]]
+    <figcaption>The blade of infinite sorrow</figcaption>
+  </figure>
+</div>
+```
+
+##### Gallery Sizes
+
+You can change the height of the gallery rows by adding a helper class to the container.
+
+* `.small` (Small thumbnails)
+* `.large` (Large detailed view)
+
+```html
+<div class="gallery small">
+  ![[Icon 1]]
+  ![[Icon 2]]
+</div>
+```
+
+##### Custom Sizes
+
+For precise control, you can set the exact height using the `--gallery-height` variable in the style attribute.
+
+```html
+<div class="gallery" style="--gallery-height: 500px;">
+  ![[Tall Map]]
+  ![[Tall Tower]]
+</div>
+```
+
 ---
 
 ## 🗄️ Advanced Tables
