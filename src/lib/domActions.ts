@@ -69,12 +69,10 @@ export function draggable(node: HTMLElement, path: string) {
 /**
  * Action to make an element a drop zone.
  * @param node The HTML element that will become a drop zone.
- * @param params Optional parameters.
- * - `dropClass`: The CSS class to apply when an item is dragged over (default: 'drop-target').
  */
-export function droppable(node: HTMLElement, params?: { dropClass?: string }) {
+export function droppable(node: HTMLElement) {
+    const dropClass = "drop-target";
     let dragCounter = 0;
-    const dropClass = params?.dropClass ?? "drop-target";
 
     function handleDragEnter(e: DragEvent) {
         e.preventDefault();
@@ -132,16 +130,10 @@ export function droppable(node: HTMLElement, params?: { dropClass?: string }) {
  * This action makes a scrollable container automatically scroll when a
  * dragged item is held near its top or bottom edge.
  * @param node The scrollable HTML element.
- * @param params Optional parameters.
- * - `scrollSpeed`: How fast to scroll (pixels per frame).
- * - `threshold`: The size of the "hot zone" at the top and bottom (in pixels).
  */
-export function autoscrollOnDrag(
-    node: HTMLElement,
-    params?: { scrollSpeed?: number; threshold?: number },
-) {
-    const scrollSpeed = params?.scrollSpeed ?? 10;
-    const threshold = params?.threshold ?? 60;
+export function autoscrollOnDrag(node: HTMLElement) {
+    const scrollSpeed = 10;
+    const threshold = 60;
 
     let animationFrameId: number | null = null;
     let scrollDirection: "up" | "down" | null = null;
