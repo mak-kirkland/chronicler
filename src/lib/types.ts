@@ -54,10 +54,9 @@ export type LayoutSeparator = {
     below?: string | string[];
 };
 
-/** A rule to group multiple fields together and render them in a specific way. */
+/** A rule to group multiple fields together. */
 export type LayoutGroup = {
-    type: "group";
-    render_as: "columns"; // This can be extended in the future, e.g., 'rows'
+    type: "group" | "columns";
     keys: string[];
 };
 
@@ -70,7 +69,6 @@ export type RenderItem =
     | { type: "separator" }
     | {
           type: "group";
-          render_as: "columns";
           // This holds an array of the group's *values*
           items: any[];
       }
