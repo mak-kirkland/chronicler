@@ -20,6 +20,7 @@ export default defineConfig(async () => ({
           '@codemirror/state',
           '@codemirror/language',
           '@lezer/highlight',
+          '@codemirror/lang-yaml',
       ]
   },
 
