@@ -2,7 +2,8 @@
     import { onMount } from "svelte";
     import { defaultKeymap } from "@codemirror/commands";
     import Codemirror from "svelte-codemirror-editor";
-    import { markdown } from "@codemirror/lang-markdown";
+    import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+    import { yamlFrontmatter } from "@codemirror/lang-yaml";
     import { EditorView, keymap } from "@codemirror/view";
     import { Prec } from "@codemirror/state";
     import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -219,10 +220,6 @@
             tag: t.meta, // '---' separators
             color: "var(--color-text-secondary)",
         },
-        {
-            tag: [t.propertyName, t.attributeName], // YAML keys
-            color: "var(--color-text-heading)",
-        },
 
         // --- CODE & SYNTAX HIGHLIGHTING ---
 
@@ -242,7 +239,7 @@
             fontWeight: "bold",
         },
 
-        // 3. HTML Attributes (class=, href=) & Object Properties
+        // 3. HTML and YAML Attributes (class=, href=) & Object Properties
         {
             tag: [t.attributeName, t.propertyName],
             color: "var(--code-attribute)",
@@ -264,7 +261,13 @@
     // The svelte-codemirror-editor wrapper handles basic setup like history and default keymaps.
     // We only need to provide the extensions that are truly custom to our application.
     const extensions = [
-        markdown(),
+        // Wrap markdown in yamlFrontmatter to parse the top block as YAML
+        yamlFrontmatter({
+            content: markdown({
+                base: markdownLanguage, // Uses GFM (Tables, Task lists, etc.) instead of strict CommonMark
+            }),
+        }),
+
         Prec.highest(keymap.of([...customKeymap, ...defaultKeymap])),
         EditorView.lineWrapping,
 
