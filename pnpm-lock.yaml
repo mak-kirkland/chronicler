@@ -58,17 +58,17 @@ importers:
         version: 16.4.2
       svelte-codemirror-editor:
         specifier: ^1.4.2
-        version: 1.4.2(codemirror@6.0.2)(svelte@5.43.14)
+        version: 1.4.2(codemirror@6.0.2)(svelte@5.45.2)
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: ^3.0.10
-        version: 3.0.10(@sveltejs/kit@2.49.0(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.43.14)(vite@6.4.1))(svelte@5.43.14)(vite@6.4.1))
+        version: 3.0.10(@sveltejs/kit@2.49.0(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.2)(vite@6.4.1))(svelte@5.45.2)(vite@6.4.1))
       '@sveltejs/kit':
         specifier: ^2.49.0
-        version: 2.49.0(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.43.14)(vite@6.4.1))(svelte@5.43.14)(vite@6.4.1)
+        version: 2.49.0(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.2)(vite@6.4.1))(svelte@5.45.2)(vite@6.4.1)
       '@sveltejs/vite-plugin-svelte':
         specifier: ^5.1.1
-        version: 5.1.1(svelte@5.43.14)(vite@6.4.1)
+        version: 5.1.1(svelte@5.45.2)(vite@6.4.1)
       '@tauri-apps/cli':
         specifier: ^2.9.4
         version: 2.9.4
@@ -76,17 +76,17 @@ importers:
         specifier: ^4.0.9
         version: 4.0.9
       prettier:
-        specifier: ^3.6.2
-        version: 3.6.2
+        specifier: ^3.7.1
+        version: 3.7.1
       prettier-plugin-svelte:
         specifier: ^3.4.0
-        version: 3.4.0(prettier@3.6.2)(svelte@5.43.14)
+        version: 3.4.0(prettier@3.7.1)(svelte@5.45.2)
       svelte:
-        specifier: ^5.43.14
-        version: 5.43.14
+        specifier: ^5.45.2
+        version: 5.45.2
       svelte-check:
         specifier: ^4.3.4
-        version: 4.3.4(picomatch@4.0.3)(svelte@5.43.14)(typescript@5.6.3)
+        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.2)(typescript@5.6.3)
       typescript:
         specifier: ~5.6.3
         version: 5.6.3
@@ -301,8 +301,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@lezer/common@1.3.0':
-    resolution: {integrity: sha512-L9X8uHCYU310o99L3/MpJKYxPzXPOS7S0NmBaM7UO/x2Kb2WbmMLSkfvdr1KxRIFYOpbY0Jhn7CfLSUDzL8arQ==}
+  '@lezer/common@1.4.0':
+    resolution: {integrity: sha512-DVeMRoGrgn/k45oQNu189BoW4SZwgZFzJ1+1TV5j2NJ/KFC83oa/enRqZSGshyeMk5cPWMhsKs9nx+8o0unwGg==}
 
   '@lezer/css@1.3.0':
     resolution: {integrity: sha512-pBL7hup88KbI7hXnZV3PQsn43DHy6TWyzuyk2AO9UyoXcDltvIdqWKE1dLL/45JVZ+YZkHe1WVHqO6wugZZWcw==}
@@ -316,8 +316,8 @@ packages:
   '@lezer/javascript@1.5.4':
     resolution: {integrity: sha512-vvYx3MhWqeZtGPwDStM2dwgljd5smolYD2lR2UyFcHfxbBQebqx8yjmFmxtJ/E6nN6u1D9srOiVWm3Rb4tmcUA==}
 
-  '@lezer/lr@1.4.3':
-    resolution: {integrity: sha512-yenN5SqAxAPv/qMnpWW0AT7l+SxVrgG+u0tNsRQWqbrz66HIl8DnEbBObvy21J5K7+I1v7gsAnlE2VQ5yYVSeA==}
+  '@lezer/lr@1.4.4':
+    resolution: {integrity: sha512-LHL17Mq0OcFXm1pGQssuGTQFPPdxARjKM8f7GA5+sGtHi0K3R84YaSbmche0+RKWHnCsx9asEe5OWOI4FHfe4A==}
 
   '@lezer/markdown@1.6.0':
     resolution: {integrity: sha512-AXb98u3M6BEzTnreBnGtQaF7xFTiMA92Dsy5tqEjpacbjRxDSFdN4bKJo9uvU4cEEOS7D2B9MT7kvDgOEIzJSw==}
@@ -641,8 +641,8 @@ packages:
   esm-env@1.2.2:
     resolution: {integrity: sha512-Epxrv+Nr/CaL4ZcFGPJIYLWFom+YeV1DqMLHJoEd9SYRxNbaFruBwfEX/kkHUJf55j2+TUbmDcmuilbP1TmXHA==}
 
-  esrap@2.1.3:
-    resolution: {integrity: sha512-T/Dhhv/QH+yYmiaLz9SA3PW+YyenlnRKDNdtlYJrSOBmNsH4nvPux+mTwx7p+wAedlJrGoZtXNI0a0MjQ2QkVg==}
+  esrap@2.2.0:
+    resolution: {integrity: sha512-WBmtxe7R9C5mvL4n2le8nMUe4mD5V9oiK2vJpQ9I3y20ENPUomPcphBXE8D1x/Bm84oN1V+lOfgXxtqmxTp3Xg==}
 
   fdir@6.5.0:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
@@ -713,8 +713,8 @@ packages:
       prettier: ^3.0.0
       svelte: ^3.2.0 || ^4.0.0-next.0 || ^5.0.0-next.0
 
-  prettier@3.6.2:
-    resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
+  prettier@3.7.1:
+    resolution: {integrity: sha512-RWKXE4qB3u5Z6yz7omJkjWwmTfLdcbv44jUVHC5NpfXwFGzvpQM798FGv/6WNK879tc+Cn0AAyherCl1KjbyZQ==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -759,8 +759,8 @@ packages:
       codemirror: ^6.0.0
       svelte: ^3.0.0 || ^4.0.0 || ^5.0.0
 
-  svelte@5.43.14:
-    resolution: {integrity: sha512-pHeUrp1A5S6RGaXhJB7PtYjL1VVjbVrJ2EfuAoPu9/1LeoMaJa/pcdCsCSb0gS4eUHAHnhCbUDxORZyvGK6kOQ==}
+  svelte@5.45.2:
+    resolution: {integrity: sha512-yyXdW2u3H0H/zxxWoGwJoQlRgaSJLp+Vhktv12iRw2WRDlKqUPT54Fi0K/PkXqrdkcQ98aBazpy0AH4BCBVfoA==}
     engines: {node: '>=18'}
 
   tinyglobby@0.2.15:
@@ -837,21 +837,21 @@ snapshots:
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.8
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
 
   '@codemirror/commands@6.10.0':
     dependencies:
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.8
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
 
   '@codemirror/lang-css@6.3.1':
     dependencies:
       '@codemirror/autocomplete': 6.20.0
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
       '@lezer/css': 1.3.0
 
   '@codemirror/lang-html@6.4.11':
@@ -862,7 +862,7 @@ snapshots:
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.8
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
       '@lezer/css': 1.3.0
       '@lezer/html': 1.3.12
 
@@ -873,7 +873,7 @@ snapshots:
       '@codemirror/lint': 6.9.2
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.8
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
       '@lezer/javascript': 1.5.4
 
   '@codemirror/lang-markdown@6.5.0':
@@ -883,16 +883,16 @@ snapshots:
       '@codemirror/language': 6.11.3
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.8
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
       '@lezer/markdown': 1.6.0
 
   '@codemirror/language@6.11.3':
     dependencies:
       '@codemirror/state': 6.5.2
       '@codemirror/view': 6.38.8
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
       '@lezer/highlight': 1.2.3
-      '@lezer/lr': 1.4.3
+      '@lezer/lr': 1.4.4
       style-mod: 4.1.3
 
   '@codemirror/lint@6.9.2':
@@ -1015,37 +1015,37 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@lezer/common@1.3.0': {}
+  '@lezer/common@1.4.0': {}
 
   '@lezer/css@1.3.0':
     dependencies:
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
       '@lezer/highlight': 1.2.3
-      '@lezer/lr': 1.4.3
+      '@lezer/lr': 1.4.4
 
   '@lezer/highlight@1.2.3':
     dependencies:
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
 
   '@lezer/html@1.3.12':
     dependencies:
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
       '@lezer/highlight': 1.2.3
-      '@lezer/lr': 1.4.3
+      '@lezer/lr': 1.4.4
 
   '@lezer/javascript@1.5.4':
     dependencies:
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
       '@lezer/highlight': 1.2.3
-      '@lezer/lr': 1.4.3
+      '@lezer/lr': 1.4.4
 
-  '@lezer/lr@1.4.3':
+  '@lezer/lr@1.4.4':
     dependencies:
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
 
   '@lezer/markdown@1.6.0':
     dependencies:
-      '@lezer/common': 1.3.0
+      '@lezer/common': 1.4.0
       '@lezer/highlight': 1.2.3
 
   '@marijn/find-cluster-break@1.0.2': {}
@@ -1124,15 +1124,15 @@ snapshots:
     dependencies:
       acorn: 8.15.0
 
-  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.49.0(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.43.14)(vite@6.4.1))(svelte@5.43.14)(vite@6.4.1))':
+  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.49.0(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.2)(vite@6.4.1))(svelte@5.45.2)(vite@6.4.1))':
     dependencies:
-      '@sveltejs/kit': 2.49.0(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.43.14)(vite@6.4.1))(svelte@5.43.14)(vite@6.4.1)
+      '@sveltejs/kit': 2.49.0(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.2)(vite@6.4.1))(svelte@5.45.2)(vite@6.4.1)
 
-  '@sveltejs/kit@2.49.0(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.43.14)(vite@6.4.1))(svelte@5.43.14)(vite@6.4.1)':
+  '@sveltejs/kit@2.49.0(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.2)(vite@6.4.1))(svelte@5.45.2)(vite@6.4.1)':
     dependencies:
       '@standard-schema/spec': 1.0.0
       '@sveltejs/acorn-typescript': 1.0.7(acorn@8.15.0)
-      '@sveltejs/vite-plugin-svelte': 5.1.1(svelte@5.43.14)(vite@6.4.1)
+      '@sveltejs/vite-plugin-svelte': 5.1.1(svelte@5.45.2)(vite@6.4.1)
       '@types/cookie': 0.6.0
       acorn: 8.15.0
       cookie: 0.6.0
@@ -1144,26 +1144,26 @@ snapshots:
       sade: 1.8.1
       set-cookie-parser: 2.7.2
       sirv: 3.0.2
-      svelte: 5.43.14
+      svelte: 5.45.2
       vite: 6.4.1
 
-  '@sveltejs/vite-plugin-svelte-inspector@4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.43.14)(vite@6.4.1))(svelte@5.43.14)(vite@6.4.1)':
+  '@sveltejs/vite-plugin-svelte-inspector@4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.2)(vite@6.4.1))(svelte@5.45.2)(vite@6.4.1)':
     dependencies:
-      '@sveltejs/vite-plugin-svelte': 5.1.1(svelte@5.43.14)(vite@6.4.1)
+      '@sveltejs/vite-plugin-svelte': 5.1.1(svelte@5.45.2)(vite@6.4.1)
       debug: 4.4.3
-      svelte: 5.43.14
+      svelte: 5.45.2
       vite: 6.4.1
     transitivePeerDependencies:
       - supports-color
 
-  '@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.43.14)(vite@6.4.1)':
+  '@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.2)(vite@6.4.1)':
     dependencies:
-      '@sveltejs/vite-plugin-svelte-inspector': 4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.43.14)(vite@6.4.1))(svelte@5.43.14)(vite@6.4.1)
+      '@sveltejs/vite-plugin-svelte-inspector': 4.0.1(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.2)(vite@6.4.1))(svelte@5.45.2)(vite@6.4.1)
       debug: 4.4.3
       deepmerge: 4.3.1
       kleur: 4.1.5
       magic-string: 0.30.21
-      svelte: 5.43.14
+      svelte: 5.45.2
       vite: 6.4.1
       vitefu: 1.1.1(vite@6.4.1)
     transitivePeerDependencies:
@@ -1319,7 +1319,7 @@ snapshots:
 
   esm-env@1.2.2: {}
 
-  esrap@2.1.3:
+  esrap@2.2.0:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
@@ -1366,12 +1366,12 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  prettier-plugin-svelte@3.4.0(prettier@3.6.2)(svelte@5.43.14):
+  prettier-plugin-svelte@3.4.0(prettier@3.7.1)(svelte@5.45.2):
     dependencies:
-      prettier: 3.6.2
-      svelte: 5.43.14
+      prettier: 3.7.1
+      svelte: 5.45.2
 
-  prettier@3.6.2: {}
+  prettier@3.7.1: {}
 
   readdirp@4.1.2: {}
 
@@ -1419,24 +1419,24 @@ snapshots:
 
   style-mod@4.1.3: {}
 
-  svelte-check@4.3.4(picomatch@4.0.3)(svelte@5.43.14)(typescript@5.6.3):
+  svelte-check@4.3.4(picomatch@4.0.3)(svelte@5.45.2)(typescript@5.6.3):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       chokidar: 4.0.3
       fdir: 6.5.0(picomatch@4.0.3)
       picocolors: 1.1.1
       sade: 1.8.1
-      svelte: 5.43.14
+      svelte: 5.45.2
       typescript: 5.6.3
     transitivePeerDependencies:
       - picomatch
 
-  svelte-codemirror-editor@1.4.2(codemirror@6.0.2)(svelte@5.43.14):
+  svelte-codemirror-editor@1.4.2(codemirror@6.0.2)(svelte@5.45.2):
     dependencies:
       codemirror: 6.0.2
-      svelte: 5.43.14
+      svelte: 5.45.2
 
-  svelte@5.43.14:
+  svelte@5.45.2:
     dependencies:
       '@jridgewell/remapping': 2.3.5
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -1446,8 +1446,9 @@ snapshots:
       aria-query: 5.3.2
       axobject-query: 4.1.0
       clsx: 2.1.1
+      devalue: 5.5.0
       esm-env: 1.2.2
-      esrap: 2.1.3
+      esrap: 2.2.0
       is-reference: 3.0.3
       locate-character: 3.0.0
       magic-string: 0.30.21
