@@ -41,10 +41,9 @@ interface VaultSettings {
 export type ThemeName = string;
 
 /**
- * The canonical list of CSS variables that make up a theme palette.
- * This is the single source of truth for the application's theme structure.
+ * The standard UI colors of the app.
  */
-export const THEME_PALETTE_KEYS = [
+export const UI_PALETTE_KEYS = [
     "--color-background-primary",
     "--color-background-secondary",
     "--color-background-tertiary",
@@ -56,6 +55,24 @@ export const THEME_PALETTE_KEYS = [
     "--color-text-link",
     "--color-text-link-broken",
     "--color-text-error",
+] as const;
+
+/**
+ * The syntax highlighting keys.
+ */
+export const SYNTAX_PALETTE_KEYS = [
+    "--code-tag",
+    "--code-attribute",
+    "--code-string",
+] as const;
+
+/**
+ * The canonical list of CSS variables that make up a FULL theme palette.
+ * This is the single source of truth for the application's theme structure.
+ */
+export const THEME_PALETTE_KEYS = [
+    ...UI_PALETTE_KEYS,
+    ...SYNTAX_PALETTE_KEYS,
 ] as const;
 
 /**
@@ -120,6 +137,32 @@ export const sidebarWidth = writable<number>(SIDEBAR_INITIAL_WIDTH);
 export const isTocVisible = writable<boolean>(true); // Default to visible
 export const areInfoboxTagsVisible = writable<boolean>(true);
 
+// --- Helper: Migration Logic ---
+
+/**
+ * Smartly fills missing syntax colors for older themes.
+ * Instead of forcing a default "Olive/Green" look, it tries to borrow
+ * colors from the theme's existing UI palette (like accents and text colors)
+ * to keep the theme consistent.
+ */
+function fillMissingColors(
+    palette: Partial<ThemePalette> | any,
+): ThemePalette {
+    const p = { ...palette };
+
+    // Helper to safely get a color or fallback to black if the theme is truly broken
+    const getCol = (key: string) => p[key] || "#000000";
+
+    // Fallbacks for Syntax Keys
+    if (!p["--code-tag"]) p["--code-tag"] = getCol("--color-text-heading");
+    if (!p["--code-attribute"])
+        p["--code-attribute"] = getCol("--color-text-secondary");
+    if (!p["--code-string"])
+        p["--code-string"] = getCol("--color-text-primary");
+
+    return p as ThemePalette;
+}
+
 // --- Private Save Functions ---
 
 /**
@@ -168,9 +211,17 @@ export async function loadGlobalSettings() {
     const settings =
         await globalSettingsFile.get<GlobalSettings>("globalSettings");
     if (settings) {
-        userThemes.set(settings.userThemes ?? []);
-        // Load the last used theme from the global settings file. This ensures
-        // the theme is applied immediately on startup, even before a vault is chosen.
+        // MIGRATION STEP:
+        // Ensure all loaded themes have the full palette (including new syntax keys).
+        // If they are missing keys, fill them with smart defaults.
+        const migratedThemes = (settings.userThemes ?? []).map((theme) => ({
+            ...theme,
+            palette: fillMissingColors(theme.palette),
+        }));
+
+        userThemes.set(migratedThemes);
+
+        // Load the last used theme from the global settings file.
         activeTheme.set(settings.lastActiveTheme ?? "light");
     }
     // Enable automatic saving for global settings.

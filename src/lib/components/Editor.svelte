@@ -5,13 +5,15 @@
     import { markdown } from "@codemirror/lang-markdown";
     import { EditorView, keymap } from "@codemirror/view";
     import { Prec } from "@codemirror/state";
+    import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+    import { tags as t } from "@lezer/highlight";
     import {
         autocompletion,
         type CompletionContext,
         type CompletionResult,
     } from "@codemirror/autocomplete";
     import { get } from "svelte/store";
-    import { allFileTitles, tags } from "$lib/worldStore";
+    import { allFileTitles, tags as worldTags } from "$lib/worldStore";
     import { toggleBold, toggleItalic } from "$lib/editor";
     import EditorToolbar from "./EditorToolbar.svelte";
 
@@ -71,7 +73,7 @@
         ) {
             const tagMatch = context.matchBefore(/\w*$/);
             if (tagMatch) {
-                const allTags = get(tags);
+                const allTags = get(worldTags);
                 return {
                     from: tagMatch.from,
                     options: allTags.map(([tag]) => ({
@@ -106,46 +108,158 @@
         },
     ];
 
-    const customTheme = EditorView.theme({
-        "&": {
-            // No fixed height, let it grow with content
-            width: "100%",
-            backgroundColor: "transparent",
+    /**
+     * 1. EDITOR UI THEME
+     * Handles the "shell" of the editor: gutters, background, selection, and cursor.
+     */
+    const chroniclerTheme = EditorView.theme(
+        {
+            "&": {
+                // No fixed height, let it grow with content
+                width: "100%",
+                backgroundColor: "transparent",
+                color: "var(--color-text-primary)",
+            },
+            ".cm-content": {
+                fontFamily: "var(--font-family-body)",
+                fontSize: "1.1rem",
+                lineHeight: "1.8",
+                paddingBottom: "50vh",
+            },
+            ".cm-gutters": {
+                backgroundColor: "transparent",
+                border: "none",
+            },
+            ".cm-activeLine": {
+                backgroundColor: "var(--color-overlay-medium)",
+            },
+            ".cm-cursor": {
+                borderLeftColor: "var(--color-text-primary)",
+            },
+            // Selection
+            ".cm-selectionBackground, ::selection": {
+                backgroundColor: "var(--color-accent-primary) !important",
+                opacity: "0.3",
+            },
+            "&.cm-focused .cm-selectionBackground": {
+                backgroundColor: "var(--color-accent-primary) !important",
+                opacity: "0.3",
+            },
+            // Autocomplete Dropdown
+            ".cm-tooltip.cm-tooltip-autocomplete": {
+                backgroundColor: "var(--color-background-primary)",
+                border: "1px solid var(--color-border-primary)",
+                borderRadius: "6px",
+                boxShadow: "0 4px 12px var(--color-overlay-subtle)",
+            },
+            ".cm-tooltip.cm-tooltip-autocomplete > ul": {
+                fontFamily: "var(--font-family-body)",
+                maxHeight: "10em",
+            },
+            ".cm-tooltip-autocomplete li": {
+                padding: "0.4rem 0.8rem",
+                color: "var(--color-text-secondary)",
+            },
+            ".cm-tooltip-autocomplete li[aria-selected]": {
+                backgroundColor: "var(--color-background-tertiary)",
+                color: "var(--color-text-primary)",
+            },
+            ".cm-completionIcon-link:after": { content: "'🔗'" },
+            ".cm-completionIcon-keyword:after": { content: "'#'" },
+        },
+        { dark: false },
+    );
+
+    /**
+     * 2. SYNTAX HIGHLIGHTING STYLE
+     * Maps Lezer tags (t.*) to your new CSS Variables.
+     * This ensures the highlighting responds instantly to theme changes.
+     */
+    const chroniclerHighlightStyle = HighlightStyle.define([
+        // --- MARKDOWN STRUCTURE ---
+        {
+            tag: t.heading,
+            color: "var(--color-text-heading)",
+            fontWeight: "bold",
+        },
+        {
+            tag: t.strong,
             color: "var(--color-text-primary)",
+            fontWeight: "bold",
         },
-        ".cm-content": {
-            fontFamily: "var(--font-family-body)",
-            fontSize: "1.1rem",
-            lineHeight: "1.8",
-            paddingBottom: "50vh",
-        },
-        ".cm-gutters": {
-            backgroundColor: "transparent",
-            border: "none",
-        },
-        ".cm-activeLine": {
-            backgroundColor: "var(--color-overlay-medium)",
-        },
-        ".cm-cursor": {
-            borderLeftColor: "var(--color-text-primary)",
-        },
-        // Style the autocomplete dropdown to match the app
-        ".cm-tooltip.cm-tooltip-autocomplete > ul": {
-            backgroundColor: "var(--color-background-primary)",
-            border: "1px solid var(--color-border-primary)",
-            fontFamily: "var(--font-family-body)",
-        },
-        ".cm-tooltip-autocomplete li[aria-selected]": {
-            backgroundColor: "var(--color-background-tertiary)",
+        {
+            tag: t.emphasis,
             color: "var(--color-text-primary)",
+            fontStyle: "italic",
         },
-        ".cm-completionIcon-link": {
-            "&:after": { content: "'🔗'" },
+        {
+            tag: [t.quote, t.comment],
+            color: "var(--color-text-secondary)",
+            fontStyle: "italic",
         },
-        ".cm-completionIcon-keyword": {
-            "&:after": { content: "'#'" },
+        {
+            tag: t.list,
+            color: "var(--color-accent-primary)",
         },
-    });
+
+        // --- LINKS ---
+        {
+            tag: t.link,
+            color: "var(--color-text-link)",
+            textDecoration: "underline",
+        },
+        {
+            tag: t.url,
+            color: "var(--color-text-link)",
+            textDecoration: "none",
+        },
+
+        // --- FRONTMATTER & METADATA ---
+        {
+            tag: t.meta, // '---' separators
+            color: "var(--color-text-secondary)",
+        },
+        {
+            tag: [t.propertyName, t.attributeName], // YAML keys
+            color: "var(--color-text-heading)",
+        },
+
+        // --- CODE & SYNTAX HIGHLIGHTING ---
+
+        // 1. Inline Code (The `backtick` style)
+        {
+            tag: t.monospace,
+            color: "var(--color-text-primary)",
+            backgroundColor: "var(--code-background-inline)",
+            borderRadius: "3px",
+            padding: "0 2px",
+        },
+
+        // 2. HTML/XML Tags (<div, <span)
+        {
+            tag: [t.tagName, t.standard(t.tagName)],
+            color: "var(--code-tag)",
+            fontWeight: "bold",
+        },
+
+        // 3. HTML Attributes (class=, href=) & Object Properties
+        {
+            tag: [t.attributeName, t.propertyName],
+            color: "var(--code-attribute)",
+        },
+
+        // 4. Strings & content inside quotes
+        {
+            tag: t.string,
+            color: "var(--code-string)",
+        },
+
+        // 5. Brackets and separators (keep subtle)
+        {
+            tag: [t.bracket, t.punctuation],
+            color: "var(--color-text-secondary)",
+        },
+    ]);
 
     // The svelte-codemirror-editor wrapper handles basic setup like history and default keymaps.
     // We only need to provide the extensions that are truly custom to our application.
@@ -153,7 +267,13 @@
         markdown(),
         Prec.highest(keymap.of([...customKeymap, ...defaultKeymap])),
         EditorView.lineWrapping,
-        customTheme,
+
+        // The structural base theme
+        chroniclerTheme,
+
+        // The semantic highlighting theme
+        syntaxHighlighting(chroniclerHighlightStyle),
+
         autocompletion({ override: [customCompletions] }),
     ];
 </script>
