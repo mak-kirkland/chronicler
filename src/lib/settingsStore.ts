@@ -102,6 +102,7 @@ export const AVAILABLE_FONTS = [
     { name: "Merriweather", value: `"Merriweather", serif` },
     { name: "Open Sans", value: `"Open Sans", sans-serif` },
     { name: "Orbitron", value: `"Orbitron", sans-serif` },
+    { name: "Spectral", value: `"Spectral", serif` },
     { name: "Uncial Antiqua", value: `"Uncial Antiqua", cursive` },
 ] as const;
 
@@ -302,11 +303,11 @@ const BUILT_IN_THEME_FONTS: Record<string, { heading: string; body: string }> =
         },
         dark: {
             heading: `"Uncial Antiqua", cursive`,
-            body: `"IM Fell English", serif`,
+            body: `"Spectral", serif`,
         },
         "slate-and-gold": {
             heading: `"Cinzel", serif`,
-            body: `"IM Fell English", serif`,
+            body: `"Spectral", serif`,
         },
         hologram: {
             heading: `"Orbitron", sans-serif`,

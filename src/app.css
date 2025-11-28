@@ -110,9 +110,6 @@
 
 /* --- Sci-Fi Hologram Theme --- */
 [data-theme="hologram"] {
-    --font-family-body: "IBM Plex Mono", monospace;
-    --font-family-heading: "Orbitron", sans-serif;
-
     --color-background-primary: #020a1f; /* Deep space blue */
     --color-background-secondary: #0d275a;
     --color-background-tertiary: #1a3a7a;
@@ -139,10 +136,6 @@
 }
 
 [data-theme="professional"] {
-    /* --- Typography --- */
-    --font-family-heading: "Merriweather", serif;
-    --font-family-body: "Open Sans", sans-serif;
-
     /* --- Colors (Clean & Professional Palette) --- */
     --color-background-primary: #ffffff; /* Clean white background */
     --color-background-secondary: #f8f9fa; /* Very light grey for side panels */
