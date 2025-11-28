@@ -17,7 +17,9 @@ export default defineConfig(async () => ({
 	  '@codemirror/view',
           '@codemirror/autocomplete',
           '@codemirror/commands',
-          '@codemirror/state'
+          '@codemirror/state',
+          '@codemirror/language',
+          '@lezer/highlight',
       ]
   },
 

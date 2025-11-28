@@ -11,6 +11,8 @@
         deleteCustomTheme,
         forceThemeRefresh,
         THEME_PALETTE_KEYS,
+        UI_PALETTE_KEYS,
+        SYNTAX_PALETTE_KEYS,
         type CustomTheme,
         type ThemePalette,
         type ThemeName,
@@ -23,7 +25,8 @@
     let originalName: ThemeName | null = $state(null);
 
     // --- Constants ---
-    const colorLabels: Record<keyof ThemePalette, string> = {
+    const colorLabels: Record<string, string> = {
+        // UI Colors
         "--color-background-primary": "Primary Background",
         "--color-background-secondary": "Secondary Background",
         "--color-background-tertiary": "Tertiary Background",
@@ -35,9 +38,15 @@
         "--color-text-link": "Links",
         "--color-text-link-broken": "Broken Links",
         "--color-text-error": "Errors",
+
+        // Syntax Colors
+        "--code-tag": "HTML Tags",
+        "--code-attribute": "Attributes (class=)",
+        "--code-string": "Strings",
     };
 
     const defaultPalette: ThemePalette = {
+        // UI Defaults
         "--color-background-primary": "#fdf6e3",
         "--color-background-secondary": "#e6dcc9",
         "--color-background-tertiary": "#dcd3c3",
@@ -49,6 +58,11 @@
         "--color-text-link": "#2563eb",
         "--color-text-link-broken": "#b04a4a",
         "--color-text-error": "#8b0000",
+
+        // Syntax Defaults (Parchment)
+        "--code-tag": "#b58900",
+        "--code-attribute": "#268bd2",
+        "--code-string": "#2aa198",
     };
 
     // --- Helper Functions ---
@@ -72,7 +86,10 @@
         if (currentTheme) {
             // Apply colors
             for (const [key, value] of Object.entries(currentTheme.palette)) {
-                document.documentElement.style.setProperty(key, value);
+                document.documentElement.style.setProperty(
+                    key,
+                    value as string,
+                );
             }
 
             return () => {
@@ -91,6 +108,7 @@
 
     function editTheme(theme: CustomTheme) {
         // Deep copy to avoid mutating the original store object.
+        // We rely on the store having already filled missing colors on load.
         currentTheme = JSON.parse(JSON.stringify(theme));
         originalName = theme.name;
     }
@@ -177,12 +195,12 @@
                     />
                 </div>
 
-                <h4>Colors</h4>
+                <h4>UI Colors</h4>
                 <div class="color-grid">
-                    {#each THEME_PALETTE_KEYS as paletteKey (paletteKey)}
+                    {#each UI_PALETTE_KEYS as paletteKey (paletteKey)}
                         <div class="form-group color-picker-group">
                             <label for="color-{paletteKey}"
-                                >{colorLabels[paletteKey]}</label
+                                >{colorLabels[paletteKey] || paletteKey}</label
                             >
                             <div class="color-input-wrapper">
                                 <input
@@ -197,6 +215,28 @@
                         </div>
                     {/each}
                 </div>
+
+                <h4>Syntax Highlighting</h4>
+                <div class="color-grid">
+                    {#each SYNTAX_PALETTE_KEYS as paletteKey (paletteKey)}
+                        <div class="form-group color-picker-group">
+                            <label for="color-{paletteKey}"
+                                >{colorLabels[paletteKey] || paletteKey}</label
+                            >
+                            <div class="color-input-wrapper">
+                                <input
+                                    id="color-{paletteKey}"
+                                    type="color"
+                                    bind:value={
+                                        currentTheme.palette[paletteKey]
+                                    }
+                                />
+                                <span>{currentTheme.palette[paletteKey]}</span>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+
                 <div class="form-actions">
                     <Button type="button" onclick={handleSave}
                         >Save Theme</Button

@@ -1,6 +1,6 @@
 @import "./fonts.css";
 
-/* --- Root Variables (Default Light Theme) --- */
+/* --- Root Variables (Default Light Theme / Parchment) --- */
 :root {
     /* Typography */
     --font-family-body: "IM Fell English", serif;
@@ -35,6 +35,12 @@
     /* UI Geometry */
     --radius-base: 4px;
     --select-arrow: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+
+    /* --- SYNTAX HIGHLIGHTING (Default / Parchment) --- */
+    --code-tag: #005f6a; /* Deep Teal Ink */
+    --code-attribute: #a0522d; /* Sienna (Warm Brown) */
+    --code-string: #556b2f; /* Dark Olive Green */
+    --code-background-inline: var(--color-background-secondary);
 }
 
 /* --- Dark Mode Theme --- */
@@ -57,6 +63,11 @@
     --color-overlay-light: rgba(255, 255, 255, 0.03);
     --color-overlay-medium: rgba(255, 255, 255, 0.05);
     --color-overlay-dark: rgba(255, 255, 255, 0.07);
+
+    /* Syntax Highlighting */
+    --code-tag: #da70d6; /* Orchid/Amethyst (Purple stands out from Gold) */
+    --code-attribute: #00ced1; /* Dark Turquoise (Gemstone Blue) */
+    --code-string: #adff2f; /* Green-Yellow (Peridot - distinct brightness) */
 }
 
 [data-theme="burgundy"] {
@@ -90,6 +101,11 @@
     --font-family-heading: "Cinzel", serif;
     --color-text-heading: #c5b358; /* A warm, desaturated gold */
     --color-accent-primary: #c5b358;
+
+    /* Syntax Highlighting */
+    --code-tag: #da70d6; /* Orchid/Amethyst (Purple stands out from Gold) */
+    --code-attribute: #00ced1; /* Dark Turquoise (Gemstone Blue) */
+    --code-string: #adff2f; /* Green-Yellow (Peridot - distinct brightness) */
 }
 
 /* --- Sci-Fi Hologram Theme --- */
@@ -115,6 +131,11 @@
     --color-overlay-light: rgba(0, 251, 253, 0.05);
     --color-overlay-medium: rgba(0, 251, 253, 0.07);
     --color-overlay-dark: rgba(0, 251, 253, 0.1);
+
+    /* Syntax Highlighting */
+    --code-tag: #d542ff;
+    --code-attribute: #ffe600;
+    --code-string: #ff5e78;
 }
 
 [data-theme="professional"] {
@@ -141,6 +162,12 @@
     --color-text-error: #dc3545; /* Standard "danger" red */
     --color-background-error: rgba(220, 53, 69, 0.1);
     --color-border-error: rgba(220, 53, 69, 0.2);
+
+    /* Syntax Highlighting (Professional) */
+    /* Concept: "GitHub Light" style. Clean and familiar. */
+    --code-tag: #e45649; /* Soft Red */
+    --code-attribute: #0184bc; /* Cerulean Blue (Crisp) */
+    --code-string: #50a14f; /* Vivid Green */
 }
 
 /* Global Styles */
