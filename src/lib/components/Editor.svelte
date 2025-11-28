@@ -9,6 +9,7 @@
     import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
     import { tags as t } from "@lezer/highlight";
     import {
+        acceptCompletion,
         autocompletion,
         type CompletionContext,
         type CompletionResult,
@@ -186,6 +187,10 @@
         {
             key: "Shift-Enter",
             run: forceWikilinkCompletion,
+        },
+        {
+            key: "Tab",
+            run: acceptCompletion,
         },
     ];
 
