@@ -13,6 +13,7 @@
         type CompletionContext,
         type CompletionResult,
         type Completion,
+        closeCompletion,
     } from "@codemirror/autocomplete";
     import { get } from "svelte/store";
     import {
@@ -135,6 +136,37 @@
 
     // --- CODEMIRROR CONFIGURATION ---
 
+    /**
+     * Handles the Shift-Enter keypress.
+     * If the user is inside a wikilink, it forces the completion to close
+     * and jumps the cursor past the closing brackets.
+     */
+    function forceWikilinkCompletion(view: EditorView): boolean {
+        const { state } = view;
+        const { from, to } = state.selection.main;
+
+        // 1. Get the current line content up to the cursor
+        const line = state.doc.lineAt(from);
+        const textBefore = state.sliceDoc(line.from, from);
+
+        // 2. Check if we are currently typing inside a wikilink
+        const match = textBefore.match(/\[\[([^\]]*)$/);
+
+        if (match) {
+            // 3. Force close the autocomplete dropdown
+            closeCompletion(view);
+
+            // 4. Move cursor 2 positions forward (past the ]])
+            view.dispatch({
+                selection: { anchor: to + 2 },
+            });
+
+            return true; // Stop default behavior (newline)
+        }
+
+        return false; // Let other handlers (like newline) proceed
+    }
+
     // Define custom keybindings
     const customKeymap = [
         {
@@ -150,6 +182,10 @@
                 toggleItalic(view);
                 return true;
             },
+        },
+        {
+            key: "Shift-Enter",
+            run: forceWikilinkCompletion,
         },
     ];
 
