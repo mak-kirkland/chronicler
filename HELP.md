@@ -256,7 +256,6 @@ Use the `layout` key to add headers and group fields into columns for a professi
 
 ##### Grouping Fields into Columns
 -   `type: group`: Defines the rule as a group.
--   `render_as: columns`: Specifies that the group should be rendered as columns.
 -   `keys: [field1, field2]`: A list of the frontmatter keys to include in the group.
 
 ##### Full Example
@@ -273,13 +272,11 @@ layout:
     text: Belligerents
     above: belligerents_allies
   - type: group
-    render_as: columns
     keys: [belligerents_allies, belligerents_central]
   - type: header
     text: Commanders
     above: commander_allies
   - type: group
-    render_as: columns
     keys: [commander_allies, commander_central]
 ---
 ```
