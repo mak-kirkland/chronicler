@@ -49,8 +49,9 @@ export type LayoutHeader = {
 /** A rule to inject a horizontal line into the infobox layout. */
 export type LayoutSeparator = {
     type: "separator";
-    above?: string;
-    below?: string;
+    // Separators can be reused, so we allow arrays to inject them in multiple places.
+    above?: string | string[];
+    below?: string | string[];
 };
 
 /** A rule to group multiple fields together and render them in a specific way. */
@@ -63,7 +64,7 @@ export type LayoutGroup = {
 /** A union type for any possible layout rule. */
 export type LayoutItem = LayoutHeader | LayoutGroup | LayoutSeparator;
 
-/** A union type representing the final, structured items to be rendered by the template. */
+/** A union type representing the final, structured items to be rendered by the infobox. */
 export type RenderItem =
     | { type: "header"; text: string }
     | { type: "separator" }
