@@ -21,7 +21,7 @@ import {
     getAllBrokenLinks,
     getAllParseErrors,
 } from "./commands";
-import { isMarkdown } from "./utils";
+import { isMarkdown, isImage } from "./utils";
 import type { FileNode, TagMap, BrokenLink, ParseError } from "./bindings";
 
 /**
@@ -185,9 +185,34 @@ function flattenFileTree(node: FileNode | null): string[] {
 }
 
 /**
+ * Recursively flattens the file tree to find all image files.
+ */
+function flattenImageTree(node: FileNode | null): string[] {
+    if (!node) return [];
+    const images: string[] = [];
+    if (node.name && isImage(node)) {
+        images.push(node.name);
+    }
+    if (node.children) {
+        for (const child of node.children) {
+            images.push(...flattenImageTree(child));
+        }
+    }
+    return images;
+}
+
+/**
  * A derived store that provides a flattened list of all page titles.
  * Useful for autocompletion features.
  */
 export const allFileTitles = derived(files, ($files) =>
     flattenFileTree($files),
+);
+
+/**
+ * A derived store that provides a flattened list of all image filenames.
+ * Useful for image link autocompletion.
+ */
+export const allImageFiles = derived(files, ($files) =>
+    flattenImageTree($files),
 );
