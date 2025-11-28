@@ -36,6 +36,7 @@ interface VaultSettings {
     sidebarWidth: number;
     isTocVisible: boolean;
     areInfoboxTagsVisible: boolean;
+    areFooterTagsVisible: boolean;
 }
 
 export type ThemeName = string;
@@ -137,6 +138,7 @@ export const fontSize = writable<number>(100);
 export const sidebarWidth = writable<number>(SIDEBAR_INITIAL_WIDTH);
 export const isTocVisible = writable<boolean>(true); // Default to visible
 export const areInfoboxTagsVisible = writable<boolean>(true);
+export const areFooterTagsVisible = writable<boolean>(false);
 
 // --- Helper: Migration Logic ---
 
@@ -146,9 +148,7 @@ export const areInfoboxTagsVisible = writable<boolean>(true);
  * colors from the theme's existing UI palette (like accents and text colors)
  * to keep the theme consistent.
  */
-function fillMissingColors(
-    palette: Partial<ThemePalette> | any,
-): ThemePalette {
+function fillMissingColors(palette: Partial<ThemePalette> | any): ThemePalette {
     const p = { ...palette };
 
     // Helper to safely get a color or fallback to black if the theme is truly broken
@@ -194,6 +194,7 @@ async function saveVaultSettings() {
         sidebarWidth: get(sidebarWidth),
         isTocVisible: get(isTocVisible),
         areInfoboxTagsVisible: get(areInfoboxTagsVisible),
+        areFooterTagsVisible: get(areFooterTagsVisible),
     };
     await vaultSettingsFile.set("vaultSettings", settings);
     await vaultSettingsFile.save();
@@ -251,6 +252,7 @@ export async function initializeVaultSettings(vaultPath: string) {
         sidebarWidth.set(settings.sidebarWidth ?? SIDEBAR_INITIAL_WIDTH);
         isTocVisible.set(settings.isTocVisible ?? true); // Fallback to true
         areInfoboxTagsVisible.set(settings.areInfoboxTagsVisible ?? true);
+        areFooterTagsVisible.set(settings.areFooterTagsVisible ?? true);
     } else {
         // If the vault has no settings file, it should adopt the current theme.
         // We immediately save the current settings to create the vault file,
@@ -266,6 +268,7 @@ export async function initializeVaultSettings(vaultPath: string) {
     sidebarWidth.subscribe(debouncedVaultSave);
     isTocVisible.subscribe(debouncedVaultSave);
     areInfoboxTagsVisible.subscribe(debouncedVaultSave);
+    areFooterTagsVisible.subscribe(debouncedVaultSave);
 }
 
 /**
@@ -283,6 +286,7 @@ export function destroyVaultSettings() {
     sidebarWidth.set(SIDEBAR_INITIAL_WIDTH);
     isTocVisible.set(true); // Reset to default
     areInfoboxTagsVisible.set(true);
+    areFooterTagsVisible.set(true);
     vaultSettingsFile = null; // Ensure no further saves can happen.
 }
 

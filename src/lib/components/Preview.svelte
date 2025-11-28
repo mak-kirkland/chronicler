@@ -2,8 +2,9 @@
     import type { RenderedPage } from "$lib/bindings";
     import Infobox from "./Infobox.svelte";
     import TableOfContents from "./TableOfContents.svelte";
-    import { isTocVisible } from "$lib/settingsStore";
+    import { isTocVisible, areFooterTagsVisible } from "$lib/settingsStore";
     import { tablesort } from "$lib/domActions";
+    import { navigateToTag } from "$lib/actions";
 
     // The type for the infobox data is complex, so we can use `any` here.
     // It's the `processed_frontmatter` object from the Rust backend.
@@ -51,6 +52,23 @@
 
                 {@html renderedData.html_after_toc}
             </div>
+
+            {#if $areFooterTagsVisible && infoboxData?.tags && Array.isArray(infoboxData.tags) && infoboxData.tags.length > 0}
+                <footer class="page-footer">
+                    <span class="footer-label">Tags:</span>
+                    <div class="footer-tags">
+                        {#each infoboxData.tags as tag}
+                            <button
+                                class="footer-tag-link"
+                                onclick={() => navigateToTag(tag)}
+                            >
+                                {tag}
+                            </button>
+                            <span class="separator">|</span>
+                        {/each}
+                    </div>
+                </footer>
+            {/if}
         </div>
     {/if}
 </div>
@@ -316,5 +334,47 @@
     .main-content :global(.sortable-table th[aria-sort="ascending"]::after) {
         content: " \25B2"; /* Up arrow */
         opacity: 1;
+    }
+
+    /* --- Footer Styles --- */
+    .page-footer {
+        margin-top: 3rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--color-border-primary);
+        font-size: 0.9rem;
+        color: var(--color-text-secondary);
+        display: flex;
+        gap: 0.5rem;
+        align-items: baseline;
+        clear: both; /* Ensure it sits below floated elements like the infobox */
+    }
+    .footer-label {
+        font-weight: bold;
+    }
+    .footer-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .footer-tag-link {
+        background: none;
+        border: none;
+        padding: 0;
+        color: var(--color-text-link);
+        cursor: pointer;
+        text-decoration: none;
+    }
+    .footer-tag-link:hover {
+        text-decoration: underline;
+        color: var(--color-text-primary);
+    }
+    .separator {
+        color: var(--color-text-secondary);
+        opacity: 0.5;
+        user-select: none;
+    }
+    /* Hide the last separator */
+    .footer-tags .separator:last-child {
+        display: none;
     }
 </style>
