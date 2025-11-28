@@ -291,8 +291,11 @@ export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
                 addInjection(rule.above, item, aboveRules);
                 addInjection(rule.below, item, belowRules);
             }
-            // Case C: Groups
-            else if (rule.type === "group" && rule.keys?.length > 0) {
+            // Case C: Groups OR Columns
+            else if (
+                (rule.type === "group" || rule.type === "columns") &&
+                rule.keys?.length > 0
+            ) {
                 // Register the group logic against the FIRST key in the group.
                 groupRules.set(rule.keys[0], rule);
             }
@@ -333,7 +336,6 @@ export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
             if (groupValues.length > 0) {
                 finalItems.push({
                     type: "group",
-                    render_as: rule.render_as,
                     items: groupValues,
                 });
             }
