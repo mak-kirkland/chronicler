@@ -1,5 +1,8 @@
 <script lang="ts">
-    import { areInfoboxTagsVisible } from "$lib/settingsStore";
+    import {
+        areInfoboxTagsVisible,
+        areFooterTagsVisible,
+    } from "$lib/settingsStore";
     import Modal from "./Modal.svelte";
 
     let { onClose } = $props<{ onClose: () => void }>();
@@ -9,12 +12,26 @@
     <div class="modal-body-content">
         <div class="setting-item">
             <div class="setting-control-row">
-                <label for="show-tags">Show Tags</label>
+                <label for="show-tags">Show Tags in Infobox</label>
                 <label class="toggle-switch">
                     <input
                         type="checkbox"
                         id="show-tags"
                         bind:checked={$areInfoboxTagsVisible}
+                    />
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-control-row">
+                <label for="show-footer-tags">Show Tags in Footer</label>
+                <label class="toggle-switch">
+                    <input
+                        type="checkbox"
+                        id="show-footer-tags"
+                        bind:checked={$areFooterTagsVisible}
                     />
                     <span class="slider"></span>
                 </label>
