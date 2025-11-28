@@ -2,6 +2,26 @@
 
 ---
 
+## [v0.35.0-alpha] - 2025-11-28
+
+### 🚀 Performance
+
+- **Startup**: Parallelize initial scan. The application now indexes your vault significantly faster. The indexing engine has been updated to process files in parallel, utilizing all available CPU cores during the startup phase.
+- **Image View**: Large images located within the vault now load instantly in the full-screen viewer. The viewer has been updated to stream files directly from the disk (using the Asset Protocol) rather than converting them to heavy text strings, which reduces memory usage and eliminates lag.
+- **Search**: The file explorer search is now more performant. A slight delay (debounce) has been added to the input field so that the search filter updates only after you stop typing, rather than trying to filter the list with every single keystroke.
+
+### ✨ Added
+
+- **Infobox**: You can now inject the same layout element (such as a separator or header) into multiple locations using a single rule. The `above` and `below` keys in the layout configuration now accept a list of field names (e.g., `above: ["Species", "Origin"]`).
+- **Infobox**: A visual separator line is now automatically added above the tags section to clearly distinguish metadata tags from the main infobox content.
+
+### 🔄 Changed
+
+- **(BREAKING) Infobox**: The YAML syntax for defining custom layouts has been simplified. The nested `position` object is no longer supported. You must now place `above` and `below` keys at the top level of the rule (e.g., use `above: "field_name"` instead of `position: { above: "field_name" }`).
+- **Styling**: The automatic bottom border has been removed from infobox layout groups to prevent "double borders" and visual clutter when stacking multiple groups together.
+
+---
+
 ## [v0.34.0-alpha] - 2025-11-24
 
 ### ✨ Added
@@ -10,7 +30,7 @@
 
 ### 🔄 Changed
 
-- **BREAKING CHANGE: Templates**: The template system has been completely overhauled. Templates are no longer stored in the global application configuration but are now managed as standard Markdown files within a `_system/templates` folder inside your vault. This allows you to use the main editor to create and modify your templates. **Note**: This is a breaking change; if you had existing templates, you will need to manually move them to the new folder.
+- **(BREAKING) Templates**: The template system has been completely overhauled. Templates are no longer stored in the global application configuration but are now managed as standard Markdown files within a `_system/templates` folder inside your vault. This allows you to use the main editor to create and modify your templates. **Note**: This is a breaking change; if you had existing templates, you will need to manually move them to the new folder.
 - **Explorer**: Improved the file tree sorting logic to be more intuitive. "Special" folders starting with an underscore (e.g., `_templates`) are now consistently pinned to the top, and all items are now sorted in a a case-insensitive way.
 
 ### 🐞 Fixed
