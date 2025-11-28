@@ -247,6 +247,8 @@ Use the `layout` key to add headers and group fields into columns for a professi
 -   `type: separator`: Defines the rule as a horizontal separator.
 -   `above: 'field_name'`: Injects the separator immediately before `field_name`.
 
+> Tip: You can define multiple separators using an array, e.g `below: [field1, field2]`.
+
 ##### Adding Headers
 -   `type: header`: Defines the rule as a header.
 -   `text: 'Your Text'`: The text to display in the header.
