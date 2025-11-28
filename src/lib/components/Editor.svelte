@@ -14,7 +14,11 @@
         type CompletionResult,
     } from "@codemirror/autocomplete";
     import { get } from "svelte/store";
-    import { allFileTitles, tags as worldTags } from "$lib/worldStore";
+    import {
+        allFileTitles,
+        allImageFiles,
+        tags as worldTags,
+    } from "$lib/worldStore";
     import { toggleBold, toggleItalic } from "$lib/editor";
     import EditorToolbar from "./EditorToolbar.svelte";
 
@@ -34,12 +38,20 @@
         // Check for [[wikilink]] completion trigger
         const linkMatch = context.matchBefore(/\[\[([^\]]*)$/);
         if (linkMatch) {
-            const allFiles = get(allFileTitles);
+            // Check if the link is preceded by a '!' indicating an image link
+            const isImageLink =
+                context.state.sliceDoc(linkMatch.from - 1, linkMatch.from) ===
+                "!";
+
+            const optionsSource = isImageLink
+                ? get(allImageFiles)
+                : get(allFileTitles);
+
             return {
                 from: linkMatch.from + 2, // Start replacing after the [[
-                options: allFiles.map((title) => ({
-                    label: title,
-                    type: "link",
+                options: optionsSource.map((label) => ({
+                    label: label,
+                    type: isImageLink ? "image" : "link",
                     // We use a custom apply function to gain full control over the completion.
                     // This allows us to insert the text and manually place the cursor.
                     apply: (view, completion, from, to) => {
@@ -166,6 +178,7 @@
                 color: "var(--color-text-primary)",
             },
             ".cm-completionIcon-link:after": { content: "'🔗'" },
+            ".cm-completionIcon-image:after": { content: "'🖼️'" },
             ".cm-completionIcon-keyword:after": { content: "'#'" },
         },
         { dark: false },
