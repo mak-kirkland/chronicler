@@ -12,6 +12,7 @@
         autocompletion,
         type CompletionContext,
         type CompletionResult,
+        type Completion,
     } from "@codemirror/autocomplete";
     import { get } from "svelte/store";
     import {
@@ -47,9 +48,14 @@
                 ? get(allImageFiles)
                 : get(allFileTitles);
 
-            return {
-                from: linkMatch.from + 2, // Start replacing after the [[
-                options: optionsSource.map((label) => ({
+            const rawQuery = linkMatch.text.slice(2); // Remove '[['
+            const query = rawQuery.toLowerCase();
+
+            // We construct the matches array manually to handle filtering
+            // 1. Filter existing matches first
+            const matches: Completion[] = optionsSource
+                .filter((label) => label.toLowerCase().includes(query))
+                .map((label) => ({
                     label: label,
                     type: isImageLink ? "image" : "link",
                     // We use a custom apply function to gain full control over the completion.
@@ -69,12 +75,38 @@
                             },
                         });
                     },
-                })),
-                filter: true,
+                }));
+
+            // 2. Only add "Create" if NO other matches were found
+            if (matches.length === 0 && rawQuery.trim().length > 0) {
+                matches.push({
+                    label: rawQuery,
+                    displayLabel: `Create "${rawQuery}"`,
+                    type: "keyword",
+                    // The apply function here is identical, ensuring it inserts the text
+                    apply: (view, completion, from, to) => {
+                        view.dispatch({
+                            changes: {
+                                from,
+                                to,
+                                insert: `${completion.label}`,
+                            },
+                            selection: {
+                                anchor: from + completion.label.length + 2,
+                            },
+                        });
+                    },
+                });
+            }
+
+            return {
+                from: linkMatch.from + 2,
+                options: matches,
+                filter: false,
             };
         }
 
-        // Check for frontmatter tag completion trigger
+        // --- 2. FRONTMATTER TAG LOGIC ---
         const line = context.state.doc.lineAt(context.pos);
         const tagLineMatch = line.text.trim().match(/^tags:\s*\[(.*?)\]/);
 
