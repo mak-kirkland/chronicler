@@ -14,6 +14,7 @@
         SYSTEM_FOLDER_NAME,
         TEMPLATE_FOLDER_NAME,
         TEMPLATE_FOLDER_PATH,
+        DEFAULT_TEMPLATE_NAME,
     } from "$lib/config";
     import type { PageHeader } from "$lib/bindings";
     import Modal from "./Modal.svelte";
@@ -189,6 +190,11 @@
                 Manage templates from your vault's
                 <code>{TEMPLATE_FOLDER_PATH}</code> folder.
             </p>
+            <p class="description-tip">
+                <strong>Tip:</strong> Create a template named
+                <code>{DEFAULT_TEMPLATE_NAME}</code>
+                to override the default blank page format.
+            </p>
             <ul class="template-list">
                 {#each templateFiles as template (template.path)}
                     <li class="template-item">
@@ -239,6 +245,15 @@
         font-size: 0.95rem;
         color: var(--color-text-secondary);
         margin: 0;
+    }
+    .description-tip {
+        font-size: 0.9rem;
+        color: var(--color-text-secondary);
+        background-color: var(--color-background-secondary);
+        padding: 0.5rem;
+        border-radius: 4px;
+        margin: 0;
+        border-left: 3px solid var(--color-accent-primary);
     }
     .template-list {
         list-style: none;

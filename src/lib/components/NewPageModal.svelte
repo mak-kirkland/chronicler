@@ -10,7 +10,11 @@
     import SearchableSelect from "./SearchableSelect.svelte";
     import { vaultPath, files } from "$lib/worldStore";
     import { normalizePath, isMarkdown } from "$lib/utils";
-    import { SYSTEM_FOLDER_NAME, TEMPLATE_FOLDER_NAME } from "$lib/config";
+    import {
+        SYSTEM_FOLDER_NAME,
+        TEMPLATE_FOLDER_NAME,
+        DEFAULT_TEMPLATE_NAME,
+    } from "$lib/config";
 
     let {
         parentDir,
@@ -25,7 +29,7 @@
     // --- State ---
     let allDirs = $state<string[]>([]);
     let pageName = $state(initialName);
-    // We use an empty string to represent "Blank Page" for the Select component
+    // We use an empty string to represent "Default Page" for the Select component
     let selectedTemplatePath = $state<string>("");
     let selectedParentDir = $state(normalizePath(parentDir));
 
@@ -54,9 +58,19 @@
         );
     });
 
+    // Check if the user has defined a custom default template.
+    const hasCustomDefault = $derived(
+        templates.some((t) => t.title.toLowerCase() === DEFAULT_TEMPLATE_NAME),
+    );
+
     // Create a simple array of paths for the SearchableSelect
-    // The first option "" represents the default blank page
-    const templateOptions = $derived(["", ...templates.map((t) => t.path)]);
+    // The first option "" represents the default behavior (either blank or custom default)
+    const templateOptions = $derived([
+        "",
+        ...templates
+            .filter((t) => t.title.toLowerCase() !== DEFAULT_TEMPLATE_NAME)
+            .map((t) => t.path),
+    ]);
 
     // --- Lifecycle ---
     onMount(async () => {
@@ -80,9 +94,26 @@
             return;
         }
 
-        // Convert empty string back to null for the backend action
-        const templateToUse =
-            selectedTemplatePath === "" ? null : selectedTemplatePath;
+        let templateToUse: string | null = null;
+
+        if (selectedTemplatePath === "") {
+            // User selected the generic "Default" option.
+            // We check if they have a custom override template.
+            const customDefault = templates.find(
+                (t) => t.title.toLowerCase() === DEFAULT_TEMPLATE_NAME,
+            );
+
+            if (customDefault) {
+                // Override found: Use its path.
+                templateToUse = customDefault.path;
+            } else {
+                // No override: Pass null to backend to use the hardcoded blank template.
+                templateToUse = null;
+            }
+        } else {
+            // User explicitly selected a specific template.
+            templateToUse = selectedTemplatePath;
+        }
 
         createFile(selectedParentDir, pageName.trim(), templateToUse);
         closeModal();
@@ -100,7 +131,9 @@
 
     /** Helper to display template names based on their path */
     function getTemplateDisplay(path: string): string {
-        if (path === "") return "Blank Page (Default)";
+        if (path === "") {
+            return hasCustomDefault ? "Default (Custom)" : "Default (Blank)";
+        }
         const t = templates.find((item) => item.path === path);
         return t ? t.title : path;
     }
