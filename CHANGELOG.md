@@ -2,6 +2,24 @@
 
 ---
 
+## [v0.36.0-alpha] - 2025-12-01
+
+### ✨ Added
+
+- **Templates**: You can now define a custom default template for all new pages. Simply create a template named `_default` in your template manager, and the application will automatically use it as the starting point for all new pages instead of the blank default.
+- **UI**: The dropdown menus in the "New Page" modal (for Folder and Template selection) have been replaced with **searchable selects**. You can now type to filter the list, making it significantly faster to find the right destination in large vaults.
+- **UI**: Added an "About" button to the sidebar footer to view application version information, credits, and links.
+
+### 🔄 Changed
+
+- **Welcome**: The Welcome screen has been redesigned with a new full-width hero banner and updated typography.
+
+### 🐞 Fixed
+
+- **Fonts**: Fixed a rendering issue where bold text appeared blurry or distorted ("synthetic bold"). The application now includes dedicated font files for **Bold** (700 weight) to ensure crisp text rendering.
+
+---
+
 ## [v0.35.0-alpha] - 2025-11-28
 
 ### 🚀 Performance
