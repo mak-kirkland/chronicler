@@ -55,3 +55,8 @@ export const TEMPLATE_FOLDER_NAME = "templates";
  * The full path to the templates folder relative to the vault root.
  */
 export const TEMPLATE_FOLDER_PATH = `${SYSTEM_FOLDER_NAME}/${TEMPLATE_FOLDER_NAME}`;
+
+/**
+ * The name of the special template used as the default for new pages.
+ */
+export const DEFAULT_TEMPLATE_NAME = "_default";
