@@ -16,6 +16,8 @@
         type CustomTheme,
         type ThemePalette,
         type ThemeName,
+        AVAILABLE_FONTS,
+        userFonts,
     } from "$lib/settingsStore";
 
     let { onClose } = $props<{ onClose: () => void }>();
@@ -23,6 +25,13 @@
     // --- State ---
     let currentTheme: CustomTheme | null = $state(null);
     let originalName: ThemeName | null = $state(null);
+
+    // --- Computed Font List ---
+    // Combine built-in fonts with user-provided fonts for the dropdowns
+    const allAvailableFonts = $derived([
+        ...AVAILABLE_FONTS,
+        ...$userFonts.map((f) => ({ name: f.name, value: `"${f.name}"` })),
+    ]);
 
     // --- Constants ---
     const colorLabels: Record<string, string> = {
@@ -71,6 +80,8 @@
         for (const key of THEME_PALETTE_KEYS) {
             document.documentElement.style.removeProperty(key);
         }
+        document.documentElement.style.removeProperty("--font-family-heading");
+        document.documentElement.style.removeProperty("--font-family-body");
     }
 
     // --- Component Logic ---
@@ -92,6 +103,20 @@
                 );
             }
 
+            // Apply font preview if selected
+            if (currentTheme.headingFont) {
+                document.documentElement.style.setProperty(
+                    "--font-family-heading",
+                    currentTheme.headingFont,
+                );
+            }
+            if (currentTheme.bodyFont) {
+                document.documentElement.style.setProperty(
+                    "--font-family-body",
+                    currentTheme.bodyFont,
+                );
+            }
+
             return () => {
                 clearLivePreviewStyles();
             };
@@ -102,6 +127,7 @@
         currentTheme = {
             name: "My New Theme",
             palette: { ...defaultPalette },
+            // Optional: Default to current fonts or leave undefined
         };
         originalName = null;
     }
@@ -193,6 +219,36 @@
                         type="text"
                         bind:value={currentTheme.name}
                     />
+                </div>
+
+                <h4>Typography (Optional)</h4>
+                <div class="font-grid">
+                    <div class="form-group">
+                        <label for="theme-heading-font">Heading Font</label>
+                        <select
+                            id="theme-heading-font"
+                            class="font-select"
+                            bind:value={currentTheme.headingFont}
+                        >
+                            <option value="">-</option>
+                            {#each allAvailableFonts as font (font.value)}
+                                <option value={font.value}>{font.name}</option>
+                            {/each}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="theme-body-font">Body Font</label>
+                        <select
+                            id="theme-body-font"
+                            class="font-select"
+                            bind:value={currentTheme.bodyFont}
+                        >
+                            <option value="">-</option>
+                            {#each allAvailableFonts as font (font.value)}
+                                <option value={font.value}>{font.name}</option>
+                            {/each}
+                        </select>
+                    </div>
                 </div>
 
                 <h4>UI Colors</h4>
@@ -380,5 +436,30 @@
         margin-bottom: 0.5rem;
         padding-bottom: 0.25rem;
         border-bottom: 1px solid var(--color-border-primary);
+    }
+
+    .font-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .font-select {
+        appearance: none;
+        background-image: var(--select-arrow);
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1.2em;
+        width: 100%;
+        padding: 0.5rem;
+        padding-right: 2.5rem; /* Ensure specific padding overrides general padding */
+        font-family: inherit;
+        font-size: 1rem;
+        border: 1px solid var(--color-border-primary);
+        background-color: var(--color-background-secondary);
+        color: var(--color-text-primary);
+        border-radius: 4px;
+        box-sizing: border-box;
+        cursor: pointer;
     }
 </style>
