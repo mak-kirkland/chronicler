@@ -112,5 +112,7 @@
     }
     .modal-body-wrapper {
         padding-right: 1rem;
+        /* Add padding left so content doesn't get clipped by the scroll container */
+        padding-left: 0.5rem;
     }
 </style>

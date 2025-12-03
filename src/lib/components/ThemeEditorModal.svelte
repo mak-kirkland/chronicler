@@ -360,6 +360,8 @@
         overflow-y: auto;
         /* Add some padding to the right to make space for the scrollbar */
         padding-right: 1rem;
+        /* Add padding-left so focus rings and borders aren't clipped by overflow */
+        padding-left: 0.5rem;
         /* A crucial property for flexbox children to scroll correctly */
         min-height: 0;
     }
