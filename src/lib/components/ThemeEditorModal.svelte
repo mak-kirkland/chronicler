@@ -227,7 +227,7 @@
                         <label for="theme-heading-font">Heading Font</label>
                         <select
                             id="theme-heading-font"
-                            class="font-select"
+                            class="dropdown-select"
                             bind:value={currentTheme.headingFont}
                         >
                             <option value="">-</option>
@@ -240,7 +240,7 @@
                         <label for="theme-body-font">Body Font</label>
                         <select
                             id="theme-body-font"
-                            class="font-select"
+                            class="dropdown-select"
                             bind:value={currentTheme.bodyFont}
                         >
                             <option value="">-</option>
@@ -442,24 +442,5 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1rem;
-    }
-
-    .font-select {
-        appearance: none;
-        background-image: var(--select-arrow);
-        background-repeat: no-repeat;
-        background-position: right 0.75rem center;
-        background-size: 1.2em;
-        width: 100%;
-        padding: 0.5rem;
-        padding-right: 2.5rem; /* Ensure specific padding overrides general padding */
-        font-family: inherit;
-        font-size: 1rem;
-        border: 1px solid var(--color-border-primary);
-        background-color: var(--color-background-secondary);
-        color: var(--color-text-primary);
-        border-radius: 4px;
-        box-sizing: border-box;
-        cursor: pointer;
     }
 </style>
