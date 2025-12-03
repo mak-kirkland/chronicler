@@ -6,7 +6,11 @@
     import { yamlFrontmatter } from "@codemirror/lang-yaml";
     import { EditorView, keymap } from "@codemirror/view";
     import { Prec } from "@codemirror/state";
-    import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+    import {
+        HighlightStyle,
+        syntaxHighlighting,
+        syntaxTree,
+    } from "@codemirror/language";
     import { tags as t } from "@lezer/highlight";
     import {
         acceptCompletion,
@@ -15,6 +19,7 @@
         type CompletionResult,
         type Completion,
         closeCompletion,
+        startCompletion,
     } from "@codemirror/autocomplete";
     import { get } from "svelte/store";
     import {
@@ -168,6 +173,33 @@
         return false; // Let other handlers (like newline) proceed
     }
 
+    /**
+     * Custom handler for '[' to force bracket closing inside strings (e.g. YAML frontmatter).
+     * The standard closeBrackets extension typically skips strings, which prevents
+     * automatic closing of wikilinks like "[[...]]" inside frontmatter quotes.
+     */
+    function handleLeftBracket(view: EditorView): boolean {
+        const { state } = view;
+        const range = state.selection.main;
+        if (!range.empty) return false;
+
+        const tree = syntaxTree(state);
+        const node = tree.resolveInner(range.head, -1);
+
+        // If we are in a string context (YAML or Code), force the pair.
+        // We check for "String" or "Quote" in the node name to catch various string types.
+        if (node.name.includes("String") || node.name.includes("Quote")) {
+            view.dispatch({
+                changes: { from: range.head, insert: "[]" },
+                selection: { anchor: range.head + 1 },
+            });
+            // Force completion to trigger immediately after insertion
+            startCompletion(view);
+            return true;
+        }
+        return false;
+    }
+
     // Define custom keybindings
     const customKeymap = [
         {
@@ -191,6 +223,10 @@
         {
             key: "Tab",
             run: acceptCompletion,
+        },
+        {
+            key: "[",
+            run: handleLeftBracket,
         },
     ];
 
