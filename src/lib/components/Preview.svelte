@@ -5,6 +5,7 @@
     import { isTocVisible, areFooterTagsVisible } from "$lib/settingsStore";
     import { tablesort } from "$lib/domActions";
     import { navigateToTag } from "$lib/actions";
+    import { buildInfoboxLayout } from "$lib/utils";
 
     // The type for the infobox data is complex, so we can use `any` here.
     // It's the `processed_frontmatter` object from the Rust backend.
@@ -19,6 +20,38 @@
         infoboxData?: InfoboxData | null;
         mode?: "split" | "unified";
     }>();
+
+    // --- Infobox Visibility Logic ---
+    // Calculate if the infobox has "real" content (images, errors, or key-value pairs).
+    // If it only has metadata (title, subtitle, tags), we consider it "empty" to reduce clutter.
+
+    const layoutItems = $derived(buildInfoboxLayout(infoboxData));
+
+    const hasImages = $derived(
+        infoboxData?.images &&
+            Array.isArray(infoboxData.images) &&
+            infoboxData.images.length > 0,
+    );
+
+    const hasError = $derived(!!infoboxData?.error);
+
+    const hasContentFields = $derived(layoutItems.length > 0);
+
+    // Show the infobox ONLY if it has images, an error, or actual data fields.
+    const showInfobox = $derived(
+        infoboxData && (hasImages || hasError || hasContentFields),
+    );
+
+    // --- Footer Tag Logic ---
+    // Show tags in the footer if:
+    // 1. There are tags to show.
+    // 2. AND (The user enabled footer tags globally OR the infobox is hidden).
+    const showFooterTags = $derived(
+        infoboxData?.tags &&
+            Array.isArray(infoboxData.tags) &&
+            infoboxData.tags.length > 0 &&
+            ($areFooterTagsVisible || !showInfobox),
+    );
 </script>
 
 <!--
@@ -32,7 +65,7 @@
     tabindex="0"
     use:tablesort={renderedData}
 >
-    {#if infoboxData}
+    {#if showInfobox}
         <!-- Use <aside> for better semantics. It's floated, so order in HTML matters. -->
         <aside class="infobox-wrapper">
             <Infobox data={infoboxData} />
@@ -53,7 +86,7 @@
                 {@html renderedData.html_after_toc}
             </div>
 
-            {#if $areFooterTagsVisible && infoboxData?.tags && Array.isArray(infoboxData.tags) && infoboxData.tags.length > 0}
+            {#if showFooterTags && infoboxData?.tags}
                 <footer class="page-footer">
                     <span class="footer-label">Tags:</span>
                     <div class="footer-tags">
