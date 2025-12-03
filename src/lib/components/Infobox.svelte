@@ -77,6 +77,22 @@
         // The main layout logic is gone.
         currentImageIndex = 0;
     });
+
+    // --- Helper for Grid Layout ---
+    function getRowCount(items: any[]) {
+        if (!items || items.length === 0) return 0;
+        return Math.max(
+            0,
+            ...items.map((v) => (Array.isArray(v) ? v.length : 1)),
+        );
+    }
+
+    function getCellContent(colValue: any, rowIndex: number) {
+        if (Array.isArray(colValue)) {
+            return colValue[rowIndex] !== undefined ? colValue[rowIndex] : "";
+        }
+        return rowIndex === 0 ? colValue : "";
+    }
 </script>
 
 <div class="infobox">
@@ -197,20 +213,27 @@
                         <hr class="layout-separator" />
                     {:else if renderItem.type === "group"}
                         <!-- Groups also span the full width to contain their own layout. -->
+                        <!--
+                            We transpose the data here to use CSS Grid for row alignment.
+                            Instead of rendering column-by-column, we render cell-by-cell in row-major order.
+                        -->
+                        {@const rowCount = getRowCount(renderItem.items)}
+                        {@const colCount = renderItem.items.length}
+
                         <div class="layout-group-wrapper">
-                            <div class="layout-columns">
-                                {#each renderItem.items as value}
-                                    <div class="layout-column">
-                                        <span class="layout-column-value">
-                                            {#if Array.isArray(value)}
-                                                {#each value as v}<span
-                                                        >{@html v}</span
-                                                    >{/each}
-                                            {:else}
-                                                {@html value}
-                                            {/if}
-                                        </span>
-                                    </div>
+                            <div
+                                class="layout-grid"
+                                style="grid-template-columns: repeat({colCount}, 1fr);"
+                            >
+                                {#each { length: rowCount } as _, rowIndex}
+                                    {#each renderItem.items as colValue}
+                                        <div class="layout-cell">
+                                            {@html getCellContent(
+                                                colValue,
+                                                rowIndex,
+                                            )}
+                                        </div>
+                                    {/each}
                                 {/each}
                             </div>
                         </div>
@@ -552,22 +575,19 @@
         margin-bottom: var(--space-xs);
         padding-bottom: var(--space-xs);
     }
-    .layout-columns {
-        display: flex;
-        gap: var(--space-sm);
-        align-items: flex-start;
-        justify-content: space-around;
+
+    .layout-grid {
+        display: grid;
+        gap: 0 var(--space-sm);
+        align-items: start;
+        /* grid-template-columns is set inline based on data */
     }
-    .layout-column {
-        flex: 1;
+
+    .layout-cell {
         min-width: 0;
-        display: flex;
-        flex-direction: column;
-        text-align: left;
-    }
-    .layout-column-value span {
-        /* In case the value is an array, stack the items vertically. */
-        display: block;
+        /* Ensure long words don't break the layout */
+        word-wrap: break-word;
+        overflow-wrap: break-word;
     }
 
     /* --- Container Query for responsive layout --- */
