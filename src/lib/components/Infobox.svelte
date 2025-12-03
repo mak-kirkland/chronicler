@@ -330,12 +330,21 @@
         font-size: 1.1rem; /* Adjust size of the emoji icon */
         color: var(--color-text-secondary);
         flex-shrink: 0; /* Prevents the button from shrinking */
-        transition: color 0.2s ease;
+        transition:
+            color 0.2s ease,
+            opacity 0.2s ease;
         line-height: 1.2; /* Align emoji better with title */
+        opacity: 0;
+    }
+
+    /* Reveal the button when hovering over the header area */
+    .infobox-header:hover .infobox-controls-button {
+        opacity: 1;
     }
 
     .infobox-controls-button:hover,
     .infobox-controls-button:focus-visible {
+        opacity: 1;
         color: var(--color-text-primary);
         outline: none;
     }
