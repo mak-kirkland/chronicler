@@ -403,3 +403,33 @@ span.spoiler.revealed a.internal-link.broken {
     display: inline;
     margin-left: 0.5em;
 }
+
+/* Standardized Dropdown Select */
+.dropdown-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: var(--select-arrow);
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1.2em;
+    width: 100%;
+    padding: 0.5rem;
+    padding-right: 2.5rem; /* Space for the arrow */
+    font-family: inherit;
+    font-size: 1rem;
+    border: 1px solid var(--color-border-primary);
+    background-color: var(--color-background-secondary);
+    color: var(--color-text-primary);
+    border-radius: 6px;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition:
+        border-color 0.2s,
+        box-shadow 0.2s;
+}
+
+.dropdown-select:focus {
+    outline: none;
+    border-color: var(--color-accent-primary);
+}

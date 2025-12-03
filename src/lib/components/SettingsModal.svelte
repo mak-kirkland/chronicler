@@ -148,7 +148,7 @@
                     <div class="theme-controls">
                         <select
                             id="theme-select"
-                            class="theme-select"
+                            class="dropdown-select"
                             value={$activeTheme}
                             onchange={(e) =>
                                 setActiveTheme(
@@ -192,7 +192,7 @@
                         <label for="heading-font-select">Heading Font</label>
                         <select
                             id="heading-font-select"
-                            class="theme-select"
+                            class="dropdown-select"
                             bind:value={$headingFont}
                         >
                             {#each allAvailableFonts as font (font.value)}
@@ -204,7 +204,7 @@
                         <label for="body-font-select">Body Font</label>
                         <select
                             id="body-font-select"
-                            class="theme-select"
+                            class="dropdown-select"
                             bind:value={$bodyFont}
                         >
                             {#each allAvailableFonts as font (font.value)}
@@ -404,24 +404,6 @@
     .theme-controls {
         display: flex;
         gap: 0.5rem;
-    }
-    .theme-select {
-        flex-grow: 1;
-        appearance: none;
-        background-image: var(--select-arrow);
-        background-repeat: no-repeat;
-        background-position: right 0.75rem center;
-        background-size: 1.2em;
-        padding-right: 2.5rem;
-        background-color: var(--color-background-secondary);
-        color: var(--color-text-primary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: 6px;
-        padding: 0.5rem;
-        font-family: inherit;
-        font-size: 1rem;
-        width: 100%;
-        cursor: pointer;
     }
     .font-slider-container {
         display: flex;
