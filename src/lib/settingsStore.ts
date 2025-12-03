@@ -107,10 +107,12 @@ export const AVAILABLE_FONTS = [
     { name: "Uncial Antiqua", value: `"Uncial Antiqua", cursive` },
 ] as const;
 
-/** Defines a theme's color palette. **/
+/** Defines a theme's color palette and optional font preferences. **/
 export interface CustomTheme {
     name: ThemeName;
     palette: ThemePalette;
+    headingFont?: string;
+    bodyFont?: string;
 }
 
 // --- Store Management ---
@@ -324,18 +326,30 @@ const BUILT_IN_THEME_FONTS: Record<string, { heading: string; body: string }> =
     };
 
 /**
- * Sets the application theme and synchronizes default fonts if it's a built-in theme.
+ * Sets the application theme and synchronizes default fonts if it's a built-in theme
+ * OR if the custom theme has specified preferred fonts.
  * @param newThemeName The name of the theme to activate.
  */
 export function setActiveTheme(newThemeName: ThemeName) {
     activeTheme.set(newThemeName);
 
-    // Check if the selected theme is a built-in one with default fonts.
-    const defaultFonts = BUILT_IN_THEME_FONTS[newThemeName];
-    if (defaultFonts) {
-        // If it is, update the font stores to match the theme's defaults.
-        headingFont.set(defaultFonts.heading);
-        bodyFont.set(defaultFonts.body);
+    // 1. Check if the selected theme is a built-in one with default fonts.
+    const builtInFonts = BUILT_IN_THEME_FONTS[newThemeName];
+    if (builtInFonts) {
+        headingFont.set(builtInFonts.heading);
+        bodyFont.set(builtInFonts.body);
+        return;
+    }
+
+    // 2. Check if it's a user theme with font preferences
+    const customTheme = get(userThemes).find((t) => t.name === newThemeName);
+    if (customTheme) {
+        if (customTheme.headingFont) {
+            headingFont.set(customTheme.headingFont);
+        }
+        if (customTheme.bodyFont) {
+            bodyFont.set(customTheme.bodyFont);
+        }
     }
 }
 
