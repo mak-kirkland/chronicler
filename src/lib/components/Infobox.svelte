@@ -550,6 +550,8 @@
         border: 1px solid transparent;
         cursor: pointer;
         transition: all 0.2s ease-in-out;
+        word-break: break-word; /* Ensure long words break if necessary */
+        text-align: left;
     }
     .tag-link:hover,
     .tag-link:focus {
