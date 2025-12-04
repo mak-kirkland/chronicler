@@ -5,6 +5,7 @@
     import FileExplorer from "./FileExplorer.svelte";
     import TagList from "./TagList.svelte";
     import ReportList from "./ReportList.svelte";
+    import GalleryPanel from "./GalleryPanel.svelte";
     import SettingsModal from "./SettingsModal.svelte";
     import HelpModal from "./HelpModal.svelte";
     import AboutModal from "./AboutModal.svelte";
@@ -12,10 +13,10 @@
     import SearchInput from "./SearchInput.svelte";
 
     let { width = $bindable() } = $props();
-    let activeTab = $state<"files" | "tags" | "reports">("files");
+    let activeTab = $state<"files" | "tags" | "gallery" | "reports">("files");
     let searchTerm = $state("");
 
-    // When the value of activTab changes, clear the search term
+    // When the value of activeTab changes, clear the search term
     $effect(() => {
         activeTab;
         searchTerm = "";
@@ -78,27 +79,39 @@
             ? "Search files..."
             : activeTab === "tags"
               ? "Search tags..."
-              : "Search reports..."}
+              : activeTab === "gallery"
+                ? "Search images..."
+                : "Search reports..."}
     />
 
     <div class="tab-navigation">
         <button
             class:active={activeTab === "files"}
             onclick={() => (activeTab = "files")}
+            title="Files"
         >
-            Files
+            📂
         </button>
         <button
             class:active={activeTab === "tags"}
             onclick={() => (activeTab = "tags")}
+            title="Tags"
         >
-            Tags
+            #
+        </button>
+        <button
+            class:active={activeTab === "gallery"}
+            onclick={() => (activeTab = "gallery")}
+            title="Image Gallery"
+        >
+            🖼️
         </button>
         <button
             class:active={activeTab === "reports"}
             onclick={() => (activeTab = "reports")}
+            title="Reports"
         >
-            Reports
+            📈
         </button>
     </div>
     <div class="sidebar-content">
@@ -106,6 +119,8 @@
             <FileExplorer {searchTerm} />
         {:else if activeTab === "tags"}
             <TagList tags={filteredTags} />
+        {:else if activeTab === "gallery"}
+            <GalleryPanel {searchTerm} />
         {:else if activeTab === "reports"}
             <ReportList />
         {/if}
@@ -170,24 +185,30 @@
     }
     .tab-navigation button {
         flex: 1;
-        padding: 0.75rem;
+        padding: 0.75rem 0.2rem;
         background: none;
         border: none;
-        font-size: 1rem;
+        font-size: 1.2rem;
         cursor: pointer;
         color: var(--color-text-secondary);
-        border-bottom: 2px solid transparent;
+        border-bottom: 3px solid transparent;
         font-family: var(--font-family-body);
+        transition:
+            color 0.2s,
+            background-color 0.2s;
+    }
+    .tab-navigation button:hover {
+        background-color: var(--color-background-secondary);
     }
     .tab-navigation button.active {
         border-bottom-color: var(--color-accent-primary);
-        font-weight: bold;
         color: var(--color-text-primary);
+        background-color: var(--color-overlay-light);
     }
     .sidebar-content {
         flex-grow: 1;
         overflow-y: auto;
-        padding: 1rem 0 1rem 1rem;
+        padding: 0.5rem 0 0.5rem 0;
     }
     .sidebar-footer {
         padding: 0.5rem 0.75rem 0.25rem;
