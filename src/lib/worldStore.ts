@@ -22,7 +22,13 @@ import {
     getAllParseErrors,
 } from "./commands";
 import { isMarkdown, isImage } from "./utils";
-import type { FileNode, TagMap, BrokenLink, ParseError } from "./bindings";
+import type {
+    FileNode,
+    TagMap,
+    BrokenLink,
+    ParseError,
+    PageHeader,
+} from "./bindings";
 
 /**
  * The shape of the core application data.
@@ -186,12 +192,13 @@ function flattenFileTree(node: FileNode | null): string[] {
 
 /**
  * Recursively flattens the file tree to find all image files.
+ * Returns PageHeader objects.
  */
-function flattenImageTree(node: FileNode | null): string[] {
+function flattenImageTree(node: FileNode | null): PageHeader[] {
     if (!node) return [];
-    const images: string[] = [];
+    const images: PageHeader[] = [];
     if (node.name && isImage(node)) {
-        images.push(node.name);
+        images.push({ title: node.name, path: node.path });
     }
     if (node.children) {
         for (const child of node.children) {
@@ -210,9 +217,16 @@ export const allFileTitles = derived(files, ($files) =>
 );
 
 /**
- * A derived store that provides a flattened list of all image filenames.
- * Useful for image link autocompletion.
+ * A derived store that provides a flattened list of all image objects.
+ * Useful for the Gallery view and image cycling.
  */
-export const allImageFiles = derived(files, ($files) =>
-    flattenImageTree($files),
+export const allImages = derived(files, ($files) =>
+    flattenImageTree($files).sort((a, b) => a.title.localeCompare(b.title)),
+);
+
+/**
+ * A helper derived store for just filenames, kept for compatibility with existing autocomplete.
+ */
+export const allImageFiles = derived(allImages, ($allImages) =>
+    $allImages.map((img) => img.title),
 );
