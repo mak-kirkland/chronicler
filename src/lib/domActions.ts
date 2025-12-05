@@ -7,6 +7,8 @@
 
 import { isDragging } from "$lib/dragStore";
 import type { RenderedPage } from "$lib/bindings";
+import ContentCarousel from "$lib/components/ContentCarousel.svelte";
+import { mount, unmount } from "svelte";
 
 /**
  * A reusable Svelte action to programmatically focus an element when it is mounted to the DOM.
@@ -317,6 +319,78 @@ export function tablesort(
             for (const [el, listener] of listeners) {
                 el.removeEventListener("click", listener);
             }
+        },
+    };
+}
+
+
+/**
+ * A Svelte action that scans a node for static `.carousel` divs,
+ * extracts their image data, and replaces them with interactive
+ * `ContentCarousel` components.
+ */
+export function hydrateCarousels(node: HTMLElement, _data: any) {
+    let mountedComponents: any[] = [];
+
+    function update() {
+        // 1. Cleanup previous components
+        mountedComponents.forEach((comp) => unmount(comp));
+        mountedComponents = [];
+
+        // 2. Find all .carousel containers in the raw HTML
+        const carousels = node.querySelectorAll(".carousel");
+
+        carousels.forEach((el) => {
+            // 3. Extract Image Data (and captions if present)
+            const imgs = Array.from(el.querySelectorAll("img"));
+            if (imgs.length === 0) return;
+
+            const imagesData = imgs.map((img) => {
+                let caption: string | undefined = undefined;
+
+                // Check if the image is wrapped in a <figure> and has a <figcaption>
+                const parent = img.parentElement;
+                if (parent && parent.tagName.toLowerCase() === "figure") {
+                    const figEl = parent.querySelector("figcaption");
+                    if (figEl) {
+                        caption = figEl.innerHTML;
+                    }
+                }
+
+                return {
+                    src: img.getAttribute("src") || "",
+                    alt: img.getAttribute("alt") || "",
+                    title: img.getAttribute("title") || undefined,
+                    caption
+                };
+            });
+
+            // 4. Capture existing classes (e.g. "carousel small")
+            // This allows us to pass "small" or "large" to the component.
+            const className = el.className;
+
+            // 5. Clear the static HTML content
+            el.innerHTML = "";
+
+            // 6. Mount the interactive Svelte Component
+            const comp = mount(ContentCarousel, {
+                target: el,
+                props: {
+                    images: imagesData,
+                    className: className // Pass the class names
+                },
+            });
+            mountedComponents.push(comp);
+        });
+    }
+
+    // Run immediately
+    update();
+
+    return {
+        update, // Re-run when renderedData changes
+        destroy() {
+            mountedComponents.forEach((comp) => unmount(comp));
         },
     };
 }
