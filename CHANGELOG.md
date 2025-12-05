@@ -2,6 +2,15 @@
 
 ---
 
+## [v0.37.0-alpha] - 2025-12-05
+
+### ✨ Added
+
+- **Images**: You can now create responsive, wiki-style image grids by wrapping images in a container with the class `.gallery`. This layout enforces uniform image heights using a "card" style similar to Fandom wikis. It automatically handles both plain images and figures with captions, and supports `.small` and `.large` helper classes to adjust the row height.
+- **Help**: Added a button to open the Help guide in your default web browser.
+
+---
+
 ## [v0.36.0-alpha] - 2025-12-01
 
 ### ✨ Added
