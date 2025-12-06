@@ -2,7 +2,6 @@
     let {
         images,
         className = "",
-        mode = "standard",
         onImageClick = undefined,
     } = $props<{
         images: {
@@ -12,7 +11,6 @@
             caption?: string;
         }[];
         className?: string;
-        mode?: "standard" | "infobox";
         onImageClick?: (index: number) => void;
     }>();
 
@@ -40,9 +38,9 @@
         }
     }
 
-    // Only show tabs if we are in 'infobox' mode AND have valid captions.
+    // Only show tabs if we are in 'tabbed' mode AND have valid captions.
     const showTabs = $derived(
-        mode === "infobox" &&
+        className.includes("tabbed") &&
             images.length > 1 &&
             images.every((img: any) => img.caption && img.caption.length > 0),
     );
@@ -52,10 +50,7 @@
     We automatically apply 'infobox-carousel' class if mode is infobox.
     We append {className} for ad-hoc utilities like 'small' or 'large'.
 -->
-<div
-    class="content-carousel {className}"
-    class:infobox-carousel={mode === "infobox"}
->
+<div class="content-carousel {className}">
     <!-- Render Image Tabs if enabled -->
     {#if showTabs}
         <div class="carousel-tabs">
@@ -192,8 +187,6 @@
     /* Remove the boxy look for infoboxes so empty space (bars) is transparent/invisible */
     .content-carousel.infobox-carousel .carousel-stack {
         border: none;
-        background-color: transparent;
-        border-radius: 4px; /* Keep radius on the image itself */
     }
 
     .content-carousel.infobox-carousel .carousel-stack img {
