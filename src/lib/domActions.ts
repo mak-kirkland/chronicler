@@ -7,7 +7,7 @@
 
 import { isDragging } from "$lib/dragStore";
 import type { RenderedPage } from "$lib/bindings";
-import ContentCarousel from "$lib/components/ContentCarousel.svelte";
+import Carousel from "$lib/components/Carousel.svelte";
 import { mount, unmount } from "svelte";
 
 /**
@@ -327,7 +327,7 @@ export function tablesort(
 /**
  * A Svelte action that scans a node for static `.carousel` divs,
  * extracts their image data, and replaces them with interactive
- * `ContentCarousel` components.
+ * `Carousel` components.
  */
 export function hydrateCarousels(node: HTMLElement, _data: any) {
     let mountedComponents: any[] = [];
@@ -373,7 +373,7 @@ export function hydrateCarousels(node: HTMLElement, _data: any) {
             el.innerHTML = "";
 
             // 6. Mount the interactive Svelte Component
-            const comp = mount(ContentCarousel, {
+            const comp = mount(Carousel, {
                 target: el,
                 props: {
                     images: imagesData,
