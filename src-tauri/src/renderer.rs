@@ -952,16 +952,19 @@ impl Renderer {
         let rendered_page = self.render_page_preview(&raw_content)?;
 
         let indexer = self.indexer.read();
-        let page_path = Path::new(path);
+
+        // Canonicalize the path before lookup to handle symlinks (like /home -> /var/home)
+        let page_path = PathBuf::from(path);
+        let canonical_path = dunce::canonicalize(&page_path).unwrap_or(page_path);
 
         let page = indexer
             .assets
-            .get(page_path)
+            .get(&canonical_path)
             .and_then(|asset| match asset {
                 VaultAsset::Page(p) => Some(p),
                 _ => None,
             })
-            .ok_or(ChroniclerError::FileNotFound(page_path.to_path_buf()))?;
+            .ok_or_else(|| ChroniclerError::FileNotFound(canonical_path.clone()))?;
 
         let mut backlinks: Vec<Backlink> = page
             .backlinks
@@ -976,7 +979,7 @@ impl Renderer {
                             let count = indexer
                                 .link_graph
                                 .get(backlink_path)
-                                .and_then(|targets| targets.get(page_path))
+                                .and_then(|targets| targets.get(&canonical_path))
                                 .map_or(0, |links| links.len());
 
                             Some(Backlink {
