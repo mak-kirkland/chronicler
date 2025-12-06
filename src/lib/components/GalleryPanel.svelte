@@ -81,8 +81,6 @@
 
 <style>
     .gallery-container {
-        height: 100%;
-        overflow-y: auto;
         padding: 0.5rem;
     }
 
