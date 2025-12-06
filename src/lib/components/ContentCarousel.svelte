@@ -1,5 +1,10 @@
 <script lang="ts">
-    let { images, className = "" } = $props<{
+    let {
+        images,
+        className = "",
+        mode = "standard",
+        onImageClick = undefined,
+    } = $props<{
         images: {
             src: string;
             alt: string;
@@ -7,6 +12,8 @@
             caption?: string;
         }[];
         className?: string;
+        mode?: "standard" | "infobox";
+        onImageClick?: (index: number) => void;
     }>();
 
     let currentImageIndex = $state(0);
@@ -27,19 +34,29 @@
         currentImageIndex = index;
     }
 
-    // Determine if we should use the "Tabbed" layout (infobox style).
-    // We only do this if it's explicitly an infobox AND all images have captions.
-    // Otherwise, we default to the standard carousel with bottom captions to prevent
-    // wide tabs from stretching the container in normal content flow.
+    function handleImageClick(index: number) {
+        if (onImageClick) {
+            onImageClick(index);
+        }
+    }
+
+    // Only show tabs if we are in 'infobox' mode AND have valid captions.
     const showTabs = $derived(
-        className.includes("infobox-carousel") &&
+        mode === "infobox" &&
             images.length > 1 &&
-            images.every((img) => img.caption && img.caption.length > 0),
+            images.every((img: any) => img.caption && img.caption.length > 0),
     );
 </script>
 
-<div class="content-carousel {className}">
-    <!-- Render Image Tabs if we are in tabbed mode -->
+<!--
+    We automatically apply 'infobox-carousel' class if mode is infobox.
+    We append {className} for ad-hoc utilities like 'small' or 'large'.
+-->
+<div
+    class="content-carousel {className}"
+    class:infobox-carousel={mode === "infobox"}
+>
+    <!-- Render Image Tabs if enabled -->
     {#if showTabs}
         <div class="carousel-tabs">
             {#each images as img, i}
@@ -59,10 +76,14 @@
 
     <div class="carousel-stack">
         {#each images as image, i}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
                 class="image-wrapper"
                 class:active={i === currentImageIndex}
+                class:clickable={!!onImageClick}
                 aria-hidden={i !== currentImageIndex}
+                onclick={() => handleImageClick(i)}
             >
                 <!-- Blurred background to fill gaps/maintain aesthetics -->
                 <div
@@ -154,7 +175,7 @@
         --gallery-height: 450px;
     }
 
-    /* Infobox specific sizing override via class */
+    /* Infobox specific sizing override via logic-bound class */
     .content-carousel.infobox-carousel {
         margin-block: 0;
         margin-bottom: var(--space-md);
@@ -202,12 +223,19 @@
         height: 100%;
         position: relative; /* Context for absolute blurred bg */
         overflow: hidden; /* Clip blurred edges */
+        pointer-events: none; /* Let clicks pass through if inactive */
+        transition: opacity 0.2s ease-in-out;
     }
 
     .image-wrapper.active {
         opacity: 1;
         position: relative;
         z-index: 1;
+        pointer-events: auto; /* Re-enable pointer events for active slide */
+    }
+
+    .image-wrapper.clickable {
+        cursor: pointer;
     }
 
     /* The frosted glass effect background */
