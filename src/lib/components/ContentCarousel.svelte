@@ -22,9 +22,41 @@
         currentImageIndex =
             (currentImageIndex - 1 + images.length) % images.length;
     }
+
+    function goToImage(index: number) {
+        currentImageIndex = index;
+    }
+
+    // Determine if we should use the "Tabbed" layout (infobox style).
+    // We only do this if it's explicitly an infobox AND all images have captions.
+    // Otherwise, we default to the standard carousel with bottom captions to prevent
+    // wide tabs from stretching the container in normal content flow.
+    const showTabs = $derived(
+        className.includes("infobox-carousel") &&
+            images.length > 1 &&
+            images.every((img) => img.caption && img.caption.length > 0),
+    );
 </script>
 
 <div class="content-carousel {className}">
+    <!-- Render Image Tabs if we are in tabbed mode -->
+    {#if showTabs}
+        <div class="carousel-tabs">
+            {#each images as img, i}
+                <button
+                    class="tab"
+                    class:active={currentImageIndex === i}
+                    onclick={(e) => {
+                        e.stopPropagation();
+                        goToImage(i);
+                    }}
+                >
+                    {@html img.caption}
+                </button>
+            {/each}
+        </div>
+    {/if}
+
     <div class="carousel-stack">
         {#each images as image, i}
             <div
@@ -32,6 +64,12 @@
                 class:active={i === currentImageIndex}
                 aria-hidden={i !== currentImageIndex}
             >
+                <!-- Blurred background to fill gaps/maintain aesthetics -->
+                <div
+                    class="blurred-bg"
+                    style:background-image="url('{image.src}')"
+                ></div>
+
                 <img src={image.src} alt={image.alt} title={image.title} />
             </div>
         {/each}
@@ -58,23 +96,27 @@
                 >
             </button>
 
-            <div class="carousel-dots">
-                {#each images as _, i}
-                    <button
-                        class="dot"
-                        class:active={currentImageIndex === i}
-                        onclick={(e) => {
-                            e.stopPropagation();
-                            currentImageIndex = i;
-                        }}
-                        aria-label="Go to image {i + 1}"
-                    ></button>
-                {/each}
-            </div>
+            <!-- Show dots if we aren't showing tabs -->
+            {#if !showTabs}
+                <div class="carousel-dots">
+                    {#each images as _, i}
+                        <button
+                            class="dot"
+                            class:active={currentImageIndex === i}
+                            onclick={(e) => {
+                                e.stopPropagation();
+                                currentImageIndex = i;
+                            }}
+                            aria-label="Go to image {i + 1}"
+                        ></button>
+                    {/each}
+                </div>
+            {/if}
         {/if}
     </div>
 
-    {#if currentCaption}
+    <!-- Show caption below image if it exists AND we aren't using tabs mode -->
+    {#if currentCaption && !showTabs}
         <div class="carousel-caption">
             {@html currentCaption}
         </div>
@@ -87,6 +129,11 @@
         --icon-size: 1.5rem; /* 24px */
         --dot-size: 0.625rem; /* 10px */
         --gallery-height: 300px; /* Default */
+
+        /* Layout spacing variables */
+        --space-xs: 0.25rem;
+        --space-sm: 0.5rem;
+        --space-md: 1rem;
     }
 
     .content-carousel {
@@ -107,6 +154,31 @@
         --gallery-height: 450px;
     }
 
+    /* Infobox specific sizing override via class */
+    .content-carousel.infobox-carousel {
+        margin-block: 0;
+        margin-bottom: var(--space-md);
+        width: 100%; /* Ensure it fills the infobox column */
+    }
+
+    .content-carousel.infobox-carousel img {
+        width: 100%;
+        height: auto;
+        max-height: 400px; /* Match old Infobox limit */
+        object-fit: contain;
+    }
+
+    /* Remove the boxy look for infoboxes so empty space (bars) is transparent/invisible */
+    .content-carousel.infobox-carousel .carousel-stack {
+        border: none;
+        background-color: transparent;
+        border-radius: 4px; /* Keep radius on the image itself */
+    }
+
+    .content-carousel.infobox-carousel .carousel-stack img {
+        border-radius: 4px;
+    }
+
     .carousel-stack {
         display: grid;
         grid-template-columns: 1fr;
@@ -122,19 +194,32 @@
     .image-wrapper {
         grid-area: 1 / 1; /* Stack all images on top of each other */
         opacity: 0;
-        transition: opacity 0.3s ease-in-out;
-        pointer-events: none;
         display: flex;
         justify-content: center;
         align-items: center;
         padding: 0;
+        /* Ensure wrapper doesn't constrain height artificially */
+        height: 100%;
+        position: relative; /* Context for absolute blurred bg */
+        overflow: hidden; /* Clip blurred edges */
     }
 
     .image-wrapper.active {
         opacity: 1;
         position: relative;
         z-index: 1;
-        pointer-events: auto;
+    }
+
+    /* The frosted glass effect background */
+    .blurred-bg {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+        filter: blur(20px) brightness(0.7);
+        transform: scale(1.2); /* Scale up to hide blur vignette edges */
+        z-index: 0;
+        opacity: 0.8;
     }
 
     img {
@@ -143,6 +228,9 @@
         width: auto;
         max-width: 100%;
         object-fit: contain;
+        position: relative;
+        z-index: 1; /* Sit above the blur */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 
     /* --- Caption Styles --- */
@@ -230,5 +318,41 @@
 
     .dot.active {
         background-color: white;
+    }
+
+    /* --- Tab Styles (Moved from Infobox) --- */
+    .carousel-tabs {
+        display: flex;
+        gap: var(--space-sm);
+        border-bottom: 1px solid var(--color-border-primary);
+        margin-bottom: var(--space-md);
+        overflow-x: auto;
+        /* Hide scrollbar for a cleaner look */
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+    }
+    .carousel-tabs::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, and Opera */
+    }
+    .tab {
+        background: none;
+        border: none;
+        padding: var(--space-sm) var(--space-md);
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--color-text-secondary);
+        border-bottom: 3px solid transparent;
+        /* Pull the button up slightly to align with the bottom border */
+        margin-bottom: -1px;
+        white-space: nowrap;
+        transition: all 0.2s ease-in-out;
+    }
+    .tab:hover {
+        color: var(--color-text-primary);
+    }
+    .tab.active {
+        color: var(--color-accent-primary);
+        border-bottom-color: var(--color-text-accent);
     }
 </style>
