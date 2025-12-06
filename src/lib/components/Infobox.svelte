@@ -6,14 +6,12 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import { areInfoboxTagsVisible } from "$lib/settingsStore";
     import InfoboxSettingsModal from "./InfoboxSettingsModal.svelte";
+    import ContentCarousel from "./ContentCarousel.svelte";
 
     // --- Props ---
     let { data } = $props<{
         data: InfoboxData | null;
     }>();
-
-    // --- State ---
-    let currentImageIndex = $state(0);
 
     // --- Derived State ---
     /**
@@ -21,36 +19,43 @@
      */
     const renderItems = $derived(buildInfoboxLayout(data));
 
-    const hasCarousel = $derived(data?.images && data.images.length > 1);
-    const hasCaptions = $derived(
-        hasCarousel &&
-            data?.image_captions &&
-            data.image_captions.length === data.images.length &&
-            data.image_captions.some(
-                (c: any) => typeof c === "string" && c.length > 0,
-            ),
-    );
+    // Prepare data for the ContentCarousel component
+    const carouselImages = $derived.by(() => {
+        if (
+            !data?.images ||
+            !Array.isArray(data.images) ||
+            data.images.length === 0
+        ) {
+            return [];
+        }
 
-    // --- Carousel Navigation ---
-    function nextImage() {
-        if (!data?.images) return;
-        currentImageIndex = (currentImageIndex + 1) % data.images.length;
-    }
+        return data.images.map((src: string, index: number) => {
+            // Get caption if available
+            const caption =
+                data.image_captions?.[index] &&
+                typeof data.image_captions[index] === "string"
+                    ? data.image_captions[index]
+                    : undefined;
 
-    function prevImage() {
-        if (!data?.images) return;
-        currentImageIndex =
-            (currentImageIndex - 1 + data.images.length) % data.images.length;
-    }
+            // Get title or fallback
+            const path = data.image_paths?.[index];
+            const title =
+                data.title ||
+                (path ? path.split(/[\\/]/).pop() : "Infobox image");
 
-    function goToImage(index: number) {
-        currentImageIndex = index;
-    }
+            return {
+                src,
+                alt: title,
+                title,
+                caption,
+            };
+        });
+    });
 
     // --- Actions ---
-    function openImageView() {
-        if (data?.image_paths && data.image_paths[currentImageIndex]) {
-            const currentImagePath = data.image_paths[currentImageIndex];
+    function openImageView(index: number = 0) {
+        if (data?.image_paths && data.image_paths[index]) {
+            const currentImagePath = data.image_paths[index];
             const imageTitle =
                 data.title || currentImagePath.split(/[\\/]/).pop() || "Image";
 
@@ -70,13 +75,6 @@
             props: { onClose: closeModal },
         });
     }
-
-    // --- Effects ---
-    $effect(() => {
-        // This small effect remains to reset the image index when the data changes.
-        // The main layout logic is gone.
-        currentImageIndex = 0;
-    });
 
     // --- Helper for Grid Layout ---
     function getRowCount(items: any[]) {
@@ -114,79 +112,30 @@
             <p class="infobox-subtitle">{@html data.subtitle}</p>
         {/if}
 
-        <!-- Render Image Tabs here if they exist -->
-        {#if hasCaptions}
-            <div class="carousel-tabs">
-                {#each data.images as _, i}
-                    {#if data.image_captions?.[i]}
-                        <button
-                            class="tab"
-                            class:active={currentImageIndex === i}
-                            onclick={() => goToImage(i)}
-                        >
-                            {@html data.image_captions[i]}
-                        </button>
-                    {/if}
-                {/each}
-            </div>
-        {/if}
-
-        <!-- Image Column -->
-        {#if data?.images && data.images.length > 0}
+        <!--
+            Replaced manual carousel implementation with shared ContentCarousel component.
+            This consolidates logic and styling.
+        -->
+        {#if carouselImages.length > 0}
             <div class="image-column">
-                <div class="image-container">
-                    <button
-                        type="button"
-                        class="image-button"
-                        onclick={openImageView}
-                        aria-label="View larger: {data?.title ||
-                            'Infobox image'}"
-                    >
-                        <img
-                            src={data.images[currentImageIndex]}
-                            alt={data?.title || "Infobox image"}
-                            class="infobox-image"
-                        />
-                    </button>
+                <!--
+                    We wrap the carousel in a button (or just use click handler)
+                    to trigger the full image view. Since ContentCarousel handles its own
+                    interaction, we might simply put a click listener on the wrapper
+                    if we want the "click to open" behavior, but note that the Carousel controls
+                    might stop propagation.
 
-                    <!-- Carousel Controls -->
-                    {#if hasCarousel}
-                        <button
-                            class="carousel-button prev"
-                            onclick={prevImage}
-                            aria-label="Previous image"
-                        >
-                            <svg viewBox="0 0 24 24" fill="currentColor"
-                                ><path
-                                    d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
-                                ></path></svg
-                            >
-                        </button>
-                        <button
-                            class="carousel-button next"
-                            onclick={nextImage}
-                            aria-label="Next image"
-                        >
-                            <svg viewBox="0 0 24 24" fill="currentColor"
-                                ><path
-                                    d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"
-                                ></path></svg
-                            >
-                        </button>
-                        <!-- Only show dots as a fallback if there are no tabs -->
-                        {#if !hasCaptions}
-                            <div class="carousel-dots">
-                                {#each data.images as _, i}
-                                    <button
-                                        class="dot"
-                                        class:active={currentImageIndex === i}
-                                        onclick={() => goToImage(i)}
-                                        aria-label="Go to image {i + 1}"
-                                    ></button>
-                                {/each}
-                            </div>
-                        {/if}
-                    {/if}
+                    For now, we'll assume standard carousel behavior. If 'click to open'
+                    is desired for the current image, it would ideally be part of the Carousel props,
+                    but wrapping it here works for the container area.
+                -->
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div onclick={() => openImageView(0)} class="carousel-wrapper">
+                    <ContentCarousel
+                        images={carouselImages}
+                        className="infobox-carousel"
+                    />
                 </div>
             </div>
         {/if}
@@ -292,10 +241,6 @@
         --space-xs: 0.25rem; /* 4px */
         --space-sm: 0.5rem; /* 8px */
         --space-md: 1rem; /* 16px */
-
-        --control-size: 2rem; /* 32px */
-        --dot-size: 0.625rem; /* 10px */
-        --icon-size: 1.5rem; /* 24px */
     }
 
     .infobox {
@@ -369,136 +314,9 @@
         width: 100%;
         margin-bottom: var(--space-md);
     }
-    .image-container {
-        position: relative;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 100%;
-        background-color: var(--color-overlay-subtle);
-        border: 1px solid var(--color-border-primary);
-        border-radius: var(--space-xs);
-        overflow: hidden;
-    }
-    .image-button {
-        background: none;
-        border: none;
-        padding: 0;
-        cursor: pointer;
-        line-height: 0; /* Prevents extra spacing */
-    }
-    /* Adds a visible outline for keyboard users, which is an accessibility best practice */
-    .image-button:focus-visible {
-        outline: 2px solid var(--color-accent-primary);
-        outline-offset: 2px;
-        border-radius: 2px;
-    }
-    .infobox-image {
-        max-width: 100%;
-        max-height: 400px;
-        object-fit: contain;
-        border-radius: 2px;
-        transition: opacity 0.3s ease-in-out;
-    }
 
-    /* --- Carousel Styles --- */
-    .carousel-button {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        background-color: hsla(0, 0%, 0%, 0.3);
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: var(--control-size);
-        height: var(--control-size);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .carousel-wrapper {
         cursor: pointer;
-        opacity: 0;
-        transition:
-            opacity 0.2s ease-in-out,
-            background-color 0.2s ease;
-        z-index: 10;
-        box-shadow: 0 2px 4px hsla(0, 0%, 0%, 0.2);
-    }
-    .image-container:hover .carousel-button {
-        opacity: 1;
-    }
-    .carousel-button:hover {
-        background-color: hsla(0, 0%, 0%, 0.6);
-    }
-    .carousel-button.prev {
-        left: var(--space-sm);
-    }
-    .carousel-button.next {
-        right: var(--space-sm);
-    }
-    .carousel-button svg {
-        width: var(--icon-size);
-        height: var(--icon-size);
-    }
-    .carousel-dots {
-        position: absolute;
-        bottom: var(--space-sm);
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: var(--space-sm);
-        z-index: 10;
-    }
-    .dot {
-        width: var(--dot-size);
-        height: var(--dot-size);
-        border-radius: 50%;
-        background-color: hsla(0, 100%, 100%, 0.5);
-        border: 1px solid hsla(0, 0%, 0%, 0.2);
-        padding: 0;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-    .dot:hover {
-        background-color: hsla(0, 100%, 100%, 0.8);
-    }
-    .dot.active {
-        background-color: white;
-    }
-
-    /* --- Tab Styles --- */
-    .carousel-tabs {
-        display: flex;
-        gap: var(--space-sm);
-        border-bottom: 1px solid var(--color-border-primary);
-        margin-bottom: var(--space-md);
-        overflow-x: auto;
-        /* Hide scrollbar for a cleaner look */
-        -ms-overflow-style: none; /* IE and Edge */
-        scrollbar-width: none; /* Firefox */
-    }
-    .carousel-tabs::-webkit-scrollbar {
-        display: none; /* Chrome, Safari, and Opera */
-    }
-    .tab {
-        background: none;
-        border: none;
-        padding: var(--space-sm) var(--space-md);
-        cursor: pointer;
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--color-text-secondary);
-        border-bottom: 3px solid transparent;
-        /* Pull the button up slightly to align with the bottom border */
-        margin-bottom: -1px;
-        white-space: nowrap;
-        transition: all 0.2s ease-in-out;
-    }
-    .tab:hover {
-        color: var(--color-text-primary);
-    }
-    .tab.active {
-        color: var(--color-accent-primary);
-        border-bottom-color: var(--color-text-accent);
     }
 
     /* --- Data Styles --- */
@@ -613,8 +431,7 @@
         .infobox-header {
             flex-basis: 100%; /* Make the header span the full width */
         }
-        .infobox-subtitle,
-        .carousel-tabs {
+        .infobox-subtitle {
             flex-basis: 100%; /* Make the title/tabs span the full width */
         }
         .image-column {
