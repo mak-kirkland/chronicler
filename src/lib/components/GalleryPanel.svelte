@@ -45,7 +45,10 @@
         });
         // Dependencies: Re-run when the view type or data path changes.
         $currentView.type;
-        $currentView.data?.path;
+        // Only 'image' and 'file' types have the 'data' property.
+        if ("data" in $currentView) {
+            $currentView.data?.path;
+        }
     });
 </script>
 
