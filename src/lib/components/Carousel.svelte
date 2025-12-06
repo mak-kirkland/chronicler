@@ -143,7 +143,6 @@
         --control-size: 2rem; /* 32px */
         --icon-size: 1.5rem; /* 24px */
         --dot-size: 0.625rem; /* 10px */
-        --gallery-height: 300px; /* Default */
     }
 
     .content-carousel {

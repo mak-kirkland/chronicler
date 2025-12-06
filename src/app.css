@@ -13,6 +13,9 @@
     --space-sm: 0.5rem; /* 8px */
     --space-md: 1rem; /* 16px */
 
+    /* Global Defaults */
+    --gallery-height: 300px;
+
     /* Colors */
     --color-background-primary: #fdf6e3;
     --color-background-secondary: #e6dcc9;
