@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.37.1-alpha] - 2025-12-06
+
+### 🐞 Fixed
+
+- **Linux/File System**: Fixed an issue on Linux systems with symlinked home directories (such as Fedora Kinoite), where opening a valid file would result in a "File Not Found" error. The application now correctly resolves the canonical path (e.g., mapping `/home` to `/var/home`) before retrieving the file from the index.
+
+---
+
 ## [v0.37.0-alpha] - 2025-12-05
 
 ### ✨ Added
