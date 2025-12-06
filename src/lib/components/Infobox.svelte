@@ -48,20 +48,20 @@
                 alt: title,
                 title,
                 caption,
+                path,
             };
         });
     });
 
     // --- Actions ---
     function openImageView(index: number) {
-        if (data?.image_paths && data.image_paths[index]) {
-            const currentImagePath = data.image_paths[index];
-            const imageTitle =
-                data.title || currentImagePath.split(/[\\/]/).pop() || "Image";
+        // Use the pre-calculated image object
+        const img = carouselImages[index];
 
+        if (img && img.path) {
             navigateToImage({
-                path: currentImagePath,
-                title: imageTitle,
+                path: img.path,
+                title: img.title || "Image",
             });
         }
     }
@@ -115,7 +115,7 @@
         <!--
             We use the shared Carousel component.
             - className="infobox-carousel tabbed":
-              1. "infobox-carousel" applies full width.
+              1. "infobox-carousel" applies the Infobox-specific styles defined below.
               2. "tabbed" triggers the tabbed navigation layout.
             - onImageClick: Handles the click event for the lightbox.
         -->
@@ -225,13 +225,6 @@
 </div>
 
 <style>
-    :root {
-        /* Base size: 1rem is typically 16px */
-        --space-xs: 0.25rem; /* 4px */
-        --space-sm: 0.5rem; /* 8px */
-        --space-md: 1rem; /* 16px */
-    }
-
     .infobox {
         background-color: var(--color-overlay-light);
         border: 1px solid var(--color-border-primary);
@@ -402,6 +395,26 @@
         /* Ensure long words don't break the layout */
         word-wrap: break-word;
         overflow-wrap: break-word;
+    }
+
+    /* --- Carousel Component Overrides (Decoupled from Child) --- */
+    /* Target the Carousel component wrapper when it has the class 'infobox-carousel' */
+    :global(.content-carousel.infobox-carousel) {
+        margin-block: 0;
+        margin-bottom: var(--space-md);
+        width: 100%; /* Ensure it fills the infobox column */
+    }
+
+    :global(.content-carousel.infobox-carousel img) {
+        width: 100%;
+        height: auto;
+        max-height: 400px; /* Specific height limit for Infobox */
+        object-fit: contain;
+    }
+
+    /* Remove the boxy look for infoboxes so empty space (bars) is transparent/invisible */
+    :global(.content-carousel.infobox-carousel .carousel-stack) {
+        border: none;
     }
 
     /* --- Container Query for responsive layout --- */
