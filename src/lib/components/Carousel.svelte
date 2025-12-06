@@ -47,8 +47,7 @@
 </script>
 
 <!--
-    We automatically apply 'infobox-carousel' class if mode is infobox.
-    We append {className} for ad-hoc utilities like 'small' or 'large'.
+    We append {className} for ad-hoc utilities or parent-specific styling hooks.
 -->
 <div class="content-carousel {className}">
     <!-- Render Image Tabs if enabled -->
@@ -145,11 +144,6 @@
         --icon-size: 1.5rem; /* 24px */
         --dot-size: 0.625rem; /* 10px */
         --gallery-height: 300px; /* Default */
-
-        /* Layout spacing variables */
-        --space-xs: 0.25rem;
-        --space-sm: 0.5rem;
-        --space-md: 1rem;
     }
 
     .content-carousel {
@@ -168,29 +162,6 @@
     }
     .content-carousel.large {
         --gallery-height: 450px;
-    }
-
-    /* Infobox specific sizing override via logic-bound class */
-    .content-carousel.infobox-carousel {
-        margin-block: 0;
-        margin-bottom: var(--space-md);
-        width: 100%; /* Ensure it fills the infobox column */
-    }
-
-    .content-carousel.infobox-carousel img {
-        width: 100%;
-        height: auto;
-        max-height: 400px; /* Match old Infobox limit */
-        object-fit: contain;
-    }
-
-    /* Remove the boxy look for infoboxes so empty space (bars) is transparent/invisible */
-    .content-carousel.infobox-carousel .carousel-stack {
-        border: none;
-    }
-
-    .content-carousel.infobox-carousel .carousel-stack img {
-        border-radius: 4px;
     }
 
     .carousel-stack {
