@@ -114,14 +114,16 @@
 
         <!--
             We use the shared Carousel component.
-            - mode="infobox": Triggers the tab layout and specific styles.
-            - onImageClick: Handles the click event, receiving the specific index of the clicked image.
+            - className="infobox-carousel tabbed":
+              1. "infobox-carousel" applies full width.
+              2. "tabbed" triggers the tabbed navigation layout.
+            - onImageClick: Handles the click event for the lightbox.
         -->
         {#if carouselImages.length > 0}
             <div class="image-column">
                 <Carousel
                     images={carouselImages}
-                    mode="infobox"
+                    className="infobox-carousel tabbed"
                     onImageClick={openImageView}
                 />
             </div>
