@@ -34,6 +34,7 @@
     import DonationModal from "$lib/components/DonationModal.svelte";
 
     import "../app.css";
+    import "../preview.css";
 
     let { children } = $props();
     let isResizing = $state(false);

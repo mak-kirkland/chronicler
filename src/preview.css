@@ -1,0 +1,380 @@
+/* This file contains all styles related to the rendered content (Markdown preview).
+    It is scoped to the .chronicler-content class to prevent leaking into the App Shell.
+*/
+
+/* --- Base Container --- */
+.chronicler-content {
+    line-height: 1.7;
+    font-family: var(--font-family-body);
+}
+
+/* --- Typography --- */
+.chronicler-content h1,
+.chronicler-content h2,
+.chronicler-content h3,
+.chronicler-content h4,
+.chronicler-content h5,
+.chronicler-content h6 {
+    font-family: var(--font-family-heading);
+    /* * Using 'overflow: hidden' creates a new block formatting context,
+     * which makes the header's block (including its border) correctly
+     * wrap around floats like the infobox.
+     */
+    overflow: hidden;
+    clear: left;
+}
+
+.chronicler-content h1,
+.chronicler-content h2,
+.chronicler-content h3 {
+    border-bottom: 1px solid var(--color-border-primary);
+    padding-bottom: 0.3em;
+    margin-top: 1.5em;
+    margin-bottom: 0.3em;
+}
+
+.chronicler-content h1 + p,
+.chronicler-content h2 + p,
+.chronicler-content h3 + p {
+    margin-top: 0;
+}
+
+/* --- Paragraphs --- */
+/* Reset margins to remove browser defaults */
+.chronicler-content p {
+    margin-block: 0;
+}
+
+/* Add margin only between consecutive paragraphs for spacing that scales with font size */
+.chronicler-content p + p {
+    margin-block-start: 1rem;
+}
+
+/* --- Blockquotes --- */
+.chronicler-content blockquote {
+    border-left: 3px solid var(--color-border-primary);
+    padding-left: 1em;
+    margin-left: 0;
+    font-style: italic;
+    color: var(--color-text-secondary);
+}
+
+/* --- Code Blocks --- */
+/* Inline code: `like this` */
+.chronicler-content :not(pre) > code {
+    background-color: var(--color-overlay-medium);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+}
+
+/* Fenced code block container (```) */
+.chronicler-content pre {
+    background-color: var(--color-overlay-medium);
+    padding: 1em;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+/* Code inside fenced block */
+.chronicler-content pre > code {
+    background-color: transparent;
+    padding: 0;
+}
+
+/* --- Tables --- */
+.chronicler-content table {
+    max-width: 100%;
+    border-collapse: collapse;
+    margin-block: 1.5em;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.chronicler-content th,
+.chronicler-content td {
+    border: 1px solid var(--color-border-primary);
+    padding: 0.6em 0.8em;
+}
+
+.chronicler-content th {
+    background-color: var(--color-overlay-light);
+    font-weight: bold;
+}
+
+/* Remove borders from cells inside a table with border="0" */
+.chronicler-content table[border="0"] th,
+.chronicler-content table[border="0"] td {
+    border: none;
+}
+
+/* --- Links --- */
+.chronicler-content a.internal-link {
+    color: var(--color-text-link);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--color-text-link);
+    cursor: pointer;
+}
+
+.chronicler-content a.internal-link.broken {
+    color: var(--color-text-link-broken);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--color-text-link-broken);
+    cursor: pointer;
+}
+
+.chronicler-content .footnote-definition p {
+    display: inline;
+    margin-left: 0.5em;
+}
+
+/* --- Spoilers --- */
+.chronicler-content span.spoiler {
+    background-color: var(--color-overlay-dark);
+    color: transparent;
+    cursor: pointer;
+    padding: 0 0.2em;
+    border-radius: 3px;
+    transition:
+        background-color 0.1s ease-in-out,
+        color 0.1s ease-in-out;
+}
+
+.chronicler-content span.spoiler:hover {
+    background-color: var(--color-overlay-medium);
+}
+
+.chronicler-content span.spoiler.revealed {
+    background-color: transparent;
+    color: inherit;
+    cursor: text;
+}
+
+/* Target links inside hidden spoilers to make them transparent */
+.chronicler-content span.spoiler a.internal-link,
+.chronicler-content span.spoiler a.internal-link.broken {
+    color: transparent;
+    border-bottom-color: transparent;
+}
+
+/* Restore link colors when spoiler is revealed */
+.chronicler-content span.spoiler.revealed a.internal-link {
+    color: var(--color-text-link);
+    border-bottom-color: var(--color-text-link);
+}
+.chronicler-content span.spoiler.revealed a.internal-link.broken {
+    color: var(--color-text-link-broken);
+    border-bottom-color: var(--color-text-link-broken);
+}
+
+/* --- Inserts / Transclusions --- */
+.chronicler-content .insert-container {
+    border: 1px solid var(--color-border-primary);
+    border-left-width: 3px;
+    border-left-color: var(--color-accent-primary);
+    border-radius: var(--radius-base);
+    margin: 1.5rem 0;
+    margin-left: 1rem;
+    padding-left: 0.5rem;
+    overflow: hidden;
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+    box-shadow: 0 2px 8px var(--color-overlay-subtle);
+}
+
+.chronicler-content .insert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--color-background-secondary);
+    border-bottom: 1px solid var(--color-border-primary);
+    font-weight: 600;
+}
+
+.chronicler-content .insert-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chronicler-content .insert-title-wrapper.centered {
+    flex: 1;
+    justify-content: center;
+}
+
+.chronicler-content .insert-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    padding: 0.25rem;
+}
+
+.chronicler-content .insert-toggle:hover {
+    color: var(--color-text-secondary);
+}
+
+.chronicler-content .insert-content {
+    padding: 0.75rem;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Collapsed state for inserts */
+.chronicler-content .insert-container.collapsed {
+    background-color: transparent;
+    box-shadow: none;
+    border-color: transparent;
+    border-left-color: transparent;
+    padding-left: 0;
+}
+
+.chronicler-content .insert-container.collapsed .insert-header {
+    border: 1px solid var(--color-border-primary);
+    background-color: var(--color-background-secondary);
+    border-radius: var(--radius-base);
+    cursor: pointer;
+}
+
+.chronicler-content .insert-container.collapsed .insert-header:hover {
+    background-color: var(--color-background-secondary);
+    border-color: var(--color-accent-primary);
+}
+
+.chronicler-content .insert-container.collapsed .insert-content {
+    display: none;
+}
+
+/* --- Image Grid (Gallery) Shared Styles --- */
+/* A shared class for image grids.
+   Uses a CSS variable for min-width so different views can adjust density.
+*/
+.chronicler-content .image-grid,
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(var(--grid-min-width, 200px), 1fr)
+    );
+    gap: 1rem;
+    margin-block: 1.5em;
+    align-items: start;
+}
+
+/* --- Preview Gallery specific styles --- */
+/* Apply base styles to ALL images inside a gallery */
+.chronicler-content .gallery {
+    /* Use the shared grid layout */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-block: 1.5em;
+    align-items: start;
+    --gallery-height: 300px; /* Default */
+}
+
+.chronicler-content .gallery.small {
+    --gallery-height: 150px;
+}
+.chronicler-content .gallery.large {
+    --gallery-height: 450px;
+}
+
+.chronicler-content .gallery img {
+    width: 100%;
+    height: var(--gallery-height);
+    object-fit: contain;
+    background-color: var(--color-background-secondary);
+    display: block;
+    margin: 0;
+}
+
+/* Case A: Figure Wrappers */
+.chronicler-content .gallery figure {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border-primary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.chronicler-content .gallery figure img {
+    border-bottom: 1px solid var(--color-border-primary);
+}
+
+.chronicler-content .gallery figure > img:last-child {
+    border-bottom: none;
+}
+
+/* Case B: Bare Images */
+.chronicler-content .gallery > img {
+    border: 1px solid var(--color-border-primary);
+    border-radius: 4px;
+}
+
+/* Captions */
+.chronicler-content .gallery figcaption {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    text-align: center;
+    color: var(--color-text-secondary);
+    background-color: var(--color-background-secondary);
+}
+
+/* --- Sortable Tables --- */
+.chronicler-content .sortable-table thead th {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.chronicler-content .sortable-table thead th:hover {
+    background-color: var(--color-background-secondary);
+}
+
+.chronicler-content .sortable-table th[role="columnheader"]::after {
+    content: " \25B2"; /* Up arrow */
+    font-size: 0.8em;
+    opacity: 0.3;
+}
+
+.chronicler-content .sortable-table th[aria-sort="descending"]::after {
+    content: " \25BC"; /* Down arrow */
+    opacity: 1;
+}
+
+.chronicler-content .sortable-table th[aria-sort="ascending"]::after {
+    content: " \25B2"; /* Up arrow */
+    opacity: 1;
+}
+
+/* --- Layout Utilities (Float Container) --- */
+.chronicler-content .float-container {
+    display: flow-root;
+    margin-bottom: 1.5em;
+}
+
+.chronicler-content .float-left {
+    float: left;
+    margin-right: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+.chronicler-content .float-right {
+    float: right;
+    margin-left: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+/* Override default header behavior for headers inside float container */
+.chronicler-content .float-container > h1,
+.chronicler-content .float-container > h2,
+.chronicler-content .float-container > h3,
+.chronicler-content .float-container > h4,
+.chronicler-content .float-container > h5,
+.chronicler-content .float-container > h6 {
+    clear: none;
+    display: block;
+    overflow: hidden;
+}
