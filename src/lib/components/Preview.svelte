@@ -6,10 +6,7 @@
     import { tablesort, hydrateCarousels } from "$lib/domActions";
     import { navigateToTag } from "$lib/actions";
     import { buildInfoboxLayout } from "$lib/utils";
-
-    // The type for the infobox data is complex, so we can use `any` here.
-    // It's the `processed_frontmatter` object from the Rust backend.
-    type InfoboxData = any;
+    import type { InfoboxData } from "$lib/types";
 
     let {
         renderedData,

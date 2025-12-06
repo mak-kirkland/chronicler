@@ -7,7 +7,7 @@
 import type { FileNode } from "./bindings";
 import { resolveResource } from "@tauri-apps/api/path";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import type { InfoboxData, LayoutGroup, LayoutItem, RenderItem } from "./types";
+import type { InfoboxData, LayoutGroup, RenderItem } from "./types";
 
 /** A list of common image file extensions. */
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
