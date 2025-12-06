@@ -53,7 +53,7 @@
     });
 
     // --- Actions ---
-    function openImageView(index: number = 0) {
+    function openImageView(index: number) {
         if (data?.image_paths && data.image_paths[index]) {
             const currentImagePath = data.image_paths[index];
             const imageTitle =
@@ -113,30 +113,17 @@
         {/if}
 
         <!--
-            Replaced manual carousel implementation with shared ContentCarousel component.
-            This consolidates logic and styling.
+            We use the shared ContentCarousel component.
+            - mode="infobox": Triggers the tab layout and specific styles.
+            - onImageClick: Handles the click event, receiving the specific index of the clicked image.
         -->
         {#if carouselImages.length > 0}
             <div class="image-column">
-                <!--
-                    We wrap the carousel in a button (or just use click handler)
-                    to trigger the full image view. Since ContentCarousel handles its own
-                    interaction, we might simply put a click listener on the wrapper
-                    if we want the "click to open" behavior, but note that the Carousel controls
-                    might stop propagation.
-
-                    For now, we'll assume standard carousel behavior. If 'click to open'
-                    is desired for the current image, it would ideally be part of the Carousel props,
-                    but wrapping it here works for the container area.
-                -->
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <div onclick={() => openImageView(0)} class="carousel-wrapper">
-                    <ContentCarousel
-                        images={carouselImages}
-                        className="infobox-carousel"
-                    />
-                </div>
+                <ContentCarousel
+                    images={carouselImages}
+                    mode="infobox"
+                    onImageClick={openImageView}
+                />
             </div>
         {/if}
 
@@ -313,10 +300,6 @@
     .image-column {
         width: 100%;
         margin-bottom: var(--space-md);
-    }
-
-    .carousel-wrapper {
-        cursor: pointer;
     }
 
     /* --- Data Styles --- */
