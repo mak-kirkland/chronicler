@@ -271,7 +271,6 @@
     gap: 1rem;
     margin-block: 1.5em;
     align-items: start;
-    --gallery-height: 300px; /* Default */
 }
 
 .chronicler-content .gallery.small {
