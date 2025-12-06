@@ -6,7 +6,7 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import { areInfoboxTagsVisible } from "$lib/settingsStore";
     import InfoboxSettingsModal from "./InfoboxSettingsModal.svelte";
-    import ContentCarousel from "./ContentCarousel.svelte";
+    import Carousel from "./Carousel.svelte";
 
     // --- Props ---
     let { data } = $props<{
@@ -19,7 +19,7 @@
      */
     const renderItems = $derived(buildInfoboxLayout(data));
 
-    // Prepare data for the ContentCarousel component
+    // Prepare data for the Carousel component
     const carouselImages = $derived.by(() => {
         if (
             !data?.images ||
@@ -113,13 +113,13 @@
         {/if}
 
         <!--
-            We use the shared ContentCarousel component.
+            We use the shared Carousel component.
             - mode="infobox": Triggers the tab layout and specific styles.
             - onImageClick: Handles the click event, receiving the specific index of the clicked image.
         -->
         {#if carouselImages.length > 0}
             <div class="image-column">
-                <ContentCarousel
+                <Carousel
                     images={carouselImages}
                     mode="infobox"
                     onImageClick={openImageView}
