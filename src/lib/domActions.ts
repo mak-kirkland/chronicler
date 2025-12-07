@@ -394,3 +394,63 @@ export function hydrateCarousels(node: HTMLElement, _data: any) {
         },
     };
 }
+
+/**
+ * A Svelte action that scans a node for .gallery blocks and enhances them
+ * by injecting a blurred background div behind images to fill empty space.
+ * This mimics the structure of Carousel.svelte but for static markdown content.
+ */
+export function enhanceGalleries(node: HTMLElement, _data: any) {
+    function update() {
+        const galleries = node.querySelectorAll('.gallery');
+
+        galleries.forEach(gallery => {
+            // Helper to enhance a container (figure or wrapper) with a bg
+            const injectBg = (container: HTMLElement, imgSrc: string) => {
+                // Prevent duplicate injection
+                if (container.querySelector('.blurred-bg')) return;
+
+                const bg = document.createElement('div');
+                bg.className = 'blurred-bg';
+                bg.style.backgroundImage = `url('${imgSrc}')`;
+
+                // Prepend ensures it sits behind the image (z-index handled in CSS)
+                container.prepend(bg);
+            };
+
+            // Case A: Images wrapped in <figure> (Standard Markdown with Captions)
+            gallery.querySelectorAll('figure').forEach(figure => {
+                const img = figure.querySelector('img');
+                if (img) injectBg(figure, img.getAttribute('src') || '');
+            });
+
+            // Case B: Bare <img> tags (Markdown without captions)
+            // We need to wrap them to position the background behind them.
+            const children = Array.from(gallery.children);
+            children.forEach(child => {
+                if (child.tagName.toLowerCase() === 'img') {
+                    const img = child as HTMLImageElement;
+
+                    // Skip if already wrapped
+                    if (img.parentElement?.classList.contains('gallery-item-wrapper')) return;
+
+                    // Create wrapper
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'gallery-item-wrapper';
+
+                    // Insert wrapper, move img inside, and inject bg
+                    gallery.insertBefore(wrapper, img);
+                    wrapper.appendChild(img);
+                    injectBg(wrapper, img.getAttribute('src') || '');
+                }
+            });
+        });
+    }
+
+    // Run immediately
+    update();
+
+    return {
+        update // Re-run if data changes
+    };
+}
