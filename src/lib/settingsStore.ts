@@ -30,6 +30,7 @@ interface GlobalSettings {
 /** Defines the shape of the PER-VAULT settings object saved to disk. */
 interface VaultSettings {
     activeTheme: ThemeName;
+    activeIconPack: string;
     headingFont: string;
     bodyFont: string;
     fontSize: number;
@@ -134,6 +135,7 @@ export const userFonts = writable<UserFont[]>([]);
 
 // Per-Vault Stores
 export const activeTheme = writable<ThemeName>("light");
+export const activeIconPack = writable<string>("core");
 export const headingFont = writable<string>(`"Uncial Antiqua", cursive`);
 export const bodyFont = writable<string>(`"IM Fell English", serif`);
 export const fontSize = writable<number>(100);
@@ -190,6 +192,7 @@ async function saveVaultSettings() {
     if (!vaultSettingsFile) return;
     const settings: VaultSettings = {
         activeTheme: get(activeTheme),
+        activeIconPack: get(activeIconPack),
         headingFont: get(headingFont),
         bodyFont: get(bodyFont),
         fontSize: get(fontSize),
@@ -248,6 +251,7 @@ export async function initializeVaultSettings(vaultPath: string) {
     if (settings) {
         // Once a vault is loaded, its specific settings take precedence.
         activeTheme.set(settings.activeTheme ?? "light");
+        activeIconPack.set(settings.activeIconPack ?? "core");
         headingFont.set(settings.headingFont ?? `"Uncial Antiqua", cursive`);
         bodyFont.set(settings.bodyFont ?? `"IM Fell English", serif`);
         fontSize.set(settings.fontSize ?? 100);
@@ -264,6 +268,7 @@ export async function initializeVaultSettings(vaultPath: string) {
 
     // Enable automatic saving for vault settings.
     activeTheme.subscribe(debouncedVaultSave);
+    activeIconPack.subscribe(debouncedVaultSave);
     headingFont.subscribe(debouncedVaultSave);
     bodyFont.subscribe(debouncedVaultSave);
     fontSize.subscribe(debouncedVaultSave);
@@ -289,6 +294,7 @@ export function destroyVaultSettings() {
     isTocVisible.set(true); // Reset to default
     areInfoboxTagsVisible.set(true);
     areFooterTagsVisible.set(true);
+    activeIconPack.set("core");
     vaultSettingsFile = null; // Ensure no further saves can happen.
 }
 

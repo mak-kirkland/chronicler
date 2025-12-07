@@ -17,6 +17,7 @@
     import type { PageHeader, FullPageData } from "$lib/bindings";
     import { findFileInTree } from "$lib/utils";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
+    import ThemedIcon from "./ThemedIcon.svelte";
 
     let { file, sectionId } = $props<{
         file: PageHeader;
@@ -157,14 +158,14 @@
                 </h2>
                 <SaveStatus status={saveStatus} {lastSaveTime} />
             </div>
-            <div slot="right">
+            <div slot="right" class="header-actions">
                 {#if pageData.rendered_page && pageData.rendered_page.toc.length > 0}
                     <Button
                         size="small"
                         onclick={() => ($isTocVisible = !$isTocVisible)}
                         title="Toggle Table of Contents"
                     >
-                        📑 Contents
+                        <ThemedIcon type="contents" /> Contents
                     </Button>
                 {/if}
 
@@ -178,7 +179,8 @@
                             }))}
                         title="Toggle Backlinks"
                     >
-                        🔗 {$rightSidebar.backlinks.length}
+                        <ThemedIcon type="backlinks" />
+                        {$rightSidebar.backlinks.length}
                     </Button>
                 {/if}
 
@@ -189,7 +191,7 @@
                         onclick={() => ($fileViewMode = "split")}
                         title="Edit"
                     >
-                        📝 Edit
+                        <ThemedIcon type="edit" /> Edit
                     </Button>
                 {/if}
                 {#if $fileViewMode === "split"}
@@ -198,14 +200,14 @@
                         onclick={() => ($fileViewMode = "editor")}
                         title="Editor Only"
                     >
-                        📄 Editor Only
+                        <ThemedIcon type="file" /> Editor Only
                     </Button>
                     <Button
                         size="small"
                         onclick={() => ($fileViewMode = "preview")}
                         title="Preview Only"
                     >
-                        👁️ Preview Only
+                        <ThemedIcon type="preview" /> Preview Only
                     </Button>
                 {/if}
                 {#if $fileViewMode === "editor"}
@@ -214,14 +216,14 @@
                         onclick={() => ($fileViewMode = "split")}
                         title="Split View"
                     >
-                        ◧ Split View
+                        <ThemedIcon type="split" /> Split View
                     </Button>
                     <Button
                         size="small"
                         onclick={() => ($fileViewMode = "preview")}
                         title="Preview Only"
                     >
-                        👁️ Preview Only
+                        <ThemedIcon type="preview" /> Preview Only
                     </Button>
                 {/if}
             </div>
@@ -281,6 +283,11 @@
         flex-shrink: 1;
         overflow: hidden;
         min-width: 0; /* Helps with ellipsis truncation */
+    }
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
     .view-title {
         font-family: var(--font-family-heading);

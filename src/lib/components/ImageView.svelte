@@ -6,6 +6,7 @@
     import { convertFileSrc } from "@tauri-apps/api/core";
     import ErrorBox from "./ErrorBox.svelte";
     import ViewHeader from "./ViewHeader.svelte";
+    import ThemedIcon from "./ThemedIcon.svelte";
     import { onMount, onDestroy } from "svelte";
 
     /**
@@ -140,10 +141,7 @@
                     onclick={handlePrev}
                     title="Previous (Left Arrow)"
                 >
-                    <svg viewBox="0 0 24 24" fill="currentColor"
-                        ><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
-                        ></path></svg
-                    >
+                    <ThemedIcon type="back" />
                 </button>
             {/if}
             {#if nextImage}
@@ -152,11 +150,7 @@
                     onclick={handleNext}
                     title="Next (Right Arrow)"
                 >
-                    <svg viewBox="0 0 24 24" fill="currentColor"
-                        ><path
-                            d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"
-                        ></path></svg
-                    >
+                    <ThemedIcon type="forward" />
                 </button>
             {/if}
         {/if}
@@ -235,7 +229,7 @@
     .nav-btn.next {
         right: 1rem;
     }
-    .nav-btn svg {
+    .nav-btn :global(svg) {
         width: 2rem;
         height: 2rem;
     }
