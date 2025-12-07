@@ -371,3 +371,34 @@ export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
 
     return finalItems;
 }
+
+/**
+ * Calculates if a given hex color is considered "dark" based on HSP luminance.
+ * @param color The hex color string (e.g., "#ffffff" or "000000").
+ * @returns True if the color is considered dark, false otherwise.
+ */
+export function isColorDark(color: string): boolean {
+    // Basic hex parsing/cleanup
+    let hex = color.replace("#", "");
+    if (hex.length === 3) {
+        hex = hex
+            .split("")
+            .map((c) => c + c)
+            .join("");
+    }
+    // Fallback for invalid colors or rgba (assume light for safety)
+    if (hex.length !== 6) return false;
+
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // HSP equation from http://alienryderflex.com/hsp.html
+    const hsp = Math.sqrt(
+        0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b),
+    );
+
+    // Threshold of 127.5 is the mathematical midpoint, but 140 gives a better
+    // "feel" for interfaces, defaulting to Dark Mode slightly earlier.
+    return hsp < 140;
+}

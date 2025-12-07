@@ -4,9 +4,9 @@
  */
 
 export interface IconPack {
-    id: string;
-    name: string;
-    description: string;
+    // Helper flag to tell the component how to render
+    type: "svg" | "text";
+    // The dictionary of icon paths/strings
     icons: {
         // File System
         folder: string;
@@ -31,12 +31,12 @@ export interface IconPack {
         contents: string;
         backlinks: string;
 
-        // UI Controls (New)
+        // UI Controls
         close: string;
         newFile: string;
         newFolder: string;
 
-        // Editor Toolbar (New)
+        // Editor Toolbar
         bold: string;
         italic: string;
         strikethrough: string;
@@ -46,10 +46,41 @@ export interface IconPack {
     };
 }
 
-export const defaultPack: IconPack = {
-    id: "core",
-    name: "Default",
-    description: "The clean, standard look of Chronicler.",
+// The DEFAULT pack (Text-based)
+export const coreIcons: IconPack = {
+    type: "text",
+    icons: {
+        folder: "📁",
+        folderOpen: "📂",
+        file: "📄",
+        image: "🖼️",
+        tags: "#",
+        gallery: "🖼️",
+        reports: "📈",
+        back: "←",
+        forward: "→",
+        settings: "⚙️",
+        help: "?",
+        info: "ℹ",
+        edit: "📝",
+        preview: "👁️",
+        split: "◧",
+        contents: "📑",
+        backlinks: "🔗",
+        close: "×",
+        newFile: "+📄",
+        newFolder: "+📁",
+        bold: "B",
+        italic: "I",
+        strikethrough: "S",
+        heading1: "H1",
+        heading2: "H2",
+        heading3: "H3",
+    },
+};
+
+export const professionalPack: IconPack = {
+    type: "svg",
     icons: {
         // File System
         folder: `<path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>`,
@@ -83,16 +114,13 @@ export const defaultPack: IconPack = {
         bold: `<path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/>`,
         italic: `<path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/>`,
         strikethrough: `<path d="M10 19h4v-3h-4v3zM5 4v3h5v3h4V7h5V4H5zM3 14h18v-2H3v2z"/>`,
-        heading1: `<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h2V7H7V5h10v2h-2v10h2v2z"/>`, // Generic H
-        heading2: `<path d="M5 4v3h5.5v10H5v3h14v-3h-5.5V7H19V4z"/>`, // Slightly smaller generic H
-        heading3: `<path d="M5 4v3h5.5v10H5v3h14v-3h-5.5V7H19V4z" transform="scale(0.8) translate(3,3)"/>`, // Smallest H
+        heading1: `<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h2V7H7V5h10v2h-2v10h2v2z"/>`,
+        heading2: `<path d="M5 4v3h5.5v10H5v3h14v-3h-5.5V7H19V4z"/>`,
+        heading3: `<path d="M5 4v3h5.5v10H5v3h14v-3h-5.5V7H19V4z" transform="scale(0.8) translate(3,3)"/>`,
     },
 };
-
-export const fantasyPack: IconPack = {
-    id: "fantasy-pack",
-    name: "High Fantasy",
-    description: "Parchment, wax seals, and ancient chests.",
+export const fantasyIcons: IconPack = {
+    type: "svg",
     icons: {
         // File System - Wooden Chest
         folder: `<path d="M20,6H17V4a2,2,0,0,0-2-2H9A2,2,0,0,0,7,4V6H4A2,2,0,0,0,2,8V19a2,2,0,0,0,2,2H20a2,2,0,0,0,2-2V8A2,2,0,0,0,20,6ZM9,4h6V6H9ZM20,19H4V8H7v2h2V8h6v2h2V8h3Z" fill="#8B4513"/>
@@ -182,10 +210,8 @@ export const fantasyPack: IconPack = {
     },
 };
 
-export const sciFiPack: IconPack = {
-    id: "scifi-pack",
-    name: "Cyber System",
-    description: "Holographic data cubes and neon terminals.",
+export const sciFiIcons: IconPack = {
+    type: "svg",
     icons: {
         // File System - Server Rack / Chip
         folder: `<path d="M2,4V20H22V4ZM20,18H4V6H20ZM6,8H8v2H6Zm0,4H8v2H6ZM10,8h8v2H10Zm0,4h8v2H10Z" fill="#0ff"/>
@@ -229,7 +255,7 @@ export const sciFiPack: IconPack = {
                   <rect x="2" y="10" width="4" height="4" fill="#0ff" opacity="0.5"/>`,
 
         // Gear / Chip
-        settings: `<path d="M19.14,12.94a7.6,7.6,0,0,0,0-1.88l2.1-1.63a.5.5,0,0,0,.12-.61l-2-3.46a.5.5,0,0,0-.61-.22l-2.49,1a7.32,7.32,0,0,0-3.24-1.88L12.64,2a.5.5,0,0,0-.5-.41H9.86a.5.5,0,0,0-.5.41L9,4.26a7.32,7.32,0,0,0-3.24,1.88l-2.49-1a.5.5,0,0,0-.61.22L.66,8.83a.5.5,0,0,0,.12.61l2.1,1.63a7.6,7.6,0,0,0,0,1.88L.78,14.57a.5.5,0,0,0-.12.61l2,3.46a.5.5,0,0,0,.61.22l2.49-1a7.32,7.32,0,0,0,3.24,1.88L9.36,22a.5.5,0,0,0,.5.41h2.28a.5.5,0,0,0,.5-.41l.38-2.27a7.32,7.32,0,0,0,3.24-1.88l2.49,1a.5.5,0,0,0,.61-.22l2-3.46a.5.5,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/>
+        settings: `<path d="M19.14,12.94a7.6,7.6,0,0,0,0-1.88l2.1-1.63a.5.5,0,0,0,.12-.61l-2-3.46a.5.5,0,0,0-.61-.22l-2.49,1a7.32,7.32,0,0,0-3.24-1.88L12.64,2a.5.5,0,0,0-.5-.41H9.86a.5.5,0,0,0-.5.41L9,4.26a7.32,7.32,0,0,0-3.24,1.88l-2.49-1a.5.5,0,0,0-.61.22L.66,8.83a.5.5,0,0,0,.12.61l2.1,1.63a7.6,7.6,0,0,0,0,1.88L.78,14.57a.5.5,0,0,0-.12.61l2,3.46a.5.5,0,0,0,.61.22l2.49-1a7.32,7.32,0,0,0,3.24-1.88L9.36,22a.5.5,0,0,0,.5.41h2.28a.5.5,0,0,0,.5-.41l.38-2.27a7.32,7.32,0,0,0,3.24-1.88l2.49,1a.5.5,0,0,0,.61-.22l2-3.46a.5.5,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/>
                    <circle cx="12" cy="12" r="1.5" fill="#0ff"/>`,
 
         // Help Terminal
@@ -290,9 +316,10 @@ export const sciFiPack: IconPack = {
     },
 };
 
-// Master registry used by the store
+// Registry of icon sets
 export const iconPacks: Record<string, IconPack> = {
-    core: defaultPack,
-    "fantasy-pack": fantasyPack,
-  // "scifi-pack": sciFiPack,
+    core: coreIcons,
+    // "professional-pack": professionalIcons,
+    "fantasy-pack": fantasyIcons,
+    // "scifi-pack": sciFiIcons,
 };

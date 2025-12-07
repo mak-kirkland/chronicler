@@ -19,6 +19,8 @@
         sidebarWidth,
         headingFont,
         bodyFont,
+        atmosphere,
+        atmosphereMode,
     } from "$lib/settingsStore";
     import { licenseStore } from "$lib/licenseStore";
     import { openModal } from "$lib/modalStore";
@@ -32,9 +34,11 @@
     import ErrorBox from "$lib/components/ErrorBox.svelte";
     import Button from "$lib/components/Button.svelte";
     import DonationModal from "$lib/components/DonationModal.svelte";
+    import AtmosphereEffects from "$lib/components/AtmosphereEffects.svelte";
 
     import "../app.css";
     import "../preview.css";
+    import "$lib/atmosphere/index.css";
 
     let { children } = $props();
     let isResizing = $state(false);
@@ -173,27 +177,45 @@
     }
 </script>
 
-<ModalManager />
+<!--
+    ROOT WRAPPER:
+    The data attributes here trigger the CSS rules in atmosphere.base.css
+    and the specific packs (fantasy.css, scifi.css).
+-->
+<div
+    class="app-shell"
+    style="--sidebar-width: {$sidebarWidth}px; --texture-opacity: {$atmosphere.textureOpacity};"
+    data-icons={$atmosphere.icons}
+    data-buttons={$atmosphere.buttons}
+    data-texture={$atmosphere.textures}
+    data-typography={$atmosphere.typography}
+    data-cursor={$atmosphere.cursors}
+    data-borders={$atmosphere.borders}
+    data-frames={$atmosphere.frames}
+    data-ui={$atmosphere.uiElements}
+    data-mode={$atmosphereMode}
+>
+    <AtmosphereEffects />
+    <ModalManager />
 
-{#if $appStatus.state === "selecting_vault"}
-    <VaultSelector onVaultSelected={handleVaultSelected} />
-{:else if $appStatus.state === "loading"}
-    <div class="loading-screen">
-        <img
-            src="/logo.png"
-            alt="Chronicler Logo"
-            class="welcome-icon animate-spin"
-        />
-        <h1 class="welcome-title">Opening Vault...</h1>
-    </div>
-{:else if $appStatus.state === "error"}
-    <div class="loading-screen">
-        <h1 class="welcome-title">Error</h1>
-        <ErrorBox>{$appStatus.message}</ErrorBox>
-        <Button onclick={handleTryAgain}>Select a Different Folder</Button>
-    </div>
-{:else if $appStatus.state === "ready"}
-    <div class="chronicler-app" style="--sidebar-width: {$sidebarWidth}px">
+    {#if $appStatus.state === "selecting_vault"}
+        <VaultSelector onVaultSelected={handleVaultSelected} />
+    {:else if $appStatus.state === "loading"}
+        <div class="loading-screen">
+            <img
+                src="/logo.png"
+                alt="Chronicler Logo"
+                class="welcome-icon animate-spin"
+            />
+            <h1 class="welcome-title">Opening Vault...</h1>
+        </div>
+    {:else if $appStatus.state === "error"}
+        <div class="loading-screen">
+            <h1 class="welcome-title">Error</h1>
+            <ErrorBox>{$appStatus.message}</ErrorBox>
+            <Button onclick={handleTryAgain}>Select a Different Folder</Button>
+        </div>
+    {:else if $appStatus.state === "ready"}
         <Sidebar bind:width={$sidebarWidth} />
 
         <div
@@ -210,37 +232,47 @@
             style="left: {$sidebarWidth - 2.5}px;"
         ></div>
 
+        <!-- Main content area -->
         <main class="main-content">
             {@render children()}
         </main>
-    </div>
-{/if}
+    {/if}
+</div>
 
 <style>
+    /* The app-shell handles the global layout.
+       It uses flexbox to lay out the sidebar and main content side-by-side.
+    */
+    .app-shell {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        position: relative;
+        display: flex; /* Flex layout for sidebar + content */
+        color: var(--color-text-primary);
+        font-family: var(--font-family-body);
+        background-color: var(--color-background-primary);
+    }
+
     .loading-screen {
+        position: absolute;
+        inset: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         text-align: center;
-        width: 100vw;
-        height: 100vh;
-        color: var(--color-text-primary);
-        padding: 2rem;
+        z-index: 50; /* Sit above everything else */
     }
-    .chronicler-app {
-        display: flex;
-        height: 100vh;
-        width: 100vw;
-        color: var(--color-text-primary);
-        font-family: var(--font-family-body);
-    }
+
     .main-content {
         display: flex;
         flex-grow: 1;
         height: 100%;
         margin-left: var(--sidebar-width);
+        position: relative;
     }
+
     .resizer {
         width: 5px;
         cursor: ew-resize;
