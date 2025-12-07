@@ -12,6 +12,7 @@
     import { draggable, droppable } from "$lib/domActions";
     import FileTree from "./FileTree.svelte";
     import Button from "./Button.svelte";
+    import ThemedIcon from "./ThemedIcon.svelte";
     import { isDirectory, isImage, isMarkdown } from "$lib/utils";
     let {
         node,
@@ -78,25 +79,27 @@
             onfilesdropped={handleFilesDropped}
         >
             <div class="label">
-                <span class="icon">{expanded ? "▼" : "►"}</span>
+                <!-- Structural arrow and themed folder icon next to it -->
+                <span class="arrow-icon">{expanded ? "▼" : "►"}</span>
+                <ThemedIcon type={expanded ? "folderOpen" : "folder"} />
                 <span class="node-name-text">{node.name}</span>
             </div>
             <div class="quick-actions">
                 <Button
                     variant="ghost"
                     class="quick-action-btn"
-                    title="New Page in '{node.name}'"
+                    title="New Page"
                     onclick={handleNewFile}
                 >
-                    +📄
+                    <ThemedIcon type="newFile" />
                 </Button>
                 <Button
                     variant="ghost"
                     class="quick-action-btn"
-                    title="New Folder in '{node.name}'"
+                    title="New Folder"
                     onclick={handleNewFolder}
                 >
-                    +📁
+                    <ThemedIcon type="newFolder" />
                 </Button>
             </div>
         </div>
@@ -122,7 +125,7 @@
             }}
             use:draggable={node.path}
         >
-            <span class="icon">{isImage(node) ? "🖼️" : "📜"}</span>
+            <ThemedIcon type={isImage(node) ? "image" : "file"} />
             <span class="node-name-text">{node.name}</span>
         </div>
     {/if}
@@ -168,9 +171,11 @@
         border-left: 1px solid var(--color-border-primary);
         margin-left: 0.5rem;
     }
-    .icon {
+    .arrow-icon {
         opacity: 0.7;
         font-size: 0.8em;
+        width: 1em; /* Fixed width to align icons */
+        text-align: center;
     }
     .label {
         display: flex;
@@ -184,10 +189,9 @@
     .node-name-text {
         flex-grow: 1; /* Allows the span to fill the available space */
     }
-    /* This rule applies right-alignment ONLY to
-       text within an element having the .file class. */
     .file .node-name-text {
-        text-align: right;
+        /* Remove text-align right to align nicely with the icon on the left */
+        text-align: left;
     }
     .quick-actions {
         display: flex;

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
+    import ThemedIcon from "./ThemedIcon.svelte";
 
     let {
         children,
@@ -50,8 +51,10 @@
                 <button
                     class="close-btn"
                     onclick={onClose}
-                    aria-label="Close modal">&times;</button
+                    aria-label="Close modal"
                 >
+                    <ThemedIcon type="close" />
+                </button>
             {/if}
         </div>
         <div class="modal-body">
@@ -99,9 +102,10 @@
     .close-btn {
         background: none;
         border: none;
-        font-size: 2rem;
+        font-size: 1.5rem;
         color: var(--color-text-secondary);
         cursor: pointer;
+        padding: 0;
     }
     .modal-body {
         max-height: 70vh;

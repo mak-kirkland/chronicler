@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { EditorView } from "@codemirror/view";
+    import ThemedIcon from "./ThemedIcon.svelte";
     import {
         toggleBold,
         toggleItalic,
@@ -14,32 +15,32 @@
         {
             title: "Bold (Ctrl+B)",
             action: toggleBold,
-            display: "<b>B</b>",
+            iconType: "bold",
         },
         {
             title: "Italic (Ctrl+I)",
             action: toggleItalic,
-            display: "<i>I</i>",
+            iconType: "italic",
         },
         {
             title: "Strikethrough",
             action: toggleStrikethrough,
-            display: "<s>S</s>",
+            iconType: "strikethrough",
         },
         {
             title: "Heading 1",
             action: (v: EditorView) => addHeading(v, 1),
-            display: "H1",
+            iconType: "heading1",
         },
         {
             title: "Heading 2",
             action: (v: EditorView) => addHeading(v, 2),
-            display: "H2",
+            iconType: "heading2",
         },
         {
             title: "Heading 3",
             action: (v: EditorView) => addHeading(v, 3),
-            display: "H3",
+            iconType: "heading3",
         },
     ];
 
@@ -52,9 +53,10 @@
 </script>
 
 <div class="editor-toolbar">
-    {#each toolbarActions as { title, action, display }}
+    {#each toolbarActions as { title, action, iconType }}
         <button {title} onclick={() => handleAction(action)}>
-            {@html display}
+            <!-- @ts-ignore -->
+            <ThemedIcon type={iconType} />
         </button>
     {/each}
 </div>
@@ -79,14 +81,14 @@
         border-radius: 4px;
         cursor: pointer;
         transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.3rem;
     }
 
     button:hover {
         background-color: var(--color-background-secondary);
         color: var(--color-text-primary);
-    }
-
-    button :global(b) {
-        font-weight: 800;
     }
 </style>

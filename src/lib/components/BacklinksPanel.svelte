@@ -1,6 +1,7 @@
 <script lang="ts">
     import { rightSidebar, currentView } from "$lib/viewStores";
     import type { Backlink } from "$lib/bindings";
+    import ThemedIcon from "./ThemedIcon.svelte";
 
     function handleLinkClick(file: Backlink) {
         // When a backlink is clicked, navigate to that file.
@@ -20,7 +21,7 @@
     <div class="sidebar-header">
         <h3>Backlinks</h3>
         <button class="close-btn" onclick={closePanel} title="Close Panel">
-            &times;
+            <ThemedIcon type="close" />
         </button>
     </div>
     <div class="sidebar-content">
