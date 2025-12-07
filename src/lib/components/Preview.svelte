@@ -3,7 +3,11 @@
     import Infobox from "./Infobox.svelte";
     import TableOfContents from "./TableOfContents.svelte";
     import { isTocVisible, areFooterTagsVisible } from "$lib/settingsStore";
-    import { tablesort, hydrateCarousels } from "$lib/domActions";
+    import {
+        tablesort,
+        hydrateCarousels,
+        enhanceGalleries,
+    } from "$lib/domActions";
     import { navigateToTag } from "$lib/actions";
     import { buildInfoboxLayout } from "$lib/utils";
     import type { InfoboxData } from "$lib/types";
@@ -63,6 +67,7 @@
     tabindex="0"
     use:tablesort={renderedData}
     use:hydrateCarousels={renderedData}
+    use:enhanceGalleries={renderedData}
 >
     {#if showInfobox}
         <!-- Use <aside> for better semantics. It's floated, so order in HTML matters. -->
