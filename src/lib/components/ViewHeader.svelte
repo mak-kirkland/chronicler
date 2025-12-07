@@ -1,6 +1,7 @@
 <script lang="ts">
     import { navigation } from "$lib/viewStores";
     import Button from "$lib/components/Button.svelte";
+    import Icon from "./Icon.svelte";
 </script>
 
 <div class="view-header">
@@ -13,7 +14,7 @@
                 disabled={!$navigation.canGoBack}
                 onclick={navigation.back}
             >
-                &larr;
+                <Icon type="back" />
             </Button>
             <Button
                 variant="ghost"
@@ -22,7 +23,7 @@
                 disabled={!$navigation.canGoForward}
                 onclick={navigation.forward}
             >
-                &rarr;
+                <Icon type="forward" />
             </Button>
         </div>
 

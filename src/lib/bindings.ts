@@ -101,12 +101,13 @@ export interface FullPageData {
 
 /**
  * Represents the structure of a validated license.
- * This mirrors the `License` struct in `src-tauri/src/models.rs`.
+ * This mirrors the `License` struct in `src-tauri/src/licensing.rs`.
  */
 export interface License {
     key: string;
     status: string;
     expiry: string;
+    entitlements: string[];
 }
 
 /**

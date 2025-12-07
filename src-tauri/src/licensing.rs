@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::env;
 use tauri::{AppHandle, Manager};
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 
 // --- Data Structures ---
 
@@ -21,13 +21,16 @@ pub struct SignedLicense {
     pub signature: String,
 }
 
-/// Represents the core license data. (This is your existing License struct)
+/// Represents the core license data.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct License {
     pub id: String,
     pub key: String,
     pub status: String,
     pub expiry: Option<DateTime<Utc>>,
+    /// A list of product codes (e.g. "fantasy-pack") that this license is entitled to.
+    #[serde(default)]
+    pub entitlements: Vec<String>,
 }
 
 // Structs for deserializing the response from the Keygen API.
@@ -61,6 +64,23 @@ struct KeygenLicenseData {
 struct KeygenValidationResponse {
     data: Option<KeygenLicenseData>,
     meta: KeygenMeta,
+}
+
+// --- Entitlements Response Structs ---
+
+#[derive(Deserialize, Debug)]
+struct EntitlementsResponse {
+    data: Vec<EntitlementResource>,
+}
+
+#[derive(Deserialize, Debug)]
+struct EntitlementResource {
+    attributes: EntitlementAttributes,
+}
+
+#[derive(Deserialize, Debug)]
+struct EntitlementAttributes {
+    code: String,
 }
 
 // --- Constants ---
@@ -107,8 +127,14 @@ pub async fn validate_license(license_key: &str) -> Result<License> {
         .send()
         .await?;
 
-    let validation_response: KeygenValidationResponse = res.json().await?;
-    info!(?validation_response.meta, "Validation response received.");
+    let response_text = res.text().await?;
+    let validation_response: KeygenValidationResponse = serde_json::from_str(&response_text)
+        .map_err(|e| {
+            error!("Failed to parse Keygen response: {}", e);
+            ChroniclerError::LicenseInvalid("Failed to parse license server response.".to_string())
+        })?;
+
+    info!(?validation_response.meta, "Validation response parsed.");
 
     let license_data = validation_response
         .data
@@ -128,19 +154,15 @@ pub async fn validate_license(license_key: &str) -> Result<License> {
 
         let activation_res = client
             .post(&activation_url)
-            .header("Authorization", format!("Bearer {}", product_token)) // <-- Use the loaded variable
+            .header("Authorization", format!("Bearer {}", product_token))
             .header("Content-Type", "application/vnd.api+json")
             .header("Accept", "application/vnd.api+json")
             .json(&serde_json::json!({
                 "data": {
                     "type": "machines",
-                    "attributes": {
-                        "fingerprint": fingerprint
-                    },
+                    "attributes": { "fingerprint": fingerprint },
                     "relationships": {
-                        "license": {
-                            "data": { "type": "licenses", "id": license_data.id }
-                        }
+                        "license": { "data": { "type": "licenses", "id": license_data.id } }
                     }
                 }
             }))
@@ -148,12 +170,9 @@ pub async fn validate_license(license_key: &str) -> Result<License> {
             .await?;
 
         if !activation_res.status().is_success() {
-            let error_body: serde_json::Value = activation_res.json().await?;
-            let detail = error_body["errors"][0]["detail"]
-                .as_str()
-                .unwrap_or("Activation failed for an unknown reason.");
-            error!(?error_body, "Machine activation failed.");
-            return Err(ChroniclerError::LicenseInvalid(detail.to_string()));
+            return Err(ChroniclerError::LicenseInvalid(
+                "Machine activation failed.".to_string(),
+            ));
         }
 
         info!("Machine activated successfully.");
@@ -164,12 +183,43 @@ pub async fn validate_license(license_key: &str) -> Result<License> {
         ));
     }
 
-    // --- STEP 3: RETURN THE LOCAL LICENSE STRUCT ---
+    // --- STEP 3: FETCH ENTITLEMENTS ---
+    // Explicitly fetch the entitlements for this license ID.
+    info!(
+        "Step 3: Fetching entitlements for license {}...",
+        license_data.id
+    );
+    let entitlements_url = format!(
+        "https://api.keygen.sh/v1/accounts/{}/licenses/{}/entitlements",
+        KEYGEN_ACCOUNT_ID, license_data.id
+    );
+
+    let ent_res = client
+        .get(&entitlements_url)
+        .header("Authorization", format!("Bearer {}", product_token)) // Needs token to read data
+        .header("Content-Type", "application/vnd.api+json")
+        .header("Accept", "application/vnd.api+json")
+        .send()
+        .await?;
+
+    let mut entitlements = Vec::new();
+    if ent_res.status().is_success() {
+        let ent_body: EntitlementsResponse = ent_res.json().await?;
+        for ent in ent_body.data {
+            entitlements.push(ent.attributes.code);
+        }
+        info!(?entitlements, "Successfully fetched entitlements.");
+    } else {
+        warn!("Failed to fetch entitlements: {}", ent_res.status());
+    }
+
+    // --- STEP 4: RETURN THE LOCAL LICENSE STRUCT ---
     Ok(License {
         id: license_data.id,
         key: license_data.attributes.key,
         status: license_data.attributes.status,
         expiry: license_data.attributes.expiry,
+        entitlements,
     })
 }
 

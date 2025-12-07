@@ -1,5 +1,6 @@
 <script lang="ts">
     import { supportsTransparency } from "$lib/utils";
+    import Icon from "./Icon.svelte";
 
     let {
         images,
@@ -100,20 +101,14 @@
                 onclick={prevImage}
                 aria-label="Previous image"
             >
-                <svg viewBox="0 0 24 24" fill="currentColor"
-                    ><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"
-                    ></path></svg
-                >
+                <Icon type="back" />
             </button>
             <button
                 class="carousel-button next"
                 onclick={nextImage}
                 aria-label="Next image"
             >
-                <svg viewBox="0 0 24 24" fill="currentColor"
-                    ><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"
-                    ></path></svg
-                >
+                <Icon type="forward" />
             </button>
 
             <!-- Show dots if we aren't showing tabs -->
@@ -280,7 +275,7 @@
         right: 0.5rem;
     }
 
-    .carousel-button svg {
+    .carousel-button :global(svg) {
         width: var(--icon-size);
         height: var(--icon-size);
     }
