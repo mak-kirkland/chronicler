@@ -19,6 +19,7 @@
         sidebarWidth,
         headingFont,
         bodyFont,
+        atmosphere,
     } from "$lib/settingsStore";
     import { licenseStore } from "$lib/licenseStore";
     import { openModal } from "$lib/modalStore";
@@ -35,6 +36,7 @@
 
     import "../app.css";
     import "../preview.css";
+    import "../skins.css"; // Import the new skins module
 
     let { children } = $props();
     let isResizing = $state(false);
@@ -173,50 +175,75 @@
     }
 </script>
 
-<ModalManager />
+<!--
+    ROOT WRAPPER:
+    We wrap the entire app structure here to inject the atmosphere data attributes.
+    This ensures that Modals (rendered by ModalManager) inherit the atmosphere settings
+    because they are now children of this div.
+-->
+<div
+    class="app-shell"
+    data-icons={$atmosphere.icons}
+    data-buttons={$atmosphere.buttons}
+    data-texture={$atmosphere.textures}
+    data-cursor={$atmosphere.cursors}
+    data-app-border={$atmosphere.borders}
+    data-frames={$atmosphere.frames}
+    data-ui={$atmosphere.uiElements}
+>
+    <ModalManager />
 
-{#if $appStatus.state === "selecting_vault"}
-    <VaultSelector onVaultSelected={handleVaultSelected} />
-{:else if $appStatus.state === "loading"}
-    <div class="loading-screen">
-        <img
-            src="/logo.png"
-            alt="Chronicler Logo"
-            class="welcome-icon animate-spin"
-        />
-        <h1 class="welcome-title">Opening Vault...</h1>
-    </div>
-{:else if $appStatus.state === "error"}
-    <div class="loading-screen">
-        <h1 class="welcome-title">Error</h1>
-        <ErrorBox>{$appStatus.message}</ErrorBox>
-        <Button onclick={handleTryAgain}>Select a Different Folder</Button>
-    </div>
-{:else if $appStatus.state === "ready"}
-    <div class="chronicler-app" style="--sidebar-width: {$sidebarWidth}px">
-        <Sidebar bind:width={$sidebarWidth} />
+    {#if $appStatus.state === "selecting_vault"}
+        <VaultSelector onVaultSelected={handleVaultSelected} />
+    {:else if $appStatus.state === "loading"}
+        <div class="loading-screen">
+            <img
+                src="/logo.png"
+                alt="Chronicler Logo"
+                class="welcome-icon animate-spin"
+            />
+            <h1 class="welcome-title">Opening Vault...</h1>
+        </div>
+    {:else if $appStatus.state === "error"}
+        <div class="loading-screen">
+            <h1 class="welcome-title">Error</h1>
+            <ErrorBox>{$appStatus.message}</ErrorBox>
+            <Button onclick={handleTryAgain}>Select a Different Folder</Button>
+        </div>
+    {:else if $appStatus.state === "ready"}
+        <div class="chronicler-app" style="--sidebar-width: {$sidebarWidth}px">
+            <Sidebar bind:width={$sidebarWidth} />
 
-        <div
-            class="resizer"
-            onmousedown={startResize}
-            onkeydown={handleKeyResize}
-            role="slider"
-            tabindex="0"
-            aria-label="Resize sidebar"
-            aria-orientation="vertical"
-            aria-valuenow={$sidebarWidth}
-            aria-valuemin={SIDEBAR_MIN_WIDTH}
-            aria-valuemax={SIDEBAR_MAX_WIDTH}
-            style="left: {$sidebarWidth - 2.5}px;"
-        ></div>
+            <div
+                class="resizer"
+                onmousedown={startResize}
+                onkeydown={handleKeyResize}
+                role="slider"
+                tabindex="0"
+                aria-label="Resize sidebar"
+                aria-orientation="vertical"
+                aria-valuenow={$sidebarWidth}
+                aria-valuemin={SIDEBAR_MIN_WIDTH}
+                aria-valuemax={SIDEBAR_MAX_WIDTH}
+                style="left: {$sidebarWidth - 2.5}px;"
+            ></div>
 
-        <main class="main-content">
-            {@render children()}
-        </main>
-    </div>
-{/if}
+            <main class="main-content">
+                {@render children()}
+            </main>
+        </div>
+    {/if}
+</div>
 
 <style>
+    /* The shell takes up the full viewport to act as the context root */
+    .app-shell {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        position: relative;
+    }
+
     .loading-screen {
         display: flex;
         flex-direction: column;
@@ -234,12 +261,16 @@
         width: 100vw;
         color: var(--color-text-primary);
         font-family: var(--font-family-body);
+        position: relative; /* Context for texture overlay */
+        background-color: var(--color-background-primary); /* Base color */
     }
     .main-content {
         display: flex;
         flex-grow: 1;
         height: 100%;
         margin-left: var(--sidebar-width);
+        position: relative;
+        z-index: 1; /* Sit above texture */
     }
     .resizer {
         width: 5px;

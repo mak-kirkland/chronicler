@@ -22,7 +22,7 @@
     import Modal from "./Modal.svelte";
     import ThemeEditorModal from "./ThemeEditorModal.svelte";
     import TemplateManagerModal from "./TemplateManagerModal.svelte";
-    import IconPackModal from "./IconPackModal.svelte";
+    import AtmosphereModal from "./AtmosphereModal.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import ImporterModal from "./ImporterModal.svelte";
     import { openLogDirectory } from "$lib/commands";
@@ -122,9 +122,9 @@
         });
     }
 
-    function openIconPackManager() {
+    function openAtmosphereManager() {
         openModal({
-            component: IconPackModal,
+            component: AtmosphereModal,
             props: {
                 onClose: closeModal,
             },
@@ -196,14 +196,14 @@
                     </div>
                 </div>
 
-                <!-- World Packs / Icons -->
+                <!-- World Atmosphere -->
                 <div class="form-group">
-                    <label>World Packs</label>
+                    <label>World Atmosphere</label>
                     <p class="setting-description">
-                        Change the look of your folders and files.
+                        Customize icons, textures, borders, and more.
                     </p>
-                    <Button onclick={openIconPackManager}
-                        >Change Icon Pack</Button
+                    <Button onclick={openAtmosphereManager}
+                        >Customize Atmosphere</Button
                     >
                 </div>
 

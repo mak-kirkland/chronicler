@@ -1,0 +1,403 @@
+/* Chronicler Atmosphere Packs
+  This file handles the structural styling for different world atmospheres.
+  It works in tandem with the user's selected color theme using CSS variables.
+*/
+
+/* --- 1. TEXTURES & BACKGROUNDS --- */
+
+[data-texture="core"] .chronicler-app::before {
+    display: none;
+}
+
+/* Fantasy - Parchment Texture (Simulated via SVG Noise) */
+[data-texture="fantasy-pack"] .chronicler-app::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.4'/%3E%3C/svg%3E");
+    opacity: 0.15;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Sci-Fi - Scanline Grid */
+[data-texture="scifi-pack"] .chronicler-app::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+        linear-gradient(
+            90deg,
+            rgba(255, 0, 0, 0.03),
+            rgba(0, 255, 0, 0.01),
+            rgba(0, 0, 255, 0.03)
+        );
+    background-size:
+        100% 3px,
+        6px 100%;
+    opacity: 0.4;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* --- 2. BUTTONS --- */
+
+[data-buttons="fantasy-pack"] .btn {
+    border-radius: 2px 12px 2px 12px;
+    border: 2px double var(--color-border-primary);
+    font-family: var(--font-family-heading);
+    text-transform: capitalize;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+[data-buttons="fantasy-pack"] .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px var(--color-overlay-subtle);
+}
+
+[data-buttons="scifi-pack"] .btn {
+    border-radius: 0;
+    border: 1px solid var(--color-accent-primary);
+    text-transform: uppercase;
+    font-family: monospace;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    position: relative;
+    overflow: hidden;
+}
+/* Corner accent for sci-fi buttons */
+[data-buttons="scifi-pack"] .btn::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 6px;
+    background: var(--color-accent-primary);
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+/* --- 3. BORDERS & FILIGREE (App & Modals) --- */
+
+/* Fantasy: Ornate Double Borders with Corner Flourishes */
+[data-app-border="fantasy-pack"] aside {
+    border-right: 3px double var(--color-border-primary);
+}
+[data-app-border="fantasy-pack"] .modal-content {
+    border: 3px double var(--color-accent-primary);
+    border-radius: 2px;
+    box-shadow: 0 10px 30px var(--color-overlay-medium);
+    position: relative;
+    overflow: visible; /* Allow filigree to stick out */
+}
+
+/* Fantasy Corner Filigree (Pseudo-elements) */
+/* SVG: A classic ornate corner pattern */
+[data-app-border="fantasy-pack"] .modal-content::before,
+[data-app-border="fantasy-pack"] .modal-content::after {
+    content: "";
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background-color: var(--color-accent-primary);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,0 L40,0 C20,0 20,20 0,20 Z M0,20 L0,40 C0,20 20,20 20,0 Z M10,10 L30,10 L30,12 L12,12 L12,30 L10,30 Z' fill='black'/%3E%3Cpath d='M50,5 L80,5 L80,35 L50,35' fill='none' stroke='black' stroke-width='2' stroke-dasharray='4,2' opacity='0.5'/%3E%3Ccircle cx='15' cy='15' r='3' fill='black'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,0 L40,0 C20,0 20,20 0,20 Z M0,20 L0,40 C0,20 20,20 20,0 Z M10,10 L30,10 L30,12 L12,12 L12,30 L10,30 Z' fill='black'/%3E%3Cpath d='M50,5 L80,5 L80,35 L50,35' fill='none' stroke='black' stroke-width='2' stroke-dasharray='4,2' opacity='0.5'/%3E%3Ccircle cx='15' cy='15' r='3' fill='black'/%3E%3C/svg%3E");
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-repeat: no-repeat;
+    pointer-events: none;
+    opacity: 0.8;
+}
+[data-app-border="fantasy-pack"] .modal-content::before {
+    top: -6px;
+    left: -6px;
+    transform: rotate(0deg);
+}
+[data-app-border="fantasy-pack"] .modal-content::after {
+    bottom: -6px;
+    right: -6px;
+    transform: rotate(180deg);
+}
+
+/* Sci-Fi: Thin Tech Lines & Cut Corners */
+[data-app-border="scifi-pack"] aside {
+    border-right: 1px solid var(--color-accent-primary);
+    box-shadow: 2px 0 10px -5px var(--color-accent-primary);
+}
+[data-app-border="scifi-pack"] .modal-content {
+    border: 1px solid var(--color-accent-primary);
+    border-radius: 0;
+    box-shadow:
+        0 0 15px var(--color-overlay-subtle),
+        inset 0 0 20px var(--color-overlay-subtle);
+    clip-path: polygon(
+        0 15px,
+        15px 0,
+        100% 0,
+        100% calc(100% - 15px),
+        calc(100% - 15px) 100%,
+        0 100%
+    );
+}
+
+/* --- 4. UI ELEMENTS (Scrollbars, Toggles, Separators) --- */
+
+/* --- SCROLLBARS --- */
+
+/* Fantasy Scrollbar: Intricate Knotted/Runic Pattern */
+[data-ui="fantasy-pack"] ::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-primary);
+    border: 2px solid var(--color-background-primary);
+    border-radius: 8px;
+    /* A more elaborate braided/knotted pattern */
+    background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 0 C 15 5, 5 15, 10 20 C 5 15, 15 5, 10 0' stroke='black' stroke-opacity='0.2' fill='none' stroke-width='2'/%3E%3Cpath d='M0 10 C 5 15, 15 5, 20 10' stroke='black' stroke-opacity='0.2' fill='none' stroke-width='2'/%3E%3C/svg%3E");
+    background-repeat: repeat-y;
+    background-size: 20px 20px;
+    background-position: center;
+}
+[data-ui="fantasy-pack"] ::-webkit-scrollbar-track {
+    background-color: var(--color-background-secondary);
+    border-left: 1px solid var(--color-border-primary);
+    /* Wood grain texture */
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='10' viewBox='0 0 10 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 2 Q 5 0 10 2 M0 5 Q 5 7 10 5 M0 8 Q 5 6 10 8' stroke='black' stroke-opacity='0.05' fill='none'/%3E%3C/svg%3E");
+}
+
+/* Sci-Fi Scrollbar: Slim Tech */
+[data-ui="scifi-pack"] ::-webkit-scrollbar {
+    width: 6px;
+    background: var(--color-background-secondary);
+}
+[data-ui="scifi-pack"] ::-webkit-scrollbar-thumb {
+    background-color: var(--color-accent-primary);
+    border-radius: 0;
+}
+
+/* --- TOGGLES (.slider) --- */
+
+/* Fantasy Toggle: Organic/Gem-like */
+[data-ui="fantasy-pack"] .slider {
+    border-radius: 12px;
+    border: 2px solid var(--color-border-primary);
+}
+[data-ui="fantasy-pack"] .slider:before {
+    background-color: var(--color-text-primary);
+    border-radius: 50%;
+    /* Simple CSS trick for a gem look */
+    box-shadow:
+        inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.4);
+}
+[data-ui="fantasy-pack"] input:checked + .slider {
+    background-color: var(--color-background-tertiary);
+    border-color: var(--color-accent-primary);
+}
+
+/* Sci-Fi Toggle: Rectangular Switch */
+[data-ui="scifi-pack"] .slider {
+    border-radius: 0;
+    border: 1px solid var(--color-accent-primary);
+    background-color: rgba(0, 0, 0, 0.4);
+}
+[data-ui="scifi-pack"] .slider:before {
+    border-radius: 0;
+    width: 14px;
+    height: 14px;
+    left: 4px;
+    bottom: 4px;
+    background-color: var(--color-accent-primary);
+    box-shadow: 0 0 8px var(--color-accent-primary); /* Glow */
+}
+[data-ui="scifi-pack"] input:checked + .slider {
+    background-color: rgba(var(--color-accent-primary-rgb), 0.2);
+}
+[data-ui="scifi-pack"] input:checked + .slider:before {
+    transform: translateX(20px);
+}
+
+/* --- SEPARATORS (Horizontal Rules) --- */
+
+/* We target `hr` elements broadly but specifically within our app context
+   to ensure the styles apply to both the UI layout (like in infoboxes)
+   and the generated content (in preview.svelte).
+*/
+
+/* Fantasy Separator: Inline SVG Flourish */
+[data-ui="fantasy-pack"] hr,
+[data-ui="fantasy-pack"] .layout-separator {
+    border: 0;
+    height: 18px;
+    opacity: 0.9;
+    margin: 2rem 0;
+    background-color: var(--color-text-secondary);
+    /* Use mask-image to apply the SVG shape to the background color (currentColor) */
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg width='300' height='18' viewBox='0 0 300 18' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,9 L130,9 C135,9 138,5 142,2 L150,9 L158,2 C162,5 165,9 170,9 L300,9' stroke='black' stroke-width='1' fill='none'/%3E%3Crect x='146' y='5' width='8' height='8' transform='rotate(45 150 9)' fill='black'/%3E%3Ccircle cx='130' cy='9' r='2' fill='black'/%3E%3Ccircle cx='170' cy='9' r='2' fill='black'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg width='300' height='18' viewBox='0 0 300 18' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,9 L130,9 C135,9 138,5 142,2 L150,9 L158,2 C162,5 165,9 170,9 L300,9' stroke='black' stroke-width='1' fill='none'/%3E%3Crect x='146' y='5' width='8' height='8' transform='rotate(45 150 9)' fill='black'/%3E%3Ccircle cx='130' cy='9' r='2' fill='black'/%3E%3Ccircle cx='170' cy='9' r='2' fill='black'/%3E%3C/svg%3E");
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-position: center;
+    background-image: none;
+}
+
+/* OVERRIDE: Tighter vertical spacing for Infobox separators */
+[data-ui="fantasy-pack"] .infobox .layout-separator {
+    margin: 0.75rem 0;
+    height: 12px; /* Slightly smaller flourish for infobox */
+}
+
+/* Sci-Fi Separator: Glowing Core */
+[data-ui="scifi-pack"] hr,
+[data-ui="scifi-pack"] .layout-separator {
+    border: 0;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--color-accent-primary) 30%,
+        #ffffff 50%,
+        var(--color-accent-primary) 70%,
+        transparent 100%
+    );
+    box-shadow: 0 0 8px var(--color-accent-primary);
+    opacity: 1;
+    margin: 2rem 0;
+    border-radius: 2px;
+}
+
+/* OVERRIDE: Tighter vertical spacing for Infobox separators */
+[data-ui="scifi-pack"] .infobox .layout-separator {
+    margin: 0.75rem 0;
+}
+
+/* --- 5. IMAGE FRAMES --- */
+
+/* Fantasy - "Museum Frame" (Outside & Solid) */
+[data-frames="fantasy-pack"] .gallery-item,
+[data-frames="fantasy-pack"] .carousel-stack,
+[data-frames="fantasy-pack"] .gallery figure,
+[data-frames="fantasy-pack"] .gallery .gallery-item-wrapper {
+    position: relative;
+    /* 1. Create the "Matte": Push the image inward */
+    padding: 6px;
+    /* 2. Solid Background: Ensures the frame sits on solid color, not image */
+    background-color: var(--color-background-secondary);
+    /* 3. Outer Definition: A subtle edge for the physical card */
+    border: 1px solid var(--color-border-primary);
+
+    border-radius: 2px;
+    box-shadow:
+        0 4px 6px -1px var(--color-overlay-dark),
+        0 2px 4px -1px var(--color-overlay-subtle);
+    overflow: hidden;
+}
+
+/* Optional: Add a tiny border to the image itself to separate it from the matte */
+[data-frames="fantasy-pack"] .gallery-item img,
+[data-frames="fantasy-pack"] .carousel-stack img,
+[data-frames="fantasy-pack"] .gallery figure img,
+[data-frames="fantasy-pack"] .gallery .gallery-item-wrapper img {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    display: block; /* Removes bottom gap */
+}
+
+/* The Connecting Border Lines (Sits on the Matte) */
+[data-frames="fantasy-pack"] .gallery-item::before,
+[data-frames="fantasy-pack"] .carousel-stack::before,
+[data-frames="fantasy-pack"] .gallery figure::before,
+[data-frames="fantasy-pack"] .gallery .gallery-item-wrapper::before {
+    content: "";
+    position: absolute;
+    /* Place the line exactly in the middle of the padding */
+    inset: 3px;
+    border: 1px solid var(--color-accent-primary);
+    opacity: 0.8;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* The Filigree Corners (Solid, sitting on the Matte) */
+[data-frames="fantasy-pack"] .gallery-item::after,
+[data-frames="fantasy-pack"] .carousel-stack::after,
+[data-frames="fantasy-pack"] .gallery figure::after,
+[data-frames="fantasy-pack"] .gallery .gallery-item-wrapper::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 11;
+    /* Use the text/accent color for the corners */
+    background-color: var(--color-accent-primary);
+
+    /* Thinner, sharper corners */
+    -webkit-mask-image:
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,0 L18,0 L18,2 L3,2 L3,4 L2,4 L2,18 L0,18 L0,0 Z M4,4 L6,4 L6,6 L4,6 Z' fill='black'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20,0 L2,0 L2,2 L17,2 L17,4 L18,4 L18,18 L20,18 L20,0 Z M14,4 L16,4 L16,6 L14,6 Z' fill='black'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20,20 L2,20 L2,18 L17,18 L17,16 L18,16 L18,2 L20,2 L20,20 Z M14,14 L16,14 L16,16 L14,16 Z' fill='black'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,20 L18,20 L18,18 L3,18 L3,16 L2,16 L2,2 L0,2 L0,20 Z M4,14 L6,14 L6,16 L4,16 Z' fill='black'/%3E%3C/svg%3E");
+
+    -webkit-mask-position:
+        top left,
+        top right,
+        bottom right,
+        bottom left;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 18px 18px; /* Tighter corners */
+
+    mask-image:
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,0 L18,0 L18,2 L3,2 L3,4 L2,4 L2,18 L0,18 L0,0 Z M4,4 L6,4 L6,6 L4,6 Z' fill='black'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20,0 L2,0 L2,2 L17,2 L17,4 L18,4 L18,18 L20,18 L20,0 Z M14,4 L16,4 L16,6 L14,6 Z' fill='black'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20,20 L2,20 L2,18 L17,18 L17,16 L18,16 L18,2 L20,2 L20,20 Z M14,14 L16,14 L16,16 L14,16 Z' fill='black'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,20 L18,20 L18,18 L3,18 L3,16 L2,16 L2,2 L0,2 L0,20 Z M4,14 L6,14 L6,16 L4,16 Z' fill='black'/%3E%3C/svg%3E");
+    mask-position:
+        top left,
+        top right,
+        bottom right,
+        bottom left;
+    mask-repeat: no-repeat;
+    mask-size: 18px 18px;
+}
+
+/* Sci-Fi (Unchanged) */
+[data-frames="scifi-pack"] .gallery-item,
+[data-frames="scifi-pack"] .carousel-stack,
+[data-frames="scifi-pack"] .gallery figure,
+[data-frames="scifi-pack"] .gallery .gallery-item-wrapper {
+    border-radius: 0;
+    border: 1px solid var(--color-accent-primary);
+    position: relative;
+    overflow: hidden;
+}
+[data-frames="scifi-pack"] .gallery-item::after,
+[data-frames="scifi-pack"] .carousel-stack::after,
+[data-frames="scifi-pack"] .gallery figure::after,
+[data-frames="scifi-pack"] .gallery .gallery-item-wrapper::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 10px;
+    height: 10px;
+    border-bottom: 2px solid var(--color-accent-primary);
+    border-right: 2px solid var(--color-accent-primary);
+    z-index: 10;
+}
+
+/* --- 6. CURSORS --- */
+
+/* Fallbacks for now. To make this work, the user MUST put files in static/assets/skins/... */
+[data-cursor="fantasy-pack"],
+[data-cursor="fantasy-pack"] button,
+[data-cursor="fantasy-pack"] a {
+    /* cursor: url('/assets/skins/fantasy/cursor.png'), auto; */
+}
+
+[data-cursor="scifi-pack"],
+[data-cursor="scifi-pack"] button,
+[data-cursor="scifi-pack"] a {
+    cursor: crosshair; /* Built-in fallback */
+}
