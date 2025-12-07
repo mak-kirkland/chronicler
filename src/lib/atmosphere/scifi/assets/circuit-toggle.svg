@@ -1,0 +1,5 @@
+<svg width='40' height='20' viewBox='0 0 40 20' xmlns='http://www.w3.org/2000/svg'>
+  <path d='M2 10 L10 10 L15 5 L25 5 L30 10 L38 10' stroke='currentColor' stroke-width='1' fill='none' stroke-opacity='0.5'/>
+  <circle cx='5' cy='10' r='1' fill='currentColor' fill-opacity='0.5'/>
+  <circle cx='35' cy='10' r='1' fill='currentColor' fill-opacity='0.5'/>
+</svg>

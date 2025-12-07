@@ -1,0 +1,6 @@
+<svg width='300' height='18' viewBox='0 0 300 18' xmlns='http://www.w3.org/2000/svg'>
+  <path d='M0,9 L130,9 C135,9 138,5 142,2 L150,9 L158,2 C162,5 165,9 170,9 L300,9' stroke='black' stroke-width='1' fill='none'/>
+  <rect x='146' y='5' width='8' height='8' transform='rotate(45 150 9)' fill='black'/>
+  <circle cx='130' cy='9' r='2' fill='black'/>
+  <circle cx='170' cy='9' r='2' fill='black'/>
+</svg>

@@ -7,10 +7,11 @@
  * 2. A per-vault settings file for workspace-specific configurations.
  */
 
-import { writable, get } from "svelte/store";
+import { writable, get, derived } from "svelte/store";
 import { LazyStore } from "@tauri-apps/plugin-store";
 import { join } from "@tauri-apps/api/path";
 import type { UserFont } from "$lib/bindings";
+import { isColorDark } from "$lib/utils";
 
 import { SIDEBAR_INITIAL_WIDTH } from "$lib/config";
 
@@ -27,10 +28,29 @@ interface GlobalSettings {
     lastActiveTheme?: ThemeName;
 }
 
+/**
+ * Defines the configuration for the modular atmosphere system.
+ * Each field corresponds to a specific visual module.
+ */
+export interface AtmosphereSettings {
+    icons: string;
+    buttons: string;
+    textures: string;
+    typography: string;
+    cursors: string;
+    borders: string; // Covers modals and app edges
+    frames: string; // Covers image borders (gallery, infobox)
+    uiElements: string; // Scrollbars, toggles, separators
+    soundscape: string;
+    clickEffects: string;
+
+    textureOpacity: number;
+}
+
 /** Defines the shape of the PER-VAULT settings object saved to disk. */
 interface VaultSettings {
     activeTheme: ThemeName;
-    activeIconPack: string;
+    atmosphere: AtmosphereSettings;
     headingFont: string;
     bodyFont: string;
     fontSize: number;
@@ -135,7 +155,25 @@ export const userFonts = writable<UserFont[]>([]);
 
 // Per-Vault Stores
 export const activeTheme = writable<ThemeName>("light");
-export const activeIconPack = writable<string>("core");
+
+// Default atmosphere settings
+const defaultAtmosphere: AtmosphereSettings = {
+    icons: "core",
+    buttons: "core",
+    textures: "core",
+    typography: "core",
+    cursors: "core",
+    borders: "core",
+    frames: "core",
+    uiElements: "core",
+    soundscape: "core",
+    clickEffects: "core",
+
+    textureOpacity: 0.3,
+};
+
+export const atmosphere = writable<AtmosphereSettings>(defaultAtmosphere);
+
 export const headingFont = writable<string>(`"Uncial Antiqua", cursive`);
 export const bodyFont = writable<string>(`"IM Fell English", serif`);
 export const fontSize = writable<number>(100);
@@ -168,6 +206,49 @@ function fillMissingColors(palette: Partial<ThemePalette> | any): ThemePalette {
     return p as ThemePalette;
 }
 
+// --- Helper: Derived Atmosphere Mode ---
+
+/**
+ * Registry of brightness modes for built-in themes.
+ * Since built-ins don't store their palette in userThemes, we map them here.
+ */
+const BUILT_IN_THEME_MODES: Record<string, "light" | "dark"> = {
+    light: "light",
+    burgundy: "light",
+    dark: "dark",
+    "slate-and-gold": "dark",
+    hologram: "dark",
+    professional: "light",
+};
+
+/**
+ * A derived store that automatically determines if the UI should be in
+ * "Light" or "Dark" mode based on the currently active theme.
+ *
+ * This is the source of truth for 'data-mode' attributes.
+ */
+export const atmosphereMode = derived(
+    [activeTheme, userThemes],
+    ([$activeTheme, $userThemes]) => {
+        // 1. Check Built-ins
+        if ($activeTheme in BUILT_IN_THEME_MODES) {
+            return BUILT_IN_THEME_MODES[$activeTheme];
+        }
+
+        // 2. Check Custom Themes
+        const customTheme = $userThemes.find((t) => t.name === $activeTheme);
+        if (customTheme) {
+            const bg = customTheme.palette["--color-background-primary"];
+            if (bg && isColorDark(bg)) {
+                return "dark";
+            }
+        }
+
+        // Default fallback
+        return "light";
+    },
+);
+
 // --- Private Save Functions ---
 
 /**
@@ -192,7 +273,7 @@ async function saveVaultSettings() {
     if (!vaultSettingsFile) return;
     const settings: VaultSettings = {
         activeTheme: get(activeTheme),
-        activeIconPack: get(activeIconPack),
+        atmosphere: get(atmosphere),
         headingFont: get(headingFont),
         bodyFont: get(bodyFont),
         fontSize: get(fontSize),
@@ -251,7 +332,12 @@ export async function initializeVaultSettings(vaultPath: string) {
     if (settings) {
         // Once a vault is loaded, its specific settings take precedence.
         activeTheme.set(settings.activeTheme ?? "light");
-        activeIconPack.set(settings.activeIconPack ?? "core");
+
+        // Load atmosphere settings, falling back to defaults
+        const loadedAtmosphere = settings.atmosphere ?? defaultAtmosphere;
+        // Ensure new fields are present if missing from file
+        atmosphere.set({ ...defaultAtmosphere, ...loadedAtmosphere });
+
         headingFont.set(settings.headingFont ?? `"Uncial Antiqua", cursive`);
         bodyFont.set(settings.bodyFont ?? `"IM Fell English", serif`);
         fontSize.set(settings.fontSize ?? 100);
@@ -268,7 +354,7 @@ export async function initializeVaultSettings(vaultPath: string) {
 
     // Enable automatic saving for vault settings.
     activeTheme.subscribe(debouncedVaultSave);
-    activeIconPack.subscribe(debouncedVaultSave);
+    atmosphere.subscribe(debouncedVaultSave); // Listen to atmosphere changes
     headingFont.subscribe(debouncedVaultSave);
     bodyFont.subscribe(debouncedVaultSave);
     fontSize.subscribe(debouncedVaultSave);
@@ -294,7 +380,10 @@ export function destroyVaultSettings() {
     isTocVisible.set(true); // Reset to default
     areInfoboxTagsVisible.set(true);
     areFooterTagsVisible.set(true);
-    activeIconPack.set("core");
+
+    // Reset atmosphere to defaults so next vault starts fresh if unconfigured
+    atmosphere.set(defaultAtmosphere);
+
     vaultSettingsFile = null; // Ensure no further saves can happen.
 }
 
