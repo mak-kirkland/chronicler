@@ -371,6 +371,78 @@ For precise control, you can set the exact dimensions using the `--gallery-heigh
 
 ---
 
+#### 🎠 Image Carousels
+
+You can turn a group of images into an interactive slideshow by wrapping them in a `<div class="carousel">`.
+
+##### Basic Slideshow
+
+To create a simple image carousel, just place your images inside the container.
+
+```html
+<div class="carousel">
+  ![[Forest Day]]
+  ![[Forest Night]]
+  ![[Forest Winter]]
+</div>
+```
+
+##### Captions
+
+You can add captions to your slides by using the standard HTML `<figure>` syntax. The caption will appear below the active image.
+
+```html
+<div class="carousel">
+  <figure>
+    ![[Castle Gate]]
+    <figcaption>The Main Gate</figcaption>
+  </figure>
+  <figure>
+    ![[Castle Keep]]
+    <figcaption>The Inner Keep</figcaption>
+  </figure>
+</div>
+```
+
+##### Tabbed Navigation
+
+Add the `tabbed` class to switch from dot navigation to text-based tabs. This layout is perfect for switching between variations of a subject (e.g., floors of a map, or outfit changes).
+
+> **Note:** For tabbed mode to activate, **every** image in the carousel must have a caption.
+
+```html
+<div class="carousel tabbed">
+  <figure>
+    ![[Tavern Floor 1]]
+    <figcaption>Ground Floor</figcaption>
+  </figure>
+  <figure>
+    ![[Tavern Floor 2]]
+    <figcaption>Upper Rooms</figcaption>
+  </figure>
+  <figure>
+    ![[Tavern Cellar]]
+    <figcaption>Cellar</figcaption>
+  </figure>
+</div>
+```
+
+##### Sizes
+
+You can control the height of the carousel using the same helper classes as the Gallery.
+
+* **.small**: Compact view (150px height).
+* **.large**: Expanded view (450px height).
+
+```html
+<div class="carousel large">
+  ![[World Map]]
+  ![[Region Map]]
+</div>
+```
+
+---
+
 ## 🗄️ Advanced Tables
 
 You can control the alignment of content within columns by adding colons (`:`) to the header separator line.
