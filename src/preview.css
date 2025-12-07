@@ -246,71 +246,106 @@
     display: none;
 }
 
-/* --- Image Grid (Gallery) Shared Styles --- */
-/* A shared class for image grids.
-   Uses a CSS variable for min-width so different views can adjust density.
-*/
-.chronicler-content .image-grid,
-.image-grid {
-    display: grid;
-    grid-template-columns: repeat(
-        auto-fill,
-        minmax(var(--grid-min-width, 200px), 1fr)
-    );
-    gap: 1rem;
-    margin-block: 1.5em;
-    align-items: start;
-}
-
 /* --- Preview Gallery specific styles --- */
 /* Apply base styles to ALL images inside a gallery */
 .chronicler-content .gallery {
-    /* Use the shared grid layout */
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    /* We use a local variable --gallery-width for the width.
+       This allows us to change the aspect ratio easily in modifier classes.
+    */
+    grid-template-columns: repeat(auto-fill, var(--gallery-width));
     gap: 1rem;
     margin-block: 1.5em;
     align-items: start;
+
+    /* Default to Square (300x300) */
+    --gallery-height: 300px;
+    --gallery-width: 300px;
 }
 
+/* Modifier: Small (Square 150x150) */
 .chronicler-content .gallery.small {
     --gallery-height: 150px;
+    --gallery-width: 150px;
 }
+
+/* Modifier: Large (Square 450x450) */
 .chronicler-content .gallery.large {
     --gallery-height: 450px;
+    --gallery-width: 450px;
+}
+
+/* Modifier: Portrait (Tall 240x360)
+   Great for Character Cards!
+*/
+.chronicler-content .gallery.portrait {
+    --gallery-height: 360px;
+    --gallery-width: 240px;
+}
+
+/* Modifier: Landscape (Wide 400x225)
+   Great for Maps or Scenery!
+*/
+.chronicler-content .gallery.landscape {
+    --gallery-height: 225px;
+    --gallery-width: 400px;
+}
+
+/* Common container styles */
+.chronicler-content .gallery figure,
+.chronicler-content .gallery .gallery-item-wrapper {
+    position: relative;
+    overflow: hidden; /* Clips the blurred background */
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border-primary);
+    border-radius: 4px;
+    background-color: var(--color-background-secondary);
+    transition:
+        transform 0.2s,
+        box-shadow 0.2s;
+    z-index: 0;
+}
+
+/* The Blurred Background.
+   Crucial: We strictly limit its height to the image height variable.
+   This prevents it from bleeding down into the caption area.
+*/
+.chronicler-content .gallery .blurred-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--gallery-height); /* Match the image height exactly */
+    background-size: cover;
+    background-position: center;
+    filter: blur(20px) brightness(0.9);
+    transform: scale(1.2); /* Hide blur edges */
+    z-index: -1; /* Sit behind content */
+    opacity: 0.8;
+    pointer-events: none;
 }
 
 .chronicler-content .gallery img {
     width: 100%;
     height: var(--gallery-height);
     object-fit: contain;
-    background-color: var(--color-background-secondary);
     display: block;
     margin: 0;
+    /* Remove background color so blur shows through transparency */
+    background-color: transparent;
+    position: relative;
+    z-index: 1; /* Sit above the blur */
 }
 
-/* Case A: Figure Wrappers */
-.chronicler-content .gallery figure {
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--color-border-primary);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
+/* Borders */
 .chronicler-content .gallery figure img {
     border-bottom: 1px solid var(--color-border-primary);
 }
 
 .chronicler-content .gallery figure > img:last-child {
     border-bottom: none;
-}
-
-/* Case B: Bare Images */
-.chronicler-content .gallery > img {
-    border: 1px solid var(--color-border-primary);
-    border-radius: 4px;
 }
 
 /* Captions */

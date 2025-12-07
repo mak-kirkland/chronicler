@@ -348,6 +348,8 @@ You can change the height of the gallery rows by adding a helper class to the co
 
 * `.small` (Small thumbnails)
 * `.large` (Large detailed view)
+* `.portrait` (2:3)
+* `.landscape` (16:9)
 
 ```html
 <div class="gallery small">
@@ -358,7 +360,7 @@ You can change the height of the gallery rows by adding a helper class to the co
 
 ##### Custom Sizes
 
-For precise control, you can set the exact height using the `--gallery-height` variable in the style attribute.
+For precise control, you can set the exact dimensions using the `--gallery-height` and `--gallery-width` variables in the style attribute.
 
 ```html
 <div class="gallery" style="--gallery-height: 500px;">

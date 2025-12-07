@@ -207,7 +207,7 @@
         inset: 0;
         background-size: cover;
         background-position: center;
-        filter: blur(20px) brightness(0.7);
+        filter: blur(20px) brightness(0.9);
         transform: scale(1.2); /* Scale up to hide blur vignette edges */
         z-index: 0;
         opacity: 0.8;
