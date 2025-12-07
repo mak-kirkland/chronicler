@@ -1,0 +1,8 @@
+/* src/lib/atmosphere/index.css */
+
+/* 1. Core Logic & Variables */
+@import "./base.css";
+
+/* 2. Atmosphere Packs */
+@import "./fantasy/theme.css";
+@import "./scifi/theme.css";

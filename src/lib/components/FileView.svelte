@@ -239,8 +239,12 @@
                 <div class="editor-pane">
                     <Editor bind:content={pageData.raw_content} />
                 </div>
-                <div class="preview-pane">
-                    <div class="scroll-wrapper">
+                <!--
+                    The preview-pane serves as the scrolling container.
+                    Inside, 'chronicler-preview' provides the background texture and padding.
+                -->
+                <div class="preview-pane scrollable">
+                    <div class="chronicler-preview">
                         <Preview
                             renderedData={pageData.rendered_page}
                             infoboxData={pageData.rendered_page
@@ -254,8 +258,8 @@
                     <Editor bind:content={pageData.raw_content} />
                 </div>
             {:else}
-                <div class="unified-preview-pane">
-                    <div class="scroll-wrapper">
+                <div class="unified-preview-pane scrollable">
+                    <div class="chronicler-preview">
                         <Preview
                             renderedData={pageData.rendered_page}
                             infoboxData={pageData.rendered_page
@@ -305,22 +309,29 @@
         box-sizing: border-box;
         overflow: hidden;
     }
-    .scroll-wrapper {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        overflow: auto;
-        padding: 2rem;
-    }
-    /* Panes are for sizing and positioning */
+
+    /* Layout Panes */
     .unified-preview-pane,
     .preview-pane {
         flex: 1;
         min-width: 0; /* Allows the pane to shrink */
         position: relative; /* Context for the absolute wrapper */
         height: 100%;
+    }
+
+    /* Utility to enable scrolling */
+    .scrollable {
+        overflow: auto;
+    }
+
+    /* The Preview Surface (Background Texture Layer).
+       This div grows with content to ensure the texture covers the whole scrollable height.
+    */
+    .chronicler-preview {
+        min-height: 100%;
+        padding: 2rem;
+        box-sizing: border-box;
+        position: relative;
     }
 
     .unified-editor-pane {

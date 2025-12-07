@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { activeIconPack } from "$lib/settingsStore";
+    import { atmosphere } from "$lib/settingsStore";
     import { licenseStore } from "$lib/licenseStore";
-    import { iconPacks, defaultPack } from "$lib/icons";
+    import { atmospheres, coreAtmosphere } from "$lib/atmospheres";
 
     let { type, className = "" } = $props<{
         type:
@@ -35,14 +35,15 @@
     }>();
 
     // Derived logic to determine which icon pack to use.
-    // Logic: User Setting -> Do they own it? -> If not, Fallback to Default.
+    // Logic: User Setting -> Lookup Atmosphere Product -> Check Ownership -> Return Icon Asset
     const currentPackData = $derived.by(() => {
-        const selectedPackId = $activeIconPack;
-        const pack = iconPacks[selectedPackId];
+        const selectedPackId = $atmosphere.icons;
+        // Look up the Product (Atmosphere)
+        const pack = atmospheres[selectedPackId];
 
         // 1. Core pack is always available.
         if (pack && pack.id === "core") {
-            return pack;
+            return pack.iconSet;
         }
 
         // 2. Check entitlements for premium packs.
@@ -50,35 +51,49 @@
         const hasEntitlement = pack && entitlements.includes(pack.id);
 
         if (pack && hasEntitlement) {
-            return pack;
+            return pack.iconSet;
         }
 
         // 3. Fallback to default if pack doesn't exist or isn't owned.
-        return defaultPack;
+        return coreAtmosphere.iconSet;
     });
 
-    // Get the specific SVG path string for the requested type.
-    const iconPath = $derived(
-        currentPackData.icons[type] || defaultPack.icons[type],
+    const iconContent = $derived(
+        currentPackData.icons[type] || coreAtmosphere.iconSet.icons[type],
     );
 </script>
 
-<!-- svelte-ignore a11y_hidden -->
-<svg
-    class="themed-icon {className}"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    aria-hidden="true"
->
-    {@html iconPath}
-</svg>
+{#if currentPackData.type === "svg"}
+    <!-- svelte-ignore a11y_hidden -->
+    <svg
+        class="themed-icon {className}"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden="true"
+    >
+        {@html iconContent}
+    </svg>
+{:else}
+    <span class="themed-icon text-icon {className}" aria-hidden="true">
+        {iconContent}
+    </span>
+{/if}
 
 <style>
     .themed-icon {
         width: 1.2em;
         height: 1.2em;
         vertical-align: middle;
-        /* Allow parent to color it via CSS color property */
         flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .text-icon {
+        font-size: 1.1em;
+        line-height: 1;
+        /* Ensure emojis/text render nicely aligned */
+        transform: translateY(-1px);
     }
 </style>

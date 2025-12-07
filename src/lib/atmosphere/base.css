@@ -1,0 +1,47 @@
+/* ATMOSPHERE BASE LOGIC
+    ---------------------
+    This file establishes the structural rules for atmosphere packs.
+*/
+
+/* 1. GLOBAL TEXTURE OVERLAY */
+
+/* We create a stacking context on the main app wrapper.
+   This allows us to place the texture at z-index: -1 so it sits
+   BEHIND the content but ABOVE the background color, without
+   needing to modify the position properties of the children (Sidebar/Resizer).
+*/
+.app-shell[data-texture] .chronicler-app {
+    isolation: isolate;
+}
+
+.app-shell[data-texture] .chronicler-app::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1; /* Sit behind the content */
+    pointer-events: none;
+    will-change: opacity;
+
+    /* Use mix-blend-mode to blend with the parent's background-color */
+    mix-blend-mode: overlay;
+    background-repeat: repeat;
+}
+
+/* 2. GEOMETRY RESET */
+.app-shell .modal-content,
+.app-shell .btn,
+.app-shell input {
+    transition:
+        clip-path 0.3s ease,
+        border-radius 0.3s ease,
+        mask-image 0.3s ease,
+        box-shadow 0.3s ease;
+}
+
+/* 3. SAFETY LAYOUT FIXES
+   Ensure structural elements handle borders correctly so they don't break JS sizing.
+*/
+.app-shell aside,
+.chronicler-app aside {
+    box-sizing: border-box;
+}
