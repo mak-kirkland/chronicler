@@ -22,6 +22,7 @@
     import Modal from "./Modal.svelte";
     import ThemeEditorModal from "./ThemeEditorModal.svelte";
     import TemplateManagerModal from "./TemplateManagerModal.svelte";
+    import IconPackModal from "./IconPackModal.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import ImporterModal from "./ImporterModal.svelte";
     import { openLogDirectory } from "$lib/commands";
@@ -121,6 +122,15 @@
         });
     }
 
+    function openIconPackManager() {
+        openModal({
+            component: IconPackModal,
+            props: {
+                onClose: closeModal,
+            },
+        });
+    }
+
     /**
      * Opens the dedicated modal for handling file and folder imports.
      */
@@ -184,6 +194,17 @@
                         </select>
                         <Button onclick={openThemeEditor}>Manage Themes</Button>
                     </div>
+                </div>
+
+                <!-- World Packs / Icons -->
+                <div class="form-group">
+                    <label>World Packs</label>
+                    <p class="setting-description">
+                        Change the look of your folders and files.
+                    </p>
+                    <Button onclick={openIconPackManager}
+                        >Change Icon Pack</Button
+                    >
                 </div>
 
                 <!-- Font Selectors -->
@@ -356,6 +377,12 @@
         margin: 0;
         color: var(--color-text-primary);
         font-size: 0.95rem;
+    }
+    /* Add specific style for the setting description to reduce margin */
+    .setting-description {
+        margin-bottom: 0.5rem !important;
+        font-size: 0.9rem !important;
+        color: var(--color-text-secondary) !important;
     }
     .appearance-controls {
         display: flex;

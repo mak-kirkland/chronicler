@@ -7,6 +7,7 @@
     import { areInfoboxTagsVisible } from "$lib/settingsStore";
     import InfoboxSettingsModal from "./InfoboxSettingsModal.svelte";
     import Carousel from "./Carousel.svelte";
+    import Icon from "./Icon.svelte";
 
     // --- Props ---
     let { data } = $props<{
@@ -104,7 +105,7 @@
                 onclick={openSettingsModal}
                 title="Infobox settings"
             >
-                ⚙️
+                <Icon type="settings" />
             </button>
         </div>
 

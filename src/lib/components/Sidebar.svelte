@@ -11,6 +11,7 @@
     import AboutModal from "./AboutModal.svelte";
     import Button from "./Button.svelte";
     import SearchInput from "./SearchInput.svelte";
+    import Icon from "./Icon.svelte";
 
     let { width = $bindable() } = $props();
     let activeTab = $state<"files" | "tags" | "gallery" | "reports">("files");
@@ -90,28 +91,28 @@
             onclick={() => (activeTab = "files")}
             title="Files"
         >
-            📂
+            <Icon type="folder" />
         </button>
         <button
             class:active={activeTab === "tags"}
             onclick={() => (activeTab = "tags")}
             title="Tags"
         >
-            #
+            <Icon type="tags" />
         </button>
         <button
             class:active={activeTab === "gallery"}
             onclick={() => (activeTab = "gallery")}
             title="Image Gallery"
         >
-            🖼️
+            <Icon type="gallery" />
         </button>
         <button
             class:active={activeTab === "reports"}
             onclick={() => (activeTab = "reports")}
             title="Reports"
         >
-            📈
+            <Icon type="reports" />
         </button>
     </div>
     <div class="sidebar-content">
@@ -147,11 +148,15 @@
         </div>
 
         <div class="secondary-actions">
-            <Button variant="ghost" title="Help" onclick={showHelp}>?</Button>
-            <Button variant="ghost" title="About" onclick={showAbout}>ℹ</Button>
-            <Button variant="ghost" title="Settings" onclick={showSettings}
-                >⚙️</Button
-            >
+            <Button variant="ghost" title="Help" onclick={showHelp}>
+                <Icon type="help" />
+            </Button>
+            <Button variant="ghost" title="About" onclick={showAbout}>
+                <Icon type="info" />
+            </Button>
+            <Button variant="ghost" title="Settings" onclick={showSettings}>
+                <Icon type="settings" />
+            </Button>
         </div>
     </div>
 </aside>
@@ -196,6 +201,9 @@
         transition:
             color 0.2s,
             background-color 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     .tab-navigation button:hover {
         background-color: var(--color-background-secondary);
