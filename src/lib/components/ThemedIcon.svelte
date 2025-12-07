@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { activeIconPack } from "$lib/settingsStore";
+    import { atmosphere } from "$lib/settingsStore";
     import { licenseStore } from "$lib/licenseStore";
     import { iconPacks, defaultPack } from "$lib/icons";
 
@@ -37,7 +37,8 @@
     // Derived logic to determine which icon pack to use.
     // Logic: User Setting -> Do they own it? -> If not, Fallback to Default.
     const currentPackData = $derived.by(() => {
-        const selectedPackId = $activeIconPack;
+        // Updated to use the icons module from the atmosphere store
+        const selectedPackId = $atmosphere.icons;
         const pack = iconPacks[selectedPackId];
 
         // 1. Core pack is always available.
