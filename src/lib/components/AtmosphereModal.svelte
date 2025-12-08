@@ -99,16 +99,27 @@
                         </div>
 
                         <div class="pack-preview">
-                            <!-- Show Folder and File icons as a preview -->
-                            <svg viewBox="0 0 24 24" class="preview-icon">
-                                {@html pack.icons.folder}
-                            </svg>
-                            <svg viewBox="0 0 24 24" class="preview-icon">
-                                {@html pack.icons.file}
-                            </svg>
-                            <svg viewBox="0 0 24 24" class="preview-icon">
-                                {@html pack.icons.settings}
-                            </svg>
+                            {#if pack.type === "svg"}
+                                <svg viewBox="0 0 24 24" class="preview-icon">
+                                    {@html pack.icons.folder}
+                                </svg>
+                                <svg viewBox="0 0 24 24" class="preview-icon">
+                                    {@html pack.icons.file}
+                                </svg>
+                                <svg viewBox="0 0 24 24" class="preview-icon">
+                                    {@html pack.icons.settings}
+                                </svg>
+                            {:else}
+                                <span class="preview-text-icon"
+                                    >{pack.icons.folder}</span
+                                >
+                                <span class="preview-text-icon"
+                                    >{pack.icons.file}</span
+                                >
+                                <span class="preview-text-icon"
+                                    >{pack.icons.settings}</span
+                                >
+                            {/if}
                         </div>
 
                         <p class="pack-desc">{pack.description}</p>
@@ -270,12 +281,19 @@
         border-radius: 6px;
         justify-content: center;
         opacity: 0.8;
+        align-items: center; /* Center align for text icons */
     }
 
     .preview-icon {
         width: 32px;
         height: 32px;
         fill: currentColor;
+        color: var(--color-text-primary);
+    }
+
+    .preview-text-icon {
+        font-size: 1.5rem;
+        line-height: 1;
         color: var(--color-text-primary);
     }
 

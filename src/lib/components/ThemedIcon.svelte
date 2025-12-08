@@ -37,7 +37,7 @@
     // Derived logic to determine which icon pack to use.
     // Logic: User Setting -> Do they own it? -> If not, Fallback to Default.
     const currentPackData = $derived.by(() => {
-        // Updated to use the icons module from the atmosphere store
+        // Use the icons module from the atmosphere store
         const selectedPackId = $atmosphere.icons;
         const pack = iconPacks[selectedPackId];
 
@@ -58,28 +58,42 @@
         return defaultPack;
     });
 
-    // Get the specific SVG path string for the requested type.
-    const iconPath = $derived(
+    const iconContent = $derived(
         currentPackData.icons[type] || defaultPack.icons[type],
     );
 </script>
 
-<!-- svelte-ignore a11y_hidden -->
-<svg
-    class="themed-icon {className}"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    aria-hidden="true"
->
-    {@html iconPath}
-</svg>
+{#if currentPackData.type === "svg"}
+    <!-- svelte-ignore a11y_hidden -->
+    <svg
+        class="themed-icon {className}"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden="true"
+    >
+        {@html iconContent}
+    </svg>
+{:else}
+    <span class="themed-icon text-icon {className}" aria-hidden="true">
+        {iconContent}
+    </span>
+{/if}
 
 <style>
     .themed-icon {
         width: 1.2em;
         height: 1.2em;
         vertical-align: middle;
-        /* Allow parent to color it via CSS color property */
         flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .text-icon {
+        font-size: 1.1em;
+        line-height: 1;
+        /* Ensure emojis/text render nicely aligned */
+        transform: translateY(-1px);
     }
 </style>
