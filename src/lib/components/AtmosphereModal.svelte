@@ -9,7 +9,7 @@
 
     let { onClose } = $props<{ onClose: () => void }>();
 
-    // Define the available packs based on iconPacks (which serve as the source of truth for IDs)
+    // Define the available packs based on iconPacks
     const packs = Object.values(iconPacks);
 
     // Define the modules we can configure for the fine-tuning section
@@ -21,6 +21,7 @@
         { key: "frames", label: "Image Frames" },
         { key: "cursors", label: "Cursors" },
         { key: "uiElements", label: "UI Elements" },
+        { key: "clickEffects", label: "Click & Type Effects" },
         // { key: "soundscape", label: "Ambience" }, // Uncomment when implemented
     ];
 

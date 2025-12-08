@@ -33,6 +33,7 @@
     import ErrorBox from "$lib/components/ErrorBox.svelte";
     import Button from "$lib/components/Button.svelte";
     import DonationModal from "$lib/components/DonationModal.svelte";
+    import AtmosphereEffects from "$lib/components/AtmosphereEffects.svelte";
 
     import "../app.css";
     import "../preview.css";
@@ -191,6 +192,7 @@
     data-frames={$atmosphere.frames}
     data-ui={$atmosphere.uiElements}
 >
+    <AtmosphereEffects />
     <ModalManager />
 
     {#if $appStatus.state === "selecting_vault"}

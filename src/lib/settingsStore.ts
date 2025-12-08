@@ -40,6 +40,7 @@ export interface AtmosphereSettings {
     frames: string; // Covers image borders (gallery, infobox)
     uiElements: string; // Scrollbars, toggles, separators
     soundscape: string;
+    clickEffects: string; // New Setting
 }
 
 /** Defines the shape of the PER-VAULT settings object saved to disk. */
@@ -161,6 +162,7 @@ const defaultAtmosphere: AtmosphereSettings = {
     frames: "core",
     uiElements: "core",
     soundscape: "core",
+    clickEffects: "core",
 };
 
 export const atmosphere = writable<AtmosphereSettings>(defaultAtmosphere);
