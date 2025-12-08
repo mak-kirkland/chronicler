@@ -2,6 +2,15 @@
 
 ---
 
+## [v0.37.2-alpha] - 2025-12-08
+
+### 🐞 Fixed
+
+- **File Explorer**: Fixed a bug that could cause the file explorer to freeze or crash, particularly when moving files. This was caused by the drag-and-drop system repeatedly re-initializing itself during rapid state changes. The rendering logic has been optimized to eliminate these race conditions and prevent unnecessary re-renders.
+- **Context Menu**: Fixed a bug in the "Rename" dialog where names containing periods (e.g., "Mr. Husk") were incorrectly truncated. The system now intelligently handles file extensions and ensures that the full name is always pre-filled when renaming directories.
+
+---
+
 ## [v0.37.1-alpha] - 2025-12-06
 
 ### 🐞 Fixed
@@ -66,7 +75,7 @@
 ### 🔄 Changed
 
 - **(BREAKING) Templates**: The template system has been completely overhauled. Templates are no longer stored in the global application configuration but are now managed as standard Markdown files within a `_system/templates` folder inside your vault. This allows you to use the main editor to create and modify your templates. **Note**: This is a breaking change; if you had existing templates, you will need to manually move them to the new folder.
-- **Explorer**: Improved the file tree sorting logic to be more intuitive. "Special" folders starting with an underscore (e.g., `_templates`) are now consistently pinned to the top, and all items are now sorted in a a case-insensitive way.
+- **File Explorer**: Improved the file tree sorting logic to be more intuitive. "Special" folders starting with an underscore (e.g., `_templates`) are now consistently pinned to the top, and all items are now sorted in a a case-insensitive way.
 
 ### 🐞 Fixed
 
@@ -727,7 +736,7 @@
 
 ### ✨ Added
 
-- **Explorer**: You can now duplicate any page from the file explorer's context menu. A copy is created in the same directory with a numerical suffix.
+- **File Explorer**: You can now duplicate any page from the file explorer's context menu. A copy is created in the same directory with a numerical suffix.
 - **Images**: Added the ability to embed images directly in the body of a page using standard HTML `<img>` tags. The renderer automatically converts the `src` paths of these images into self-contained Base64 data URLs.
 
 ### 🐞 Fixed
@@ -769,7 +778,7 @@
 ### 🐞 Fixed
 
 - **Fonts**: Updated the "Cinzel" font file to a version that includes the full Greek character set, fixing a rendering bug where the mu character (μ) would not display correctly.
-- **Explorer**: Added checks to avoid unnecessary error popups when attempting to move a file or folder into the folder it's already in.
+- **File Explorer**: Added checks to avoid unnecessary error popups when attempting to move a file or folder into the folder it's already in.
 
 ### 🔄 Changed
 
@@ -856,9 +865,9 @@
 
 ### 🐞 Fixed
 
-- **Explorer**: Resolved a layout issue where the file explorer's scrollbar was not flush with the edge of the sidebar.
-- **Explorer**: Fixed a bug that caused inconsistent text alignment for long file and directory names that wrapped to a new line.
-- **Explorer**: Corrected an issue where file and folder names could be truncated prematurely because hidden action buttons were still occupying space.
+- **File Explorer**: Resolved a layout issue where the file explorer's scrollbar was not flush with the edge of the sidebar.
+- **File Explorer**: Fixed a bug that caused inconsistent text alignment for long file and directory names that wrapped to a new line.
+- **File Explorer**: Corrected an issue where file and folder names could be truncated prematurely because hidden action buttons were still occupying space.
 
 ### 🔄 Changed
 
@@ -1130,7 +1139,7 @@ ically generated from this central list.
 ### ✨ Added
 
 - **Updater**: The update notification modal now displays a formatted changelog with notes on the latest version.
-- **Explorer**: File explorer search has been improved; directories now dynamically expand to show matching files, and the manual expansion state is remembered after a search is complete.
+- **File Explorer**: File explorer search has been improved; directories now dynamically expand to show matching files, and the manual expansion state is remembered after a search is complete.
 - **Sidebar**: The search term in the sidebar is now automatically cleared when switching between the "Files" and "Tags" tabs.
 
 ### 🔄 Changed
@@ -1220,7 +1229,7 @@ ically generated from this central list.
 
 ### 🔄 Changed
 
-- **File Explorer UI**: The file explorer has been improved to hide the redundant root folder and start with all sub-folders collapsed by default, providing a cleaner initial view.
+- **File Explorer**: The file explorer has been improved to hide the redundant root folder and start with all sub-folders collapsed by default, providing a cleaner initial view.
 - **Improved Documentation**: Added extensive documentation to both the frontend and backend codebases to improve clarity and maintainability.
 - **Refactored Image Handling**: Simplified the logic for displaying infobox images by handling it directly in the frontend, making the code easier to follow.
 
