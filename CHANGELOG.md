@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.37.3-alpha] - 2025-12-08
+
+### 🐞 Fixed
+
+- **Page Inserts**: Fixed a bug where the raw YAML frontmatter was incorrectly rendered as visible text when embedding a page using the `{{insert: ...}}` syntax. The renderer now correctly strips this metadata, ensuring only the actual page content is displayed in the insert block.
+
+---
+
 ## [v0.37.2-alpha] - 2025-12-08
 
 ### 🐞 Fixed
