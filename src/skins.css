@@ -274,6 +274,61 @@
     margin: 0.75rem 0;
 }
 
+/* --- DROPDOWNS --- */
+
+/* --- Fantasy Pack: Dropdowns --- */
+[data-ui="fantasy-pack"] .dropdown-menu,
+[data-ui="fantasy-pack"] .dropdown-select,
+[data-ui="fantasy-pack"] select {
+    background-color: #fdf6e3; /* Parchment-ish */
+    border: 2px solid #8b4513 !important; /* Leather/Wood brown */
+    border-radius: 2px !important; /* Sharper corners */
+    font-family: var(--font-family-heading) !important; /* Use the fancy font */
+    box-shadow: 4px 4px 0px rgba(139, 69, 19, 0.3) !important;
+}
+
+[data-ui="fantasy-pack"] .option-btn:hover {
+    background-color: rgba(139, 69, 19, 0.1) !important;
+    color: #8b4513 !important;
+}
+
+[data-ui="fantasy-pack"] .dropdown-search {
+    border-bottom: 2px dashed #8b4513 !important;
+    background-color: transparent !important;
+}
+
+/* --- Sci-Fi Pack: Dropdowns --- */
+[data-ui="scifi-pack"] .dropdown-menu,
+[data-ui="scifi-pack"] .dropdown-select,
+[data-ui="scifi-pack"] select {
+    background-color: rgba(0, 10, 20, 0.95) !important;
+    border: 1px solid #00ffcc !important;
+    border-radius: 0px !important; /* Hard edges */
+    font-family: monospace !important;
+    box-shadow: 0 0 10px rgba(0, 255, 204, 0.2) !important;
+    color: #00ffcc !important;
+}
+
+[data-ui="scifi-pack"] .option-btn:hover {
+    background-color: rgba(0, 255, 204, 0.2) !important;
+    color: #fff !important;
+}
+
+[data-ui="scifi-pack"] .dropdown-search {
+    border-bottom: 1px solid #00ffcc !important;
+    background-color: transparent !important;
+    color: #00ffcc !important;
+}
+
+/* Scrollbar overrides for Sci-Fi */
+[data-ui="scifi-pack"] ::-webkit-scrollbar-thumb {
+    background-color: #00ffcc;
+    border-radius: 0;
+}
+[data-ui="scifi-pack"] ::-webkit-scrollbar-track {
+    background-color: #001122;
+}
+
 /* --- 5. IMAGE FRAMES --- */
 
 /* Fantasy - "Museum Frame" (Outside & Solid) */
