@@ -2,6 +2,18 @@
 
 ---
 
+## [v0.37.4-alpha] - 2025-12-08
+
+### 🐞 Fixed
+
+- **Images / Windows**: Fixed a bug where images using absolute paths (e.g., `C:\...`) failed to load on Windows. The security sanitizer was incorrectly interpreting the drive letter as an unsafe protocol and stripping the path.
+
+### 🔒 Security
+
+- **Sanitizer**: The HTML sanitizer has been hardened to support the fix for Windows images. It now explicitly permits the `data:` protocol only for image sources (`<img src="...">`), while strictly blocking it in links (`<a href="...">`) to prevent potential cross-site scripting (XSS) attacks.
+
+---
+
 ## [v0.37.3-alpha] - 2025-12-08
 
 ### 🐞 Fixed
