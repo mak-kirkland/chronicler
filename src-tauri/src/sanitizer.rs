@@ -11,6 +11,26 @@ use std::collections::HashSet;
 pub fn sanitize_html(dirty_html: &str) -> String {
     Builder::new()
         .link_rel(None) // Do not add rel="noopener noreferrer" to links.
+        // 1. GLOBAL ALLOW LIST: These schemes are "technically valid"
+        .url_schemes(HashSet::from([
+            "http", "https", "mailto", "data",  // Allow 'data' for external images
+            "asset", // Allow 'asset' for local images
+        ]))
+        // 2. CONTEXTUAL WHITELIST: Enforce WHERE they can be used
+        .attribute_filter(|element, attribute, value| {
+            // Check if the value is trying to use the data protocol
+            if value.to_lowercase().starts_with("data:") {
+                // WHITELIST: Only allow 'data:' on <img src="...">
+                if element == "img" && attribute == "src" {
+                    return Some(value.into());
+                }
+                // BLOCK: Reject 'data:' for <a>, <video>, or any other tag/attribute
+                return None;
+            }
+
+            // Allow other protocols (http, asset, etc.) to pass through
+            Some(value.into())
+        })
         .tags(HashSet::from([
             "figure",
             "img",
