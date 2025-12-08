@@ -520,12 +520,13 @@ impl Renderer {
             // b. Read the content of the target file.
             match fs::read_to_string(&insert_path) {
                 Ok(content) => {
+                    let (_, body) = parser::extract_frontmatter(&content);
                     // --- Recursion Step ---
                     // Push the current path onto the stack to track the recursion depth.
                     rendering_stack.push(insert_path.clone());
                     // Recursively render the body of the inserted file.
                     let (before_toc, after_toc, _) =
-                        self.render_body_to_html_with_toc(&content, rendering_stack)?;
+                        self.render_body_to_html_with_toc(body, rendering_stack)?;
                     let rendered_html = before_toc + &after_toc;
                     // Pop from the stack after the recursive call returns successfully.
                     rendering_stack.pop();
