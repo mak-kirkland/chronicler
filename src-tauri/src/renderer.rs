@@ -901,19 +901,18 @@ impl Renderer {
         let mut html_after = String::new();
         html::push_html(&mut html_after, events_after_toc.into_iter());
 
-        // --- 5. Sanitize HTML ---
+        // --- 5. Post-Processing for Embedded Images ---
+        // Find all <img> tags and convert their local src paths to asset URLs.
+        let processed_before = self.process_body_image_tags(&html_before);
+        let processed_after = self.process_body_image_tags(&html_after);
+
+        // --- 6. Sanitize HTML ---
         // Sanitize the raw rendered HTML to remove any malicious user-written
         // tags (like <script>) or attributes (like onerror) and prevent XSS.
-        let sanitized_before = sanitizer::sanitize_html(&html_before);
-        let sanitized_after = sanitizer::sanitize_html(&html_after);
+        let sanitized_before = sanitizer::sanitize_html(&processed_before);
+        let sanitized_after = sanitizer::sanitize_html(&processed_after);
 
-        // --- 6. Post-Processing for Embedded Images ---
-        // Now that the HTML is safe, find the remaining <img> tags and convert
-        // their local src paths to asset URLs.
-        let final_before = self.process_body_image_tags(&sanitized_before);
-        let final_after = self.process_body_image_tags(&sanitized_after);
-
-        Ok((final_before, final_after, toc))
+        Ok((sanitized_before, sanitized_after, toc))
     }
 
     /// Renders a full Markdown string to an HTML string using pulldown-cmark.
