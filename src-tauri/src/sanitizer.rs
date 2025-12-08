@@ -79,10 +79,7 @@ pub fn sanitize_html(dirty_html: &str) -> String {
             "small",
             "meter",
         ]))
-        .add_tag_attributes(
-            "img",
-            &["src", "data", "alt", "style", "width", "height", "class"],
-        )
+        .add_tag_attributes("img", &["src", "alt", "style", "width", "height", "class"])
         .add_tag_attributes("figure", &["style"])
         .add_tag_attributes("figcaption", &["style"])
         .add_tag_attributes("a", &["href", "title", "class", "data-path", "data-target"])
