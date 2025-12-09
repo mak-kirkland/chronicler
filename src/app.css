@@ -24,7 +24,7 @@
     --color-text-secondary: #6a5f55;
     --color-text-heading: var(--color-text-secondary);
     --color-border-primary: #d3c7b3;
-    --color-accent-primary: var(--color-background-tertiary);
+    --color-accent-primary: var(--color-text-secondary);
 
     /* Semantic Colors */
     --color-text-link: #2563eb;
@@ -60,7 +60,7 @@
     --color-text-primary: #e0e0e0; /* Light chalk text */
     --color-text-secondary: #a0a0a0;
     --color-border-primary: #444448;
-    --color-accent-primary: var(--color-background-tertiary);
+    --color-accent-primary: var(--color-text-secondary);
 
     --color-text-link: #60a5fa; /* Lighter blue for links */
     --color-text-link-broken: #fca5a5; /* Lighter red */
