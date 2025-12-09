@@ -53,7 +53,7 @@ export interface IconPack {
 // The DEFAULT pack (Text-based)
 export const defaultPack: IconPack = {
     id: "core",
-    name: "Classic",
+    name: "Basic",
     description: "The original, lightweight text and emoji interface.",
     type: "text",
     icons: {
@@ -337,7 +337,7 @@ export const sciFiPack: IconPack = {
 // Master registry used by the store
 export const iconPacks: Record<string, IconPack> = {
     core: defaultPack,
-    "professional-pack": professionalPack,
+  // "professional-pack": professionalPack,
     "fantasy-pack": fantasyPack,
   // "scifi-pack": sciFiPack,
 };

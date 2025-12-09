@@ -1,0 +1,458 @@
+/* ==========================================================================
+   THEME PACK: FANTASY (The Grimoire)
+   Refactored for "The Scriptorium" (Light) & "The Eldritch Vault" (Dark)
+   ========================================================================== */
+
+/* --- 1. GLOBAL TEXTURE: The Parchment Foundation --- */
+
+/* We target the .chronicler-preview, which is the inner wrapper inside the scroll area.
+   Since this wrapper expands to contain the full text content (and has min-height: 100%),
+   applying the texture here ensures it scrolls with the content and never cuts off.
+*/
+
+/* Base Texture Application */
+.app-shell[data-texture="fantasy-pack"] .chronicler-preview::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+
+    background-size: 1024px auto;
+    background-repeat: repeat;
+    pointer-events: none;
+    z-index: 0; /* Sits below the content */
+    border-radius: inherit;
+
+    /* Ensure height explicitly fills the container */
+    height: 100%;
+    width: 100%;
+}
+
+/* Ensure the actual content (Preview component) sits ABOVE the texture */
+.app-shell[data-texture="fantasy-pack"] .chronicler-preview > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* LIGHT MODE: The Scriptorium (Ink on Paper) */
+.app-shell[data-texture="fantasy-pack"]:not([data-mode="dark"])
+    .chronicler-preview::before {
+    background-image: url("./assets/parchment-texture.jpg");
+    opacity: 0.25;
+}
+
+/* DARK MODE: The Eldritch Vault (Etched Stone) */
+.app-shell[data-texture="fantasy-pack"][data-mode="dark"]
+    .chronicler-preview::before {
+    background-image: url("./assets/slate-texture.jpg");
+    opacity: 0.3;
+}
+
+/* --- 2. INTERACTIVE ELEMENTS: Hand-Forged UI --- */
+
+/* BUTTONS: The "Parchment Scrap" Shape Language */
+.app-shell[data-buttons="fantasy-pack"] .btn {
+    font-family: var(--font-family-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    position: relative;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+
+    /* Irregular "Hand-torn" corners - slightly asymmetric */
+    border-radius: 255px 25px 225px 25px / 25px 225px 25px 255px;
+    border: 2px solid transparent;
+}
+
+/* LIGHT MODE BUTTONS */
+.app-shell[data-buttons="fantasy-pack"]:not([data-mode="dark"]) .btn {
+    background-color: var(--color-background-secondary);
+    color: var(--color-text-primary);
+    border-color: var(--color-border-primary);
+
+    /* Layered shadows to simulate paper thickness lifting off the desk */
+    box-shadow:
+        0 2px 5px var(--color-overlay-subtle),
+        inset 0 0 20px rgba(0, 0, 0, 0.02);
+}
+
+.app-shell[data-buttons="fantasy-pack"]:not([data-mode="dark"]) .btn:hover {
+    transform: translateY(-2px) rotate(-0.5deg); /* Organic movement */
+    background-color: var(--color-background-primary);
+    box-shadow:
+        0 6px 12px var(--color-overlay-medium),
+        inset 0 0 10px rgba(0, 0, 0, 0.05);
+    border-color: var(--color-text-secondary); /* "Ink" soaking edge */
+}
+
+/* PRIMARY ACTION: The "Wax Seal" (Light Mode) */
+.app-shell[data-buttons="fantasy-pack"]:not([data-mode="dark"]) .btn.primary {
+    background-color: var(--color-accent-primary);
+    color: var(--color-background-primary);
+    border: 2px solid var(--color-accent-secondary);
+
+    /* Pressed wax look: Deep outer shadow, strong inner highlight */
+    box-shadow:
+        0 4px 6px var(--color-overlay-medium),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.app-shell[data-buttons="fantasy-pack"]:not([data-mode="dark"])
+    .btn.primary:active {
+    transform: translateY(1px);
+    box-shadow:
+        0 1px 2px var(--color-overlay-medium),
+        inset 0 4px 12px rgba(0, 0, 0, 0.3); /* Deeply pressed */
+}
+
+/* DARK MODE BUTTONS (The Runestone) - Keeping consistent with variable system */
+.app-shell[data-buttons="fantasy-pack"][data-mode="dark"] .btn {
+    background-color: var(--color-background-tertiary);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border-primary);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.app-shell[data-buttons="fantasy-pack"][data-mode="dark"] .btn.primary {
+    background-color: var(--color-background-primary);
+    color: var(--color-accent-primary);
+    border-color: var(--color-accent-primary);
+    box-shadow: 0 0 15px var(--color-accent-primary-alpha); /* Glow */
+}
+
+/* HOVER STATE: The Floating Runestone */
+.app-shell[data-buttons="fantasy-pack"][data-mode="dark"] .btn:hover {
+    /* 1. Organic Movement: Lifts up and tilts slightly */
+    transform: translateY(-2px) rotate(-0.5deg);
+
+    /* 2. Material Shift: "Closer to light" = slightly lighter stone */
+    background-color: var(--color-background-secondary);
+
+    /* 3. Etching Glow: The borders catch the ambient light */
+    border-color: var(--color-text-secondary);
+
+    /* 4. Shadow Depth: Stronger drop shadow implies height */
+    box-shadow:
+        0 8px 16px rgba(0, 0, 0, 0.7),
+        0 0 5px var(--color-accent-primary-alpha); /* Subtle magical rim light */
+}
+
+/* ACTIVE STATE: Pressing the Stone */
+.app-shell[data-buttons="fantasy-pack"][data-mode="dark"] .btn:active {
+    transform: translateY(1px); /* Pushes down */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.8); /* Shadow shrinks */
+    border-color: var(--color-accent-primary); /* Rune flares on contact */
+}
+
+/* --- ENHANCED TOGGLES: Compact Arcane Socket --- */
+
+/* The Track: Etched Stone/Metal */
+[data-ui="fantasy-pack"] .slider {
+    height: 22px; /* Standard Compact Height */
+    width: 40px; /* Standard Compact Width */
+    border-radius: 20px;
+
+    background-color: var(--color-background-tertiary);
+    border: 2px solid var(--color-border-primary);
+
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.5),
+        0 1px 0 rgba(255, 255, 255, 0.1);
+
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* The Knob: Small Glass Orb */
+[data-ui="fantasy-pack"] .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px; /* Reduced for compact fit */
+    width: 14px;
+    left: 2px;
+    bottom: 2px; /* Centers it vertically inside the 2px borders */
+
+    background-color: var(--color-background-primary);
+    border-radius: 50%;
+    border: 1px solid var(--color-border-primary); /* Thinner border for small scale */
+
+    box-shadow:
+        1px 1px 3px rgba(0, 0, 0, 0.4),
+        inset -1px -1px 3px rgba(0, 0, 0, 0.4),
+        inset 1px 1px 3px rgba(255, 255, 255, 0.9);
+
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* --- ACTIVE STATE --- */
+
+[data-ui="fantasy-pack"] input:checked + .slider {
+    background-color: color-mix(
+        in srgb,
+        var(--color-background-tertiary),
+        var(--color-accent-primary) 20%
+    );
+    border-color: var(--color-accent-secondary);
+    box-shadow:
+        inset 0 1px 5px var(--color-accent-primary),
+        0 0 3px var(--color-accent-primary);
+}
+
+[data-ui="fantasy-pack"] input:checked + .slider:before {
+    transform: translateX(18px); /* Adjusted throw distance for new width */
+
+    background-color: var(--color-accent-primary);
+    border-color: var(--color-accent-secondary);
+
+    box-shadow:
+        0 0 8px var(--color-accent-primary),
+        inset -1px -1px 3px rgba(0, 0, 0, 0.3),
+        inset 1px 1px 3px rgba(255, 255, 255, 0.8);
+}
+
+/* --- 3. STRUCTURE: Borders & Containers --- */
+
+/* SIDEBAR & APP BORDERS */
+/* Use the direct child selector (>) to ensure we ONLY target the main
+   navigation sidebar. This prevents the border styles from leaking onto the
+   <aside> elements used for Infoboxes and TOCs inside the content area. */
+.app-shell[data-app-border="fantasy-pack"] > aside {
+    box-sizing: border-box;
+    border-right: 3px double var(--color-border-primary);
+    /* Shadow creates distance between the "pages" */
+    box-shadow: 5px 0 15px -5px var(--color-overlay-subtle);
+}
+
+/* MODALS: The Illuminated Manuscript */
+.app-shell[data-app-border="fantasy-pack"] .modal-content {
+    border: 3px double var(--color-accent-primary);
+    border-radius: 4px;
+    background-color: var(--color-background-primary);
+    box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.4),
+        inset 0 0 60px var(--color-background-tertiary); /* Vignette inside modal */
+    position: relative;
+    overflow: visible;
+}
+
+/* Filigree Corners - Recolored via Mask to match Accent Variable */
+.app-shell[data-app-border="fantasy-pack"] .modal-content::before,
+.app-shell[data-app-border="fantasy-pack"] .modal-content::after {
+    content: "";
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background-color: var(--color-accent-primary); /* Dynamic coloring */
+    -webkit-mask-image: url("./assets/filigree-corner.svg");
+    mask-image: url("./assets/filigree-corner.svg");
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    pointer-events: none;
+    opacity: 0.9;
+    z-index: 10;
+}
+
+.app-shell[data-app-border="fantasy-pack"] .modal-content::before {
+    top: -5px;
+    left: -5px;
+    transform: rotate(0deg);
+}
+.app-shell[data-app-border="fantasy-pack"] .modal-content::after {
+    bottom: -5px;
+    right: -5px;
+    transform: rotate(180deg);
+}
+
+/* --- 4. UI ELEMENTS: Ink & Quill --- */
+
+/* SCROLLBARS: Wood & Rope Style */
+.app-shell[data-ui="fantasy-pack"] ::-webkit-scrollbar {
+    width: 14px;
+}
+.app-shell[data-ui="fantasy-pack"] ::-webkit-scrollbar-track {
+    background-color: var(--color-background-tertiary);
+    border-left: 1px solid var(--color-border-primary);
+    /* Texture: Dark groove */
+    box-shadow: inset 1px 0 5px rgba(0, 0, 0, 0.2);
+}
+.app-shell[data-ui="fantasy-pack"] ::-webkit-scrollbar-thumb {
+    background-color: var(--color-accent-primary);
+    border: 3px solid transparent;
+    border-radius: 9px;
+    background-clip: content-box;
+
+    /* Metallic Specular Highlight */
+    background-image: linear-gradient(
+        135deg,
+        transparent 40%,
+        rgba(255, 255, 255, 0.5) 50%,
+        transparent 60%
+    );
+    background-size: 100% 100%;
+}
+
+/* SEPARATORS: Ink Flourishes */
+/* Scoped to .chronicler-content to prevent affecting UI elements like Context Menus */
+/* LARGE style for main content */
+.app-shell[data-ui="fantasy-pack"] .chronicler-content hr,
+.app-shell[data-ui="fantasy-pack"] .modal-content hr,
+.app-shell[data-ui="fantasy-pack"] .layout-separator {
+    border: 0;
+    height: 24px;
+    margin: 2rem 0;
+    background-color: var(--color-accent-primary);
+    -webkit-mask-image: url("./assets/separator.svg");
+    mask-image: url("./assets/separator.svg");
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    opacity: 0.8;
+}
+
+/* COMPACT style for Context Menus */
+.app-shell[data-ui="fantasy-pack"] .context-menu hr,
+.app-shell[data-ui="fantasy-pack"] .dropdown-menu hr {
+    border: 0;
+    height: 12px; /* Smaller height */
+    margin: 0.5rem 0; /* Tighter margins */
+    background-color: var(--color-accent-primary);
+    -webkit-mask-image: url("./assets/separator.svg");
+    mask-image: url("./assets/separator.svg");
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    opacity: 0.6;
+}
+
+/* Inputs: Ink & Quill Style */
+.app-shell[data-ui="fantasy-pack"] .dropdown-select,
+.app-shell[data-ui="fantasy-pack"] input[type="text"],
+.app-shell[data-ui="fantasy-pack"] input[type="search"],
+.app-shell[data-ui="fantasy-pack"] select {
+    background-color: var(--color-background-primary);
+    border: none;
+    background-image:
+        linear-gradient(
+            var(--color-accent-primary),
+            var(--color-accent-primary)
+        ),
+        linear-gradient(
+            var(--color-border-primary),
+            var(--color-border-primary)
+        );
+    background-size:
+        0% 2px,
+        100% 2px;
+    background-repeat: no-repeat;
+    background-position:
+        center bottom,
+        center bottom;
+    border-radius: 0;
+    font-family: var(--font-family-heading) !important;
+    padding: 0.6rem;
+    box-shadow: inset 0 -5px 10px -5px var(--color-overlay-medium);
+    transition:
+        background-size 0.3s ease,
+        background-color 0.3s ease;
+    mask-image: linear-gradient(black, black);
+}
+
+.app-shell[data-ui="fantasy-pack"] .dropdown-select:focus,
+.app-shell[data-ui="fantasy-pack"] input:focus,
+.app-shell[data-ui="fantasy-pack"] select:focus {
+    outline: none;
+    background-color: var(--color-background-secondary);
+    padding-left: 1rem;
+    background-size:
+        100% 2px,
+        100% 2px;
+    caret-color: var(--color-text-primary);
+}
+
+.app-shell[data-ui="fantasy-pack"] .dropdown-select,
+.app-shell[data-ui="fantasy-pack"] select {
+    background-image: url("./assets/input-chevron.svg");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1.2rem;
+}
+
+.app-shell[data-ui="fantasy-pack"] .dropdown-menu {
+    border: 3px double var(--color-border-primary) !important;
+    border-radius: 2px !important;
+    box-shadow:
+        0 10px 25px rgba(0, 0, 0, 0.2),
+        inset 0 0 20px var(--color-overlay-medium) !important;
+    background-color: var(--color-background-primary) !important;
+}
+
+/* --- 5. FRAMES --- */
+.app-shell[data-frames="fantasy-pack"] .gallery-item,
+.app-shell[data-frames="fantasy-pack"] .carousel-stack,
+.app-shell[data-frames="fantasy-pack"] .gallery figure,
+.app-shell[data-frames="fantasy-pack"] .gallery .gallery-item-wrapper {
+    position: relative;
+    padding: 6px;
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: 2px;
+    box-shadow:
+        0 4px 6px -1px var(--color-overlay-dark),
+        0 2px 4px -1px var(--color-overlay-subtle);
+    overflow: hidden;
+}
+
+.app-shell[data-frames="fantasy-pack"] .gallery-item img,
+.app-shell[data-frames="fantasy-pack"] .carousel-stack img,
+.app-shell[data-frames="fantasy-pack"] .gallery figure img,
+.app-shell[data-frames="fantasy-pack"] .gallery .gallery-item-wrapper img {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    display: block;
+}
+
+/* Inner border */
+.app-shell[data-frames="fantasy-pack"] .gallery-item::before,
+.app-shell[data-frames="fantasy-pack"] .carousel-stack::before,
+.app-shell[data-frames="fantasy-pack"] .gallery figure::before,
+.app-shell[data-frames="fantasy-pack"] .gallery .gallery-item-wrapper::before {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border: 1px solid var(--color-accent-primary);
+    opacity: 0.8;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Outer ornate corners */
+.app-shell[data-frames="fantasy-pack"] .gallery-item::after,
+.app-shell[data-frames="fantasy-pack"] .carousel-stack::after,
+.app-shell[data-frames="fantasy-pack"] .gallery figure::after,
+.app-shell[data-frames="fantasy-pack"] .gallery .gallery-item-wrapper::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 11;
+    background-color: var(--color-accent-primary);
+    -webkit-mask-image:
+        url("./assets/frame-tl.svg"), url("./assets/frame-tr.svg"),
+        url("./assets/frame-br.svg"), url("./assets/frame-bl.svg");
+    -webkit-mask-position:
+        top left,
+        top right,
+        bottom right,
+        bottom left;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 18px 18px;
+    mask-image:
+        url("./assets/frame-tl.svg"), url("./assets/frame-tr.svg"),
+        url("./assets/frame-br.svg"), url("./assets/frame-bl.svg");
+    mask-position:
+        top left,
+        top right,
+        bottom right,
+        bottom left;
+    mask-repeat: no-repeat;
+    mask-size: 18px 18px;
+}

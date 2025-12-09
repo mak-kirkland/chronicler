@@ -1,0 +1,287 @@
+/* PACK: SCI-FI (The Datapad) */
+
+/* --- 1. TEXTURE: CRT Scanlines & Vignette --- */
+.app-shell[data-texture="scifi-pack"] .chronicler-app::before {
+    background-image:
+        radial-gradient(
+            circle at center,
+            transparent 50%,
+            var(--color-overlay-dark) 100%
+        ),
+        repeating-linear-gradient(
+            to bottom,
+            transparent 0px,
+            transparent 2px,
+            rgba(0, 0, 0, 0.2) 3px,
+            rgba(0, 0, 0, 0.2) 4px
+        );
+    background-size:
+        100% 100%,
+        100% 4px;
+    opacity: 0.4;
+    background-blend-mode: overlay;
+}
+
+/* Header Glitch Effect */
+.app-shell[data-texture="scifi-pack"] h1:hover,
+.app-shell[data-texture="scifi-pack"] h2:hover {
+    text-shadow:
+        2px 0 var(--color-text-error),
+        -2px 0 var(--color-text-link);
+    animation: text-glitch 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both
+        infinite;
+    cursor: default;
+}
+
+@keyframes text-glitch {
+    0%,
+    100% {
+        transform: translate(0);
+    }
+    20% {
+        transform: translate(-2px, 2px);
+    }
+    40% {
+        transform: translate(-2px, -2px);
+    }
+    60% {
+        transform: translate(2px, 2px);
+    }
+    80% {
+        transform: translate(2px, -2px);
+    }
+}
+
+/* --- 2. BUTTONS: Tech Plates --- */
+.app-shell[data-buttons="scifi-pack"] .btn {
+    border-radius: 0;
+    border: 1px solid var(--color-accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    position: relative;
+    overflow: hidden;
+    background: var(--color-overlay-medium);
+    backdrop-filter: blur(2px);
+    transition: all 0.3s ease;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+/* Corner decoration */
+.app-shell[data-buttons="scifi-pack"] .btn::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 6px;
+    background: var(--color-accent-primary);
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.app-shell[data-buttons="scifi-pack"] .btn:hover {
+    background: var(--color-background-tertiary);
+    box-shadow: 0 0 10px var(--color-accent-primary);
+    text-shadow: 0 0 5px var(--color-accent-primary);
+}
+
+/* --- 3. MODALS: Battlestar Geometry --- */
+.app-shell[data-app-border="scifi-pack"] aside {
+    box-sizing: border-box;
+    border-right: 1px solid var(--color-accent-primary);
+    box-shadow: 2px 0 10px -5px var(--color-accent-primary);
+}
+
+.app-shell[data-app-border="scifi-pack"] .modal-content {
+    border: 1px solid var(--color-accent-primary);
+    border-radius: 0;
+    box-shadow:
+        0 0 15px var(--color-overlay-subtle),
+        inset 0 0 20px var(--color-overlay-subtle);
+    /* 45-degree cut corners */
+    clip-path: polygon(
+        0 15px,
+        15px 0,
+        100% 0,
+        100% calc(100% - 15px),
+        calc(100% - 15px) 100%,
+        0 100%
+    );
+    backdrop-filter: blur(10px);
+}
+
+/* --- 4. INPUTS, SCROLLBARS, SEPARATORS --- */
+
+.app-shell[data-ui="scifi-pack"] ::-webkit-scrollbar {
+    width: 10px;
+    background: var(--color-background-secondary);
+}
+
+.app-shell[data-ui="scifi-pack"] ::-webkit-scrollbar-track {
+    color: var(--color-border-primary);
+    background-image: url("./assets/data-rail.svg");
+    background-repeat: repeat-y;
+    background-position: center;
+}
+
+.app-shell[data-ui="scifi-pack"] ::-webkit-scrollbar-thumb {
+    background-color: var(--color-accent-primary);
+    border-radius: 0;
+    box-shadow: 0 0 5px var(--color-accent-primary);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.app-shell[data-ui="scifi-pack"] hr,
+.app-shell[data-ui="scifi-pack"] .layout-separator {
+    border: 0;
+    height: 2px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--color-accent-primary) 30%,
+        #ffffff 50%,
+        var(--color-accent-primary) 70%,
+        transparent 100%
+    );
+    box-shadow: 0 0 8px var(--color-accent-primary);
+    margin: 2rem 0;
+}
+
+/* Toggles: Circuit Switch */
+[data-ui="scifi-pack"] .slider {
+    border-radius: 0;
+    border: 1px solid var(--color-accent-primary);
+    background-color: rgba(0, 0, 0, 0.4);
+    color: var(--color-accent-primary);
+    background-image: url("./assets/circuit-toggle.svg");
+    background-size: cover;
+}
+
+[data-ui="scifi-pack"] .slider:before {
+    border-radius: 0;
+    width: 14px;
+    height: 14px;
+    left: 4px;
+    bottom: 4px;
+    background-color: var(--color-accent-primary);
+    box-shadow: 0 0 8px var(--color-accent-primary);
+}
+
+[data-ui="scifi-pack"] input:checked + .slider {
+    background-color: rgba(var(--color-accent-primary-rgb), 0.2);
+}
+[data-ui="scifi-pack"] input:checked + .slider:before {
+    transform: translateX(20px);
+}
+
+/* Inputs: Holographic Hex Grid */
+.app-shell[data-ui="scifi-pack"] .dropdown-select,
+.app-shell[data-ui="scifi-pack"] input[type="text"],
+.app-shell[data-ui="scifi-pack"] input[type="search"],
+.app-shell[data-ui="scifi-pack"] select {
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border-primary);
+    border-left: 4px solid var(--color-accent-primary);
+    border-radius: 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+
+    color: var(--color-accent-primary);
+    background-image: url("./assets/hex-grid.svg");
+    background-size: 40px;
+    background-repeat: repeat;
+
+    caret-color: var(--color-accent-primary);
+}
+
+.app-shell[data-ui="scifi-pack"] .dropdown-select:focus,
+.app-shell[data-ui="scifi-pack"] input:focus,
+.app-shell[data-ui="scifi-pack"] select:focus {
+    background-color: var(--color-background-tertiary);
+    box-shadow: 0 0 15px var(--color-accent-primary);
+    border-color: var(--color-accent-primary);
+    outline: none;
+}
+
+.app-shell[data-ui="scifi-pack"] .dropdown-menu {
+    border: 1px solid var(--color-accent-primary) !important;
+    backdrop-filter: blur(5px);
+    clip-path: polygon(
+        0 0,
+        100% 0,
+        100% calc(100% - 15px),
+        calc(100% - 15px) 100%,
+        0 100%
+    );
+    padding-bottom: 20px !important;
+}
+
+/* --- 5. FRAMES --- */
+.app-shell[data-frames="scifi-pack"] .gallery-item,
+.app-shell[data-frames="scifi-pack"] .carousel-stack,
+.app-shell[data-frames="scifi-pack"] .gallery figure,
+.app-shell[data-frames="scifi-pack"] .gallery .gallery-item-wrapper {
+    border-radius: 0;
+    border: 1px solid var(--color-accent-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+.app-shell[data-frames="scifi-pack"] .gallery-item::after,
+.app-shell[data-frames="scifi-pack"] .carousel-stack::after,
+.app-shell[data-frames="scifi-pack"] .gallery figure::after,
+.app-shell[data-frames="scifi-pack"] .gallery .gallery-item-wrapper::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 10px;
+    height: 10px;
+    border-bottom: 2px solid var(--color-accent-primary);
+    border-right: 2px solid var(--color-accent-primary);
+    z-index: 10;
+}
+
+/* Scanline Animation Overlay */
+@keyframes img-scanline {
+    0% {
+        top: 0%;
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        top: 100%;
+        opacity: 0;
+    }
+}
+
+.app-shell[data-frames="scifi-pack"] .gallery figure .img-wrapper::after,
+.app-shell[data-frames="scifi-pack"] .gallery-item::before,
+.app-shell[data-frames="scifi-pack"] .carousel-stack::before,
+.app-shell[data-frames="scifi-pack"] .gallery .gallery-item-wrapper::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--color-accent-primary);
+    box-shadow: 0 0 10px var(--color-accent-primary);
+    opacity: 0;
+    animation: img-scanline 4s linear infinite;
+    pointer-events: none;
+    z-index: 20;
+}
+
+.app-shell[data-frames="scifi-pack"] .gallery figure:hover .img-wrapper::after,
+.app-shell[data-frames="scifi-pack"] .gallery-item:hover::before,
+.app-shell[data-frames="scifi-pack"] .carousel-stack:hover::before,
+.app-shell[data-frames="scifi-pack"]
+    .gallery
+    .gallery-item-wrapper:hover::before {
+    opacity: 0.7;
+}
