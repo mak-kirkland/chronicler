@@ -37,7 +37,7 @@
 
     import "../app.css";
     import "../preview.css";
-    import "../skins.css"; // Import the new skins module
+    import "$lib/atmosphere/index.css";
 
     let { children } = $props();
     let isResizing = $state(false);
@@ -178,12 +178,12 @@
 
 <!--
     ROOT WRAPPER:
-    We wrap the entire app structure here to inject the atmosphere data attributes.
-    This ensures that Modals (rendered by ModalManager) inherit the atmosphere settings
-    because they are now children of this div.
+    The data attributes here trigger the CSS rules in atmosphere.base.css
+    and the specific packs (fantasy.css, scifi.css).
 -->
 <div
     class="app-shell"
+    style="--sidebar-width: {$sidebarWidth}px"
     data-icons={$atmosphere.icons}
     data-buttons={$atmosphere.buttons}
     data-texture={$atmosphere.textures}
@@ -191,6 +191,7 @@
     data-app-border={$atmosphere.borders}
     data-frames={$atmosphere.frames}
     data-ui={$atmosphere.uiElements}
+    data-mode={$atmosphere.mode}
 >
     <AtmosphereEffects />
     <ModalManager />
@@ -213,67 +214,63 @@
             <Button onclick={handleTryAgain}>Select a Different Folder</Button>
         </div>
     {:else if $appStatus.state === "ready"}
-        <div class="chronicler-app" style="--sidebar-width: {$sidebarWidth}px">
-            <Sidebar bind:width={$sidebarWidth} />
+        <Sidebar bind:width={$sidebarWidth} />
 
-            <div
-                class="resizer"
-                onmousedown={startResize}
-                onkeydown={handleKeyResize}
-                role="slider"
-                tabindex="0"
-                aria-label="Resize sidebar"
-                aria-orientation="vertical"
-                aria-valuenow={$sidebarWidth}
-                aria-valuemin={SIDEBAR_MIN_WIDTH}
-                aria-valuemax={SIDEBAR_MAX_WIDTH}
-                style="left: {$sidebarWidth - 2.5}px;"
-            ></div>
+        <div
+            class="resizer"
+            onmousedown={startResize}
+            onkeydown={handleKeyResize}
+            role="slider"
+            tabindex="0"
+            aria-label="Resize sidebar"
+            aria-orientation="vertical"
+            aria-valuenow={$sidebarWidth}
+            aria-valuemin={SIDEBAR_MIN_WIDTH}
+            aria-valuemax={SIDEBAR_MAX_WIDTH}
+            style="left: {$sidebarWidth - 2.5}px;"
+        ></div>
 
-            <main class="main-content">
-                {@render children()}
-            </main>
-        </div>
+        <!-- Main content area -->
+        <main class="main-content">
+            {@render children()}
+        </main>
     {/if}
 </div>
 
 <style>
-    /* The shell takes up the full viewport to act as the context root */
+    /* The app-shell handles the global layout.
+       It uses flexbox to lay out the sidebar and main content side-by-side.
+    */
     .app-shell {
         width: 100vw;
         height: 100vh;
         overflow: hidden;
         position: relative;
+        display: flex; /* Flex layout for sidebar + content */
+        color: var(--color-text-primary);
+        font-family: var(--font-family-body);
+        background-color: var(--color-background-primary);
     }
 
     .loading-screen {
+        position: absolute;
+        inset: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         text-align: center;
-        width: 100vw;
-        height: 100vh;
-        color: var(--color-text-primary);
-        padding: 2rem;
+        z-index: 50; /* Sit above everything else */
     }
-    .chronicler-app {
-        display: flex;
-        height: 100vh;
-        width: 100vw;
-        color: var(--color-text-primary);
-        font-family: var(--font-family-body);
-        position: relative; /* Context for texture overlay */
-        background-color: var(--color-background-primary); /* Base color */
-    }
+
     .main-content {
         display: flex;
         flex-grow: 1;
         height: 100%;
         margin-left: var(--sidebar-width);
         position: relative;
-        z-index: 1; /* Sit above texture */
     }
+
     .resizer {
         width: 5px;
         cursor: ew-resize;

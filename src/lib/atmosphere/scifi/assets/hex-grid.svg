@@ -1,0 +1,8 @@
+<svg width='40' height='70' viewBox='0 0 40 70' xmlns='http://www.w3.org/2000/svg'>
+  <defs>
+    <pattern id='hex' x='0' y='0' width='40' height='70' patternUnits='userSpaceOnUse'>
+      <path d='M20 0 L40 11.5 L40 34.5 L20 46 L0 34.5 L0 11.5 Z M20 70 L40 58.5 L40 35.5 L20 24 L0 35.5 L0 58.5 Z' fill='none' stroke='currentColor' stroke-opacity='0.15' stroke-width='1'/>
+    </pattern>
+  </defs>
+  <rect width='100%' height='100%' fill='url(#hex)'/>
+</svg>

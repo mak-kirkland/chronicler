@@ -41,6 +41,8 @@ export interface AtmosphereSettings {
     uiElements: string; // Scrollbars, toggles, separators
     soundscape: string;
     clickEffects: string; // New Setting
+
+    mode: "light" | "dark";
 }
 
 /** Defines the shape of the PER-VAULT settings object saved to disk. */
@@ -163,6 +165,8 @@ const defaultAtmosphere: AtmosphereSettings = {
     uiElements: "core",
     soundscape: "core",
     clickEffects: "core",
+
+    mode: "light",
 };
 
 export const atmosphere = writable<AtmosphereSettings>(defaultAtmosphere);
