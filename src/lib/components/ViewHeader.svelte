@@ -43,8 +43,6 @@
         justify-content: space-between;
         align-items: center;
         padding: 0 2rem;
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
         border-bottom: 1px solid var(--color-border-primary);
         z-index: 20;
         height: 60px;
