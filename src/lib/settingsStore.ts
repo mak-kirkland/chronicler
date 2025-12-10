@@ -35,6 +35,7 @@ export interface AtmosphereSettings {
     icons: string;
     buttons: string;
     textures: string;
+    typography: string;
     cursors: string;
     borders: string; // Covers modals and app edges
     frames: string; // Covers image borders (gallery, infobox)
@@ -159,6 +160,7 @@ const defaultAtmosphere: AtmosphereSettings = {
     icons: "core",
     buttons: "core",
     textures: "core",
+    typography: "core",
     cursors: "core",
     borders: "core",
     frames: "core",
@@ -289,7 +291,8 @@ export async function initializeVaultSettings(vaultPath: string) {
 
         // Load atmosphere settings, falling back to defaults
         const loadedAtmosphere = settings.atmosphere ?? defaultAtmosphere;
-        atmosphere.set(loadedAtmosphere);
+        // Ensure new fields are present if missing from file
+        atmosphere.set({ ...defaultAtmosphere, ...loadedAtmosphere });
 
         headingFont.set(settings.headingFont ?? `"Uncial Antiqua", cursive`);
         bodyFont.set(settings.bodyFont ?? `"IM Fell English", serif`);

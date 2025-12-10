@@ -187,6 +187,7 @@
     data-icons={$atmosphere.icons}
     data-buttons={$atmosphere.buttons}
     data-texture={$atmosphere.textures}
+    data-typography={$atmosphere.typography}
     data-cursor={$atmosphere.cursors}
     data-app-border={$atmosphere.borders}
     data-frames={$atmosphere.frames}
