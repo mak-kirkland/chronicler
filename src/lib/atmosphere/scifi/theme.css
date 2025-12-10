@@ -85,13 +85,13 @@
 }
 
 /* --- 3. MODALS: Battlestar Geometry --- */
-.app-shell[data-app-border="scifi-pack"] aside {
+.app-shell[data-borders="scifi-pack"] aside {
     box-sizing: border-box;
     border-right: 1px solid var(--color-accent-primary);
     box-shadow: 2px 0 10px -5px var(--color-accent-primary);
 }
 
-.app-shell[data-app-border="scifi-pack"] .modal-content {
+.app-shell[data-borders="scifi-pack"] .modal-content {
     border: 1px solid var(--color-accent-primary);
     border-radius: 0;
     box-shadow:
