@@ -456,3 +456,91 @@
     mask-repeat: no-repeat;
     mask-size: 18px 18px;
 }
+
+/* --- 6. TYPOGRAPHY: The Arcane Links --- */
+
+/* BASE LINK STYLES */
+.app-shell[data-typography="fantasy-pack"] .chronicler-content a.internal-link {
+    position: relative;
+    color: var(--color-text-link);
+    text-decoration: none;
+    border-bottom: none; /* We will redraw this procedurally */
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    /* The "Underline" is now a procedural gradient (for animation) */
+    background-image: linear-gradient(currentColor, currentColor);
+    background-position: 0% 100%;
+    background-repeat: no-repeat;
+    background-size: 100% 1px; /* Thin line by default */
+}
+
+/* LIGHT MODE: "The Wet Ink" */
+.app-shell[data-typography="fantasy-pack"]:not([data-mode="dark"])
+    .chronicler-content
+    a.internal-link {
+    /* Slightly heavier font weight to simulate quill pressure */
+    font-weight: 500;
+}
+
+.app-shell[data-typography="fantasy-pack"]:not([data-mode="dark"])
+    .chronicler-content
+    a.internal-link:hover {
+    color: var(--color-accent-primary); /* Ink changes color */
+    background-size: 100% 2px; /* Line thickens */
+
+    /* The "Highlighter" Effect: A wash of color behind the text */
+    box-shadow: inset 0 -0.5em 0
+        color-mix(in srgb, var(--color-accent-primary), transparent 85%);
+    border-radius: 2px;
+}
+
+/* DARK MODE: "The Runic Glow" */
+.app-shell[data-typography="fantasy-pack"][data-mode="dark"]
+    .chronicler-content
+    a.internal-link {
+    background-size: 0% 1px; /* No underline initially in dark mode */
+
+    /* Faint ambient glow */
+    text-shadow: 0 0 2px
+        color-mix(in srgb, var(--color-text-link), transparent 50%);
+}
+
+.app-shell[data-typography="fantasy-pack"][data-mode="dark"]
+    .chronicler-content
+    a.internal-link:hover {
+    color: var(--color-accent-primary);
+
+    /* The Glow Intensifies */
+    text-shadow:
+        0 0 5px var(--color-text-link),
+        0 0 10px var(--color-accent-primary);
+
+    /* Optional: A faint underline appears */
+    background-size: 100% 1px;
+}
+
+/* --- BROKEN LINKS: "The Smudged Entry" --- */
+
+.app-shell[data-typography="fantasy-pack"]
+    .chronicler-content
+    a.internal-link.broken {
+    color: var(--color-text-link-broken);
+    opacity: 0.7;
+
+    /* A "Jagged" or "Torn" underline style */
+    background-image: none; /* Remove the smooth gradient */
+    border-bottom: 2px dotted var(--color-text-link-broken);
+    font-style: italic; /* Looks like a correction or mistake */
+}
+
+.app-shell[data-typography="fantasy-pack"]
+    .chronicler-content
+    a.internal-link.broken:hover {
+    opacity: 1;
+    color: var(--color-text-error); /* Highlights the error clearly */
+    border-bottom-style: dashed;
+
+    /* A "glitch" or "shake" suggestion via skew */
+    transform: skewX(-10deg);
+}

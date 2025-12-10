@@ -17,6 +17,7 @@
         { key: "icons", label: "Icons" },
         { key: "buttons", label: "Buttons" },
         { key: "textures", label: "Textures" },
+        { key: "typography", label: "Typography" },
         { key: "borders", label: "Borders" },
         { key: "frames", label: "Image Frames" },
         { key: "cursors", label: "Cursors" },
