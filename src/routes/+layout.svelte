@@ -189,7 +189,7 @@
     data-texture={$atmosphere.textures}
     data-typography={$atmosphere.typography}
     data-cursor={$atmosphere.cursors}
-    data-app-border={$atmosphere.borders}
+    data-borders={$atmosphere.borders}
     data-frames={$atmosphere.frames}
     data-ui={$atmosphere.uiElements}
     data-mode={$atmosphere.mode}
