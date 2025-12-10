@@ -49,6 +49,14 @@
 
 /* --- 2. INTERACTIVE ELEMENTS: Hand-Forged UI --- */
 
+/* PHYSICS VARIABLES */
+.app-shell[data-buttons="fantasy-pack"] {
+    /* "Heavy Object" Curve: Fast start, heavy friction settle */
+    --ease-heavy: cubic-bezier(0.25, 1, 0.5, 1);
+    /* "Quill Stroke" Curve: Smooth, organic flow */
+    --ease-quill: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* BUTTONS: The "Parchment Scrap" Shape Language */
 .app-shell[data-buttons="fantasy-pack"] .btn {
     font-family: var(--font-family-heading);
@@ -56,9 +64,13 @@
     letter-spacing: 0.05em;
     font-weight: 600;
     position: relative;
+
+    /* Use the Heavy physics curve for movement */
     transition:
-        transform 0.2s ease,
-        box-shadow 0.2s ease;
+        transform 0.3s var(--ease-heavy),
+        box-shadow 0.3s var(--ease-heavy),
+        background-color 0.2s ease,
+        border-color 0.2s ease;
 
     /* Irregular "Hand-torn" corners - slightly asymmetric */
     border-radius: 255px 25px 225px 25px / 25px 225px 25px 255px;
@@ -78,10 +90,10 @@
 }
 
 .app-shell[data-buttons="fantasy-pack"]:not([data-mode="dark"]) .btn:hover {
-    transform: translateY(-2px) rotate(-0.5deg); /* Organic movement */
+    transform: translateY(-3px) rotate(-0.5deg); /* Organic movement */
     background-color: var(--color-background-primary);
     box-shadow:
-        0 6px 12px var(--color-overlay-medium),
+        0 8px 16px var(--color-overlay-medium),
         inset 0 0 10px rgba(0, 0, 0, 0.05);
     border-color: var(--color-text-secondary); /* "Ink" soaking edge */
 }
@@ -100,7 +112,8 @@
 
 .app-shell[data-buttons="fantasy-pack"]:not([data-mode="dark"])
     .btn.primary:active {
-    transform: translateY(1px);
+    /* PHYSICS: The Squash Effect. Simulates malleable wax. */
+    transform: translateY(2px) scale(0.98);
     box-shadow:
         0 1px 2px var(--color-overlay-medium),
         inset 0 4px 12px rgba(0, 0, 0, 0.3); /* Deeply pressed */
@@ -124,7 +137,7 @@
 /* HOVER STATE: The Floating Runestone */
 .app-shell[data-buttons="fantasy-pack"][data-mode="dark"] .btn:hover {
     /* 1. Organic Movement: Lifts up and tilts slightly */
-    transform: translateY(-2px) rotate(-0.5deg);
+    transform: translateY(-3px) rotate(-0.5deg);
 
     /* 2. Material Shift: "Closer to light" = slightly lighter stone */
     background-color: var(--color-background-secondary);
@@ -134,13 +147,13 @@
 
     /* 4. Shadow Depth: Stronger drop shadow implies height */
     box-shadow:
-        0 8px 16px rgba(0, 0, 0, 0.7),
-        0 0 5px var(--color-accent-primary-alpha); /* Subtle magical rim light */
+        0 12px 24px rgba(0, 0, 0, 0.7),
+        0 0 8px var(--color-accent-primary-alpha); /* Subtle magical rim light */
 }
 
 /* ACTIVE STATE: Pressing the Stone */
 .app-shell[data-buttons="fantasy-pack"][data-mode="dark"] .btn:active {
-    transform: translateY(1px); /* Pushes down */
+    transform: translateY(1px) scale(0.99); /* Heavy settle */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.8); /* Shadow shrinks */
     border-color: var(--color-accent-primary); /* Rune flares on contact */
 }
@@ -160,7 +173,7 @@
         inset 0 2px 4px rgba(0, 0, 0, 0.5),
         0 1px 0 rgba(255, 255, 255, 0.1);
 
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: all 0.4s var(--ease-heavy);
 }
 
 /* The Knob: Small Glass Orb */
@@ -181,7 +194,7 @@
         inset -1px -1px 3px rgba(0, 0, 0, 0.4),
         inset 1px 1px 3px rgba(255, 255, 255, 0.9);
 
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: all 0.4s var(--ease-heavy);
 }
 
 /* --- ACTIVE STATE --- */
@@ -351,9 +364,12 @@
     font-family: var(--font-family-heading) !important;
     padding: 0.6rem;
     box-shadow: inset 0 -5px 10px -5px var(--color-overlay-medium);
+
+    /* ANIMATION: Quill Flow */
     transition:
-        background-size 0.3s ease,
-        background-color 0.3s ease;
+        background-size 0.6s var(--ease-quill),
+        /* Slow, deliberate stroke */ background-color 0.3s ease;
+
     mask-image: linear-gradient(black, black);
 }
 
@@ -363,9 +379,12 @@
     outline: none;
     background-color: var(--color-background-secondary);
     padding-left: 1rem;
+
+    /* Expands from center (or left) to fill the width */
     background-size:
         100% 2px,
         100% 2px;
+
     caret-color: var(--color-text-primary);
 }
 
@@ -459,6 +478,43 @@
 
 /* --- 6. TYPOGRAPHY: The Arcane Links --- */
 
+/* Header Ligatures (Stylistic Sets) */
+.app-shell[data-typography="fantasy-pack"] h1,
+.app-shell[data-typography="fantasy-pack"] h2,
+.app-shell[data-typography="fantasy-pack"] h3,
+.app-shell[data-typography="fantasy-pack"] h4,
+.app-shell[data-typography="fantasy-pack"] h5,
+.app-shell[data-typography="fantasy-pack"] h6,
+.app-shell[data-typography="fantasy-pack"] .infobox-title {
+    /* Enable Discretionary and Historical ligatures for that "hand-scribed" look */
+    font-variant-ligatures: discretionary-ligatures historical-ligatures;
+    /* Attempt common stylistic sets (ss01, etc) which often contain alternate glyphs */
+    font-feature-settings: "dlig", "hlig", "ss01";
+}
+
+/* MATERIALITY: Absorbed Ink (Light Mode) */
+/* We target headers and body text to blend them into the parchment texture. */
+.app-shell[data-typography="fantasy-pack"]:not([data-mode="dark"])
+    .chronicler-content
+    h1,
+.app-shell[data-typography="fantasy-pack"]:not([data-mode="dark"])
+    .chronicler-content
+    h2,
+.app-shell[data-typography="fantasy-pack"]:not([data-mode="dark"])
+    .chronicler-content
+    h3,
+.app-shell[data-typography="fantasy-pack"]:not([data-mode="dark"])
+    .chronicler-content
+    p,
+.app-shell[data-typography="fantasy-pack"]:not([data-mode="dark"])
+    .chronicler-content
+    li {
+    /* MULTIPLY blend mode simulates ink soaking INTO the paper fibers */
+    mix-blend-mode: multiply;
+    /* Slight transparency allows the texture grain to show through the "drying ink" */
+    opacity: 0.95;
+}
+
 /* BASE LINK STYLES */
 .app-shell[data-typography="fantasy-pack"] .chronicler-content a.internal-link {
     position: relative;
@@ -481,6 +537,8 @@
     a.internal-link {
     /* Slightly heavier font weight to simulate quill pressure */
     font-weight: 500;
+    /* Ensure links also blend */
+    mix-blend-mode: multiply;
 }
 
 .app-shell[data-typography="fantasy-pack"]:not([data-mode="dark"])
