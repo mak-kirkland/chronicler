@@ -544,3 +544,38 @@
     /* A "glitch" or "shake" suggestion via skew */
     transform: skewX(-10deg);
 }
+
+/* --- 7. CONTENT WIDGETS (Infobox & TOC) --- */
+/* Lift these elements off the page so they don't blend into the background texture.
+   They should look like separate scraps of paper or tablets placed on top of the scroll. */
+
+.app-shell[data-ui="fantasy-pack"] .chronicler-content .infobox,
+.app-shell[data-ui="fantasy-pack"] .chronicler-content .toc-container {
+    /* 1. Opaque Background: Use the primary color to ensure the widget is solid.
+       This prevents the global parchment texture from blending through the text. */
+    background-color: var(--color-background-primary);
+
+    /* 2. Border: Reinforce the edge to define it as a separate object. */
+    border: 2px solid var(--color-border-primary);
+    border-radius: 4px;
+
+    /* 3. Shadow: Critical for the "on top" feel. Lift it up! */
+    box-shadow:
+        0 4px 12px var(--color-overlay-medium),
+        inset 0 0 40px var(--color-overlay-subtle); /* Subtle inner vignette for age */
+
+    /* 4. Layering: Ensure it sits above the texture layer */
+    position: relative;
+    z-index: 2;
+}
+
+/* Dark Mode Specifics: Make them feel like stone tablets */
+.app-shell[data-ui="fantasy-pack"][data-mode="dark"]
+    .chronicler-content
+    .infobox,
+.app-shell[data-ui="fantasy-pack"][data-mode="dark"]
+    .chronicler-content
+    .toc-container {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5); /* Deeper shadow for dark mode */
+    border-color: var(--color-border-primary);
+}
