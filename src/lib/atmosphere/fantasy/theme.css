@@ -348,72 +348,128 @@
     opacity: 0.6;
 }
 
-/* Inputs: Ink & Quill Style */
+/* --- ENHANCED INPUTS: The Pressed Groove --- */
+
 .app-shell[data-ui="fantasy-pack"] .dropdown-select,
+.app-shell[data-ui="fantasy-pack"] .select-trigger,
 .app-shell[data-ui="fantasy-pack"] input[type="text"],
 .app-shell[data-ui="fantasy-pack"] input[type="search"],
 .app-shell[data-ui="fantasy-pack"] select {
-    background-color: var(--color-background-primary);
-    border: none;
-    background-image:
-        linear-gradient(
-            var(--color-accent-primary),
-            var(--color-accent-primary)
-        ),
-        linear-gradient(
-            var(--color-border-primary),
-            var(--color-border-primary)
-        );
-    background-size:
-        0% 2px,
-        100% 2px;
-    background-repeat: no-repeat;
-    background-position:
-        center bottom,
-        center bottom;
-    border-radius: 0;
-    font-family: var(--font-family-heading) !important;
-    padding: 0.6rem;
-    box-shadow: inset 0 -5px 10px -5px var(--color-overlay-medium);
+    /* TYPOGRAPHY */
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    color: var(--color-text-primary);
 
-    /* ANIMATION: Quill Flow */
-    transition:
-        background-size 0.6s var(--ease-quill),
-        /* Slow, deliberate stroke */ background-color 0.3s ease;
+    /* SHAPE & STRUCTURE */
+    /* Hand-cut paper feel: slightly irregular corners */
+    border-radius: 3px 255px 2px 255px / 255px 2px 255px 3px;
+    border: 1px solid transparent; /* Placeholder for transition */
+    padding: 0.6rem 1rem;
 
-    mask-image: linear-gradient(black, black);
-}
-
-.app-shell[data-ui="fantasy-pack"] .dropdown-select:focus,
-.app-shell[data-ui="fantasy-pack"] input:focus,
-.app-shell[data-ui="fantasy-pack"] select:focus {
+    /* REMOVE DEFAULT BROWSER STYLES */
+    appearance: none;
+    -webkit-appearance: none;
     outline: none;
-    background-color: var(--color-background-secondary);
-    padding-left: 1rem;
 
-    /* Expands from center (or left) to fill the width */
-    background-size:
-        100% 2px,
-        100% 2px;
-
-    caret-color: var(--color-text-primary);
+    /* ANIMATION */
+    transition:
+        background-color 0.3s ease,
+        box-shadow 0.3s var(--ease-heavy),
+        transform 0.2s var(--ease-quill),
+        border-color 0.3s ease;
 }
 
-.app-shell[data-ui="fantasy-pack"] .dropdown-select,
+/* LIGHT MODE: The Paper Indentation */
+.app-shell[data-ui="fantasy-pack"]:not([data-mode="dark"]) .dropdown-select,
+.app-shell[data-ui="fantasy-pack"]:not([data-mode="dark"]) .select-trigger,
+.app-shell[data-ui="fantasy-pack"]:not([data-mode="dark"]) input,
+.app-shell[data-ui="fantasy-pack"]:not([data-mode="dark"]) select {
+    background-color: rgba(0, 0, 0, 0.03); /* Faint stain */
+    border-color: rgba(0, 0, 0, 0.1);
+
+    /* Inner shadow creates the "pressed into paper" depth */
+    box-shadow:
+        inset 0 2px 6px rgba(0, 0, 0, 0.08),
+        inset 0 1px 2px rgba(0, 0, 0, 0.1),
+        0 1px 0 rgba(255, 255, 255, 0.5); /* Bottom highlight edge */
+}
+
+/* DARK MODE: The Etched Stone */
+.app-shell[data-ui="fantasy-pack"][data-mode="dark"] .dropdown-select,
+.app-shell[data-ui="fantasy-pack"][data-mode="dark"] .select-trigger,
+.app-shell[data-ui="fantasy-pack"][data-mode="dark"] input,
+.app-shell[data-ui="fantasy-pack"][data-mode="dark"] select {
+    background-color: rgba(0, 0, 0, 0.2); /* Deep etching */
+    border-color: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-secondary);
+
+    /* Sharp inner shadow for chiseled look */
+    box-shadow:
+        inset 0 3px 8px rgba(0, 0, 0, 0.6),
+        0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* --- INTERACTION STATES --- */
+
+/* HOVER: The Anticipation */
+.app-shell[data-ui="fantasy-pack"] select:hover {
+    cursor: text;
+    background-color: rgba(0, 0, 0, 0.06);
+}
+.app-shell[data-ui="fantasy-pack"] select:hover {
+    cursor: pointer;
+}
+
+/* FOCUS: The Ink Bleed / Rune Glow */
+.app-shell[data-ui="fantasy-pack"] input:focus,
+.app-shell[data-ui="fantasy-pack"] .select-trigger:focus,
+.app-shell[data-ui="fantasy-pack"] select:focus {
+    transform: scale(1.01); /* Subtle expansion */
+    background-color: var(--color-background-primary);
+}
+
+/* Light Mode Focus: Wet Ink Edge */
+.app-shell[data-ui="fantasy-pack"]:not([data-mode="dark"]) input:focus,
+.app-shell[data-ui="fantasy-pack"]:not([data-mode="dark"])
+    .select-trigger:focus,
+.app-shell[data-ui="fantasy-pack"]:not([data-mode="dark"]) select:focus {
+    border-color: var(--color-accent-primary);
+    box-shadow:
+        0 0 0 1px var(--color-accent-primary),
+        /* Simulated thick border */ 0 4px 12px var(--color-overlay-subtle); /* Lift off page */
+}
+
+/* Dark Mode Focus: Magicka Activation */
+.app-shell[data-ui="fantasy-pack"][data-mode="dark"] input:focus,
+.app-shell[data-ui="fantasy-pack"][data-mode="dark"] .select-trigger:focus,
+.app-shell[data-ui="fantasy-pack"][data-mode="dark"] select:focus {
+    border-color: var(--color-accent-primary);
+    box-shadow:
+        inset 0 0 15px var(--color-accent-primary-alpha),
+        /* Inner Glow */ 0 0 10px var(--color-accent-primary-alpha); /* Outer Glow */
+    color: var(--color-accent-primary);
+}
+
+/* --- DROPDOWNS: The Wax Seal Indicator --- */
+
+/* We use a custom SVG mask or background image for the arrow to ensure
+   it matches the theme, rather than the browser default chevron. */
+
 .app-shell[data-ui="fantasy-pack"] select {
+    padding-right: 2.5rem; /* Make room for the custom icon */
+
+    /* Custom Diamond/Lozenge Arrow */
     background-image: url("./assets/input-chevron.svg");
     background-repeat: no-repeat;
-    background-position: right 0.5rem center;
-    background-size: 1.2rem;
+    background-position: right 0.8rem center;
+    background-size: 1rem;
 }
 
-.app-shell[data-ui="fantasy-pack"] .dropdown-menu {
-    border: 3px double var(--color-border-primary) !important;
-    border-radius: 2px !important;
-    box-shadow:
-        0 10px 25px rgba(0, 0, 0, 0.2),
-        inset 0 0 20px var(--color-overlay-medium) !important;
-    background-color: var(--color-background-primary) !important;
+/* Adjust Icon Color for Dark Mode via Data URI replacement
+   (Note: In a real prod env, using mask-image is better for color control,
+   but background-image is safer for cross-browser select styling) */
+.app-shell[data-ui="fantasy-pack"][data-mode="dark"] select {
+    background-image: url("./assets/input-chevron-dark.svg");
 }
 
 /* --- 5. FRAMES --- */
