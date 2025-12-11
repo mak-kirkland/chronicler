@@ -66,6 +66,11 @@
         }));
     }
 
+    function updateOpacity(e: Event) {
+        const val = parseFloat((e.currentTarget as HTMLInputElement).value);
+        atmosphere.update((s) => ({ ...s, textureOpacity: val }));
+    }
+
     function handlePurchase() {
         openUrl(DONATE_URL);
     }
@@ -168,6 +173,25 @@
                     />
                     <span class="slider"></span>
                 </label>
+            </div>
+
+            <div class="setting-control-row" style="margin-top: 1rem;">
+                <div class="label-group">
+                    <label for="opacity-slider">Texture Opacity</label>
+                    <span class="sub-label"
+                        >Adjust the intensity of the background texture.</span
+                    >
+                </div>
+                <input
+                    type="range"
+                    id="opacity-slider"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={$atmosphere.textureOpacity}
+                    oninput={updateOpacity}
+                    class="opacity-range"
+                />
             </div>
         </section>
 
@@ -453,5 +477,11 @@
     }
     input:checked + .slider:before {
         transform: translateX(19px);
+    }
+
+    .opacity-range {
+        width: 120px;
+        cursor: pointer;
+        accent-color: var(--color-accent-primary);
     }
 </style>

@@ -44,6 +44,7 @@ export interface AtmosphereSettings {
     clickEffects: string; // New Setting
 
     mode: "light" | "dark";
+    textureOpacity: number;
 }
 
 /** Defines the shape of the PER-VAULT settings object saved to disk. */
@@ -169,6 +170,7 @@ const defaultAtmosphere: AtmosphereSettings = {
     clickEffects: "core",
 
     mode: "light",
+    textureOpacity: 0.3,
 };
 
 export const atmosphere = writable<AtmosphereSettings>(defaultAtmosphere);
