@@ -103,6 +103,15 @@
         border-radius: 4px;
         background-color: var(--color-background-secondary);
         border: 2px solid transparent; /* Use transparent border to prevent layout shift */
+
+        /* Promote to a new layer to prevent flashing and repaint glitches */
+        transform: translateZ(0);
+        backface-visibility: hidden;
+        will-change: transform;
+        /* Ensure z-index is handled correctly relative to the theme's pseudo-elements */
+        position: relative;
+        z-index: 1;
+
         transition:
             transform 0.1s,
             box-shadow 0.1s;
