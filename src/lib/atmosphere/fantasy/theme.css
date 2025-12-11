@@ -748,3 +748,147 @@
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5); /* Deeper shadow for dark mode */
     border-color: var(--color-border-primary);
 }
+
+/* ==========================================================================
+   VIEW HEADER NAVIGATION: The Compass
+   ========================================================================== */
+
+/* 1. CONTAINER SHAPE: The Coin / Seal */
+.app-shell[data-buttons="fantasy-pack"] .view-header .btn.ghost,
+.app-shell[data-buttons="fantasy-pack"] .view-header .nav-button {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+
+    /* Perfect Circle vs Organic Circle? Let's go Organic. */
+    border-radius: 50% 45% 55% 40% / 40% 55% 45% 50%;
+
+    /* Base State: Faintly etched */
+    background-color: transparent;
+    border: 1px solid transparent; /* Reserve space */
+    color: var(--color-text-secondary);
+
+    /* Animation */
+    transition:
+        background-color 0.3s ease,
+        color 0.2s ease,
+        transform 0.4s var(--ease-heavy),
+        box-shadow 0.3s ease;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 2. LIGHT MODE: The Fading Ink */
+.app-shell[data-buttons="fantasy-pack"]:not([data-mode="dark"])
+    .view-header
+    .btn.ghost {
+    /* Subtle border to define the click area without being heavy */
+    border-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Hover: Ink Wash */
+.app-shell[data-buttons="fantasy-pack"]:not([data-mode="dark"])
+    .view-header
+    .btn.ghost:hover {
+    background-color: rgba(0, 0, 0, 0.05); /* Slight stain */
+    color: var(--color-text-primary);
+    border-color: var(--color-text-secondary); /* Border darkens like ink */
+    transform: rotate(-5deg) scale(1.05); /* Organic tilt */
+
+    box-shadow:
+        0 2px 5px rgba(0, 0, 0, 0.1),
+        inset 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* Active/Click: Pressed Paper */
+.app-shell[data-buttons="fantasy-pack"]:not([data-mode="dark"])
+    .view-header
+    .btn.ghost:active {
+    transform: scale(0.95);
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* 3. DARK MODE: The Floating Embers */
+.app-shell[data-buttons="fantasy-pack"][data-mode="dark"]
+    .view-header
+    .btn.ghost {
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Hover: Rune Ignition */
+.app-shell[data-buttons="fantasy-pack"][data-mode="dark"]
+    .view-header
+    .btn.ghost:hover {
+    background-color: var(--color-background-tertiary);
+    color: var(--color-accent-primary);
+    border-color: var(--color-accent-primary);
+
+    /* The Glow */
+    box-shadow:
+        0 0 10px var(--color-accent-primary-alpha),
+        inset 0 0 5px var(--color-accent-primary-alpha);
+
+    transform: rotate(5deg) scale(1.1);
+}
+
+/* 4. ICON REPLACEMENT (The Magic) */
+/* We hide the default SVG icon (usually an <i> or <svg>) and replace it
+   using a pseudo-element mask for full color control. */
+
+.app-shell[data-buttons="fantasy-pack"] .view-header .btn.ghost svg,
+.app-shell[data-buttons="fantasy-pack"] .view-header .nav-button svg {
+    opacity: 0; /* Hide original */
+}
+
+.app-shell[data-buttons="fantasy-pack"] .view-header .btn.ghost::after,
+.app-shell[data-buttons="fantasy-pack"] .view-header .nav-button::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: currentColor; /* Adopts the text color defined above */
+
+    -webkit-mask-size: 20px 20px;
+    mask-size: 20px 20px;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    pointer-events: none;
+}
+
+/* Target specific buttons based on class or attribute to assign the correct arrow */
+/* You might need to adjust the selectors like [aria-label="Back"] depending on your HTML */
+
+/* BACK BUTTON */
+.app-shell[data-buttons="fantasy-pack"]
+    .view-header
+    .btn.ghost:first-child::after,
+.app-shell[data-buttons="fantasy-pack"]
+    .view-header
+    .btn[data-action="back"]::after {
+    -webkit-mask-image: url("./assets/arrow-nav-left.svg");
+    mask-image: url("./assets/arrow-nav-left.svg");
+}
+
+/* FORWARD BUTTON */
+.app-shell[data-buttons="fantasy-pack"]
+    .view-header
+    .btn.ghost:last-child::after,
+.app-shell[data-buttons="fantasy-pack"]
+    .view-header
+    .btn[data-action="forward"]::after {
+    -webkit-mask-image: url("./assets/arrow-nav-right.svg");
+    mask-image: url("./assets/arrow-nav-right.svg");
+}
+
+/* DISABLED STATE: The Faded Manuscript */
+.app-shell[data-buttons="fantasy-pack"] .view-header .btn.ghost:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+    filter: grayscale(100%);
+}
