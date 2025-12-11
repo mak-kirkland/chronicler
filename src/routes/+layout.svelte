@@ -183,7 +183,7 @@
 -->
 <div
     class="app-shell"
-    style="--sidebar-width: {$sidebarWidth}px"
+    style="--sidebar-width: {$sidebarWidth}px; --texture-opacity: {$atmosphere.textureOpacity};"
     data-icons={$atmosphere.icons}
     data-buttons={$atmosphere.buttons}
     data-texture={$atmosphere.textures}

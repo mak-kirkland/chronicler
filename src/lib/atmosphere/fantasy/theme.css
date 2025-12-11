@@ -37,14 +37,14 @@
 .app-shell[data-texture="fantasy-pack"]:not([data-mode="dark"])
     .chronicler-preview::before {
     background-image: url("./assets/parchment-texture.jpg");
-    opacity: 0.25;
+    opacity: var(--texture-opacity, 0.25);
 }
 
 /* DARK MODE: The Eldritch Vault (Etched Stone) */
 .app-shell[data-texture="fantasy-pack"][data-mode="dark"]
     .chronicler-preview::before {
     background-image: url("./assets/slate-texture.jpg");
-    opacity: 0.3;
+    opacity: var(--texture-opacity, 0.3);
 }
 
 /* --- 2. INTERACTIVE ELEMENTS: Hand-Forged UI --- */
