@@ -104,7 +104,8 @@
 
 /* DARK MODE BUTTONS (The Runestone) - Keeping consistent with variable system */
 .app-shell[data-buttons="fantasy-pack"][data-mode="dark"] .btn.primary {
-    box-shadow: 0 0 15px var(--color-accent-primary-alpha); /* Glow */
+    box-shadow: 0 0 15px
+        color-mix(in srgb, var(--color-accent-primary), transparent 50%);
 }
 
 /* HOVER STATE: The Floating Runestone */
@@ -114,7 +115,7 @@
     /* 4. Shadow Depth: Stronger drop shadow implies height */
     box-shadow:
         0 12px 24px rgba(0, 0, 0, 0.7),
-        0 0 8px var(--color-accent-primary-alpha); /* Subtle magical rim light */
+        0 0 8px color-mix(in srgb, var(--color-accent-primary), transparent 50%); /* Subtle magical rim light */
 }
 
 /* ACTIVE STATE: Pressing the Stone */
@@ -395,8 +396,10 @@
 .app-shell[data-ui="fantasy-pack"][data-mode="dark"] .select-trigger:focus,
 .app-shell[data-ui="fantasy-pack"][data-mode="dark"] select:focus {
     box-shadow:
-        inset 0 0 15px var(--color-accent-primary-alpha),
-        /* Inner Glow */ 0 0 10px var(--color-accent-primary-alpha); /* Outer Glow */
+        inset 0 0 15px
+            color-mix(in srgb, var(--color-accent-primary), transparent 50%),
+        /* Inner Glow */ 0 0 10px
+            color-mix(in srgb, var(--color-accent-primary), transparent 50%); /* Outer Glow */
     color: var(--color-accent-primary);
 }
 
@@ -768,8 +771,10 @@
 
     /* The Glow */
     box-shadow:
-        0 0 10px var(--color-accent-primary-alpha),
-        inset 0 0 5px var(--color-accent-primary-alpha);
+        0 0 10px
+            color-mix(in srgb, var(--color-accent-primary), transparent 50%),
+        inset 0 0 5px
+            color-mix(in srgb, var(--color-accent-primary), transparent 50%);
 
     transform: rotate(5deg) scale(1.1);
 }
