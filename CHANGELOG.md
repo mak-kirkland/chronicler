@@ -2,6 +2,20 @@
 
 ---
 
+## [v0.38.0-alpha] - 2024-12-12
+
+### ✨ Added
+
+- **Editor**: Added **image autocompletion**. When you type `![[` in the editor, the completion menu will now specifically suggest image files from your vault, complete with a new 🖼️ icon for easy identification.
+- **Editor**: Implemented **theme-based syntax highlighting**. Code blocks and Markdown syntax now use your active theme's color palette instead of generic defaults.
+- **Editor**: Added support for **YAML frontmatter parsing**. The editor now correctly recognizes and highlights metadata blocks at the top of your files.
+
+### 🔄 Changed
+
+- **Typography**: Switched the primary body font for dark themes to **Spectral**. This change improves legibility on digital screens by providing sharper stroke definition and reducing the "blurring" effect often seen with high-contrast serif fonts on dark backgrounds.
+
+---
+
 ## [v0.37.4-alpha] - 2025-12-08
 
 ### 🐞 Fixed
