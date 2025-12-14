@@ -29,6 +29,7 @@ mod models;
 mod parser;
 mod renderer;
 mod sanitizer;
+mod telemetry;
 mod utils;
 mod watcher;
 mod wikilink;
@@ -84,6 +85,14 @@ fn main() {
                 app.asset_protocol_scope()
                     .allow_directory(vault_path, true)?; // `true` for recursive access
             }
+
+            // --- ANALYTICS PING ---
+            // We clone the handle to pass into the async task
+            let analytics_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                // We ignore the result so if it fails (offline), the app continues normally.
+                let _ = telemetry::send_analytics_ping(&analytics_handle).await;
+            });
 
             // The setup was successful.
             Ok(())
