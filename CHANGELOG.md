@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.38.1-alpha] - 2024-12-14
+
+### ✨ Added
+
+- **Telemetry**: Implemented a minimal, privacy-first analytics system to help track the total number of active users. This system sends a single "ping" on application startup. To ensure your privacy, your machine ID is securely hashed and salted before transmission, meaning the data is completely anonymous and cannot be traced back to you.
+
+---
+
 ## [v0.38.0-alpha] - 2024-12-12
 
 ### ✨ Added
