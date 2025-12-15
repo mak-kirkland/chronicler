@@ -154,6 +154,10 @@
     .directory:hover,
     .file:hover {
         background-color: var(--color-background-secondary);
+        /* Ensure hovered items stack on top of siblings to prevent
+           dropdowns/effects from being clipped or overlapped */
+        position: relative;
+        z-index: 10;
     }
     .file.active {
         background-color: var(--color-background-tertiary);
@@ -165,6 +169,7 @@
         background-color: var(--color-background-tertiary);
         box-shadow: inset 0 0 0 2px var(--color-text-primary);
         transform: scale(1.02);
+        z-index: 10;
     }
     .children {
         padding-left: 1rem;
@@ -204,6 +209,9 @@
     .directory:hover .quick-actions {
         opacity: 1;
         max-width: 100px; /* A value large enough for the buttons */
+        /* Allow overflow on hover so that button effects (glows, transforms)
+           aren't clipped by the container bounds. */
+        overflow: visible;
     }
 
     /* Use :global() to override the styles of the child Button component */
