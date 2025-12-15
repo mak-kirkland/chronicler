@@ -103,10 +103,6 @@
 }
 
 /* DARK MODE BUTTONS (The Runestone) - Keeping consistent with variable system */
-.app-shell[data-buttons="fantasy-pack"][data-mode="dark"] .btn.primary {
-    box-shadow: 0 0 15px
-        color-mix(in srgb, var(--color-accent-primary), transparent 50%);
-}
 
 /* HOVER STATE: The Floating Runestone */
 .app-shell[data-buttons="fantasy-pack"][data-mode="dark"] .btn:hover {
@@ -115,7 +111,8 @@
     /* 4. Shadow Depth: Stronger drop shadow implies height */
     box-shadow:
         0 12px 24px rgba(0, 0, 0, 0.7),
-        0 0 8px color-mix(in srgb, var(--color-accent-primary), transparent 50%); /* Subtle magical rim light */
+        0 0 15px
+            color-mix(in srgb, var(--color-accent-primary), transparent 50%); /* Subtle magical rim light */
 }
 
 /* ACTIVE STATE: Pressing the Stone */
