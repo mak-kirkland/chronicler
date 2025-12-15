@@ -10,15 +10,17 @@
         saveCustomTheme,
         deleteCustomTheme,
         forceThemeRefresh,
+        type CustomTheme,
+        type ThemeName,
+        userFonts,
+    } from "$lib/settingsStore";
+    import {
         THEME_PALETTE_KEYS,
         UI_PALETTE_KEYS,
         SYNTAX_PALETTE_KEYS,
-        type CustomTheme,
         type ThemePalette,
-        type ThemeName,
         AVAILABLE_FONTS,
-        userFonts,
-    } from "$lib/settingsStore";
+    } from "$lib/themeRegistry";
 
     let { onClose } = $props<{ onClose: () => void }>();
 

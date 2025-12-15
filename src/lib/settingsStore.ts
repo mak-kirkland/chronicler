@@ -12,8 +12,12 @@ import { LazyStore } from "@tauri-apps/plugin-store";
 import { join } from "@tauri-apps/api/path";
 import type { UserFont } from "$lib/bindings";
 import { isColorDark } from "$lib/utils";
-
 import { SIDEBAR_INITIAL_WIDTH } from "$lib/config";
+import {
+    BUILT_IN_THEME_FONTS,
+    BUILT_IN_THEME_MODES,
+    type ThemePalette,
+} from "./themeRegistry";
 
 // --- Type Definitions ---
 
@@ -61,72 +65,6 @@ interface VaultSettings {
 }
 
 export type ThemeName = string;
-
-/**
- * The standard UI colors of the app.
- */
-export const UI_PALETTE_KEYS = [
-    "--color-background-primary",
-    "--color-background-secondary",
-    "--color-background-tertiary",
-    "--color-text-heading",
-    "--color-text-primary",
-    "--color-text-secondary",
-    "--color-border-primary",
-    "--color-accent-primary",
-    "--color-text-link",
-    "--color-text-link-broken",
-    "--color-text-error",
-] as const;
-
-/**
- * The syntax highlighting keys.
- */
-export const SYNTAX_PALETTE_KEYS = [
-    "--code-tag",
-    "--code-attribute",
-    "--code-string",
-] as const;
-
-/**
- * The canonical list of CSS variables that make up a FULL theme palette.
- * This is the single source of truth for the application's theme structure.
- */
-export const THEME_PALETTE_KEYS = [
-    ...UI_PALETTE_KEYS,
-    ...SYNTAX_PALETTE_KEYS,
-] as const;
-
-/**
- * A union type representing all possible CSS variable names for a theme color.
- *
- * This type is derived from the `THEME_PALETTE_KEYS` constant array, ensuring that any
- * function or component using it will only accept valid theme keys known to the application.
- */
-type PaletteKey = (typeof THEME_PALETTE_KEYS)[number];
-
-/**
- * Defines the shape of a single theme's color palette.
- * This type is generated automatically from the THEME_PALETTE_KEYS array.
- */
-export type ThemePalette = {
-    [Key in PaletteKey]: string;
-};
-
-/**
- * A new constant to define the fonts available for theme customization.
- * The `value` should match the 'font-family' name in your CSS.
- */
-export const AVAILABLE_FONTS = [
-    { name: "Cinzel", value: `"Cinzel", serif` },
-    { name: "IBM Plex Mono", value: `"IBM Plex Mono", monospace` },
-    { name: "IM Fell English", value: `"IM Fell English", serif` },
-    { name: "Merriweather", value: `"Merriweather", serif` },
-    { name: "Open Sans", value: `"Open Sans", sans-serif` },
-    { name: "Orbitron", value: `"Orbitron", sans-serif` },
-    { name: "Spectral", value: `"Spectral", serif` },
-    { name: "Uncial Antiqua", value: `"Uncial Antiqua", cursive` },
-] as const;
 
 /** Defines a theme's color palette and optional font preferences. **/
 export interface CustomTheme {
@@ -207,19 +145,6 @@ function fillMissingColors(palette: Partial<ThemePalette> | any): ThemePalette {
 }
 
 // --- Helper: Derived Atmosphere Mode ---
-
-/**
- * Registry of brightness modes for built-in themes.
- * Since built-ins don't store their palette in userThemes, we map them here.
- */
-const BUILT_IN_THEME_MODES: Record<string, "light" | "dark"> = {
-    light: "light",
-    burgundy: "light",
-    dark: "dark",
-    "slate-and-gold": "dark",
-    hologram: "dark",
-    professional: "light",
-};
 
 /**
  * A derived store that automatically determines if the UI should be in
@@ -386,39 +311,6 @@ export function destroyVaultSettings() {
 
     vaultSettingsFile = null; // Ensure no further saves can happen.
 }
-
-/**
- * This map defines the default fonts for each built-in theme.
- * It's the single source of truth for theme-font pairings, allowing
- * JS to synchronize the font stores when a built-in theme is selected.
- */
-const BUILT_IN_THEME_FONTS: Record<string, { heading: string; body: string }> =
-    {
-        light: {
-            heading: `"Uncial Antiqua", cursive`,
-            body: `"IM Fell English", serif`,
-        },
-        burgundy: {
-            heading: `"Cinzel", serif`,
-            body: `"IM Fell English", serif`,
-        },
-        dark: {
-            heading: `"Uncial Antiqua", cursive`,
-            body: `"Spectral", serif`,
-        },
-        "slate-and-gold": {
-            heading: `"Cinzel", serif`,
-            body: `"Spectral", serif`,
-        },
-        hologram: {
-            heading: `"Orbitron", sans-serif`,
-            body: `"IBM Plex Mono", monospace`,
-        },
-        professional: {
-            heading: `"Merriweather", serif`,
-            body: `"Open Sans", sans-serif`,
-        },
-    };
 
 /**
  * Sets the application theme and synchronizes default fonts if it's a built-in theme

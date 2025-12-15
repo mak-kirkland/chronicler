@@ -11,9 +11,9 @@
         type ThemeName,
         headingFont,
         bodyFont,
-        AVAILABLE_FONTS,
         userFonts,
     } from "$lib/settingsStore";
+    import { AVAILABLE_FONTS } from "$lib/themeRegistry";
     import { loadAllUserFonts } from "$lib/fonts";
     import { openModal, closeModal } from "$lib/modalStore";
     import { licenseStore } from "$lib/licenseStore";
