@@ -59,13 +59,6 @@
         }));
     }
 
-    function toggleMode() {
-        atmosphere.update((s) => ({
-            ...s,
-            mode: s.mode === "dark" ? "light" : "dark",
-        }));
-    }
-
     function updateOpacity(e: Event) {
         const val = parseFloat((e.currentTarget as HTMLInputElement).value);
         atmosphere.update((s) => ({ ...s, textureOpacity: val }));
@@ -158,24 +151,6 @@
 
         <section class="global-section">
             <div class="setting-control-row">
-                <div class="label-group">
-                    <label for="mode-toggle">Dark Mode</label>
-                    <span class="sub-label"
-                        >Switch between Light and Dark variants.</span
-                    >
-                </div>
-                <label class="toggle-switch">
-                    <input
-                        type="checkbox"
-                        id="mode-toggle"
-                        checked={$atmosphere.mode === "dark"}
-                        onchange={toggleMode}
-                    />
-                    <span class="slider"></span>
-                </label>
-            </div>
-
-            <div class="setting-control-row" style="margin-top: 1rem;">
                 <div class="label-group">
                     <label for="opacity-slider">Texture Opacity</label>
                     <span class="sub-label"
@@ -433,50 +408,6 @@
     .sub-label {
         font-size: 0.85rem;
         color: var(--color-text-secondary);
-    }
-
-    /* Toggle Switch (Reused from InfoboxSettings but defined here for portability) */
-    .toggle-switch {
-        position: relative;
-        display: inline-block;
-        width: 44px;
-        height: 24px;
-        flex-shrink: 0;
-    }
-    .toggle-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-    .slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: var(--color-background-tertiary);
-        transition: 0.2s;
-        border-radius: 24px;
-        border: 1px solid var(--color-border-primary);
-    }
-    .slider:before {
-        position: absolute;
-        content: "";
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        bottom: 2px;
-        background-color: white;
-        transition: 0.2s;
-        border-radius: 50%;
-    }
-    input:checked + .slider {
-        background-color: var(--color-accent-primary);
-        border-color: var(--color-accent-primary);
-    }
-    input:checked + .slider:before {
-        transform: translateX(19px);
     }
 
     .opacity-range {

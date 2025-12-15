@@ -20,6 +20,7 @@
         headingFont,
         bodyFont,
         atmosphere,
+        atmosphereMode,
     } from "$lib/settingsStore";
     import { licenseStore } from "$lib/licenseStore";
     import { openModal } from "$lib/modalStore";
@@ -192,7 +193,7 @@
     data-borders={$atmosphere.borders}
     data-frames={$atmosphere.frames}
     data-ui={$atmosphere.uiElements}
-    data-mode={$atmosphere.mode}
+    data-mode={$atmosphereMode}
 >
     <AtmosphereEffects />
     <ModalManager />

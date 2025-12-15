@@ -7,10 +7,11 @@
  * 2. A per-vault settings file for workspace-specific configurations.
  */
 
-import { writable, get } from "svelte/store";
+import { writable, get, derived } from "svelte/store";
 import { LazyStore } from "@tauri-apps/plugin-store";
 import { join } from "@tauri-apps/api/path";
 import type { UserFont } from "$lib/bindings";
+import { isColorDark } from "$lib/utils";
 
 import { SIDEBAR_INITIAL_WIDTH } from "$lib/config";
 
@@ -43,7 +44,6 @@ export interface AtmosphereSettings {
     soundscape: string;
     clickEffects: string; // New Setting
 
-    mode: "light" | "dark";
     textureOpacity: number;
 }
 
@@ -169,7 +169,6 @@ const defaultAtmosphere: AtmosphereSettings = {
     soundscape: "core",
     clickEffects: "core",
 
-    mode: "light",
     textureOpacity: 0.3,
 };
 
@@ -206,6 +205,49 @@ function fillMissingColors(palette: Partial<ThemePalette> | any): ThemePalette {
 
     return p as ThemePalette;
 }
+
+// --- Helper: Derived Atmosphere Mode ---
+
+/**
+ * Registry of brightness modes for built-in themes.
+ * Since built-ins don't store their palette in userThemes, we map them here.
+ */
+const BUILT_IN_THEME_MODES: Record<string, "light" | "dark"> = {
+    light: "light",
+    burgundy: "light",
+    dark: "dark",
+    "slate-and-gold": "dark",
+    hologram: "dark",
+    professional: "light",
+};
+
+/**
+ * A derived store that automatically determines if the UI should be in
+ * "Light" or "Dark" mode based on the currently active theme.
+ *
+ * This is the source of truth for 'data-mode' attributes.
+ */
+export const atmosphereMode = derived(
+    [activeTheme, userThemes],
+    ([$activeTheme, $userThemes]) => {
+        // 1. Check Built-ins
+        if ($activeTheme in BUILT_IN_THEME_MODES) {
+            return BUILT_IN_THEME_MODES[$activeTheme];
+        }
+
+        // 2. Check Custom Themes
+        const customTheme = $userThemes.find((t) => t.name === $activeTheme);
+        if (customTheme) {
+            const bg = customTheme.palette["--color-background-primary"];
+            if (bg && isColorDark(bg)) {
+                return "dark";
+            }
+        }
+
+        // Default fallback
+        return "light";
+    },
+);
 
 // --- Private Save Functions ---
 
