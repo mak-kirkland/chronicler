@@ -549,8 +549,7 @@
 .app-shell[data-typography="fantasy-pack"]:not([data-mode="dark"])
     .chronicler-content
     a.internal-link {
-    /* Slightly heavier font weight to simulate quill pressure */
-    font-weight: 500;
+    background-size: 0% 1px; /* No underline initially */
     /* Ensure links also blend */
     mix-blend-mode: multiply;
 }
@@ -558,19 +557,15 @@
 .app-shell[data-typography="fantasy-pack"]:not([data-mode="dark"])
     .chronicler-content
     a.internal-link:hover {
-    background-size: 100% 2px; /* Line thickens */
-
-    /* The "Highlighter" Effect: A wash of color behind the text */
-    box-shadow: inset 0 -0.5em 0
-        color-mix(in srgb, var(--color-accent-primary), transparent 85%);
-    border-radius: 2px;
+    /* A faint underline appears */
+    background-size: 100% 1px;
 }
 
 /* DARK MODE: "The Runic Glow" */
 .app-shell[data-typography="fantasy-pack"][data-mode="dark"]
     .chronicler-content
     a.internal-link {
-    background-size: 0% 1px; /* No underline initially in dark mode */
+    background-size: 0% 1px; /* No underline initially */
 
     /* Faint ambient glow */
     text-shadow: 0 0 2px
@@ -587,7 +582,7 @@
         0 0 5px var(--color-text-link),
         0 0 10px var(--color-accent-primary);
 
-    /* Optional: A faint underline appears */
+    /* A faint underline appears */
     background-size: 100% 1px;
 }
 
