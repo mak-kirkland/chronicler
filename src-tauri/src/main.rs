@@ -107,6 +107,8 @@ fn main() {
         // Register all our `#[tauri::command]` functions.
         .invoke_handler(tauri::generate_handler![
             commands::get_vault_path,
+            commands::get_recent_vaults,
+            commands::remove_recent_vault,
             commands::initialize_vault,
             commands::get_all_tags,
             commands::render_page_preview,
