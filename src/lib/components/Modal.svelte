@@ -115,8 +115,7 @@
         gap: 1.5rem;
     }
     .modal-body-wrapper {
-        padding-right: 1rem;
-        /* Add padding left so content doesn't get clipped by the scroll container */
-        padding-left: 0.5rem;
+        /* Add padding so content doesn't get clipped by the scroll container */
+        padding: 1rem 1rem 1rem 0.5rem;
     }
 </style>
