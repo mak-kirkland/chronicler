@@ -15,13 +15,13 @@
         fontSize,
         userThemes,
         themeRefresher,
-        THEME_PALETTE_KEYS,
         sidebarWidth,
         headingFont,
         bodyFont,
         atmosphere,
         atmosphereMode,
     } from "$lib/settingsStore";
+    import { THEME_PALETTE_KEYS } from "$lib/themeRegistry";
     import { licenseStore } from "$lib/licenseStore";
     import { openModal } from "$lib/modalStore";
     import { getCurrentWindow } from "@tauri-apps/api/window";
