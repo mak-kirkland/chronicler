@@ -27,6 +27,19 @@ import type {
 export const getVaultPath = () => invoke<string | null>("get_vault_path");
 
 /**
+ * Retrieves the list of recently opened vaults from the configuration.
+ * @returns A promise that resolves to an array of path strings.
+ */
+export const getRecentVaults = () => invoke<string[]>("get_recent_vaults");
+
+/**
+ * Removes a vault path from the recent vaults history.
+ * @param path The path to remove.
+ */
+export const removeRecentVault = (path: string) =>
+    invoke<void>("remove_recent_vault", { path });
+
+/**
  * Sets the vault path, saves it to config, and initializes the world state.
  * @param path The absolute path to the new vault directory.
  * @returns A promise that resolves when the vault is successfully initialized.

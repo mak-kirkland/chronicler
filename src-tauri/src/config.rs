@@ -33,6 +33,9 @@ pub const IMAGES_DIR_NAME: &str = "images";
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AppConfig {
     pub vault_path: Option<String>,
+    /// A list of previously opened vault paths, ordered by most recent.
+    #[serde(default)]
+    pub recent_vaults: Vec<String>,
     pub first_launch_date: Option<String>,
 }
 
@@ -74,8 +77,29 @@ pub fn get_vault_path(app_handle: &AppHandle) -> Result<Option<String>> {
 }
 
 /// Sets and saves the vault path in the config file.
+/// This also updates the `recent_vaults` list, moving the new path to the top.
 pub fn set_vault_path(path: String, app_handle: &AppHandle) -> Result<()> {
     let mut config = load(app_handle)?;
-    config.vault_path = Some(path);
+
+    // Update the current vault path
+    config.vault_path = Some(path.clone());
+
+    // Update recent vaults list
+    // 1. Remove the path if it already exists (so we can move it to the top)
+    config.recent_vaults.retain(|p| p != &path);
+    // 2. Insert at the beginning
+    config.recent_vaults.insert(0, path);
+    // 3. Limit the list to 10 entries to keep it tidy
+    if config.recent_vaults.len() > 10 {
+        config.recent_vaults.truncate(10);
+    }
+
+    save(app_handle, &config)
+}
+
+/// Removes a specific vault path from the recent vaults list.
+pub fn remove_recent_vault(path: String, app_handle: &AppHandle) -> Result<()> {
+    let mut config = load(app_handle)?;
+    config.recent_vaults.retain(|p| p != &path);
     save(app_handle, &config)
 }

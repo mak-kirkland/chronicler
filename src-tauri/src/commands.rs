@@ -28,6 +28,21 @@ pub fn get_vault_path(app_handle: AppHandle) -> Result<Option<String>> {
     config::get_vault_path(&app_handle)
 }
 
+/// Retrieves the list of recently opened vaults.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn get_recent_vaults(app_handle: AppHandle) -> Result<Vec<String>> {
+    let config = config::load(&app_handle)?;
+    Ok(config.recent_vaults)
+}
+
+/// Removes a vault from the recent vaults history.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn remove_recent_vault(path: String, app_handle: AppHandle) -> Result<()> {
+    config::remove_recent_vault(path, &app_handle)
+}
+
 /// Sets the vault path, saves it to config, and initializes the world state.
 /// This uses fine-grained locking internally instead of a single write lock on the world.
 #[command]
