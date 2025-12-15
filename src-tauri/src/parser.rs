@@ -86,10 +86,17 @@ pub fn parse_frontmatter(frontmatter_str: &str, path: &Path) -> Result<serde_jso
         return Ok(serde_json::Value::Null);
     }
 
-    serde_yaml::from_str(frontmatter_str).map_err(|e| ChroniclerError::YamlParseError {
-        source: e,
-        path: path.to_path_buf(),
-    })
+    // Step 1: Parse into serde_yaml::Value.
+    // serde_yaml's specific Value parser enforces unique keys by default.
+    let yaml_value: serde_yaml::Value =
+        serde_yaml::from_str(frontmatter_str).map_err(|e| ChroniclerError::YamlParseError {
+            source: e,
+            path: path.to_path_buf(),
+        })?;
+
+    // Step 2: Convert to serde_json::Value.
+    // This maintains compatibility with the rest of the application which uses JSON values.
+    serde_json::to_value(yaml_value).map_err(ChroniclerError::from)
 }
 
 /// Extracts tags from frontmatter.
@@ -121,6 +128,7 @@ fn extract_title(frontmatter: &serde_json::Value, path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*; // Import everything from the parent module (parser)
+    use crate::error::ChroniclerError;
     use std::collections::HashSet;
     use tempfile::tempdir;
 
@@ -175,5 +183,43 @@ It just has a [[Simple Link]].
         assert!(page.frontmatter.is_null());
 
         Ok(())
+    }
+
+    #[test]
+    fn test_parse_frontmatter_duplicate_keys() {
+        let content = r#"---
+title: "Duplicate Key Test"
+tags: ["a"]
+tags: ["b"]
+---
+Body
+"#;
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("duplicate.md");
+        fs::write(&file_path, content).unwrap();
+
+        let result = parse_file(&file_path);
+
+        // This confirms that serde_yaml::Value's strict parsing is working
+        assert!(
+            result.is_err(),
+            "Parser should have errored on duplicate keys"
+        );
+
+        match result {
+            Err(ChroniclerError::YamlParseError { source, .. }) => {
+                let msg = source.to_string();
+                // serde_yaml's error message for duplicates usually explicitly mentions it
+                assert!(
+                    msg.to_lowercase().contains("duplicate") || msg.contains("key"),
+                    "Error message should mention duplicate keys, got: {}",
+                    msg
+                );
+            }
+            _ => panic!(
+                "Expected YamlParseError for duplicate keys, got {:?}",
+                result
+            ),
+        }
     }
 }
