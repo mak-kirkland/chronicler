@@ -2,41 +2,19 @@
     import { atmosphere } from "$lib/settingsStore";
     import { licenseStore } from "$lib/licenseStore";
     import { atmospheres, coreAtmosphere } from "$lib/atmospheres";
+    import type { IconType, IconPack } from "$lib/icons";
 
-    let { type, className = "" } = $props<{
-        type:
-            | "folder"
-            | "folderOpen"
-            | "file"
-            | "image"
-            | "tags"
-            | "gallery"
-            | "reports"
-            | "back"
-            | "forward"
-            | "settings"
-            | "help"
-            | "info"
-            | "edit"
-            | "preview"
-            | "split"
-            | "contents"
-            | "backlinks"
-            | "close"
-            | "newFile"
-            | "newFolder"
-            | "bold"
-            | "italic"
-            | "strikethrough"
-            | "heading1"
-            | "heading2"
-            | "heading3";
+    // Define the props interface explicitly
+    interface IconProps {
+        type: IconType;
         className?: string;
-    }>();
+    }
 
-    // Derived logic to determine which icon pack to use.
-    // Logic: User Setting -> Lookup Atmosphere Product -> Check Ownership -> Return Icon Asset
-    const currentPackData = $derived.by(() => {
+    // Apply the interface to the props
+    let { type, className = "" }: IconProps = $props();
+
+    // Explicitly derive the current pack data
+    const currentPackData = $derived.by<IconPack>(() => {
         const selectedPackId = $atmosphere.icons;
         // Look up the Product (Atmosphere)
         const pack = atmospheres[selectedPackId];
@@ -54,7 +32,7 @@
             return pack.iconSet;
         }
 
-        // 3. Fallback to default if pack doesn't exist or isn't owned.
+        // 3. Fallback to default
         return coreAtmosphere.iconSet;
     });
 
@@ -64,7 +42,6 @@
 </script>
 
 {#if currentPackData.type === "svg"}
-    <!-- svelte-ignore a11y_hidden -->
     <svg
         class="themed-icon {className}"
         viewBox="0 0 24 24"

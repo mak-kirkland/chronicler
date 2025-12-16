@@ -12,8 +12,14 @@
     // Define the available packs based on atmospheres registry
     const packs = Object.values(atmospheres);
 
+    // Define a strict module key type that EXCLUDES 'textureOpacity' (which is a number)
+    type AtmosphereStringKey = Exclude<
+        keyof AtmosphereSettings,
+        "textureOpacity"
+    >;
+
     // Define the modules we can configure for the fine-tuning section
-    const modules: { key: keyof AtmosphereSettings; label: string }[] = [
+    const modules: { key: AtmosphereStringKey; label: string }[] = [
         { key: "icons", label: "Icons" },
         { key: "buttons", label: "Buttons" },
         { key: "textures", label: "Textures" },
@@ -52,7 +58,7 @@
     }
 
     // Granular Update: Sets a single module
-    function updateModule(key: keyof AtmosphereSettings, packId: string) {
+    function updateModule(key: AtmosphereStringKey, packId: string) {
         atmosphere.update((current) => ({
             ...current,
             [key]: packId,
