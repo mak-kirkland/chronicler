@@ -322,7 +322,7 @@
         },
         {
             tag: t.list,
-            color: "var(--color-accent-primary)",
+            color: "var(--color-text-primary)",
         },
 
         // --- LINKS ---
