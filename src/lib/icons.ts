@@ -46,6 +46,8 @@ export interface IconPack {
     };
 }
 
+export type IconType = keyof IconPack["icons"];
+
 // The DEFAULT pack (Text-based)
 export const coreIcons: IconPack = {
     type: "text",

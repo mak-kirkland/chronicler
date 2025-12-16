@@ -198,7 +198,7 @@
 
                 <!-- World Atmosphere -->
                 <div class="form-group">
-                    <label>World Atmosphere</label>
+                    <span>World Atmosphere</span>
                     <p class="setting-description">
                         Customize icons, textures, borders, and more.
                     </p>

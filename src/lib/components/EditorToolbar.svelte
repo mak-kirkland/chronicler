@@ -7,11 +7,19 @@
         toggleStrikethrough,
         addHeading,
     } from "$lib/editor";
+    import type { IconType } from "$lib/icons";
 
     let { editorView } = $props<{ editorView: EditorView | undefined }>();
 
+    // Define an interface for the actions
+    interface ToolbarAction {
+        title: string;
+        action: (v: EditorView) => void;
+        iconType: IconType;
+    }
+
     // Define all toolbar actions in an array
-    const toolbarActions = [
+    const toolbarActions: ToolbarAction[] = [
         {
             title: "Bold (Ctrl+B)",
             action: toggleBold,
@@ -55,7 +63,6 @@
 <div class="editor-toolbar">
     {#each toolbarActions as { title, action, iconType }}
         <button {title} onclick={() => handleAction(action)}>
-            <!-- @ts-ignore -->
             <Icon type={iconType} />
         </button>
     {/each}
