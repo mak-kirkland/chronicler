@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.38.2-alpha] - 2025-12-16
+
+### 🔄 Changed
+
+- **Editor**: The syntax highlighting for Markdown lists has been updated. Bullet points now appear in the primary text color rather than the accent color.
+
+---
+
 ## [v0.38.1-alpha] - 2024-12-14
 
 ### ✨ Added
