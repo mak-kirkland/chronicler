@@ -2,6 +2,21 @@
 
 ---
 
+## [v0.39.0-alpha] - 2025-12-17
+
+### ✨ Added
+
+- **Preview**: You can now display page tags at the bottom of the document. A new toggle has been added to the settings to enable this **Footer Tags** section, providing an alternative to the header-based tag list.
+- **Editor**: Added `Tab` as a supported shortcut for accepting autocomplete suggestions.
+- **Editor**: Added a `Shift+Enter` shortcut to quickly exit a wikilink. This automatically closes the brackets (`]]`) and moves the cursor past them, allowing you to continue typing without breaking flow.
+- **Infobox**: Added `columns` as a clearer alias for infobox groups (e.g., `type: columns`). This replaces the older `render_as` property, which has been deprecated.
+
+### 🐞 Fixed
+
+- **Editor**: Fixed a workflow interruption where pressing `Enter` to create a wikilink for a new, non-existent page would insert a newline instead of completing the link. The editor now correctly allows you to confirm the creation of a new link with the Enter key.
+
+---
+
 ## [v0.38.2-alpha] - 2025-12-16
 
 ### 🔄 Changed
