@@ -242,130 +242,158 @@ export function capitalizeFirstLetter(text: string): string {
  * @returns A structured array of `RenderItem` objects.
  */
 export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
-    if (!data || typeof data !== "object") {
-        return [];
-    }
+    if (!data) return [];
 
-    // Define keys that are handled by dedicated UI elements (like the title,
-    // image carousel, and tags) and should be excluded from the main data list.
-    const excludedKeys = new Set([
-        "title",
-        "subtitle",
-        "tags",
-        "infobox",
-        "images",
-        "image_paths",
-        "image_captions",
-        "error",
-        "details", // Error details
-        "layout", // The layout key itself is for rules, not display.
-    ]);
-
-    // The final list we will give to the UI
     const finalItems: RenderItem[] = [];
-    const processedKeys = new Set<string>();
+    // Ensure layout is an array
+    const layout = Array.isArray(data.layout) ? data.layout : [];
 
-    // Maps to hold rules associated with specific keys
-    // key -> list of items to inject BEFORE this key
-    const aboveRules = new Map<string, RenderItem[]>();
-    // key -> list of items to inject AFTER this key
-    const belowRules = new Map<string, RenderItem[]>();
-    // key -> the group definition that starts at this key
+    // --- 1. First Pass: Parse Rules ---
+    // We build maps to know which items to inject/modify when iterating the data.
+
+    const itemsAbove = new Map<string, RenderItem[]>();
+    const itemsBelow = new Map<string, RenderItem[]>();
     const groupRules = new Map<string, LayoutGroup>();
+    const keysInGroups = new Set<string>();
+    const aliasRules = new Map<string, string>();
 
-    /** Helper to register an item in the injection maps */
-    const addInjection = (
-        target: string | string[] | undefined,
+    // Helper to register items to be injected above/below a target key
+    const registerInjection = (
+        targetKey: string | string[],
         item: RenderItem,
         map: Map<string, RenderItem[]>,
     ) => {
-        if (!target) return;
-        const targets = Array.isArray(target) ? target : [target];
-        for (const t of targets) {
-            if (!map.has(t)) map.set(t, []);
-            map.get(t)!.push(item);
+        const targets = Array.isArray(targetKey) ? targetKey : [targetKey];
+        for (const target of targets) {
+            if (!map.has(target)) {
+                map.set(target, []);
+            }
+            map.get(target)!.push({ ...item }); // push a copy
         }
     };
 
-    // 1. Pre-process Layout Rules
-    if (data.layout && Array.isArray(data.layout)) {
-        for (const rule of data.layout) {
-            // Protect against malformed YAML (nulls, strings, numbers)
-            if (!rule || typeof rule !== "object") continue;
-            // Case A: Header
-            if (rule.type === "header") {
-                const item: RenderItem = { type: "header", text: rule.text };
-                addInjection(rule.above, item, aboveRules);
-                addInjection(rule.below, item, belowRules);
+    for (const rule of layout) {
+        // A. Alias Rules
+        // Register keys that should be renamed for display
+        if (rule.type === "alias") {
+            if (Array.isArray(rule.keys) && typeof rule.text === "string") {
+                for (const key of rule.keys) {
+                    aliasRules.set(key, rule.text);
+                }
             }
-            // Case B: Separator (Can be an array)
-            else if (rule.type === "separator") {
-                const item: RenderItem = { type: "separator" };
-                addInjection(rule.above, item, aboveRules);
-                addInjection(rule.below, item, belowRules);
-            }
-            // Case C: Groups OR Columns
-            else if (
-                (rule.type === "group" || rule.type === "columns") &&
-                rule.keys?.length > 0
-            ) {
-                // Register the group logic against the FIRST key in the group.
+            continue;
+        }
+
+        // B. Grouping Rules
+        // Groups allow multiple keys to be displayed in a single row/grid.
+        if (rule.type === "group" || rule.type === "columns") {
+            if (Array.isArray(rule.keys) && rule.keys.length > 0) {
+                // We register the group rule against the FIRST key in the list.
+                // When the iterator hits this key, it will render the whole group.
                 groupRules.set(rule.keys[0], rule);
+
+                // We mark all SUBSEQUENT keys as being "in a group".
+                // The iterator will skip these when it encounters them naturally.
+                for (let i = 1; i < rule.keys.length; i++) {
+                    keysInGroups.add(rule.keys[i]);
+                }
             }
-            // Case D: Simple Strings (ignored in this pass, handled implicitly by order)
+            continue;
+        }
+
+        // C. Injection Rules (Headers & Separators)
+        if (rule.type === "header") {
+            if (rule.above) {
+                registerInjection(
+                    rule.above,
+                    { type: "header", text: rule.text },
+                    itemsAbove,
+                );
+            }
+            if (rule.below) {
+                registerInjection(
+                    rule.below,
+                    { type: "header", text: rule.text },
+                    itemsBelow,
+                );
+            }
+        } else if (rule.type === "separator") {
+            if (rule.above) {
+                registerInjection(
+                    rule.above,
+                    { type: "separator" },
+                    itemsAbove,
+                );
+            }
+            if (rule.below) {
+                registerInjection(
+                    rule.below,
+                    { type: "separator" },
+                    itemsBelow,
+                );
+            }
         }
     }
 
-    // 2. Iterate Data Entries
+    // --- 2. Second Pass: Iterate Data & Construct Layout ---
+
+    // Define keys to exclude from the main list (metadata, special fields)
+    const excludedKeys = new Set([
+        "layout",
+        "title",
+        "image",
+        "images",
+        "image_captions",
+        "image_paths",
+        "tags",
+        "infobox",
+        "details",
+        "error",
+    ]);
+
+    // We filter the entries first to ignore metadata
     const allEntries = Object.entries(data).filter(
         ([key]) => !excludedKeys.has(key),
     );
 
     for (const [key, value] of allEntries) {
-        // Skip if this key was already consumed by a group
-        if (processedKeys.has(key)) continue;
-
-        // A. Inject items positioned "Above" this key
-        if (aboveRules.has(key)) {
-            finalItems.push(...aboveRules.get(key)!);
+        // If this key is part of a group but NOT the leader, skip it.
+        // It will be rendered when the leader is processed.
+        if (keysInGroups.has(key)) {
+            continue;
         }
 
-        // B. Render Content (Group or Default)
+        // A. Inject items positioned "Above" this key
+        if (itemsAbove.has(key)) {
+            finalItems.push(...itemsAbove.get(key)!);
+        }
+
+        // B. Render the item itself
         if (groupRules.has(key)) {
+            // It's the leader of a group.
             const rule = groupRules.get(key)!;
-            const groupValues: any[] = [];
-            let lastKeyInGroup = key; // Track the last key for "Below" injections
+            // Gather values for all keys in the group
+            const groupValues = rule.keys
+                .map((k) => data[k])
+                // Filter out undefined/null, but keep 0 or false
+                .filter((v) => v !== undefined && v !== null && v !== "");
 
-            // Collect all values specified in the group rule.
-            for (const groupKey of rule.keys) {
-                if (data[groupKey] !== undefined) {
-                    groupValues.push(data[groupKey]);
-                    processedKeys.add(groupKey); // Mark key as processed.
-                    lastKeyInGroup = groupKey;
-                }
-            }
-
-            // Only render group if it has data
+            // Only render the group if it has content
             if (groupValues.length > 0) {
-                finalItems.push({
-                    type: "group",
-                    items: groupValues,
-                });
-            }
-
-            // Check if there are injections below the *last* key of the group
-            // (Since the group "consumes" the space of all its keys)
-            if (belowRules.has(lastKeyInGroup)) {
-                finalItems.push(...belowRules.get(lastKeyInGroup)!);
+                finalItems.push({ type: "group", items: groupValues });
             }
         } else {
-            // If the key is not part of any special rule, render it as a default item.
-            finalItems.push({ type: "default", item: [key, value] });
+            // It's a standard key-value pair.
+            // Check if there is an alias for this key.
+            const label = aliasRules.has(key) ? aliasRules.get(key)! : key;
 
-            // C. Inject items positioned "Below" this key
-            if (belowRules.has(key)) {
-                finalItems.push(...belowRules.get(key)!);
-            }
+            // Render it as a default item.
+            finalItems.push({ type: "default", item: [label, value] });
+        }
+
+        // C. Inject items positioned "Below" this key
+        if (itemsBelow.has(key)) {
+            finalItems.push(...itemsBelow.get(key)!);
         }
     }
 

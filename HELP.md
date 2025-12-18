@@ -254,6 +254,13 @@ Use the `layout` key to add headers and group fields into columns for a professi
 -   `text: 'Your Text'`: The text to display in the header.
 -   `below: 'field_name'`: Injects the header immediately after `field_name`.
 
+##### Aliasing Keys
+-   `type: alias`: Defines the rule as a key alias.
+-   `keys: [field1, field2]`: A list of the frontmatter keys you want to rename.
+-   `text: 'New Label'`: The custom text to display for these keys.
+
+> Tip: This is useful for creating the visual effect of duplicate keys (e.g., displaying "Strength" for two different factions), which isn't possible in standard YAML.
+
 ##### Grouping Fields into Columns
 -   `type: group`: Defines the rule as a group.
 -   `keys: [field1, field2]`: A list of the frontmatter keys to include in the group.
