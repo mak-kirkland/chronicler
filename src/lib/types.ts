@@ -60,8 +60,19 @@ export type LayoutGroup = {
     keys: string[];
 };
 
+/** A rule to allow aliasing keys to a specific display text. */
+export type LayoutAlias = {
+    type: "alias";
+    keys: string[];
+    text: string;
+};
+
 /** A union type for any possible layout rule. */
-export type LayoutItem = LayoutHeader | LayoutGroup | LayoutSeparator;
+export type LayoutItem =
+    | LayoutHeader
+    | LayoutGroup
+    | LayoutSeparator
+    | LayoutAlias;
 
 /** A union type representing the final, structured items to be rendered by the infobox. */
 export type RenderItem =
