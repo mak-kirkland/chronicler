@@ -2,6 +2,20 @@
 
 ---
 
+## [v0.39.1-alpha] - 2025-12-21
+
+### 🔄 Changed
+
+- **Infobox**: The infobox is now "smart" enough to hide itself if it contains no unique data (only the title, subtitle, or tags). In these cases, your tags will automatically be displayed in the page footer to ensure they remain accessible.
+- **Infobox**: The settings button (⚙️) in the header is now hidden by default to reduce visual clutter. It will appear automatically when you hover over the infobox header.
+
+### 🐞 Fixed
+
+- **Editor**: Fixed an issue where wikilink autocompletion (`[[`) would not trigger inside YAML frontmatter fields (which are technically strings). Typing the opening brackets in the frontmatter now correctly auto-closes them and immediately opens the suggestion menu.
+- **Infobox**: Fixed a layout bug in multi-column infobox groups where content of varying lengths caused rows to become misaligned. The layout now uses a strict grid system, ensuring that cells in the same row always maintain equal height even if text wraps.
+
+---
+
 ## [v0.39.0-alpha] - 2025-12-17
 
 ### ✨ Added
