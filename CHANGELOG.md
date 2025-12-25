@@ -2,6 +2,23 @@
 
 ---
 
+## [v0.39.2-alpha] - 2025-12-25
+
+### ✨ Added
+
+- **Theme Editor**: You can now customize the default typography of your custom themes. New options have been added to the Theme Editor that allow you to select specific fonts for **Headings** and **Body** text.
+
+### 🔄 Changed
+
+- **UI**: Standardized the appearance of dropdown menus throughout the application to ensure a consistent look and feel.
+
+### 🐞 Fixed
+
+- **Infobox**: Fixed a layout issue where very long tags would overflow the container. Tags now correctly wrap onto new lines and are left-aligned to maintain readability.
+- **UI**: Fixed a visual bug in modals where the focus rings or borders of full-width inputs (such as select dropdowns) were being clipped by the container's edge. Added padding to ensure these elements remain fully visible.
+
+---
+
 ## [v0.39.1-alpha] - 2025-12-21
 
 ### 🔄 Changed
