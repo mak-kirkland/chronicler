@@ -2,6 +2,21 @@
 
 ---
 
+## [v0.40.0-alpha] - 2025-12-31
+
+### ✨ Added
+
+- **Gallery**: Added a new **Gallery** tab to the sidebar. This panel displays a lazy-loaded grid of all images found in your vault and includes a search bar for quick filtering.
+- **Images**: The full-screen image viewer now supports navigation. You can cycle through images in the current context using the new **Previous** / **Next** buttons or by pressing the `ArrowLeft` / `ArrowRight` keys.
+- **Carousel**: You can now create interactive image slideshows inside your notes. By wrapping images in a container with the class `.carousel`, the application will automatically render them as a swipable slider.
+
+### 🔄 Changed
+
+- **Styling**: The CSS architecture for page previews has been refactored. Styles for rendered content (typography, tables, spoilers) have been moved to a dedicated `review.css` file and scoped to the content container. This prevents global styles from accidentally leaking into or conflicting with the editor and sidebar UI.
+- **Infobox**: The image viewer inside Infoboxes has been updated to use the shared `Carousel` component. This unifies the behavior across the application and improves performance by pre-calculating image paths.
+
+---
+
 ## [v0.39.2-alpha] - 2025-12-25
 
 ### ✨ Added
