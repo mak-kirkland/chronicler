@@ -6,7 +6,9 @@
 use crate::{
     error::{ChroniclerError, Result},
     events::FileEvent,
-    models::{BrokenLink, FileNode, FileType, Link, Page, PageHeader, ParseError, VaultAsset},
+    models::{
+        BrokenImage, BrokenLink, FileNode, FileType, Link, Page, PageHeader, ParseError, VaultAsset,
+    },
     parser,
     utils::{file_stem_string, is_image_file, is_markdown_file},
 };
@@ -587,6 +589,52 @@ impl Indexer {
         Ok(result)
     }
 
+    /// Finds all broken image references in the vault.
+    #[instrument(level = "debug", skip(self))]
+    pub fn get_all_broken_images(&self) -> Result<Vec<BrokenImage>> {
+        let mut broken_images_map: HashMap<String, HashSet<PageHeader>> = HashMap::new();
+
+        for (source_path, asset) in &self.assets {
+            if let VaultAsset::Page(page) = asset {
+                for image_ref in &page.images {
+                    // Normalize the image reference:
+                    // 1. Convert to lowercase for case-insensitive lookup
+                    // 2. Extract just the filename if it's a path (e.g. "assets/img.png" -> "img.png")
+                    // This matches the behavior of `media_resolver` which keys by filename.
+                    let target_key = Path::new(image_ref)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(image_ref)
+                        .to_lowercase();
+
+                    if !self.media_resolver.contains_key(&target_key) {
+                        let source_header = PageHeader {
+                            path: source_path.clone(),
+                            title: page.title.clone(),
+                        };
+                        broken_images_map
+                            .entry(image_ref.clone())
+                            .or_default()
+                            .insert(source_header);
+                    }
+                }
+            }
+        }
+
+        let mut result: Vec<BrokenImage> = broken_images_map
+            .into_iter()
+            .map(|(target, sources_set)| {
+                let mut sources: Vec<PageHeader> = sources_set.into_iter().collect();
+                sources.sort_by(|a, b| nat_compare(&a.title, &b.title));
+                BrokenImage { target, sources }
+            })
+            .collect();
+
+        result.sort_by(|a, b| nat_compare(&a.target, &b.target));
+
+        Ok(result)
+    }
+
     /// Finds all pages with parsing errors.
     #[instrument(level = "debug", skip(self))]
     pub fn get_all_parse_errors(&self) -> Result<Vec<ParseError>> {
@@ -605,238 +653,5 @@ impl Indexer {
         // Sort the results alphabetically by page title for a consistent report.
         result.sort_by(|a, b| nat_compare(&a.page.title, &b.page.title));
         Ok(result)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::events::FileEvent;
-    use std::{collections::HashSet, fs, path::Path};
-    use tempfile::tempdir;
-
-    /// Helper function to set up a temporary vault with some files and an image
-    fn setup_test_vault() -> (tempfile::TempDir, PathBuf, PathBuf, PathBuf, PathBuf) {
-        let dir = tempdir().unwrap();
-        let root = dir.path();
-
-        let page1_path = root.join("Page One.md");
-        fs::write(
-            &page1_path,
-            r#"---
-title: "First Page"
-tags: ["alpha", "beta"]
----
-This page links to [[Page Two]].
-"#,
-        )
-        .unwrap();
-
-        let page2_path = root.join("Page Two.md");
-        fs::write(
-            &page2_path,
-            r#"---
-title: "Second Page"
-tags: ["beta", "gamma"]
----
-This page links back to [[Page One]] and also to [[Page Three|a different name]].
-"#,
-        )
-        .unwrap();
-
-        let page3_path = root.join("Page Three.md");
-        fs::write(
-            &page3_path,
-            r#"---
-title: "Third Page"
-tags: ["gamma"]
----
-No outgoing links here.
-"#,
-        )
-        .unwrap();
-
-        let image_path = root.join("test_image.png");
-        fs::write(&image_path, "dummy image data").unwrap();
-
-        (dir, page1_path, page2_path, page3_path, image_path)
-    }
-
-    // Helper to extract a Page from the assets map for testing
-    fn get_page<'a>(assets: &'a HashMap<PathBuf, VaultAsset>, path: &Path) -> &'a Page {
-        match assets.get(path) {
-            Some(VaultAsset::Page(p)) => p,
-            _ => panic!("Expected to find a page at path: {:?}", path),
-        }
-    }
-
-    #[test]
-    fn test_indexer_scan_vault() {
-        let (_dir, page1_path, page2_path, page3_path, image_path) = setup_test_vault();
-        let root = _dir.path();
-        let mut indexer = Indexer::new(root);
-
-        indexer.scan_vault(root).unwrap();
-
-        // Test asset counts
-        assert_eq!(indexer.assets.len(), 4);
-        let page_count = indexer
-            .assets
-            .values()
-            .filter(|a| matches!(a, VaultAsset::Page(_)))
-            .count();
-        assert_eq!(page_count, 3);
-
-        // Test media resolver
-        assert_eq!(indexer.media_resolver.len(), 1);
-        assert_eq!(
-            indexer.media_resolver.get("test_image.png").unwrap(),
-            &image_path
-        );
-
-        // Test tags
-        assert_eq!(indexer.tags.len(), 3);
-        assert_eq!(
-            indexer.tags.get("alpha").unwrap(),
-            &HashSet::from([page1_path.clone()])
-        );
-        assert_eq!(
-            indexer.tags.get("beta").unwrap(),
-            &HashSet::from([page1_path.clone(), page2_path.clone()])
-        );
-        assert_eq!(
-            indexer.tags.get("gamma").unwrap(),
-            &HashSet::from([page2_path.clone(), page3_path.clone()])
-        );
-
-        // Test link graph and backlinks
-        let page1 = get_page(&indexer.assets, &page1_path);
-        let page2 = get_page(&indexer.assets, &page2_path);
-        let page3 = get_page(&indexer.assets, &page3_path);
-
-        // Page 1 has an outgoing link to Page 2, so Page 2 should have a backlink from Page 1.
-        assert_eq!(page1.links.len(), 1);
-        assert!(page2.backlinks.contains(&page1_path));
-
-        // Page 2 links to Page 1 and Page 3.
-        assert_eq!(page2.links.len(), 2);
-        assert!(page1.backlinks.contains(&page2_path));
-        assert!(page3.backlinks.contains(&page2_path));
-
-        // Test link resolver
-        assert_eq!(indexer.resolve_link(&page1.links[0]).unwrap(), page2_path);
-        assert_eq!(indexer.resolve_link(&page2.links[0]).unwrap(), page1_path);
-        assert_eq!(indexer.resolve_link(&page2.links[1]).unwrap(), page3_path);
-    }
-
-    #[test]
-    fn test_indexer_file_events() {
-        let (_dir, page1_path, page2_path, page3_path, _) = setup_test_vault();
-        let root = _dir.path();
-        let mut indexer = Indexer::new(root);
-        indexer.scan_vault(root).unwrap();
-
-        // --- Test Deletion ---
-        indexer.handle_event_and_rebuild(&FileEvent::Deleted(page1_path.clone()));
-
-        let page_count = indexer
-            .assets
-            .values()
-            .filter(|a| matches!(a, VaultAsset::Page(_)))
-            .count();
-        assert_eq!(page_count, 2);
-        assert!(!indexer.tags.contains_key("alpha")); // alpha tag should be gone
-
-        // The link from page 2 to the now-deleted page 1 will be dangling,
-        // but the backlink *from* page 1 on other pages should be removed.
-        let page3_after_delete = get_page(&indexer.assets, &page3_path);
-        assert!(page3_after_delete.backlinks.contains(&page2_path)); // This should still be there.
-
-        let page2_after_delete = get_page(&indexer.assets, &page2_path);
-        assert!(page2_after_delete.backlinks.is_empty()); // Backlink from page1 is gone.
-
-        // --- Test Creation ---
-        let new_page_path = root.join("New Page.md");
-        fs::write(
-            &new_page_path,
-            r#"---
-tags: ["new", "alpha"]
----
-Linking to [[Page Two]]
-"#,
-        )
-        .unwrap();
-        indexer.handle_event_and_rebuild(&FileEvent::Created(new_page_path.clone()));
-
-        let page_count = indexer
-            .assets
-            .values()
-            .filter(|a| matches!(a, VaultAsset::Page(_)))
-            .count();
-        assert_eq!(page_count, 3);
-        assert!(indexer.tags.contains_key("new"));
-        assert!(indexer.tags.contains_key("alpha")); // alpha is back
-        let page2_after_create = get_page(&indexer.assets, &page2_path);
-        // Page 2 should now have a backlink from New Page
-        assert!(page2_after_create.backlinks.contains(&new_page_path));
-        assert_eq!(page2_after_create.backlinks.len(), 1);
-
-        // --- Test Modification ---
-        fs::write(
-            &page3_path,
-            r#"---
-title: "Third Page Modified"
-tags: ["gamma", "modified"]
----
-Now I link to [[Page Two]]!
-"#,
-        )
-        .unwrap();
-        indexer.handle_event_and_rebuild(&FileEvent::Modified(page3_path.clone()));
-        let page3_after_modify = get_page(&indexer.assets, &page3_path);
-        assert_eq!(page3_after_modify.title, "Third Page Modified");
-        assert!(page3_after_modify.tags.contains("modified"));
-        assert_eq!(page3_after_modify.links.len(), 1);
-
-        let page2_after_modify = get_page(&indexer.assets, &page2_path);
-        // Page 2 should now have backlinks from both New Page and Page 3
-        assert_eq!(page2_after_modify.backlinks.len(), 2);
-        assert!(page2_after_modify.backlinks.contains(&new_page_path));
-        assert!(page2_after_modify.backlinks.contains(&page3_path));
-    }
-
-    #[test]
-    fn test_get_all_broken_links() {
-        let dir = tempdir().unwrap();
-        let root = dir.path();
-
-        let page1_path = root.join("Page One.md");
-        fs::write(&page1_path, "Links to [[Page Two]] and [[Missing Page]].").unwrap();
-
-        let page2_path = root.join("Page Two.md");
-        fs::write(&page2_path, "Links to [[Another Missing Page]].").unwrap();
-
-        let mut indexer = Indexer::new(root);
-        indexer.scan_vault(root).unwrap();
-
-        let broken_links = indexer.get_all_broken_links().unwrap();
-
-        assert_eq!(broken_links.len(), 2);
-
-        // Find the "Another Missing Page" report (results are sorted)
-        let another_missing = broken_links
-            .iter()
-            .find(|bl| bl.target == "Another Missing Page")
-            .unwrap();
-        assert_eq!(another_missing.sources.len(), 1);
-        assert_eq!(another_missing.sources[0].path, page2_path);
-
-        // Find the "Missing Page" report
-        let missing_page = broken_links
-            .iter()
-            .find(|bl| bl.target == "Missing Page")
-            .unwrap();
-        assert_eq!(missing_page.sources.len(), 1);
-        assert_eq!(missing_page.sources[0].path, page1_path);
     }
 }

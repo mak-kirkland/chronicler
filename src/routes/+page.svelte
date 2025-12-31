@@ -10,6 +10,7 @@
     import BacklinksPanel from "$lib/components/BacklinksPanel.svelte";
     import BrokenLinksReportView from "$lib/components/BrokenLinksReportView.svelte";
     import ParseErrorsReportView from "$lib/components/ParseErrorsReportView.svelte";
+    import BrokenImagesReport from "$lib/components/BrokenImagesReport.svelte";
 
     // This is the component map. It associates view types with components.
     // The key for reports is namespaced to avoid conflicts (e.g., 'report:broken-links').
@@ -20,6 +21,7 @@
         image: ImageView,
         "report:broken-links": BrokenLinksReportView,
         "report:parse-errors": ParseErrorsReportView,
+        "report:broken-images": BrokenImagesReport,
     };
 
     // This reactive block determines which component and props to render

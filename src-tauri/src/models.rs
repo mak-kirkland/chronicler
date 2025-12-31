@@ -65,6 +65,9 @@ pub struct Page {
     /// A vector of all outgoing links from this page to other pages (e.g., "[[Another Page]]").
     /// Using a Vec allows for duplicate links, which can be used to determine link "strength".
     pub links: Vec<Link>,
+    /// A list of images embedded in this page (e.g., `![[img.png]]`, `![alt](img.png)`).
+    /// Stores the raw target string (filename or path).
+    pub images: Vec<String>,
     /// A set of all incoming links (backlinks) from other pages.
     /// This is calculated by the Indexer, not read from the file itself.
     pub backlinks: HashSet<PathBuf>,
@@ -189,6 +192,15 @@ pub struct BrokenLink {
     /// The target name of the link that could not be resolved.
     pub target: String,
     /// A list of all pages that contain a link to this target.
+    pub sources: Vec<PageHeader>,
+}
+
+/// Represents a broken image report, aggregating all pages that embed a non-existent image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BrokenImage {
+    /// The filename or path of the image that could not be found.
+    pub target: String,
+    /// A list of all pages that embed this image.
     pub sources: Vec<PageHeader>,
 }
 

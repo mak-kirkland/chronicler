@@ -73,7 +73,14 @@ export const getAllDirectoryPaths = () =>
  * @returns A promise that resolves to an array of BrokenLink objects.
  */
 export const getAllBrokenLinks = () =>
-    invoke<BrokenLink[]>("get_all_broken_links");
+  invoke<BrokenLink[]>("get_all_broken_links");
+
+/**
+ * Returns a list of all broken image references in the vault.
+ * @returns A promise that resolves to an array of BrokenLink objects.
+ */
+export const getAllBrokenImages = () =>
+    invoke<BrokenLink[]>("get_all_broken_images");
 
 /**
  * Returns a list of all pages with YAML parsing errors.
