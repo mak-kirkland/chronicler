@@ -19,7 +19,8 @@ use crate::{
     indexer::Indexer,
     mediawiki_importer,
     models::{
-        BrokenLink, FileNode, FullPageData, PageHeader, ParseError, RenderedPage, VaultAsset,
+        BrokenImage, BrokenLink, FileNode, FullPageData, PageHeader, ParseError, RenderedPage,
+        VaultAsset,
     },
     renderer::Renderer,
     watcher::Watcher,
@@ -300,6 +301,11 @@ impl World {
     /// Returns a list of all broken links in the vault.
     pub fn get_all_broken_links(&self) -> Result<Vec<BrokenLink>> {
         self.indexer.read().get_all_broken_links()
+    }
+
+    /// Returns a list of all broken image references in the vault.
+    pub fn get_all_broken_images(&self) -> Result<Vec<BrokenImage>> {
+        self.indexer.read().get_all_broken_images()
     }
 
     /// Returns a list of all pages with parsing errors.

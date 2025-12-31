@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { brokenLinks, parseErrors } from "$lib/worldStore";
+    import { brokenLinks, parseErrors, brokenImages } from "$lib/worldStore";
     import { navigateToReport } from "$lib/actions";
 </script>
 
@@ -19,6 +19,21 @@
         </div>
     {/if}
 
+    <!-- Broken Images Report Item -->
+    {#if $brokenImages.length > 0}
+        <div
+            class="report-item"
+            onclick={() => navigateToReport("broken-images")}
+            onkeydown={(e) =>
+                e.key === "Enter" && navigateToReport("broken-images")}
+            role="button"
+            tabindex="0"
+        >
+            <span class="report-name">Broken Images</span>
+            <span class="report-count">({$brokenImages.length})</span>
+        </div>
+    {/if}
+
     <!-- Parse Errors Report Item -->
     {#if $parseErrors.length > 0}
         <div
@@ -34,11 +49,9 @@
         </div>
     {/if}
 
-    {#if $brokenLinks.length === 0 && $parseErrors.length === 0}
+    {#if $brokenLinks.length === 0 && $parseErrors.length === 0 && $brokenImages.length === 0}
         <p class="text-muted text-center">No issues found.</p>
     {/if}
-
-    <!-- More reports can be added here in the future -->
 </div>
 
 <style>

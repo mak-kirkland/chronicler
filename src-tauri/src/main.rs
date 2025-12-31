@@ -135,6 +135,7 @@ fn main() {
             commands::get_app_usage_days,
             commands::duplicate_page,
             commands::get_all_broken_links,
+            commands::get_all_broken_images,
             commands::get_all_parse_errors,
             commands::get_user_fonts,
             commands::open_log_directory,

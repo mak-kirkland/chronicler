@@ -122,6 +122,17 @@ export interface BrokenLink {
 }
 
 /**
+ * Represents a broken image report from the backend.
+ * This mirrors the `BrokenImage` struct in `src-tauri/src/models.rs`.
+ */
+export interface BrokenImage {
+    /** The filename or path of the image that could not be found. */
+    target: string;
+    /** A list of all pages that embed this image. */
+    sources: PageHeader[];
+}
+
+/**
  * Represents a single entry in the parse error report.
  * This mirrors the `ParseError` struct in `src-tauri/src/models.rs`.
  */
