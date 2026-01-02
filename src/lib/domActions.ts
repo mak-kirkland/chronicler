@@ -26,6 +26,61 @@ export function autofocus(node: HTMLElement) {
     }, 0);
 }
 
+// --- Infinite Scroll Action ---
+
+interface InfiniteScrollParams {
+    callback: () => void;
+    dependency: any; // Used to re-trigger checks when data changes
+}
+
+/**
+ * A Svelte action that triggers a callback when the element intersects with the viewport.
+ * * Includes robustness fix: Re-checks intersection whenever the `dependency` changes.
+ * This solves the edge case where the loaded content isn't tall enough to push the
+ * sentinel out of view, ensuring continuous loading until the screen is full.
+ *
+ * @param node The sentinel element to observe.
+ * @param params Object containing the callback and a dependency to watch.
+ */
+export function infiniteScroll(node: HTMLElement, params: InfiniteScrollParams | (() => void)) {
+    // Handle both simple callback and object with dependency
+    let callback = typeof params === 'function' ? params : params.callback;
+
+    const observer = new IntersectionObserver(
+        (entries) => {
+            if (entries[0].isIntersecting) {
+                callback();
+            }
+        },
+        {
+            // Trigger loading when the user is within 400px of the bottom
+            rootMargin: "400px",
+        },
+    );
+
+    observer.observe(node);
+
+    return {
+        update(newParams: InfiniteScrollParams | (() => void)) {
+            // Update local callback reference
+            callback = typeof newParams === 'function' ? newParams : newParams.callback;
+
+            // If passed as an object, we can use the dependency to re-check
+            if (typeof newParams !== 'function') {
+                // Unobserving and Re-observing forces the IntersectionObserver
+                // to immediately check the state of the element again.
+                // If the sentinel is STILL visible after the last load, this
+                // ensures the callback fires again immediately.
+                observer.unobserve(node);
+                observer.observe(node);
+            }
+        },
+        destroy() {
+            observer.disconnect();
+        },
+    };
+}
+
 // --- Drag and Drop Actions ---
 
 /**
