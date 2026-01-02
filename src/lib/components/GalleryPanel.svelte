@@ -2,11 +2,17 @@
     import { allImages, vaultPath } from "$lib/worldStore";
     import { currentView } from "$lib/viewStores";
     import { navigateToImage } from "$lib/actions";
+    import { infiniteScroll } from "$lib/domActions";
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { getImageAsBase64 } from "$lib/commands";
     import { tick } from "svelte";
 
     let { searchTerm = "" } = $props<{ searchTerm?: string }>();
+
+    // --- Infinite Scroll State ---
+    const INITIAL_BATCH = 50;
+    const LOAD_BATCH = 50;
+    let displayLimit = $state(INITIAL_BATCH);
 
     // Filter images based on search term
     const filteredImages = $derived(
@@ -14,6 +20,22 @@
             img.title.toLowerCase().includes(searchTerm.toLowerCase()),
         ),
     );
+
+    // Reset the display limit whenever the search term changes
+    $effect(() => {
+        searchTerm; // dependency
+        displayLimit = INITIAL_BATCH;
+    });
+
+    // Only render the slice of images currently within the limit.
+    const visibleImages = $derived(filteredImages.slice(0, displayLimit));
+
+    // This function must be local to the component because it updates `displayLimit`.
+    function loadMore() {
+        if (displayLimit < filteredImages.length) {
+            displayLimit += LOAD_BATCH;
+        }
+    }
 
     // Asynchronously resolve image sources
     function getImageSrc(path: string): Promise<string> {
@@ -55,7 +77,13 @@
 <div class="gallery-container">
     {#if filteredImages.length > 0}
         <div class="gallery-grid">
-            {#each filteredImages as image (image.path)}
+            <!--
+                KEYED EACH BLOCK: (image.path)
+                This is critical for performance. It ensures that when 'visibleImages'
+                grows (e.g. from 50 to 100), Svelte reuses the existing 50 DOM nodes
+                instead of destroying and recreating them. It only appends the new ones.
+            -->
+            {#each visibleImages as image (image.path)}
                 <button
                     class="gallery-item"
                     class:active={$currentView.type === "image" &&
@@ -74,6 +102,27 @@
                 </button>
             {/each}
         </div>
+
+        <!--
+            SENTINEL ELEMENT (The "Load Trigger")
+            This invisible div sits at the bottom of the list.
+
+            use:infiniteScroll -> Attaches the Svelte Action from domActions.ts
+
+            dependency: visibleImages.length ->
+                This ensures robustness. If the first 50 images don't fill the screen
+                (e.g., on a large monitor), the sentinel stays visible. The action
+                watches this dependency and re-checks visibility after every load,
+                forcing subsequent loads until the screen is full.
+        -->
+        <div
+            use:infiniteScroll={{
+                callback: loadMore,
+                dependency: visibleImages.length,
+            }}
+            class="load-trigger"
+            style="height: 20px; width: 100%;"
+        ></div>
     {:else}
         <p class="text-muted text-center">No images found.</p>
     {/if}
