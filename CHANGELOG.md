@@ -2,6 +2,27 @@
 
 ---
 
+## [v0.40.1-alpha] - 2026-01-03
+
+### 🚀 Performance
+
+- **Gallery**: Implemented **infinite scrolling** for the image gallery. The panel now uses lazy loading (via `IntersectionObserver`) to fetch images in batches of 50 as you scroll, rather than loading the entire vault's image library at startup. This significantly improves performance and memory usage for vaults with large media collections.
+
+### ✨ Added
+
+- **Styling**: The gallery layouts have been modernized with tje **"Frosted Glass" effect** - a blurred version of themselves in the background to fill any empty space while maintaining their original aspect ratio.
+- **Styling**: Added new helper classes for controlling image shapes: `.portrait` (2:3) and `.landscape` (16:9). These join the existing size modifiers to give you more control over your gallery layouts.
+
+### 🔄 Changed
+
+- **Styling**: Galleries now use a **fixed-width grid** layout instead of flexible fractions (`1fr`). This ensures that image cards remain a consistent size regardless of the screen width.
+
+### 🐞 Fixed
+
+- **Gallery**: Fixed a layout issue where the gallery container had its own internal scrollbar, resulting in **double scrollbars** when viewed in the sidebar. The gallery now flows naturally within the sidebar's scroll context.
+
+---
+
 ## [v0.40.0-alpha] - 2025-12-31
 
 ### ✨ Added
