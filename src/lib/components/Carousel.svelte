@@ -1,5 +1,6 @@
 <script lang="ts">
     import Icon from "./Icon.svelte";
+    import { supportsTransparency } from "$lib/utils";
 
     let {
         images,
@@ -82,10 +83,13 @@
                 onclick={() => handleImageClick(i)}
             >
                 <!-- Blurred background to fill gaps/maintain aesthetics -->
-                <div
-                    class="blurred-bg"
-                    style:background-image="url('{image.src}')"
-                ></div>
+                <!-- Only show for non-transparent images -->
+                {#if !supportsTransparency(image.src)}
+                    <div
+                        class="blurred-bg"
+                        style:background-image="url('{image.src}')"
+                    ></div>
+                {/if}
 
                 <img src={image.src} alt={image.alt} title={image.title} />
             </div>

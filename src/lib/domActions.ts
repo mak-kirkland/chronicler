@@ -9,6 +9,7 @@ import { isDragging } from "$lib/dragStore";
 import type { RenderedPage } from "$lib/bindings";
 import Carousel from "$lib/components/Carousel.svelte";
 import { mount, unmount } from "svelte";
+import { supportsTransparency } from "$lib/utils";
 
 /**
  * A reusable Svelte action to programmatically focus an element when it is mounted to the DOM.
@@ -464,6 +465,9 @@ export function enhanceGalleries(node: HTMLElement, _data: any) {
             const injectBg = (container: HTMLElement, imgSrc: string) => {
                 // Prevent duplicate injection
                 if (container.querySelector('.blurred-bg')) return;
+
+                // Check for transparency support
+                if (supportsTransparency(imgSrc)) return;
 
                 const bg = document.createElement('div');
                 bg.className = 'blurred-bg';
