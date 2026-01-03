@@ -12,6 +12,9 @@ import type { InfoboxData, LayoutGroup, RenderItem } from "./types";
 /** A list of common image file extensions. */
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 
+/** A list of image extensions that support transparency. */
+const TRANSPARENT_EXTENSIONS = ["png", "webp", "svg", "gif", "avif"];
+
 /**
  * A helper function to check if a FileNode is a directory.
  * @param node The FileNode to check.
@@ -57,6 +60,16 @@ export function isMarkdownFile(path: string): boolean {
 export function isImageFile(path: string): boolean {
     const extension = path.split(".").pop()?.toLowerCase();
     return extension ? IMAGE_EXTENSIONS.includes(extension) : false;
+}
+
+/**
+ * Checks if a given path string points to an image format that supports transparency.
+ * @param path The file path or URL string.
+ * @returns True if the extension is known to support transparency.
+ */
+export function supportsTransparency(path: string): boolean {
+    const extension = path.split(".").pop()?.toLowerCase();
+    return extension ? TRANSPARENT_EXTENSIONS.includes(extension) : false;
 }
 
 /**
