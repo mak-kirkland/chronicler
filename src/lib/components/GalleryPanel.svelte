@@ -3,8 +3,7 @@
     import { currentView } from "$lib/viewStores";
     import { navigateToImage } from "$lib/actions";
     import { infiniteScroll } from "$lib/domActions";
-    import { convertFileSrc } from "@tauri-apps/api/core";
-    import { getImageAsBase64 } from "$lib/commands";
+    import { resolveImageSource } from "$lib/utils";
     import { tick } from "svelte";
 
     let { searchTerm = "" } = $props<{ searchTerm?: string }>();
@@ -34,18 +33,6 @@
     function loadMore() {
         if (displayLimit < filteredImages.length) {
             displayLimit += LOAD_BATCH;
-        }
-    }
-
-    // Asynchronously resolve image sources
-    function getImageSrc(path: string): Promise<string> {
-        // This mirrors the logic in ImageView and Renderer
-        if ($vaultPath && path.startsWith($vaultPath)) {
-            // Fast path for in-vault images
-            return Promise.resolve(convertFileSrc(path));
-        } else {
-            // Slower IPC path for external images
-            return getImageAsBase64(path);
         }
     }
 
@@ -91,7 +78,7 @@
                     onclick={() => navigateToImage(image)}
                     title={image.title}
                 >
-                    {#await getImageSrc(image.path)}
+                    {#await resolveImageSource(image.path, $vaultPath)}
                         <div class="placeholder">...</div>
                     {:then src}
                         <img {src} alt={image.title} loading="lazy" />

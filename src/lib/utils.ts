@@ -7,6 +7,8 @@
 import type { FileNode } from "./bindings";
 import { resolveResource } from "@tauri-apps/api/path";
 import { readTextFile } from "@tauri-apps/plugin-fs";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { getImageAsBase64 } from "./commands";
 import type { InfoboxData, LayoutGroup, RenderItem } from "./types";
 
 /** A list of common image file extensions. */
@@ -70,6 +72,29 @@ export function isImageFile(path: string): boolean {
 export function supportsTransparency(path: string): boolean {
     const extension = path.split(".").pop()?.toLowerCase();
     return extension ? TRANSPARENT_EXTENSIONS.includes(extension) : false;
+}
+
+/**
+ * Determines the best way to load an image based on its location.
+ *
+ * - If the file is inside the current Vault, we use the fast, zero-copy Asset Protocol (`convertFileSrc`).
+ * - If the file is outside the Vault, we fall back to the slower IPC Base64 method (`getImageAsBase64`).
+ *
+ * @param path The absolute path to the image file.
+ * @param vaultPath The absolute path to the currently open vault.
+ * @returns A Promise resolving to a string URL (either `asset://...` or `data:image/...`).
+ */
+export async function resolveImageSource(
+    path: string,
+    vaultPath: string | null,
+): Promise<string> {
+    if (vaultPath && path.startsWith(vaultPath)) {
+        // Fast path for in-vault images
+        return convertFileSrc(path);
+    } else {
+        // Slower IPC path for external images
+        return await getImageAsBase64(path);
+    }
 }
 
 /**

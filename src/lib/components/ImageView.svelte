@@ -1,9 +1,8 @@
 <script lang="ts">
     import type { PageHeader } from "$lib/bindings";
-    import { getImageAsBase64 } from "$lib/commands";
     import { vaultPath, allImages } from "$lib/worldStore";
     import { navigateToImage } from "$lib/actions";
-    import { convertFileSrc } from "@tauri-apps/api/core";
+    import { resolveImageSource } from "$lib/utils";
     import ErrorBox from "./ErrorBox.svelte";
     import ViewHeader from "./ViewHeader.svelte";
     import Icon from "./Icon.svelte";
@@ -60,9 +59,7 @@
 
     /**
      * This effect runs whenever the `data` or `$vaultPath` changes.
-     * It determines the most efficient way to load the image:
-     * 1. Asset Protocol (fast, streaming) for files inside the vault.
-     * 2. Base64 (slower, robust fallback) for files outside the vault.
+     * It uses the central utility to resolve the image source efficiently.
      */
     $effect(() => {
         let isCancelled = false;
@@ -71,22 +68,9 @@
 
         async function loadUrl() {
             try {
-                // Ensure we have a valid vault path to check against
-                if ($vaultPath && data.path.startsWith($vaultPath)) {
-                    // --- Case 1: File is inside the vault ---
-                    // Use the asset protocol. This is zero-copy, cached, and fast.
-                    const assetUrl = convertFileSrc(data.path);
-                    if (!isCancelled) {
-                        imageUrl = assetUrl;
-                    }
-                } else {
-                    // --- Case 2: File is outside the vault ---
-                    // The asset protocol is scoped to the vault for security.
-                    // We must fall back to reading the file via IPC and converting to Base64.
-                    const base64Url = await getImageAsBase64(data.path);
-                    if (!isCancelled) {
-                        imageUrl = base64Url;
-                    }
+                const url = await resolveImageSource(data.path, $vaultPath);
+                if (!isCancelled) {
+                    imageUrl = url;
                 }
             } catch (e) {
                 console.error("Failed to load image:", e);
