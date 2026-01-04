@@ -301,7 +301,6 @@
     flex-direction: column;
     border: 1px solid var(--color-border-primary);
     border-radius: 4px;
-    background-color: var(--color-background-secondary);
     transition:
         transform 0.2s,
         box-shadow 0.2s;
@@ -323,7 +322,6 @@
     filter: blur(20px) brightness(0.9);
     transform: scale(1.2); /* Hide blur edges */
     z-index: -1; /* Sit behind content */
-    opacity: 0.8;
     pointer-events: none;
 }
 
