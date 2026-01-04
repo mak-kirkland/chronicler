@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.40.3-alpha] - 2026-01-04
+
+### 🐞 Fixed
+
+- **Styling**: Fixed a visual mismatch where images with transparent backgrounds inside an Infobox appeared with a secondary background color. These backdrops now use the primary background color to blend seamlessly with the rest of the Infobox.
+
+---
+
 ## [v0.40.2-alpha] - 2026-01-04
 
 ### 🐞 Fixed
