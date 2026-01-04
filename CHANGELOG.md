@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.40.2-alpha] - 2026-01-04
+
+### 🐞 Fixed
+
+- **Images**: Fixed a visual issue where images with transparent backgrounds displayed a blurred "frosted glass" effect behind them. The system now detects if an image format (e.g `.png`) supports transparency and automatically disables the background generation to prevent visual noise.
+
+---
+
 ## [v0.40.1-alpha] - 2026-01-03
 
 ### 🚀 Performance
