@@ -176,7 +176,6 @@
         border: 1px solid var(--color-border-primary);
         border-radius: 4px;
         overflow: hidden;
-        background-color: var(--color-background-secondary);
         width: 100%;
     }
 
@@ -215,7 +214,6 @@
         filter: blur(20px) brightness(0.9);
         transform: scale(1.2); /* Scale up to hide blur vignette edges */
         z-index: 0;
-        opacity: 0.8;
     }
 
     img {
