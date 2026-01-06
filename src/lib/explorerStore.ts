@@ -11,10 +11,11 @@ import { writable } from "svelte/store";
 /**
  * Creates a custom store to manage the set of expanded directory paths.
  * This pattern encapsulates the store's logic (adding/removing paths).
- * @returns A store object with subscribe and toggle methods.
+ * @returns A store object with subscribe, toggle, and collapseAll methods.
  */
 function createExpandedPathsStore() {
-    const { subscribe, update } = writable(new Set<string>());
+    // Destructure 'set' so we can use it for collapseAll
+    const { subscribe, update, set } = writable(new Set<string>());
 
     return {
         /**
@@ -37,6 +38,14 @@ function createExpandedPathsStore() {
                 }
                 return newSet;
             });
+        },
+
+        /**
+         * Clears all expanded paths, effectively collapsing all directories
+         * in the file explorer view.
+         */
+        collapseAll: () => {
+            set(new Set());
         },
     };
 }
