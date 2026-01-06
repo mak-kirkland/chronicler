@@ -16,6 +16,7 @@ import {
 } from "$lib/actions";
 import { isDirectory, isMarkdown, fileStemString } from "$lib/utils";
 import { openInExplorer } from "$lib/commands";
+import { manuallyExpandedPaths } from "$lib/explorerStore";
 // Import modal components that can be triggered from the context menu
 import TextInputModal from "./components/TextInputModal.svelte";
 import ConfirmModal from "./components/ConfirmModal.svelte";
@@ -111,6 +112,10 @@ export function getContextMenuActions(
         actions.push({
             label: "Open in Explorer",
             handler: () => openInExplorer(node.path),
+        });
+        actions.push({
+            label: "Collapse All",
+            handler: () => manuallyExpandedPaths.collapseAll(),
         });
     }
 
