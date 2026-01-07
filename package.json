@@ -19,7 +19,7 @@
         "@codemirror/lang-yaml": "^6.1.2",
         "@codemirror/language": "^6.12.1",
         "@codemirror/state": "^6.5.3",
-        "@codemirror/view": "^6.39.8",
+        "@codemirror/view": "^6.39.9",
         "@lezer/highlight": "^1.2.3",
         "@tauri-apps/api": "^2.9.1",
         "@tauri-apps/plugin-dialog": "~2.4.2",
@@ -36,7 +36,7 @@
     },
     "devDependencies": {
         "@sveltejs/adapter-static": "^3.0.10",
-        "@sveltejs/kit": "^2.49.2",
+        "@sveltejs/kit": "^2.49.3",
         "@sveltejs/vite-plugin-svelte": "^5.1.1",
         "@tauri-apps/cli": "^2.9.6",
         "@types/js-yaml": "^4.0.9",
