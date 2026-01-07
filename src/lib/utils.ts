@@ -181,17 +181,30 @@ export function findNodeByPath(
  * Recursively filters the file tree based on a search term, preserving directory structure.
  * @param node The root FileNode to start filtering from.
  * @param term The search term to filter by.
+ * @param showImages Whether to include image files in the result.
  * @returns A new FileNode representing the filtered tree, or null if no matches are found.
  */
 export function filterFileTree(
     node: FileNode | null,
     term: string,
+    showImages: boolean = true,
 ): FileNode | null {
     if (!node) return null;
 
-    // If no search term, return the original node reference.
-    // This prevents downstream components from thinking props have changed.
-    if (!term) return node;
+    // Filter out images if the setting is disabled
+    if (!showImages && isImage(node)) {
+        return null;
+    }
+
+    // If no search term and images are allowed (or handled above),
+    // return the original node reference to avoid re-renders.
+    // However, if we need to filter *children* (recursion), we must proceed.
+    // For a file, if we are here, it's either not an image or showImages is true.
+    if (!term && !isDirectory(node)) {
+        return node;
+    }
+    // If it's a directory and there is no search term, we still need to recurse
+    // because some children might be images that need hiding.
 
     const lowerCaseTerm = term.toLowerCase();
 
@@ -199,10 +212,23 @@ export function filterFileTree(
         // It's a directory. Filter its children.
         // node.children will be an array (possibly empty)
         const filteredChildren = (node.children || [])
-            .map((child) => filterFileTree(child, term))
+            .map((child) => filterFileTree(child, term, showImages))
             .filter((child): child is FileNode => child !== null);
 
-        // Keep the directory if its name matches OR it has children that match.
+        // Keep the directory if:
+        // 1. Its name matches the search term
+        // 2. OR it has children that match (or are visible)
+        // 3. AND if there is NO search term, we generally keep directories unless empty?
+        //    Actually, if term is empty, we just want to show the structure minus hidden files.
+        //    If term is present, we only show matching branches.
+
+        if (!term) {
+            // No search term: keep directory, just update children
+            // We return a new object to ensure Svelte reactivity triggers if children changed
+            return { ...node, children: filteredChildren };
+        }
+
+        // Search term present:
         if (
             node.name.toLowerCase().includes(lowerCaseTerm) ||
             filteredChildren.length > 0
@@ -210,7 +236,8 @@ export function filterFileTree(
             return { ...node, children: filteredChildren };
         }
     } else {
-        // It's a file. Check if its name matches.
+        // It's a file. We already checked !showImages above.
+        // Now check if its name matches the search term.
         if (node.name.toLowerCase().includes(lowerCaseTerm)) {
             return node;
         }
