@@ -2,6 +2,20 @@
 
 ---
 
+## [v0.41.0-alpha] - 2026-01-07
+
+### ✨ Added
+
+- **Atmosphere**: Introduced the **Atmosphere System**, a comprehensive theming engine that expands upon simple icon packs. You can now mix and match individual UI modules—including textures, typography, button styles, and border designs—to create a truly custom look for your vault.
+- **Icons**: Implemented **World Packs**, allowing you to switch the application's entire icon set (e.g., **Fantasy** or **Sci-Fi**) to match your campaign's genre. The new dynamic icon renderer automatically validates your license entitlements and falls back to core icons if a specific pack is not owned.
+
+### 🔄 Changed
+
+- **Licensing**: Updated the validation logic to support **product entitlements** via the Keygen API. The system now checks for ownership of specific add-ons (like atmosphere packs) during the startup process.
+- **Internal**: Replaced all hardcoded icons and emojis with a new dynamic `<Icon />` component to ensure consistent theming across the entire application.
+
+---
+
 ## [v0.40.3-alpha] - 2026-01-04
 
 ### 🐞 Fixed
