@@ -7,6 +7,7 @@
 
 import type { FileNode } from "$lib/bindings";
 import type { ContextMenuItem } from "$lib/types";
+import { get } from "svelte/store";
 import { openModal, closeModal } from "$lib/modalStore";
 import {
     renamePath,
@@ -16,7 +17,7 @@ import {
 } from "$lib/actions";
 import { isDirectory, isMarkdown, fileStemString } from "$lib/utils";
 import { openInExplorer } from "$lib/commands";
-import { manuallyExpandedPaths } from "$lib/explorerStore";
+import { manuallyExpandedPaths, showImages } from "$lib/explorerStore";
 // Import modal components that can be triggered from the context menu
 import TextInputModal from "./components/TextInputModal.svelte";
 import ConfirmModal from "./components/ConfirmModal.svelte";
@@ -37,29 +38,28 @@ export function getContextMenuActions(
     // A node is the root if its path matches the vault's root path.
     const isRoot = vaultPath ? node.path === vaultPath : false;
 
-    let actions: ContextMenuItem[] = [];
+    const actions: ContextMenuItem[] = [];
 
-    // Only add "Rename" and "Delete" actions if the node is NOT the vault root.
+    // 1. STANDARD ITEM ACTIONS
+    // We don't allow renaming or deleting the root vault folder from within the app.
     if (!isRoot) {
         actions.push(
             {
                 label: "Rename",
                 handler: () => {
-                    // Folders use the full name. Files use the stem.
-                    const initialName = isDir
-                        ? node.name
-                        : fileStemString(node.name);
-
                     openModal({
                         component: TextInputModal,
                         props: {
                             title: `Rename ${isDir ? "Folder" : "File"}`,
-                            label: `New name for '${node.name}'`,
-                            initialValue: initialName,
+                            label: "Enter new name:",
+                            // For files, we pre-fill the name without the extension for convenience.
+                            initialValue: isDir
+                                ? node.name
+                                : fileStemString(node.path),
                             buttonText: "Rename",
                             onClose: closeModal,
-                            onSubmit: (newValue: string) => {
-                                renamePath(node.path, newValue);
+                            onSubmit: (newName: string) => {
+                                renamePath(node.path, newName);
                                 closeModal();
                             },
                         },
@@ -86,6 +86,7 @@ export function getContextMenuActions(
         );
     }
 
+    // 2. FILE-SPECIFIC ACTIONS
     // Add "Duplicate" action only for Markdown files.
     if (isMarkdown(node)) {
         actions.push({
@@ -94,8 +95,10 @@ export function getContextMenuActions(
         });
     }
 
+    // 3. FOLDER-SPECIFIC ACTIONS
     if (isDir) {
-        // If there are already actions (i.e., it's not the root), add a separator.
+        // If we have added any actions above (Rename, Delete, Duplicate),
+        // add a separator before the creation actions.
         if (actions.length > 0) {
             actions.push({ isSeparator: true });
         }
@@ -113,11 +116,21 @@ export function getContextMenuActions(
             label: "Open in Explorer",
             handler: () => openInExplorer(node.path),
         });
-        actions.push({
-            label: "Collapse All",
-            handler: () => manuallyExpandedPaths.collapseAll(),
-        });
     }
+
+    // 4. GLOBAL SETTINGS (Applied to entire Explorer)
+    actions.push({ isSeparator: true });
+
+    actions.push({
+        label: "Collapse All Folders",
+        handler: () => manuallyExpandedPaths.collapseAll(),
+    });
+
+    const imagesVisible = get(showImages);
+    actions.push({
+        label: imagesVisible ? "Hide Images" : "Show Images",
+        handler: () => showImages.update((v) => !v),
+    });
 
     return actions;
 }

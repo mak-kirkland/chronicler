@@ -1,9 +1,8 @@
 /**
  * @file Manages the UI state for the file explorer.
  * @summary This store holds a Set of paths corresponding to directories
- * that the user has manually expanded. By centralizing this state,
- * it persists across searches and re-renders, decoupling it from the
- * FileTree component's lifecycle.
+ * that the user has manually expanded, as well as view preferences like
+ * showing/hiding images.
  */
 
 import { writable } from "svelte/store";
@@ -54,3 +53,9 @@ function createExpandedPathsStore() {
  * The exported store instance for managing manually expanded paths in the file explorer.
  */
 export const manuallyExpandedPaths = createExpandedPathsStore();
+
+/**
+ * Store to control the visibility of image files in the file explorer.
+ * Default is true (images are shown).
+ */
+export const showImages = writable(true);
