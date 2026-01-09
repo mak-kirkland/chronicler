@@ -327,6 +327,20 @@ impl World {
         writer.write_page_content(Path::new(path), content)
     }
 
+    /// Updates the frontmatter of a page on disk.
+    pub fn update_page_frontmatter(&self, path: &str, frontmatter: &str) -> Result<()> {
+        let writer = self
+            .writer
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+
+        writer.update_page_frontmatter(Path::new(path), frontmatter)?;
+
+        // We don't need to manually trigger an index update here; the file watcher will pick it up.
+        Ok(())
+    }
+
     /// Creates a new markdown file, optionally using a template.
     pub fn create_new_file(
         &self,

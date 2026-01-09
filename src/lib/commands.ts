@@ -106,7 +106,15 @@ export const buildPageView = (path: string) =>
  * @returns A promise that resolves when the file has been written.
  */
 export const writePageContent = (path: string, content: string) =>
-    invoke("write_page_content", { path, content });
+  invoke("write_page_content", { path, content });
+
+/**
+ * Updates only the frontmatter of a page, preserving the body content.
+ * @param path The path of the file to update.
+ * @param frontmatter The new YAML string.
+ */
+export const updatePageFrontmatter = (path: string, frontmatter: string) =>
+    invoke<void>("update_page_frontmatter", { path, frontmatter });
 
 /**
  * Renders a preview of markdown content without saving it to disk.

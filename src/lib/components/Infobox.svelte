@@ -6,8 +6,11 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import { areInfoboxTagsVisible } from "$lib/settingsStore";
     import InfoboxSettingsModal from "./InfoboxSettingsModal.svelte";
+    import InfoboxEditorModal from "./InfoboxEditorModal.svelte";
+    import { currentView } from "$lib/viewStores";
     import Carousel from "./Carousel.svelte";
     import Icon from "./Icon.svelte";
+    import { world } from "$lib/worldStore";
 
     // --- Props ---
     let { data } = $props<{
@@ -77,6 +80,30 @@
         });
     }
 
+    /**
+     * Opens the visual editor modal.
+     */
+    function openEditorModal() {
+        // We need the file path. The Infobox is likely used in a file view context.
+        // We can check the global currentView store.
+        if ($currentView.type === "file" && $currentView.data) {
+            openModal({
+                component: InfoboxEditorModal,
+                props: {
+                    onClose: closeModal,
+                    filePath: $currentView.data.path,
+                    onSaveSuccess: async () => {
+                        // Refresh data
+                        await world.initialize();
+
+                        // Force FileView to re-fetch/re-render by triggering a store update
+                        currentView.set({ ...$currentView });
+                    },
+                },
+            });
+        }
+    }
+
     // --- Helper for Grid Layout ---
     function getRowCount(items: any[]) {
         if (!items || items.length === 0) return 0;
@@ -100,13 +127,24 @@
             {#if data?.title}
                 <h3 class="infobox-title">{@html data.title}</h3>
             {/if}
-            <button
-                class="infobox-controls-button"
-                onclick={openSettingsModal}
-                title="Infobox settings"
-            >
-                <Icon type="settings" />
-            </button>
+
+            <div class="controls-group">
+                <button
+                    class="infobox-controls-button"
+                    onclick={openEditorModal}
+                    title="Edit Infobox"
+                >
+                    <Icon type="edit" />
+                    <!-- Assuming 'edit' icon exists or will default -->
+                </button>
+                <button
+                    class="infobox-controls-button"
+                    onclick={openSettingsModal}
+                    title="Infobox settings"
+                >
+                    <Icon type="settings" />
+                </button>
+            </div>
         </div>
 
         {#if data?.subtitle}
@@ -248,6 +286,11 @@
         border-bottom: 1px solid var(--color-border-primary);
         padding-bottom: var(--space-sm);
         margin-bottom: var(--space-md);
+    }
+
+    .controls-group {
+        display: flex;
+        gap: 0.5rem;
     }
 
     .infobox-controls-button {

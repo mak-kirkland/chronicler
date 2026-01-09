@@ -188,6 +188,22 @@ pub fn duplicate_page(path: String, world: State<World>) -> Result<PageHeader> {
     world.duplicate_page(path)
 }
 
+/// Updates only the frontmatter of a specific page.
+#[command]
+#[instrument(skip(world, frontmatter))]
+pub fn update_page_frontmatter(
+    world: State<World>,
+    path: String,
+    frontmatter: String,
+) -> Result<()> {
+    // We access the writer via the World state.
+    // Note: We need to expose a method in World to access the writer or wrap this logic.
+    // However, looking at `World` in `world.rs`, the writer is private.
+    // The pattern used in `write_page_content` is `world.write_page_content`.
+    // We should implement `update_page_frontmatter` on `World` first.
+    world.update_page_frontmatter(&path, &frontmatter)
+}
+
 /// Opens the specified path in the OS's default file explorer.
 #[command]
 #[instrument(skip(app_handle))]

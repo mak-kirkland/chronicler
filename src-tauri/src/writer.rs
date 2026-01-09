@@ -383,6 +383,32 @@ tags: [add, your, tags]
             path: new_path,
         })
     }
+
+    /// Updates the YAML frontmatter of a page without modifying the body content.
+    ///
+    /// # Arguments
+    /// * `path` - The path to the file.
+    /// * `new_frontmatter` - The new raw YAML string (without --- delimiters).
+    #[instrument(skip(self, new_frontmatter))]
+    pub fn update_page_frontmatter(&self, path: &Path, new_frontmatter: &str) -> Result<()> {
+        // 1. Read the existing file content.
+        let content = fs::read_to_string(path)?;
+
+        // 2. Extract the existing body using the parser's logic.
+        // We assume the parser logic is correct: it returns (frontmatter, body).
+        let (_, body) = crate::parser::extract_frontmatter(&content);
+
+        // 3. Construct the new file content.
+        // Ensure we have exactly one newline between frontmatter and body.
+        let final_content = format!(
+            "---\n{}\n---\n{}",
+            new_frontmatter.trim(),
+            body.trim_start() // Trim leading newlines from body to prevent accumulation
+        );
+
+        // 4. Write back atomically.
+        self.write_page_content(path, &final_content)
+    }
 }
 
 #[cfg(test)]
