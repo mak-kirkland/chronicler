@@ -13,6 +13,14 @@
     } from "$lib/worldStore";
     import { normalizePath, findNodeByPath } from "$lib/utils";
     import { TEMPLATE_FOLDER_PATH } from "$lib/config";
+    import {
+        parseInfoboxData,
+        buildInfoboxYamlObject,
+        getAutocompleteContext,
+        type EditorField,
+        type ImageEntry,
+        type LayoutRule,
+    } from "$lib/infobox";
     import jsyaml from "js-yaml";
 
     let { onClose, filePath, onSaveSuccess } = $props<{
@@ -20,31 +28,6 @@
         filePath: string;
         onSaveSuccess?: () => void;
     }>();
-
-    // --- Types ---
-    type FieldType = "text" | "wikilink" | "spoiler" | "list" | "multiline";
-
-    interface EditorField {
-        id: string;
-        key: string;
-        value: any;
-        type: FieldType;
-    }
-
-    interface ImageEntry {
-        id: string;
-        src: string;
-        caption: string;
-    }
-
-    interface LayoutRule {
-        id: string;
-        type: "header" | "separator" | "group";
-        text?: string; // For headers
-        above?: string; // Target field key
-        below?: string; // Target field key (alternative)
-        keys?: string[]; // For groups
-    }
 
     // --- State ---
     let isLoading = $state(true);
@@ -74,6 +57,10 @@
         width: number;
     } | null>(null);
     let selectedIndex = $state(0);
+
+    // Track where the inline trigger began (e.g. index of '[[')
+    let autocompleteTriggerIndex = $state(-1);
+    let autocompleteTriggerLength = $state(0);
 
     // Derived Suggestions
     const currentSuggestions = $derived.by(() => {
@@ -137,78 +124,16 @@
     });
 
     function initializeForm(data: any) {
-        title = data.title || "";
-        subtitle = data.subtitle || "";
-        tags = Array.isArray(data.tags) ? data.tags : [];
+        // Use the pure parsing logic from our new utility
+        const state = parseInfoboxData(data);
 
-        // Map layout rules, adding IDs for internal tracking
-        layoutRules = (data.layout || []).map((rule: any) => ({
-            ...rule,
-            id: crypto.randomUUID(),
-        }));
-
-        // Parse Images
-        images = [];
-        if (data.image) {
-            const rawImgs = Array.isArray(data.image)
-                ? data.image
-                : [data.image];
-            rawImgs.forEach((item: any) => {
-                if (Array.isArray(item)) {
-                    images.push({
-                        id: crypto.randomUUID(),
-                        src: item[0],
-                        caption: item[1] || "",
-                    });
-                } else {
-                    images.push({
-                        id: crypto.randomUUID(),
-                        src: item,
-                        caption: "",
-                    });
-                }
-            });
-        }
-
-        // Parse Custom Fields
-        customFields = [];
-        const ignoredKeys = new Set([
-            "title",
-            "subtitle",
-            "tags",
-            "image",
-            "layout",
-            "infobox",
-        ]);
-
-        Object.entries(data).forEach(([key, value]) => {
-            if (ignoredKeys.has(key)) return;
-
-            let type: FieldType = "text";
-            let val = value;
-
-            if (Array.isArray(value)) {
-                type = "list";
-            } else if (typeof value === "string") {
-                if (value.startsWith("||") && value.endsWith("||")) {
-                    type = "spoiler";
-                    val = value.slice(2, -2);
-                } else if (value.includes("\n")) {
-                    type = "multiline";
-                } else if (value.startsWith("[[") && value.endsWith("]]")) {
-                    type = "wikilink";
-                    // Strip brackets for cleaner editing
-                    val = value.slice(2, -2);
-                }
-            }
-
-            customFields.push({
-                id: crypto.randomUUID(),
-                key,
-                value: val,
-                type,
-            });
-        });
+        // Hydrate local state
+        title = state.title;
+        subtitle = state.subtitle;
+        tags = state.tags;
+        images = state.images;
+        customFields = state.customFields;
+        layoutRules = state.layoutRules;
     }
 
     // --- Actions ---
@@ -306,6 +231,7 @@
                 if (templateData.title === "{{title}}")
                     delete templateData.title;
 
+                // Build current state object to merge against
                 const currentObj = constructYamlObject();
                 // Simple shallow merge
                 const merged = { ...currentObj, ...templateData };
@@ -320,6 +246,7 @@
 
     // --- Autocomplete Logic ---
 
+    // 1. Explicit Full-Field Autocomplete (for Link/Image type inputs)
     function handleInputFocus(
         e: FocusEvent,
         type: "tag" | "link" | "image",
@@ -342,12 +269,31 @@
         fieldSearchQuery = target.value;
         activeAutocompleteType = type;
         focusedFieldId = id;
-
-        // Ensure position tracks with input if it moves slightly
         updateDropdownPosition(target);
-
-        // Reset selection on typing
         selectedIndex = 0;
+    }
+
+    // 2. Inline Autocomplete (for Text/Multiline inputs)
+    function handleInlineInput(e: Event, id: string) {
+        const target = e.target as HTMLInputElement | HTMLTextAreaElement;
+        const val = target.value;
+        const cursor = target.selectionStart || 0;
+        const textBefore = val.slice(0, cursor);
+
+        // Use helper to check for triggers
+        const context = getAutocompleteContext(textBefore);
+
+        if (context) {
+            activeAutocompleteType = context.type;
+            fieldSearchQuery = context.query;
+            autocompleteTriggerIndex = context.triggerIndex;
+            autocompleteTriggerLength = context.triggerLength;
+            focusedFieldId = id;
+            updateDropdownPosition(target);
+            selectedIndex = 0;
+        } else {
+            if (activeAutocompleteType) closeSuggestions();
+        }
     }
 
     function updateDropdownPosition(element: HTMLElement) {
@@ -383,14 +329,44 @@
     }
 
     function confirmSuggestion(val: string) {
+        // Tag handling (independent)
         if (activeAutocompleteType === "tag") {
             addTag(val);
-        } else if (activeAutocompleteType === "link") {
-            const field = customFields.find((f) => f.id === focusedFieldId);
-            if (field) field.value = val;
-        } else if (activeAutocompleteType === "image") {
-            const img = images.find((i) => i.id === focusedFieldId);
-            if (img) img.src = val;
+            closeSuggestions();
+            return;
+        }
+
+        // Image Tab inputs (Full Replace)
+        const img = images.find((i) => i.id === focusedFieldId);
+        if (img) {
+            img.src = val;
+            closeSuggestions();
+            return;
+        }
+
+        // Custom Fields
+        const field = customFields.find((f) => f.id === focusedFieldId);
+        if (field) {
+            if (field.type === "wikilink") {
+                // Explicit Link field - Full Replace
+                field.value = val;
+            } else {
+                // Inline Replace (Text, Multiline)
+                const tag =
+                    (activeAutocompleteType === "image" ? "![[" : "[[") +
+                    val +
+                    "]]";
+
+                const currentVal = field.value;
+                const prefix = currentVal.slice(0, autocompleteTriggerIndex);
+                const cutEnd =
+                    autocompleteTriggerIndex +
+                    autocompleteTriggerLength +
+                    fieldSearchQuery.length;
+                const suffix = currentVal.slice(cutEnd);
+
+                field.value = prefix + tag + suffix;
+            }
         }
         closeSuggestions();
     }
@@ -400,6 +376,7 @@
         dropdownPos = null;
         focusedFieldId = null;
         selectedIndex = 0;
+        autocompleteTriggerIndex = -1;
     }
 
     function handleScroll() {
@@ -409,62 +386,14 @@
     // --- Save Logic ---
 
     function constructYamlObject() {
-        const obj: any = {};
-
-        if (title) obj.title = title;
-        if (subtitle) obj.subtitle = subtitle;
-
-        // Images
-        if (images.length > 0) {
-            // Filter out empty src
-            const validImages = images.filter((i) => i.src.trim() !== "");
-            if (validImages.length > 0) {
-                if (validImages.length === 1 && !validImages[0].caption) {
-                    obj.image = validImages[0].src;
-                } else {
-                    const hasCaptions = validImages.some((i) => i.caption);
-                    if (hasCaptions) {
-                        obj.image = validImages.map((i) =>
-                            i.caption ? [i.src, i.caption] : [i.src],
-                        );
-                    } else {
-                        obj.image = validImages.map((i) => i.src);
-                    }
-                }
-            }
-        }
-
-        // Fields
-        customFields.forEach((f) => {
-            let val = f.value;
-            if (f.type === "spoiler") {
-                val = `||${f.value}||`;
-            } else if (f.type === "wikilink") {
-                // Re-add brackets
-                if (val && !val.startsWith("[[")) {
-                    val = `[[${val}]]`;
-                }
-            }
-            // Normalize Key
-            const safeKey = f.key.trim().toLowerCase().replace(/\s+/g, "_");
-            if (safeKey) obj[safeKey] = val;
+        return buildInfoboxYamlObject({
+            title,
+            subtitle,
+            tags,
+            images,
+            customFields,
+            layoutRules,
         });
-
-        if (tags.length > 0) obj.tags = tags;
-
-        // Layout
-        if (layoutRules.length > 0) {
-            obj.layout = layoutRules.map(({ id, ...rest }) => {
-                const rule: any = { type: rest.type };
-                if (rest.text) rule.text = rest.text;
-                if (rest.above) rule.above = rest.above;
-                if (rest.below) rule.below = rest.below;
-                if (rest.keys && rest.keys.length > 0) rule.keys = rest.keys;
-                return rule;
-            });
-        }
-
-        return obj;
     }
 
     async function handleSave(shouldClose: boolean) {
@@ -545,7 +474,7 @@
                             <input
                                 type="text"
                                 bind:value={subtitle}
-                                placeholder=""
+                                placeholder="Subtitle / Flavor Text"
                                 class="input-text"
                             />
                         </div>
@@ -666,6 +595,17 @@
                                                     rows="2"
                                                     class="value-input"
                                                     placeholder="Value..."
+                                                    oninput={(e) =>
+                                                        handleInlineInput(
+                                                            e,
+                                                            field.id,
+                                                        )}
+                                                    onkeydown={handleInputKeydown}
+                                                    onblur={() =>
+                                                        setTimeout(
+                                                            closeSuggestions,
+                                                            200,
+                                                        )}
                                                 ></textarea>
                                             {:else if field.type === "list"}
                                                 <input
@@ -697,14 +637,24 @@
                                                             field.id,
                                                             field.value,
                                                         )}
-                                                    oninput={(e) =>
-                                                        field.type ===
-                                                            "wikilink" &&
-                                                        handleInputInput(
-                                                            e,
-                                                            "link",
-                                                            field.id,
-                                                        )}
+                                                    oninput={(e) => {
+                                                        if (
+                                                            field.type ===
+                                                            "wikilink"
+                                                        ) {
+                                                            handleInputInput(
+                                                                e,
+                                                                "link",
+                                                                field.id,
+                                                            );
+                                                        } else {
+                                                            // Standard text: check for inline triggers [[
+                                                            handleInlineInput(
+                                                                e,
+                                                                field.id,
+                                                            );
+                                                        }
+                                                    }}
                                                     onkeydown={handleInputKeydown}
                                                     onblur={() =>
                                                         setTimeout(
