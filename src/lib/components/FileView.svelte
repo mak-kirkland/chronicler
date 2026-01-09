@@ -18,6 +18,8 @@
     import { findFileInTree } from "$lib/utils";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
     import Icon from "./Icon.svelte";
+    import { openModal, closeModal } from "$lib/modalStore";
+    import InfoboxEditorModal from "./InfoboxEditorModal.svelte";
 
     let { file, sectionId } = $props<{
         file: PageHeader;
@@ -139,6 +141,29 @@
             }, 100);
         }
     });
+
+    /**
+     * Handles the "Edit Infobox" action from the Preview component.
+     * We define it here because this is where the source of truth (`pageData.raw_content`) lives.
+     * This prevents stale data issues when editing from Preview mode.
+     */
+    function handleInfoboxEdit() {
+        if (!pageData) return;
+
+        openModal({
+            component: InfoboxEditorModal,
+            props: {
+                onClose: closeModal,
+                initialContent: pageData.raw_content,
+                onSave: (newContent: string) => {
+                    if (pageData) {
+                        pageData.raw_content = newContent;
+                        // This assignment triggers the Autosave Effect above automatically.
+                    }
+                },
+            },
+        });
+    }
 </script>
 
 <div class="file-view-container">
@@ -250,6 +275,7 @@
                             infoboxData={pageData.rendered_page
                                 .processed_frontmatter}
                             mode="split"
+                            onInfoboxEdit={handleInfoboxEdit}
                         />
                     </div>
                 </div>
@@ -265,6 +291,7 @@
                             infoboxData={pageData.rendered_page
                                 .processed_frontmatter}
                             mode="unified"
+                            onInfoboxEdit={handleInfoboxEdit}
                         />
                     </div>
                 </div>
