@@ -11,7 +11,11 @@
         vaultPath,
         tags as worldTags,
     } from "$lib/worldStore";
-    import { normalizePath, findNodeByPath } from "$lib/utils";
+    import {
+        normalizePath,
+        findNodeByPath,
+        resolveImageSource,
+    } from "$lib/utils";
     import { TEMPLATE_FOLDER_PATH } from "$lib/config";
     import {
         parseInfoboxData,
@@ -45,6 +49,10 @@
     let customFields = $state<EditorField[]>([]);
     let images = $state<ImageEntry[]>([]);
     let layoutRules = $state<LayoutRule[]>([]);
+
+    // --- Image Preview Cache ---
+    // Map of image ID -> resolved URL (for display)
+    let imagePreviews = $state<Record<string, string>>({});
 
     // --- Autocomplete State ---
     let newTagInput = $state("");
@@ -92,6 +100,25 @@
         ) {
             selectedIndex = 0;
         }
+    });
+
+    // Watch images array and resolve previews when src changes
+    $effect(() => {
+        if (!$vaultPath) return;
+
+        images.forEach(async (img) => {
+            if (!img.src) return;
+
+            // If it's a web URL, use it directly
+            if (img.src.startsWith("http")) {
+                imagePreviews[img.id] = img.src;
+                return;
+            }
+
+            // Otherwise, try to resolve it from the vault
+            const url = await resolveImageSource(img.src, $vaultPath);
+            imagePreviews[img.id] = url;
+        });
     });
 
     // Templates
@@ -686,14 +713,16 @@
                         {#each images as img, i (img.id)}
                             <div class="image-card">
                                 <div class="image-preview-box">
-                                    {#if img.src}
-                                        {#if img.src.startsWith("http")}
-                                            <img src={img.src} alt="preview" />
-                                        {:else}
-                                            <div class="file-icon">
-                                                <Icon type="image" />
-                                            </div>
-                                        {/if}
+                                    {#if imagePreviews[img.id]}
+                                        <img
+                                            src={imagePreviews[img.id]}
+                                            alt="preview"
+                                        />
+                                    {:else if img.src}
+                                        <div class="file-icon">
+                                            <!-- Fallback icon while loading or if not found -->
+                                            <Icon type="image" />
+                                        </div>
                                     {:else}
                                         <div class="empty-icon">
                                             <Icon type="image" />
