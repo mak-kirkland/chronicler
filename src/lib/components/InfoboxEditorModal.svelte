@@ -20,11 +20,8 @@
         createImage,
         createLayoutRule,
         applyInfoboxStateToContent,
-        reorderArrayItem,
         resolveAllImagePreviews,
         getAvailableTemplates,
-        getAutocompleteSuggestions,
-        getAutocompleteContext,
         type EditorField,
         type ImageEntry,
         type EditorLayoutRule,
@@ -151,17 +148,6 @@
         layoutRules.splice(index, 1);
     }
 
-    // --- Data Provider for SmartInputs ---
-    function handleAutocomplete(query: string, type: "tag" | "link" | "image") {
-        return getAutocompleteSuggestions(
-            query,
-            type,
-            tags, // current tags to exclude
-            $worldTags as [string, any][],
-            $allFileTitles,
-            $allImageFiles,
-        );
-    }
 
     // --- Actions: Template ---
     async function applyTemplate() {
@@ -297,14 +283,14 @@
                                 </div>
                                 <!-- Uses SmartInput for tag suggestions -->
                                 <div class="smart-input-container">
+                                    <!-- Use 'autocomplete' mode for adding tags -->
                                     <SmartInput
-                                        type="tag"
+                                        mode="autocomplete"
                                         placeholder="Add tag..."
-                                        existingTags={tags}
+                                        options={$worldTags.map((t) => t[0])}
                                         onEnter={addTag}
                                         value=""
                                         className="tag-input-field-wrapper"
-                                        onSearch={handleAutocomplete}
                                     />
                                 </div>
                             </div>
@@ -332,8 +318,8 @@
                                     onMove={(dir) =>
                                         handleMove(customFields, i, dir)}
                                     onDelete={() => removeField(i)}
-                                    handleSearch={handleAutocomplete}
-                                    handleContext={getAutocompleteContext}
+                                    allFiles={$allFileTitles}
+                                    allImages={$allImageFiles}
                                 />
                             {/each}
                             {#if customFields.length === 0}
@@ -369,12 +355,13 @@
                                         <label for="img-src-{img.id}"
                                             >Source</label
                                         >
+                                        <!-- Use 'autocomplete' mode for image files -->
                                         <SmartInput
-                                            type="image"
+                                            mode="autocomplete"
                                             bind:value={img.src}
+                                            options={$allImageFiles}
                                             placeholder="my-image.png"
                                             id="img-src-{img.id}"
-                                            onSearch={handleAutocomplete}
                                         />
                                     </div>
                                     <label for="img-cap-{img.id}"
@@ -877,14 +864,6 @@
         display: flex;
         gap: 0.5rem;
         align-items: center;
-    }
-    .type-select {
-        background: var(--color-background-secondary);
-        border: 1px solid var(--color-border-primary);
-        color: var(--color-text-secondary);
-        border-radius: 4px;
-        padding: 0.2rem;
-        font-size: 0.8rem;
     }
 
     /* --- Template --- */

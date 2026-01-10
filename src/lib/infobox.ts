@@ -78,7 +78,8 @@ export type RenderItem =
 
 // --- 3. Editor Types (The Shape of Data in the UI) ---
 
-export type FieldType = "text" | "link" | "spoiler" | "list" | "multiline";
+// SIMPLIFICATION: We only support 'text' (which includes wiki syntax) and 'list'.
+export type FieldType = "text" | "list";
 
 export interface EditorField {
     id: string; // Unique ID for UI lists (drag-drop)
@@ -330,16 +331,11 @@ export function parseInfoboxData(data: any): InfoboxState {
             if (Array.isArray(value)) {
                 type = "list";
             } else if (typeof value === "string") {
-                if (value.startsWith("||") && value.endsWith("||")) {
-                    type = "spoiler";
-                    val = value.slice(2, -2);
-                } else if (value.includes("\n")) {
-                    type = "multiline";
-                } else if (value.startsWith("[[") && value.endsWith("]]")) {
-                    type = "link";
-                    // Strip brackets for cleaner editing
-                    val = value.slice(2, -2);
-                }
+                // SIMPLIFICATION: Normalize legacy formats into raw text
+                // The editor will just show "||spoiler||" or "[[link]]" in the text box.
+                // We no longer need specific types for them.
+                type = "text";
+                val = value; // Keep as is (strings are strings)
             }
 
             customFields.push({
@@ -440,18 +436,8 @@ export function buildInfoboxYamlObject(state: InfoboxState): any {
 
     // Fields
     state.customFields.forEach((f) => {
-        let val = f.value;
-        if (f.type === "spoiler") {
-            val = `||${f.value}||`;
-        } else if (f.type === "link") {
-            // Re-add brackets
-            if (val && !val.startsWith("[[")) {
-                val = `[[${val}]]`;
-            }
-        }
-        // Normalize Key
         const safeKey = f.key.trim().toLowerCase().replace(/\s+/g, "_");
-        if (safeKey) obj[safeKey] = val;
+        if (safeKey) obj[safeKey] = f.value;
     });
 
     if (state.tags.length > 0) obj.tags = state.tags;
@@ -634,96 +620,4 @@ export function createLayoutRule(
         above: "",
         keys: type === "columns" ? [] : undefined,
     };
-}
-
-// --- Autocomplete Logic ---
-
-/**
- * Result of analyzing the text before a cursor for autocomplete triggers.
- */
-export interface AutocompleteContext {
-    type: "link" | "image";
-    query: string;
-    triggerLength: number;
-    triggerIndex: number;
-}
-
-/**
- * Analyzes text preceding the cursor to determine if an autocomplete trigger (e.g. `[[` or `![[`) is active.
- * @param textBeforeCursor The text content up to the cursor position.
- * @returns An AutocompleteContext object if a trigger is found, or null.
- */
-export function getAutocompleteContext(
-    textBeforeCursor: string,
-): AutocompleteContext | null {
-    // Check for last occurrence of [[
-    const lastOpen = textBeforeCursor.lastIndexOf("[[");
-
-    // If found and not closed by ]] before cursor
-    if (lastOpen !== -1 && !textBeforeCursor.slice(lastOpen).includes("]]")) {
-        // Check if it's an image ![[
-        const isImage = lastOpen > 0 && textBeforeCursor[lastOpen - 1] === "!";
-        const triggerIndex = isImage ? lastOpen - 1 : lastOpen;
-        const triggerLength = isImage ? 3 : 2;
-
-        // The query is everything after the trigger
-        const query = textBeforeCursor.slice(lastOpen + 2);
-
-        // Safety: If newlines exist, assume we aren't in a link
-        if (query.includes("\n")) {
-            return null;
-        }
-
-        return {
-            type: isImage ? "image" : "link",
-            query,
-            triggerLength,
-            triggerIndex,
-        };
-    }
-    return null;
-}
-
-/**
- * Generates a filtered list of suggestions based on the current input context.
- * @param query The search string.
- * @param type The type of suggestion needed.
- * @param existingTags The current file's tags (to exclude from suggestions).
- * @param allTags The global list of tags in the world. (Array of [tag, metadata])
- * @param allFiles The global list of file titles/paths.
- * @param allImages The global list of image files.
- * @returns An array of string suggestions.
- */
-export function getAutocompleteSuggestions(
-    query: string,
-    type: "tag" | "link" | "image",
-    existingTags: string[],
-    allTags: [string, any][], // Corrected type: Array of entries where index 0 is tag name
-    allFiles: string[],
-    allImages: string[],
-): string[] {
-    let source: string[] = [];
-
-    if (type === "tag") {
-        // Filter out tags already applied to this file
-        source = allTags
-            .map((t) => t[0])
-            .filter((t) => !existingTags.includes(t));
-    } else if (type === "link") {
-        source = allFiles;
-    } else if (type === "image") {
-        source = allImages;
-    }
-
-    // Limit results for performance
-    const limit = 8;
-
-    if (!query) {
-        return source.slice(0, limit);
-    }
-
-    const lowerQuery = query.toLowerCase();
-    return source
-        .filter((item) => item.toLowerCase().includes(lowerQuery))
-        .slice(0, limit);
 }

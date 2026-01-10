@@ -1,119 +1,114 @@
 <script lang="ts">
-    // Defined locally to decouple from specific business logic types
-    export interface SmartInputContext {
-        type: "link" | "image" | "tag" | string;
-        query: string;
-        triggerLength: number;
-        triggerIndex: number;
-    }
+    /**
+     * SmartInput
+     * A self-contained input component that handles either:
+     * 1. 'autocomplete': A combobox that filters a list of options (e.g., Tags).
+     * 2. 'wiki': A text input that detects '[[...]]' or '![[...]]' for wiki-links.
+     */
 
     let {
         value = $bindable(),
-        type = "text",
+        mode = "wiki", // 'wiki' | 'autocomplete'
+        options = [], // For autocomplete mode
+        files = [], // For wiki mode (links)
+        images = [], // For wiki mode (embedded images)
         placeholder = "",
-        onEnter = undefined, // Callback for Enter key (e.g., adding a tag)
+        onEnter = undefined, // Callback for Enter key (mostly for tags)
         multiline = false,
         id = "",
         className = "",
-        // Props for Logic Injection
-        onSearch,
-        getContext,
     } = $props<{
         value: string;
-        type?: "text" | "link" | "image" | "tag" | "multiline";
+        mode?: "wiki" | "autocomplete";
+        options?: string[];
+        files?: string[];
+        images?: string[];
         placeholder?: string;
         onEnter?: (val: string) => void;
         multiline?: boolean;
         id?: string;
         className?: string;
-        // Function to fetch suggestions based on query + type
-        onSearch: (
-            query: string,
-            type: "tag" | "link" | "image" | any,
-        ) => string[];
-        // Function to check if we are in a trigger state (e.g. "[[")
-        getContext?: (text: string) => SmartInputContext | null;
     }>();
 
     // --- State ---
     let inputEl = $state<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
+    // Dropdown Logic
+    let isOpen = $state(false);
     let dropdownPos = $state<{
         top: number;
         left: number;
         width: number;
     } | null>(null);
     let selectedIndex = $state(0);
-    let activeAutocompleteType = $state<
-        "tag" | "link" | "image" | string | null
-    >(null);
-    let searchQuery = $state("");
-
-    // For inline autocomplete (text/multiline)
-    let triggerIndex = $state(-1);
-    let triggerLength = $state(0);
-
-    // --- Derived Suggestions ---
-    const currentSuggestions = $derived(
-        activeAutocompleteType
-            ? onSearch(searchQuery, activeAutocompleteType)
-            : [],
-    );
-
-    // Reset selection when list changes
-    $effect(() => {
-        if (
-            currentSuggestions.length > 0 &&
-            selectedIndex >= currentSuggestions.length
-        ) {
-            selectedIndex = 0;
-        }
-    });
+    let suggestions = $state<string[]>([]);
+    let matchStart = $state(-1);
+    let matchLength = $state(0);
+    let isImageLink = $state(false); // To distinguish [[ vs ![[
 
     // --- Logic ---
 
     function handleInput(e: Event) {
-        const target = e.target as HTMLInputElement | HTMLTextAreaElement;
-        const val = target.value;
-        value = val; // Bind value manually
+        // We bind 'value' automatically, but need to check triggers
+        if (!inputEl) return;
+        const val = inputEl.value;
+        const cursor = inputEl.selectionStart || 0;
 
-        // 1. Explicit Mode (Tag, Link, Image types)
-        // These inputs ALWAYS trigger autocomplete for their specific type
-        if (type === "tag" || type === "link" || type === "image") {
-            activeAutocompleteType = type;
-            searchQuery = val;
-            updateDropdownPosition();
+        if (mode === "autocomplete") {
+            // Filter options based on full value
+            suggestions = options
+                .filter((opt) => opt.toLowerCase().includes(val.toLowerCase()))
+                .slice(0, 10);
+
+            if (suggestions.length > 0) {
+                openDropdown();
+            } else {
+                closeDropdown();
+            }
             return;
         }
 
-        // 2. Inline Mode (Text, Multiline)
-        // These trigger autocomplete only if the parent provided a context detector
-        if ((type === "text" || type === "multiline") && getContext) {
-            const cursor = target.selectionStart || 0;
+        if (mode === "wiki") {
             const textBefore = val.slice(0, cursor);
-            const context = getContext(textBefore);
+            // Regex: Looks for [[ or ![[ at the end of the string
+            // Captures: 1=trigger (![[ or [[), 2=query
+            const match = /(?:^|[\s])(!?\[\[)([^\]\n]*)$/.exec(textBefore);
 
-            if (context) {
-                activeAutocompleteType = context.type;
-                searchQuery = context.query;
-                triggerIndex = context.triggerIndex;
-                triggerLength = context.triggerLength;
-                updateDropdownPosition();
-                selectedIndex = 0;
+            if (match) {
+                const trigger = match[1];
+                const query = match[2];
+                const fullMatchStr = match[0];
+
+                // If it starts with space, adjust start index
+                const offset =
+                    fullMatchStr.startsWith(" ") ||
+                    fullMatchStr.startsWith("\n")
+                        ? 1
+                        : 0;
+
+                matchStart = match.index + offset;
+                matchLength = trigger.length + query.length;
+                isImageLink = trigger.includes("!");
+
+                const source = isImageLink ? images : files;
+                suggestions = source
+                    .filter((item) =>
+                        item.toLowerCase().includes(query.toLowerCase()),
+                    )
+                    .slice(0, 10);
+
+                if (suggestions.length > 0) {
+                    openDropdown();
+                } else {
+                    closeDropdown();
+                }
             } else {
-                closeSuggestions();
+                closeDropdown();
             }
         }
     }
 
-    function handleFocus(e: FocusEvent) {
-        // For explicit types, show suggestions immediately on focus
-        if (type === "tag" || type === "link" || type === "image") {
-            handleInput(e);
-        }
-    }
-
-    function updateDropdownPosition() {
+    function openDropdown() {
         if (!inputEl) return;
         const rect = inputEl.getBoundingClientRect();
         dropdownPos = {
@@ -121,114 +116,91 @@
             left: rect.left,
             width: rect.width,
         };
+        isOpen = true;
+        selectedIndex = 0;
+    }
+
+    function closeDropdown() {
+        isOpen = false;
+        selectedIndex = 0;
     }
 
     function handleKeydown(e: KeyboardEvent) {
-        // Navigation
-        if (activeAutocompleteType && currentSuggestions.length > 0) {
+        if (isOpen && suggestions.length > 0) {
             if (e.key === "ArrowDown") {
                 e.preventDefault();
-                selectedIndex = (selectedIndex + 1) % currentSuggestions.length;
+                selectedIndex = (selectedIndex + 1) % suggestions.length;
                 return;
             }
             if (e.key === "ArrowUp") {
                 e.preventDefault();
                 selectedIndex =
-                    (selectedIndex - 1 + currentSuggestions.length) %
-                    currentSuggestions.length;
+                    (selectedIndex - 1 + suggestions.length) %
+                    suggestions.length;
                 return;
             }
-            if (e.key === "Tab") {
+            if (e.key === "Enter" || e.key === "Tab") {
                 e.preventDefault();
-                confirmSuggestion(currentSuggestions[selectedIndex]);
+                confirmSuggestion(suggestions[selectedIndex]);
+                return;
+            }
+            if (e.key === "Escape") {
+                closeDropdown();
                 return;
             }
         }
 
-        // Selection / Enter
-        if (e.key === "Enter") {
-            // If autocomplete is active
-            if (activeAutocompleteType) {
-                e.preventDefault();
-                // If suggestions exist, pick one
-                if (currentSuggestions.length > 0) {
-                    confirmSuggestion(currentSuggestions[selectedIndex]);
-                } else if (type === "tag" || type === "link") {
-                    // If no suggestion, but we are in explicit mode, allow confirming raw value
-                    // This handles creating new tags or links
-                    confirmSuggestion(searchQuery);
-                }
-                return;
+        // Handle Enter for simple inputs (like adding tags)
+        if (e.key === "Enter" && !e.shiftKey && onEnter) {
+            e.preventDefault();
+            // If we are in autocomplete mode but the user typed something custom
+            // or pressed enter without selecting, use the raw value.
+            onEnter(value);
+            // Typically clear input after "Enter" action for tags
+            if (mode === "autocomplete") {
+                value = "";
+                closeDropdown();
             }
-
-            // If no autocomplete, but specific callback (e.g. Add Tag)
-            if (onEnter && !e.shiftKey) {
-                e.preventDefault();
-                onEnter(value);
-            }
-        }
-
-        if (e.key === "Escape") {
-            closeSuggestions();
         }
     }
 
-    function confirmSuggestion(suggestion: string) {
-        if (!suggestion) return;
+    function confirmSuggestion(item: string) {
+        if (!inputEl) return;
 
-        // 1. Explicit Mode Replacement
-        if (type === "tag" || type === "link" || type === "image") {
+        if (mode === "autocomplete") {
+            // Replace full value
             if (onEnter) {
-                // If there's a callback (e.g. for tags), verify and call it
-                onEnter(suggestion);
-                // Usually we clear the input for tags
-                if (type === "tag") value = "";
+                onEnter(item);
+                value = "";
             } else {
-                value = suggestion;
+                value = item;
             }
-            closeSuggestions();
-            return;
-        }
+        } else if (mode === "wiki") {
+            // Replace the partial wiki link
+            const before = value.slice(0, matchStart);
+            const after = value.slice(matchStart + matchLength);
 
-        // 2. Inline Mode Replacement
-        if (type === "text" || type === "multiline") {
-            const tag =
-                (activeAutocompleteType === "image" ? "![[" : "[[") +
-                suggestion +
-                "]]";
+            const prefix = isImageLink ? "![[" : "[[";
+            const insertion = `${prefix}${item}]]`;
 
-            const prefix = value.slice(0, triggerIndex);
-            // Calculate where the current query ends
-            // query length is separate from trigger length
-            const queryEnd = triggerIndex + triggerLength + searchQuery.length;
-            const suffix = value.slice(queryEnd);
+            value = before + insertion + after;
 
-            value = prefix + tag + suffix;
-
-            // Restore focus and move cursor (optional, but good UX)
+            // Restore focus and move cursor
             setTimeout(() => {
                 if (inputEl) {
                     inputEl.focus();
-                    // Set cursor after the inserted tag
-                    const newCursorPos = prefix.length + tag.length;
-                    inputEl.setSelectionRange(newCursorPos, newCursorPos);
+                    const newCursor = matchStart + insertion.length;
+                    inputEl.setSelectionRange(newCursor, newCursor);
                 }
             }, 0);
-
-            closeSuggestions();
         }
-    }
 
-    function closeSuggestions() {
-        activeAutocompleteType = null;
-        dropdownPos = null;
-        selectedIndex = 0;
-        triggerIndex = -1;
+        closeDropdown();
     }
 </script>
 
 <div class="smart-input-wrapper {className}">
-    {#if multiline || type === "multiline"}
+    {#if multiline}
         <textarea
             bind:this={inputEl}
             bind:value
@@ -237,9 +209,8 @@
             rows="2"
             class="input-element"
             oninput={handleInput}
-            onfocus={handleFocus}
             onkeydown={handleKeydown}
-            onblur={() => setTimeout(closeSuggestions, 200)}
+            onblur={() => setTimeout(closeDropdown, 200)}
         ></textarea>
     {:else}
         <input
@@ -250,19 +221,18 @@
             {placeholder}
             class="input-element"
             oninput={handleInput}
-            onfocus={handleFocus}
             onkeydown={handleKeydown}
-            onblur={() => setTimeout(closeSuggestions, 200)}
+            onblur={() => setTimeout(closeDropdown, 200)}
         />
     {/if}
 
-    {#if activeAutocompleteType && currentSuggestions.length > 0 && dropdownPos}
+    {#if isOpen && dropdownPos}
         <div
             class="fixed-dropdown"
             style="top: {dropdownPos.top}px; left: {dropdownPos.left}px; width: {dropdownPos.width}px;"
         >
             <ul class="suggestions-list">
-                {#each currentSuggestions as s, i}
+                {#each suggestions as s, i}
                     <li class:selected={i === selectedIndex}>
                         <button onmousedown={() => confirmSuggestion(s)}
                             >{s}</button
@@ -291,13 +261,14 @@
         width: 100%;
         box-sizing: border-box;
         font-family: inherit;
+        resize: vertical;
     }
     .input-element:focus {
         outline: 2px solid var(--color-accent-primary);
         outline-offset: -1px;
     }
 
-    /* Fixed Dropdown (Ported from Modal) */
+    /* Fixed Dropdown */
     .fixed-dropdown {
         position: fixed;
         background: var(--color-background-secondary);

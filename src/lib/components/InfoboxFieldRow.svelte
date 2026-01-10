@@ -1,7 +1,8 @@
 <script lang="ts">
     import type { EditorField } from "$lib/infobox";
     import Icon from "./Icon.svelte";
-    import SmartInput, { type SmartInputContext } from "./SmartInput.svelte";
+    import Button from "./Button.svelte";
+    import SmartInput from "./SmartInput.svelte";
     import SearchableSelect from "./SearchableSelect.svelte";
 
     let {
@@ -10,20 +11,50 @@
         isLast,
         onMove,
         onDelete,
-        handleSearch,
-        handleContext, // Passed down from parent
+        // Data injected from parent for autocompletion
+        allFiles,
+        allImages,
     } = $props<{
         field: EditorField;
         isFirst: boolean;
         isLast: boolean;
         onMove: (dir: -1 | 1) => void;
         onDelete: () => void;
-        handleSearch: (q: string, t: "link" | "tag" | "image") => string[];
-        handleContext: (text: string) => SmartInputContext | null;
+        allFiles: string[];
+        allImages: string[];
     }>();
 
-    // Field Type Options for the SearchableSelect
-    const typeOptions = ["text", "link", "spoiler", "multiline", "list"];
+    // Simplified options: Just Text (default) or List.
+    const typeOptions = ["text", "list"];
+
+    // Ensure value type consistency when switching modes
+    $effect(() => {
+        if (field.type === "list") {
+            if (!Array.isArray(field.value)) {
+                // Convert string to array (preserving content)
+                field.value = field.value ? [field.value] : [];
+            }
+        } else {
+            if (Array.isArray(field.value)) {
+                // Convert array to string (comma separated)
+                field.value = field.value.join(", ");
+            }
+        }
+    });
+
+    function addListItem() {
+        if (Array.isArray(field.value)) {
+            field.value = [...field.value, ""];
+        }
+    }
+
+    function removeListItem(index: number) {
+        if (Array.isArray(field.value)) {
+            field.value.splice(index, 1);
+            // Re-assign to trigger reactivity if needed by shallow checks
+            field.value = [...field.value];
+        }
+    }
 </script>
 
 <div class="field-card">
@@ -46,7 +77,7 @@
                 aria-label="Field Name"
             />
 
-            <div style="width: 120px;">
+            <div style="width: 100px;">
                 <SearchableSelect
                     options={typeOptions}
                     bind:value={field.type}
@@ -61,38 +92,43 @@
         </div>
 
         <div class="field-value-row">
-            {#if field.type === "multiline"}
-                <SmartInput
-                    type="multiline"
-                    bind:value={field.value}
-                    placeholder="Value..."
-                    onSearch={handleSearch}
-                    getContext={handleContext}
-                />
-            {:else if field.type === "list"}
-                <input
-                    type="text"
-                    class="value-input"
-                    value={field.value}
-                    oninput={(e) =>
-                        (field.value = e.currentTarget.value.split(","))}
-                    placeholder="Item 1, Item 2..."
-                />
-            {:else if field.type === "link"}
-                <SmartInput
-                    type="link"
-                    bind:value={field.value}
-                    placeholder="Page Name"
-                    onSearch={handleSearch}
-                    getContext={handleContext}
-                />
+            {#if field.type === "list" && Array.isArray(field.value)}
+                <div class="list-editor">
+                    {#each field.value as item, i}
+                        <div class="list-item-row">
+                            <SmartInput
+                                mode="wiki"
+                                bind:value={field.value[i]}
+                                placeholder="List item..."
+                                files={allFiles}
+                                images={allImages}
+                                className="list-smart-input"
+                            />
+                            <button
+                                class="list-remove-btn"
+                                onclick={() => removeListItem(i)}
+                                title="Remove Item"
+                            >
+                                <Icon type="close" />
+                            </button>
+                        </div>
+                    {/each}
+                    <Button size="small" onclick={addListItem}
+                        >+ Add Item</Button
+                    >
+                </div>
             {:else}
+                <!--
+                    Default Text Input
+                    Uses 'wiki' mode to enable [[...]] autocomplete
+                -->
                 <SmartInput
-                    type="text"
+                    mode="wiki"
+                    multiline={true}
                     bind:value={field.value}
-                    placeholder="Value..."
-                    onSearch={handleSearch}
-                    getContext={handleContext}
+                    placeholder="Value (supports [[links]])..."
+                    files={allFiles}
+                    images={allImages}
                 />
             {/if}
         </div>
@@ -106,7 +142,7 @@
         border: 1px solid var(--color-border-primary);
         border-radius: 8px;
         margin-bottom: 0.75rem;
-        overflow: hidden;
+        overflow: visible; /* Changed to visible for dropdowns */
     }
     .field-drag-handle {
         background: var(--color-background-secondary);
@@ -171,18 +207,32 @@
     .delete-btn:hover {
         color: var(--color-error);
     }
-    .value-input {
-        background: var(--color-background-secondary);
-        border: 1px solid var(--color-border-primary);
-        color: var(--color-text-primary);
-        padding: 0.6rem;
-        border-radius: 6px;
-        font-size: 0.95rem;
-        width: 100%;
-        box-sizing: border-box;
+
+    /* List Editor Styles */
+    .list-editor {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
     }
-    .value-input:focus {
-        outline: 2px solid var(--color-accent-primary);
-        outline-offset: -1px;
+    .list-item-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    .list-remove-btn {
+        background: none;
+        border: none;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        padding: 0.2rem;
+        opacity: 0.6;
+    }
+    .list-remove-btn:hover {
+        opacity: 1;
+        color: var(--color-error);
+    }
+    /* Ensure smart input takes full width in list */
+    :global(.list-smart-input) {
+        flex-grow: 1;
     }
 </style>
