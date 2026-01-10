@@ -148,7 +148,6 @@
         layoutRules.splice(index, 1);
     }
 
-
     // --- Actions: Template ---
     async function applyTemplate() {
         if (!selectedTemplatePath) return;
@@ -255,12 +254,14 @@
                             />
                         </div>
                         <div class="form-group">
-                            <label for="field-subtitle">Subtitle</label>
+                            <label for="field-subtitle"
+                                >Subtitle (Optional)</label
+                            >
                             <input
                                 id="field-subtitle"
                                 type="text"
                                 bind:value={subtitle}
-                                placeholder="Subtitle / Flavor Text"
+                                placeholder="Subtitle"
                                 class="input-text"
                             />
                         </div>

@@ -436,8 +436,10 @@ export function buildInfoboxYamlObject(state: InfoboxState): any {
 
     // Fields
     state.customFields.forEach((f) => {
-        const safeKey = f.key.trim().toLowerCase().replace(/\s+/g, "_");
-        if (safeKey) obj[safeKey] = f.value;
+        // PRESERVE CASING: We no longer normalize keys to lowercase/snake_case.
+        // We trust the user's input, only trimming whitespace.
+        const key = f.key.trim();
+        if (key) obj[key] = f.value;
     });
 
     if (state.tags.length > 0) obj.tags = state.tags;
@@ -448,14 +450,48 @@ export function buildInfoboxYamlObject(state: InfoboxState): any {
             const rule: any = { type: rest.type };
             // Editor uses 'columns', which maps directly to 'columns' in YAML now
             if (rest.text) rule.text = rest.text;
-            if (rest.above) rule.above = rest.above;
-            if (rest.below) rule.below = rest.below;
-            if (rest.keys && rest.keys.length > 0) rule.keys = rest.keys;
+
+            // Preserve casing in layout references to match the preserved field keys
+            if (rest.above) rule.above = rest.above.trim();
+            if (rest.below) rule.below = rest.below.trim();
+            if (rest.keys && rest.keys.length > 0) {
+                rule.keys = rest.keys.map((k) => k.trim());
+            }
             return rule;
         });
     }
 
     return obj;
+}
+
+/**
+ * A helper to dump the Infobox YAML with mixed styles:
+ * 1. Main config (tags, fields) uses flowLevel: 1 for compact arrays [a, b].
+ * 2. Layout uses flowLevel: 2 for block list of objects, but inline arrays inside them.
+ */
+function dumpInfoboxYaml(obj: any): string {
+    const { layout, ...mainConfig } = obj;
+    const parts: string[] = [];
+
+    // Dump main config if it has keys
+    if (Object.keys(mainConfig).length > 0) {
+        parts.push(
+            jsyaml.dump(mainConfig, { lineWidth: -1, flowLevel: 1 }).trim(),
+        );
+    }
+
+    // Dump layout separately with flowLevel: 2
+    // flowLevel: 2 means:
+    // - Depth 1 (layout array) is Block style.
+    // - Depth 2 (rules objects) is Block style.
+    // - Depth 3 (arrays inside rules, e.g. keys: [A, B]) is Flow style.
+    if (layout && Array.isArray(layout) && layout.length > 0) {
+        parts.push(
+            jsyaml.dump({ layout }, { lineWidth: -1, flowLevel: 3 }).trim(),
+        );
+    }
+
+    return parts.join("\n");
 }
 
 /**
@@ -471,7 +507,7 @@ export function applyInfoboxStateToContent(
     state: InfoboxState,
 ): string {
     const yamlObject = buildInfoboxYamlObject(state);
-    const yamlString = jsyaml.dump(yamlObject, { lineWidth: -1 }).trim();
+    const yamlString = dumpInfoboxYaml(yamlObject);
     const newFrontmatterBlock = `---\n${yamlString}\n---`;
 
     // Regex to find existing frontmatter
@@ -497,8 +533,8 @@ export async function saveInfoboxState(
     // 1. Convert state to YAML-ready object
     const yamlObject = buildInfoboxYamlObject(state);
 
-    // 2. Dump to string
-    const yamlString = jsyaml.dump(yamlObject, { lineWidth: -1 });
+    // 2. Dump to string using mixed-style helper
+    const yamlString = dumpInfoboxYaml(yamlObject);
 
     // 3. Write to file
     await updatePageFrontmatter(filePath, yamlString);
