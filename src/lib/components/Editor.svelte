@@ -26,16 +26,11 @@
         allFileTitles,
         allImageFiles,
         tags as worldTags,
-        world,
     } from "$lib/worldStore";
     import { toggleBold, toggleItalic } from "$lib/editor";
     import EditorToolbar from "./EditorToolbar.svelte";
-
-    // --- Added Imports for Infobox Editing ---
     import { openModal, closeModal } from "$lib/modalStore";
     import InfoboxEditorModal from "./InfoboxEditorModal.svelte";
-    import { currentView } from "$lib/viewStores";
-    import { buildPageView } from "$lib/commands";
 
     let { content = $bindable() } = $props<{ content?: string }>();
     let editor: EditorView | undefined = $state();
@@ -45,40 +40,24 @@
     });
 
     /**
-     * Opens the visual Infobox Editor modal for the current file.
-     * Passed down to the Toolbar component.
+     * Opens the visual Infobox Editor modal using the CURRENT content in memory.
+     * This avoids the data-loss race condition.
      */
-    async function handleInfoboxClick() {
-        // Ensure we are currently viewing a file
-        const view = get(currentView);
-        if (view.type === "file" && view.data) {
-            const filePath = view.data.path;
+    function handleInfoboxClick() {
+        if (!content) return;
 
-            openModal({
-                component: InfoboxEditorModal,
-                props: {
-                    onClose: closeModal,
-                    filePath: filePath,
-                    onSaveSuccess: async () => {
-                        // 1. Refresh global world data (indexes, links, etc.)
-                        await world.initialize();
-
-                        // 2. Refresh the editor content locally to show the new YAML immediately.
-                        // Since the modal writes to disk directly, the 'content' bound variable
-                        // here is stale. We must re-fetch the file.
-                        try {
-                            const data = await buildPageView(filePath);
-                            content = data.raw_content;
-                        } catch (e) {
-                            console.error(
-                                "Failed to refresh editor content",
-                                e,
-                            );
-                        }
-                    },
+        openModal({
+            component: InfoboxEditorModal,
+            props: {
+                onClose: closeModal,
+                initialContent: content, // Pass current editor content
+                onSave: (newContent: string) => {
+                    // Update content immediately in memory
+                    // This triggers reactivity -> updates Editor view -> triggers autosave in FileView
+                    content = newContent;
                 },
-            });
-        }
+            },
+        });
     }
 
     /**

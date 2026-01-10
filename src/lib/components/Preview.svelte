@@ -15,10 +15,12 @@
         renderedData,
         infoboxData = null,
         mode = "unified",
+        onInfoboxEdit,
     } = $props<{
         renderedData: RenderedPage | null;
         infoboxData?: InfoboxFrontmatter | null;
         mode?: "split" | "unified";
+        onInfoboxEdit?: () => void;
     }>();
 
     // --- Infobox Visibility Logic ---
@@ -71,7 +73,8 @@
     {#if showInfobox}
         <!-- Use <aside> for better semantics. It's floated, so order in HTML matters. -->
         <aside class="infobox-wrapper">
-            <Infobox data={infoboxData} />
+            <!-- Pass the edit handler down to the Infobox -->
+            <Infobox data={infoboxData} onEdit={onInfoboxEdit} />
         </aside>
     {/if}
 

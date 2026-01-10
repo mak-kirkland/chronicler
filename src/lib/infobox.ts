@@ -406,7 +406,7 @@ export function mergeTemplateState(
     };
 }
 
-// --- Logic: Persistence (Editor State -> YAML) ---
+// --- Logic: Persistence (Editor State -> YAML/String) ---
 
 /**
  * Constructs a plain JavaScript object suitable for YAML dumping from the editor state.
@@ -473,9 +473,36 @@ export function buildInfoboxYamlObject(state: InfoboxState): any {
 }
 
 /**
- * Saves the editor state to the physical file frontmatter.
- * @param filePath The path of the file to update.
- * @param state The current editor state.
+ * Applies the editor state to a full Markdown content string.
+ * It replaces the existing frontmatter (or creates it) with the new state.
+ *
+ * @param content The original full markdown content.
+ * @param state The new infobox state.
+ * @returns The new markdown content string.
+ */
+export function applyInfoboxStateToContent(
+    content: string,
+    state: InfoboxState,
+): string {
+    const yamlObject = buildInfoboxYamlObject(state);
+    const yamlString = jsyaml.dump(yamlObject, { lineWidth: -1 }).trim();
+    const newFrontmatterBlock = `---\n${yamlString}\n---`;
+
+    // Regex to find existing frontmatter
+    // ^---\n([\s\S]*?)\n---
+    const frontmatterRegex = /^---\n[\s\S]*?\n---/;
+
+    if (frontmatterRegex.test(content)) {
+        return content.replace(frontmatterRegex, newFrontmatterBlock);
+    } else {
+        // Prepend if no frontmatter exists
+        return `${newFrontmatterBlock}\n\n${content}`;
+    }
+}
+
+/**
+ * Saves the editor state directly to disk (Legacy/Direct Mode).
+ * Use `applyInfoboxStateToContent` for safer in-memory updates.
  */
 export async function saveInfoboxState(
     filePath: string,

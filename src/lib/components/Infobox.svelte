@@ -13,8 +13,9 @@
     import { world } from "$lib/worldStore";
 
     // --- Props ---
-    let { data } = $props<{
+    let { data, onEdit } = $props<{
         data: InfoboxFrontmatter | null;
+        onEdit?: () => void;
     }>();
 
     // --- Derived State ---
@@ -129,13 +130,19 @@
             {/if}
 
             <div class="controls-group">
-                <button
-                    class="infobox-controls-button"
-                    onclick={openEditorModal}
-                    title="Edit Infobox"
-                >
-                    <Icon type="edit" />
-                </button>
+                <!--
+                    The Edit button now delegates to the parent via onEdit.
+                    This ensures we edit the live content, not stale disk content.
+                -->
+                {#if onEdit}
+                    <button
+                        class="infobox-controls-button"
+                        onclick={onEdit}
+                        title="Edit Infobox"
+                    >
+                        <Icon type="edit" />
+                    </button>
+                {/if}
                 <button
                     class="infobox-controls-button"
                     onclick={openSettingsModal}

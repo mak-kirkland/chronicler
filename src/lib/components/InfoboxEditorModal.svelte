@@ -3,36 +3,31 @@
     import Modal from "./Modal.svelte";
     import Button from "./Button.svelte";
     import Icon from "./Icon.svelte";
-    import { buildPageView } from "$lib/commands";
-    import {
-        allFileTitles,
-        allImageFiles,
-        files,
-        vaultPath,
-        tags as worldTags,
-    } from "$lib/worldStore";
+    import SmartInput from "./SmartInput.svelte";
+    import { files, vaultPath } from "$lib/worldStore";
     import {
         parseInfoboxData,
-        getAutocompleteContext,
-        getAutocompleteSuggestions,
         mergeTemplateState,
         createField,
         createImage,
         createLayoutRule,
-        saveInfoboxState,
+        applyInfoboxStateToContent,
         reorderArrayItem,
         resolveAllImagePreviews,
         getAvailableTemplates,
+        buildInfoboxYamlObject,
         type EditorField,
         type ImageEntry,
         type EditorLayoutRule,
+        type InfoboxState,
     } from "$lib/infobox";
     import jsyaml from "js-yaml";
+    import { buildPageView } from "$lib/commands";
 
-    let { onClose, filePath, onSaveSuccess } = $props<{
+    let { onClose, initialContent, onSave } = $props<{
         onClose: () => void;
-        filePath: string;
-        onSaveSuccess?: () => Promise<void> | void;
+        initialContent: string;
+        onSave: (newContent: string) => void;
     }>();
 
     // --- State ---
@@ -56,57 +51,7 @@
     // Map of image ID -> resolved URL (for display)
     let imagePreviews = $state<Record<string, string>>({});
 
-    // --- Autocomplete State ---
-    let newTagInput = $state("");
-    let activeAutocompleteType = $state<"tag" | "link" | "image" | null>(null);
-    let focusedFieldId = $state<string | null>(null);
-    let fieldSearchQuery = $state("");
-    let dropdownPos = $state<{
-        top: number;
-        left: number;
-        width: number;
-    } | null>(null);
-    let selectedIndex = $state(0);
-
-    // Track where the inline trigger began
-    let autocompleteTriggerIndex = $state(-1);
-    let autocompleteTriggerLength = $state(0);
-
-    // Derived Suggestions
-    const currentSuggestions = $derived(
-        activeAutocompleteType
-            ? getAutocompleteSuggestions(
-                  fieldSearchQuery,
-                  activeAutocompleteType,
-                  tags,
-                  $worldTags as [string, any][], // Cast to match expected structure
-                  $allFileTitles,
-                  $allImageFiles,
-              )
-            : [],
-    );
-
-    // Reset selection when list changes
-    $effect(() => {
-        if (
-            currentSuggestions.length > 0 &&
-            selectedIndex >= currentSuggestions.length
-        ) {
-            selectedIndex = 0;
-        }
-    });
-
-    // Watch images array and resolve previews using shared utility
-    $effect(() => {
-        if (!$vaultPath || images.length === 0) return;
-
-        // Use the centralized async resolver from infobox.ts
-        resolveAllImagePreviews(images, $vaultPath).then((previews) => {
-            imagePreviews = previews;
-        });
-    });
-
-    // Templates - Use shared utility to get available templates with labels
+    // Templates
     let availableTemplates = $derived(
         $files && $vaultPath ? getAvailableTemplates([$files], $vaultPath) : [],
     );
@@ -114,10 +59,10 @@
 
     // --- Initialization ---
 
-    onMount(async () => {
+    onMount(() => {
         try {
-            const data = await buildPageView(filePath);
-            const match = data.raw_content.match(/^---\n([\s\S]*?)\n---/);
+            // Parse the content passed in memory, NOT from disk.
+            const match = initialContent.match(/^---\n([\s\S]*?)\n---/);
             if (match) {
                 const parsed = jsyaml.load(match[1]) as any;
                 initializeForm(parseInfoboxData(parsed));
@@ -126,14 +71,14 @@
                 initializeForm(parseInfoboxData({}));
             }
         } catch (e) {
-            console.error("Failed to load file data", e);
-            // Don't crash, just show empty
+            console.error("Failed to parse infobox data", e);
+            initializeForm(parseInfoboxData({}));
         } finally {
             isLoading = false;
         }
     });
 
-    function initializeForm(state: any) {
+    function initializeForm(state: InfoboxState) {
         title = state.title;
         subtitle = state.subtitle;
         tags = state.tags;
@@ -142,18 +87,20 @@
         layoutRules = state.layoutRules;
     }
 
-    // --- Actions: Tags ---
-    function addTag(tagToAdd: string = newTagInput) {
+    // Resolve previews when images change
+    $effect(() => {
+        if (!$vaultPath || images.length === 0) return;
+        resolveAllImagePreviews(images, $vaultPath).then((previews) => {
+            imagePreviews = previews;
+        });
+    });
+
+    // --- Actions ---
+
+    function addTag(tagToAdd: string) {
         const cleaned = tagToAdd.trim();
-        // Check if valid and not already present
         if (cleaned && !tags.includes(cleaned)) {
             tags.push(cleaned);
-            newTagInput = "";
-            closeSuggestions();
-        } else if (tags.includes(cleaned)) {
-            // If already exists, just clear input
-            newTagInput = "";
-            closeSuggestions();
         }
     }
 
@@ -207,6 +154,7 @@
             return;
 
         try {
+            // Templates still need to be fetched from disk (read-only op)
             const data = await buildPageView(selectedTemplatePath);
             const match = data.raw_content.match(/^---\n([\s\S]*?)\n---/);
             if (match) {
@@ -230,179 +178,13 @@
         }
     }
 
-    // --- Autocomplete Logic ---
-
-    // 1. Explicit Full-Field Autocomplete (for Link/Image type inputs)
-    function handleInputFocus(
-        e: FocusEvent,
-        type: "tag" | "link" | "image",
-        id: string | null = null,
-        val: string = "",
-    ) {
-        activeAutocompleteType = type;
-        focusedFieldId = id;
-        fieldSearchQuery = val;
-        updateDropdownPosition(e.target as HTMLElement);
-        selectedIndex = 0;
-    }
-
-    function handleInputInput(
-        e: Event,
-        type: "tag" | "link" | "image",
-        id: string | null = null,
-    ) {
-        const target = e.target as HTMLInputElement;
-        fieldSearchQuery = target.value;
-        activeAutocompleteType = type;
-        focusedFieldId = id;
-        updateDropdownPosition(target);
-        selectedIndex = 0;
-    }
-
-    // 2. Inline Autocomplete (for Text/Multiline inputs)
-    function handleInlineInput(e: Event, id: string) {
-        const target = e.target as HTMLInputElement | HTMLTextAreaElement;
-        const val = target.value;
-        const cursor = target.selectionStart || 0;
-        const textBefore = val.slice(0, cursor);
-
-        // Use helper to check for triggers
-        const context = getAutocompleteContext(textBefore);
-
-        if (context) {
-            activeAutocompleteType = context.type;
-            fieldSearchQuery = context.query;
-            autocompleteTriggerIndex = context.triggerIndex;
-            autocompleteTriggerLength = context.triggerLength;
-            focusedFieldId = id;
-            updateDropdownPosition(target);
-            selectedIndex = 0;
-        } else if (activeAutocompleteType) {
-            closeSuggestions();
-        }
-    }
-
-    function updateDropdownPosition(element: HTMLElement) {
-        const rect = element.getBoundingClientRect();
-        dropdownPos = {
-            top: rect.bottom + 4,
-            left: rect.left,
-            width: rect.width,
-        };
-    }
-
-    // Unified Key Handler
-    function handleKeydown(e: KeyboardEvent, isTagInput = false) {
-        // 1. Navigation within Suggestions
-        if (activeAutocompleteType && currentSuggestions.length > 0) {
-            if (e.key === "ArrowDown") {
-                e.preventDefault();
-                selectedIndex = (selectedIndex + 1) % currentSuggestions.length;
-                return;
-            }
-            if (e.key === "ArrowUp") {
-                e.preventDefault();
-                selectedIndex =
-                    (selectedIndex - 1 + currentSuggestions.length) %
-                    currentSuggestions.length;
-                return;
-            }
-            if (e.key === "Tab") {
-                e.preventDefault();
-                confirmSuggestion(currentSuggestions[selectedIndex]);
-                return;
-            }
-        }
-
-        // 2. Selection / Creation logic on Enter
-        if (e.key === "Enter") {
-            // We only want to intercept Enter if:
-            // a) We are in a tag input (always triggers addTag)
-            // b) We are in an active autocomplete session for a field/image
-
-            if (!activeAutocompleteType && !isTagInput) return;
-
-            // Prevent form submission if any
-            e.preventDefault();
-
-            // Case A: Shift+Enter -> Force Create (Early exit)
-            // Case B: No suggestions -> Create (allow typing new tags)
-            if (e.shiftKey || currentSuggestions.length === 0) {
-                if (isTagInput) {
-                    addTag(newTagInput); // Adds content of newTagInput
-                } else if (focusedFieldId) {
-                    // Force the current input as the value
-                    confirmSuggestion(fieldSearchQuery);
-                }
-                closeSuggestions();
-                return;
-            }
-
-            // Case C: Suggestions exist -> Use Selection
-            if (currentSuggestions.length > 0) {
-                confirmSuggestion(currentSuggestions[selectedIndex]);
-                return;
-            }
-        }
-
-        if (e.key === "Escape") {
-            closeSuggestions();
-        }
-    }
-
-    function confirmSuggestion(val: string) {
-        if (activeAutocompleteType === "tag") {
-            addTag(val);
-            return;
-        }
-
-        const img = images.find((i) => i.id === focusedFieldId);
-        if (img) {
-            img.src = val;
-            closeSuggestions();
-            return;
-        }
-
-        // Custom Fields
-        const field = customFields.find((f) => f.id === focusedFieldId);
-        if (field) {
-            if (field.type === "wikilink") {
-                // Explicit Link field - Full Replace
-                field.value = val;
-            } else {
-                // Inline Replace (Text, Multiline)
-                const tag =
-                    (activeAutocompleteType === "image" ? "![[" : "[[") +
-                    val +
-                    "]]";
-                const currentVal = field.value;
-                const prefix = currentVal.slice(0, autocompleteTriggerIndex);
-                const cutEnd =
-                    autocompleteTriggerIndex +
-                    autocompleteTriggerLength +
-                    fieldSearchQuery.length;
-                const suffix = currentVal.slice(cutEnd);
-                field.value = prefix + tag + suffix;
-            }
-        }
-        closeSuggestions();
-    }
-
-    function closeSuggestions() {
-        activeAutocompleteType = null;
-        dropdownPos = null;
-        focusedFieldId = null;
-        selectedIndex = 0;
-        autocompleteTriggerIndex = -1;
-    }
-
     // --- Save Logic ---
-    async function handleSave(shouldClose: boolean) {
+
+    function handleSave(shouldClose: boolean) {
         isSaving = true;
 
         try {
-            // Construct state object
-            const currentState = {
+            const currentState: InfoboxState = {
                 title,
                 subtitle,
                 tags,
@@ -411,13 +193,14 @@
                 layoutRules,
             };
 
-            // Use the centralized save function
-            await saveInfoboxState(filePath, currentState);
+            // 1. Generate new content string IN MEMORY
+            const newContent = applyInfoboxStateToContent(
+                initialContent,
+                currentState,
+            );
 
-            // Run success callback (delegated to parent, preserving existing logic)
-            // Editor.svelte: refreshes file content
-            // Infobox.svelte: refreshes preview
-            if (onSaveSuccess) await onSaveSuccess();
+            // 2. Pass it back to the parent
+            onSave(newContent);
 
             if (shouldClose) onClose();
         } catch (e) {
@@ -433,7 +216,7 @@
     {#if isLoading}
         <div class="loading-state">
             <div class="spinner"></div>
-            <p>Parsing Frontmatter...</p>
+            <p>Loading...</p>
         </div>
     {:else}
         <div class="editor-container">
@@ -451,10 +234,7 @@
             </div>
 
             <!-- Tab Content -->
-            <div
-                class="tab-content custom-scrollbar"
-                onscroll={() => activeAutocompleteType && closeSuggestions()}
-            >
+            <div class="tab-content custom-scrollbar">
                 <!-- === CONTENT TAB === -->
                 {#if activeTab === "content"}
                     <div class="form-section">
@@ -495,22 +275,17 @@
                                         >
                                     {/each}
                                 </div>
-                                <input
-                                    id="field-tags"
-                                    type="text"
-                                    bind:value={newTagInput}
-                                    placeholder="Add tag..."
-                                    class="tag-input-field"
-                                    onfocus={(e) =>
-                                        handleInputFocus(
-                                            e,
-                                            "tag",
-                                            null,
-                                            newTagInput,
-                                        )}
-                                    oninput={(e) => handleInputInput(e, "tag")}
-                                    onkeydown={(e) => handleKeydown(e, true)}
-                                />
+                                <!-- Uses SmartInput for tag suggestions -->
+                                <div class="smart-input-container">
+                                    <SmartInput
+                                        type="tag"
+                                        placeholder="Add tag..."
+                                        existingTags={tags}
+                                        onEnter={addTag}
+                                        value=""
+                                        className="tag-input-field-wrapper"
+                                    />
+                                </div>
                             </div>
                             <small class="helper-text"
                                 >Enter to select, Shift+Enter to create new.</small
@@ -583,20 +358,11 @@
                                         </div>
                                         <div class="field-value-row">
                                             {#if field.type === "multiline"}
-                                                <textarea
+                                                <SmartInput
+                                                    type="multiline"
                                                     bind:value={field.value}
-                                                    rows="2"
-                                                    class="value-input"
                                                     placeholder="Value..."
-                                                    aria-label="Field Value"
-                                                    oninput={(e) =>
-                                                        handleInlineInput(
-                                                            e,
-                                                            field.id,
-                                                        )}
-                                                    onkeydown={(e) =>
-                                                        handleKeydown(e)}
-                                                ></textarea>
+                                                />
                                             {:else if field.type === "list"}
                                                 <input
                                                     type="text"
@@ -608,41 +374,18 @@
                                                                 ",",
                                                             ))}
                                                     placeholder="Item 1, Item 2..."
-                                                    aria-label="Field Value"
+                                                />
+                                            {:else if field.type === "wikilink"}
+                                                <SmartInput
+                                                    type="link"
+                                                    bind:value={field.value}
+                                                    placeholder="Page Name"
                                                 />
                                             {:else}
-                                                <input
+                                                <SmartInput
                                                     type="text"
-                                                    class="value-input"
                                                     bind:value={field.value}
-                                                    placeholder={field.type ===
-                                                    "wikilink"
-                                                        ? "Page Name"
-                                                        : "Value..."}
-                                                    aria-label="Field Value"
-                                                    onfocus={(e) =>
-                                                        field.type ===
-                                                            "wikilink" &&
-                                                        handleInputFocus(
-                                                            e,
-                                                            "link",
-                                                            field.id,
-                                                            field.value,
-                                                        )}
-                                                    oninput={(e) =>
-                                                        field.type ===
-                                                        "wikilink"
-                                                            ? handleInputInput(
-                                                                  e,
-                                                                  "link",
-                                                                  field.id,
-                                                              )
-                                                            : handleInlineInput(
-                                                                  e,
-                                                                  field.id,
-                                                              )}
-                                                    onkeydown={(e) =>
-                                                        handleKeydown(e)}
+                                                    placeholder="Value..."
                                                 />
                                             {/if}
                                         </div>
@@ -682,26 +425,11 @@
                                         <label for="img-src-{img.id}"
                                             >Source</label
                                         >
-                                        <input
-                                            id="img-src-{img.id}"
-                                            type="text"
-                                            class="input-text"
+                                        <SmartInput
+                                            type="image"
                                             bind:value={img.src}
                                             placeholder="my-image.png"
-                                            onfocus={(e) =>
-                                                handleInputFocus(
-                                                    e,
-                                                    "image",
-                                                    img.id,
-                                                    img.src,
-                                                )}
-                                            oninput={(e) =>
-                                                handleInputInput(
-                                                    e,
-                                                    "image",
-                                                    img.id,
-                                                )}
-                                            onkeydown={(e) => handleKeydown(e)}
+                                            id="img-src-{img.id}"
                                         />
                                     </div>
                                     <label for="img-cap-{img.id}"
@@ -896,24 +624,6 @@
                     >
                 </div>
             </div>
-
-            <!-- Autocomplete Dropdown -->
-            {#if activeAutocompleteType && currentSuggestions.length > 0 && dropdownPos}
-                <div
-                    class="fixed-dropdown"
-                    style="top: {dropdownPos.top}px; left: {dropdownPos.left}px; width: {dropdownPos.width}px;"
-                >
-                    <ul class="suggestions-list">
-                        {#each currentSuggestions as s, i}
-                            <li class:selected={i === selectedIndex}>
-                                <button onmousedown={() => confirmSuggestion(s)}
-                                    >{s}</button
-                                >
-                            </li>
-                        {/each}
-                    </ul>
-                </div>
-            {/if}
         </div>
     {/if}
 </Modal>
@@ -1072,16 +782,17 @@
         color: var(--color-error);
     }
 
-    .tag-input-field {
-        background: transparent;
-        border: none;
-        color: var(--color-text-primary);
-        font-size: 0.9rem;
+    .smart-input-container {
         flex-grow: 1;
-        min-width: 80px;
+        min-width: 120px;
     }
-    .tag-input-field:focus {
-        outline: none;
+    /* Styles for the inner input of SmartInput when inside tag container */
+    :global(.tag-input-field-wrapper .input-element) {
+        border: none !important;
+        background: transparent !important;
+    }
+    :global(.tag-input-field-wrapper .input-element:focus) {
+        outline: none !important;
     }
 
     /* --- Custom Fields --- */
@@ -1269,39 +980,6 @@
         display: flex;
         gap: 0.5rem;
         margin-top: 1rem;
-    }
-
-    /* --- Autocomplete Dropdown (Fixed) --- */
-    .fixed-dropdown {
-        position: fixed;
-        background: var(--color-background-secondary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: 6px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-        max-height: 250px;
-        overflow-y: auto;
-        z-index: 9999;
-    }
-
-    .suggestions-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    .suggestions-list li button {
-        width: 100%;
-        text-align: left;
-        background: none;
-        border: none;
-        padding: 0.6rem 1rem;
-        color: var(--color-text-primary);
-        cursor: pointer;
-        font-size: 0.9rem;
-    }
-    .suggestions-list li.selected button,
-    .suggestions-list li button:hover {
-        background: var(--color-accent-primary);
-        color: white;
     }
 
     /* --- Footer --- */
