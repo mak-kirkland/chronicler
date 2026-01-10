@@ -2,11 +2,24 @@
 
 ---
 
+## [v0.41.1-alpha] - 2026-01-10
+
+### 🐞 Fixed
+
+- **Gallery**: Fixed a rendering issue in the Gallery panel where images would flash or disappear when hovered, particularly when using the **Fantasy** atmosphere pack. This update stabilizes the layout and prevents the hover animation from causing jitter in the sidebar footer.
+
+### 🔄 Changed
+
+- **Styling**: Updated the default themes to use higher contrast accent colors, improving overall legibility.
+- **UI**: Removed the backdrop blur effect from the View Header for a sharper, more consistent appearance.
+
+---
+
 ## [v0.41.0-alpha] - 2026-01-07
 
 ### ✨ Added
 
-- **Atmosphere**: Introduced the **Atmosphere System**, a comprehensive theming engine that expands upon simple icon packs. You can now mix and match individual UI modules—including textures, typography, button styles, and border designs—to create a truly custom look for your vault.
+- **Atmosphere**: Introduced the **Atmosphere System**, a comprehensive theming engine that expands upon simple icon packs. You can now mix and match individual UI modules - including textures, typography, button styles, and border designs - to create a truly custom look for your vault.
 - **Icons**: Implemented **World Packs**, allowing you to switch the application's entire icon set (e.g., **Fantasy** or **Sci-Fi**) to match your campaign's genre. The new dynamic icon renderer automatically validates your license entitlements and falls back to core icons if a specific pack is not owned.
 
 ### 🔄 Changed
