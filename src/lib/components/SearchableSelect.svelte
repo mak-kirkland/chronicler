@@ -6,11 +6,13 @@
         value = $bindable(),
         placeholder = "Search...",
         formatLabel = (s: string) => s,
+        onSelect = undefined,
     } = $props<{
         options: string[];
         value: string;
         placeholder?: string;
         formatLabel?: (s: string) => string;
+        onSelect?: (value: string) => void;
     }>();
 
     let isOpen = $state(false);
@@ -31,6 +33,7 @@
 
     function selectOption(option: string) {
         value = option;
+        if (onSelect) onSelect(option);
         closeDropdown();
     }
 

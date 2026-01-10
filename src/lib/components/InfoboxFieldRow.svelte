@@ -27,9 +27,11 @@
     // Simplified options: Just Text (default) or List.
     const typeOptions = ["text", "list"];
 
-    // Ensure value type consistency when switching modes
-    $effect(() => {
-        if (field.type === "list") {
+    /**
+     * Explicit handler for type changes
+     */
+    function handleTypeChange(newType: string) {
+        if (newType === "list") {
             if (!Array.isArray(field.value)) {
                 // Convert string to array (preserving content)
                 field.value = field.value ? [field.value] : [];
@@ -40,7 +42,7 @@
                 field.value = field.value.join(", ");
             }
         }
-    });
+    }
 
     function addListItem() {
         if (Array.isArray(field.value)) {
@@ -81,6 +83,7 @@
                 <SearchableSelect
                     options={typeOptions}
                     bind:value={field.type}
+                    onSelect={handleTypeChange}
                     placeholder="Type"
                     formatLabel={(s) => s.charAt(0).toUpperCase() + s.slice(1)}
                 />
