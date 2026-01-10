@@ -79,7 +79,7 @@
                   fieldSearchQuery,
                   activeAutocompleteType,
                   tags,
-                  $worldTags,
+                  $worldTags as [string, any][], // Cast to match expected structure
                   $allFileTitles,
                   $allImageFiles,
               )
@@ -108,7 +108,7 @@
 
     // Templates - Use shared utility to get available templates with labels
     let availableTemplates = $derived(
-        $files && $vaultPath ? getAvailableTemplates($files, $vaultPath) : [],
+        $files && $vaultPath ? getAvailableTemplates([$files], $vaultPath) : [],
     );
     let selectedTemplatePath = $state("");
 
@@ -459,8 +459,9 @@
                 {#if activeTab === "content"}
                     <div class="form-section">
                         <div class="form-group">
-                            <label>Title</label>
+                            <label for="field-title">Title</label>
                             <input
+                                id="field-title"
                                 type="text"
                                 bind:value={title}
                                 placeholder="Page Title"
@@ -468,8 +469,9 @@
                             />
                         </div>
                         <div class="form-group">
-                            <label>Subtitle</label>
+                            <label for="field-subtitle">Subtitle</label>
                             <input
+                                id="field-subtitle"
                                 type="text"
                                 bind:value={subtitle}
                                 placeholder="Subtitle / Flavor Text"
@@ -479,7 +481,7 @@
 
                         <!-- Tag Manager -->
                         <div class="form-group">
-                            <label>Tags</label>
+                            <label for="field-tags">Tags</label>
                             <div class="tag-input-container">
                                 <div class="tag-list">
                                     {#each tags as tag}
@@ -494,6 +496,7 @@
                                     {/each}
                                 </div>
                                 <input
+                                    id="field-tags"
                                     type="text"
                                     bind:value={newTagInput}
                                     placeholder="Add tag..."
@@ -548,10 +551,12 @@
                                                 class="key-input"
                                                 bind:value={field.key}
                                                 placeholder="Field Name"
+                                                aria-label="Field Name"
                                             />
                                             <select
                                                 class="type-select"
                                                 bind:value={field.type}
+                                                aria-label="Field Type"
                                             >
                                                 <option value="text"
                                                     >Text</option
@@ -572,6 +577,7 @@
                                             <button
                                                 class="delete-btn"
                                                 onclick={() => removeField(i)}
+                                                title="Remove Field"
                                                 ><Icon type="close" /></button
                                             >
                                         </div>
@@ -582,6 +588,7 @@
                                                     rows="2"
                                                     class="value-input"
                                                     placeholder="Value..."
+                                                    aria-label="Field Value"
                                                     oninput={(e) =>
                                                         handleInlineInput(
                                                             e,
@@ -601,6 +608,7 @@
                                                                 ",",
                                                             ))}
                                                     placeholder="Item 1, Item 2..."
+                                                    aria-label="Field Value"
                                                 />
                                             {:else}
                                                 <input
@@ -611,6 +619,7 @@
                                                     "wikilink"
                                                         ? "Page Name"
                                                         : "Value..."}
+                                                    aria-label="Field Value"
                                                     onfocus={(e) =>
                                                         field.type ===
                                                             "wikilink" &&
@@ -670,8 +679,11 @@
                                 </div>
                                 <div class="image-details">
                                     <div class="autocomplete-wrapper">
-                                        <label>Source</label>
+                                        <label for="img-src-{img.id}"
+                                            >Source</label
+                                        >
                                         <input
+                                            id="img-src-{img.id}"
                                             type="text"
                                             class="input-text"
                                             bind:value={img.src}
@@ -692,12 +704,13 @@
                                             onkeydown={(e) => handleKeydown(e)}
                                         />
                                     </div>
-                                    <label
+                                    <label for="img-cap-{img.id}"
                                         >Caption <span class="sub-label"
                                             >(Optional)</span
                                         ></label
                                     >
                                     <input
+                                        id="img-cap-{img.id}"
                                         type="text"
                                         class="input-text"
                                         bind:value={img.caption}
@@ -788,6 +801,7 @@
                                                     class="input-text"
                                                     bind:value={rule.text}
                                                     placeholder="Header Text"
+                                                    aria-label="Header Text"
                                                 />
                                             {/if}
                                             {#if rule.type === "columns"}
@@ -805,11 +819,13 @@
                                                                     s.trim(),
                                                                 ))}
                                                     placeholder="keys, separated, by, comma"
+                                                    aria-label="Column Keys"
                                                 />
                                             {:else}
                                                 <select
                                                     class="type-select"
                                                     bind:value={rule.above}
+                                                    aria-label="Place Rule Above Field"
                                                 >
                                                     <option value=""
                                                         >Place Above...</option
@@ -836,7 +852,13 @@
                                 Merge fields from an existing template.
                             </p>
                             <div class="split-row">
+                                <label
+                                    for="template-select"
+                                    class="visually-hidden"
+                                    >Select Template</label
+                                >
                                 <select
+                                    id="template-select"
                                     class="dropdown-select"
                                     bind:value={selectedTemplatePath}
                                 >
@@ -1313,5 +1335,17 @@
         background: var(--color-background-secondary);
         border-radius: 6px;
         border: 1px dashed var(--color-border-primary);
+    }
+    /* Helper for visually hiding labels that still need to be accessible */
+    .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
 </style>

@@ -14,6 +14,7 @@ import {
     resolveImageSource,
     fileStemString,
 } from "$lib/utils";
+import type { FileNode } from "./bindings";
 
 // --- Constants ---
 
@@ -132,7 +133,13 @@ export function buildInfoboxLayout(
 
     const itemsAbove = new Map<string, RenderItem[]>();
     const itemsBelow = new Map<string, RenderItem[]>();
-    const columnRules = new Map<string, InfoboxLayoutRule>();
+
+    // Explicitly type the map to store only rules that have 'keys'
+    const columnRules = new Map<
+        string,
+        { type: "columns" | "group"; keys: string[] }
+    >();
+
     const keysInColumns = new Set<string>();
     const aliasRules = new Map<string, string>();
 
@@ -238,9 +245,9 @@ export function buildInfoboxLayout(
             const rule = columnRules.get(key)!;
             // Gather values for all keys defined in the rule
             const groupValues = rule.keys
-                .map((k) => data[k])
+                .map((k: string) => data[k])
                 // Filter out undefined/null, but keep 0 or false
-                .filter((v) => v !== undefined && v !== null && v !== "");
+                .filter((v: any) => v !== undefined && v !== null && v !== "");
 
             // Only render if it has content
             if (groupValues.length > 0) {
@@ -541,15 +548,26 @@ export async function resolveAllImagePreviews(
 /**
  * Fetches available markdown templates from the configured template folder.
  * Returns an array of objects containing the full path and a display label.
+ * @param files The array of root FileNodes from the world store.
  */
 export function getAvailableTemplates(
-    files: any[], // Typed as any[] to decouple from specific FileNode type
+    files: any[], // We use any[] here to avoid circular type dependency issues if FileNode isn't perfectly aligned
     vaultPath: string,
 ): { path: string; label: string }[] {
     if (!files || !vaultPath) return [];
 
     const tPath = normalizePath(`${vaultPath}/${TEMPLATE_FOLDER_PATH}`);
-    const node = findNodeByPath(files, tPath);
+
+    // files is a list of root nodes. We need to find which one contains the template path.
+    let node: FileNode | undefined = undefined;
+
+    // Handle case where files might be a single node (unlikely but safe)
+    const fileArray = Array.isArray(files) ? files : [files];
+
+    for (const root of fileArray) {
+        node = findNodeByPath(root, tPath);
+        if (node) break;
+    }
 
     const templates =
         node?.children?.filter((c: any) => c.file_type === "Markdown") || [];
@@ -644,7 +662,7 @@ export function getAutocompleteContext(
  * @param query The search string.
  * @param type The type of suggestion needed.
  * @param existingTags The current file's tags (to exclude from suggestions).
- * @param allTags The global list of tags in the world.
+ * @param allTags The global list of tags in the world. (Array of [tag, metadata])
  * @param allFiles The global list of file titles/paths.
  * @param allImages The global list of image files.
  * @returns An array of string suggestions.
@@ -653,7 +671,7 @@ export function getAutocompleteSuggestions(
     query: string,
     type: "tag" | "link" | "image",
     existingTags: string[],
-    allTags: string[][],
+    allTags: [string, any][], // Corrected type: Array of entries where index 0 is tag name
     allFiles: string[],
     allImages: string[],
 ): string[] {
