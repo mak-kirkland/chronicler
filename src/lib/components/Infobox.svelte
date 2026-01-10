@@ -1,8 +1,8 @@
 <script lang="ts">
     import { navigateToTag, navigateToImage } from "$lib/actions";
-    import { capitalizeFirstLetter, buildInfoboxLayout } from "$lib/utils";
+    import { capitalizeFirstLetter } from "$lib/utils";
+    import { buildInfoboxLayout, type InfoboxFrontmatter } from "$lib/infobox";
     import ErrorBox from "./ErrorBox.svelte";
-    import type { InfoboxData } from "$lib/types";
     import { openModal, closeModal } from "$lib/modalStore";
     import { areInfoboxTagsVisible } from "$lib/settingsStore";
     import InfoboxSettingsModal from "./InfoboxSettingsModal.svelte";
@@ -14,7 +14,7 @@
 
     // --- Props ---
     let { data } = $props<{
-        data: InfoboxData | null;
+        data: InfoboxFrontmatter | null;
     }>();
 
     // --- Derived State ---
@@ -135,7 +135,6 @@
                     title="Edit Infobox"
                 >
                     <Icon type="edit" />
-                    <!-- Assuming 'edit' icon exists or will default -->
                 </button>
                 <button
                     class="infobox-controls-button"
@@ -188,8 +187,8 @@
                         <h4 class="layout-header">{@html renderItem.text}</h4>
                     {:else if renderItem.type === "separator"}
                         <hr class="layout-separator" />
-                    {:else if renderItem.type === "group"}
-                        <!-- Groups also span the full width to contain their own layout. -->
+                    {:else if renderItem.type === "columns"}
+                        <!-- Columns span the full width to contain their own layout. -->
                         <!--
                             We transpose the data here to use CSS Grid for row alignment.
                             Instead of rendering column-by-column, we render cell-by-cell in row-major order.

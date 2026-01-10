@@ -9,8 +9,7 @@
         enhanceGalleries,
     } from "$lib/domActions";
     import { navigateToTag } from "$lib/actions";
-    import { buildInfoboxLayout } from "$lib/utils";
-    import type { InfoboxData } from "$lib/types";
+    import { buildInfoboxLayout, type InfoboxFrontmatter } from "$lib/infobox";
 
     let {
         renderedData,
@@ -18,7 +17,7 @@
         mode = "unified",
     } = $props<{
         renderedData: RenderedPage | null;
-        infoboxData?: InfoboxData | null;
+        infoboxData?: InfoboxFrontmatter | null;
         mode?: "split" | "unified";
     }>();
 

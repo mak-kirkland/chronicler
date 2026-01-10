@@ -25,7 +25,7 @@
         getAvailableTemplates,
         type EditorField,
         type ImageEntry,
-        type LayoutRule,
+        type EditorLayoutRule,
     } from "$lib/infobox";
     import jsyaml from "js-yaml";
 
@@ -50,7 +50,7 @@
     // Custom Fields
     let customFields = $state<EditorField[]>([]);
     let images = $state<ImageEntry[]>([]);
-    let layoutRules = $state<LayoutRule[]>([]);
+    let layoutRules = $state<EditorLayoutRule[]>([]);
 
     // --- Image Preview Cache ---
     // Map of image ID -> resolved URL (for display)
@@ -185,7 +185,7 @@
     }
 
     // --- Actions: Layout ---
-    function addLayoutRule(type: "header" | "separator" | "group") {
+    function addLayoutRule(type: "header" | "separator" | "columns") {
         layoutRules.push(createLayoutRule(type));
     }
     function removeLayoutRule(index: number) {
@@ -746,8 +746,8 @@
                             >
                             <Button
                                 size="small"
-                                onclick={() => addLayoutRule("group")}
-                                >+ Group</Button
+                                onclick={() => addLayoutRule("columns")}
+                                >+ Columns</Button
                             >
                         </div>
                         <div class="fields-list">
@@ -790,7 +790,7 @@
                                                     placeholder="Header Text"
                                                 />
                                             {/if}
-                                            {#if rule.type === "group"}
+                                            {#if rule.type === "columns"}
                                                 <input
                                                     type="text"
                                                     class="input-text"

@@ -1,6 +1,8 @@
 /**
  * @file This file contains the core data structures and logic for parsing,
- * validating, manipulating, and saving Infobox data.
+ * validating, manipulating, rendering, and saving Infobox data.
+ *
+ * It serves as the single source of truth for the "Infobox" feature module.
  */
 
 import jsyaml from "js-yaml";
@@ -13,12 +15,72 @@ import {
     fileStemString,
 } from "$lib/utils";
 
-// --- Types ---
+// --- Constants ---
+
+/**
+ * A comprehensive list of keys that have special meaning in the Infobox architecture.
+ * These are excluded from being treated as generic "Custom Fields" in the editor
+ * or "Default Items" in the renderer.
+ */
+export const RESERVED_INFOBOX_KEYS = new Set([
+    "title",
+    "subtitle",
+    "tags",
+    "image",
+    "images",
+    "image_captions",
+    "image_paths",
+    "layout",
+    "infobox", // Often used for legacy/debug flags
+    "details", // Error details
+    "error", // Error messages
+]);
+
+// --- 1. Data Types (The Shape of Data on Disk) ---
+
+/**
+ * The raw data structure representing the YAML frontmatter of a page.
+ */
+export interface InfoboxFrontmatter {
+    layout?: InfoboxLayoutRule[];
+    [key: string]: any;
+}
+
+/**
+ * A layout rule as it appears in the YAML `layout` array.
+ */
+export type InfoboxLayoutRule =
+    | { type: "header"; text: string; above?: string; below?: string }
+    | {
+          type: "separator";
+          above?: string | string[];
+          below?: string | string[];
+      }
+    | { type: "columns"; keys: string[] } // Renamed from 'group'
+    | { type: "alias"; keys: string[]; text: string }
+    | { type: "group"; keys: string[] }; // Legacy support
+
+// --- 2. Render Types (The Shape of Data for the View) ---
+
+/**
+ * A union type representing the final, structured items to be rendered by the infobox component.
+ */
+export type RenderItem =
+    | { type: "header"; text: string }
+    | { type: "separator" }
+    | {
+          type: "columns"; // Renamed from 'group'
+          // This holds an array of the column's *values*
+          items: any[];
+      }
+    | { type: "default"; item: [string, any] }; // A single default key-value pair
+
+// --- 3. Editor Types (The Shape of Data in the UI) ---
 
 export type FieldType = "text" | "wikilink" | "spoiler" | "list" | "multiline";
 
 export interface EditorField {
-    id: string;
+    id: string; // Unique ID for UI lists (drag-drop)
     key: string;
     value: any;
     type: FieldType;
@@ -30,13 +92,13 @@ export interface ImageEntry {
     caption: string;
 }
 
-export interface LayoutRule {
+export interface EditorLayoutRule {
     id: string;
-    type: "header" | "separator" | "group";
+    type: "header" | "separator" | "columns"; // Strictly 'columns' in Editor
     text?: string; // For headers
     above?: string; // Target field key
     below?: string; // Target field key (alternative)
-    keys?: string[]; // For groups
+    keys?: string[]; // For columns
 }
 
 export interface InfoboxState {
@@ -45,8 +107,164 @@ export interface InfoboxState {
     tags: string[];
     images: ImageEntry[];
     customFields: EditorField[];
-    layoutRules: LayoutRule[];
+    layoutRules: EditorLayoutRule[];
 }
+
+// --- Logic: Rendering (YAML -> View List) ---
+
+/**
+ * Processes raw infobox data and applies layout rules to generate a structured
+ * list of items for rendering.
+ * @param data The raw InfoboxFrontmatter object.
+ * @returns A structured array of `RenderItem` objects.
+ */
+export function buildInfoboxLayout(
+    data: InfoboxFrontmatter | null,
+): RenderItem[] {
+    if (!data) return [];
+
+    const finalItems: RenderItem[] = [];
+    // Ensure layout is an array
+    const layout = Array.isArray(data.layout) ? data.layout : [];
+
+    // --- 1. First Pass: Parse Rules ---
+    // We build maps to know which items to inject/modify when iterating the data.
+
+    const itemsAbove = new Map<string, RenderItem[]>();
+    const itemsBelow = new Map<string, RenderItem[]>();
+    const columnRules = new Map<string, InfoboxLayoutRule>();
+    const keysInColumns = new Set<string>();
+    const aliasRules = new Map<string, string>();
+
+    // Helper to register items to be injected above/below a target key
+    const registerInjection = (
+        targetKey: string | string[],
+        item: RenderItem,
+        map: Map<string, RenderItem[]>,
+    ) => {
+        const targets = Array.isArray(targetKey) ? targetKey : [targetKey];
+        for (const target of targets) {
+            if (!map.has(target)) {
+                map.set(target, []);
+            }
+            map.get(target)!.push({ ...item }); // push a copy
+        }
+    };
+
+    for (const rule of layout) {
+        // A. Alias Rules
+        if (rule.type === "alias") {
+            if (Array.isArray(rule.keys) && typeof rule.text === "string") {
+                for (const key of rule.keys) {
+                    aliasRules.set(key, rule.text);
+                }
+            }
+            continue;
+        }
+
+        // B. Column/Group Rules
+        // "columns" allows multiple keys to be displayed in a single row/grid.
+        // We support "group" for legacy backward compatibility.
+        if (rule.type === "columns" || rule.type === "group") {
+            if (Array.isArray(rule.keys) && rule.keys.length > 0) {
+                // We register the rule against the FIRST key in the list.
+                // When the iterator hits this key, it will render the whole set.
+                columnRules.set(rule.keys[0], rule);
+
+                // We mark all SUBSEQUENT keys as being "inside" the layout.
+                // The iterator will skip these when it encounters them naturally.
+                for (let i = 1; i < rule.keys.length; i++) {
+                    keysInColumns.add(rule.keys[i]);
+                }
+            }
+            continue;
+        }
+
+        // C. Injection Rules (Headers & Separators)
+        if (rule.type === "header") {
+            if (rule.above) {
+                registerInjection(
+                    rule.above,
+                    { type: "header", text: rule.text },
+                    itemsAbove,
+                );
+            }
+            if (rule.below) {
+                registerInjection(
+                    rule.below,
+                    { type: "header", text: rule.text },
+                    itemsBelow,
+                );
+            }
+        } else if (rule.type === "separator") {
+            if (rule.above) {
+                registerInjection(
+                    rule.above,
+                    { type: "separator" },
+                    itemsAbove,
+                );
+            }
+            if (rule.below) {
+                registerInjection(
+                    rule.below,
+                    { type: "separator" },
+                    itemsBelow,
+                );
+            }
+        }
+    }
+
+    // --- 2. Second Pass: Iterate Data & Construct Layout ---
+
+    // We filter the entries first to ignore standard metadata
+    const allEntries = Object.entries(data).filter(
+        ([key]) => !RESERVED_INFOBOX_KEYS.has(key),
+    );
+
+    for (const [key, value] of allEntries) {
+        // If this key is part of a column layout but NOT the leader, skip it.
+        if (keysInColumns.has(key)) {
+            continue;
+        }
+
+        // A. Inject items positioned "Above" this key
+        if (itemsAbove.has(key)) {
+            finalItems.push(...itemsAbove.get(key)!);
+        }
+
+        // B. Render the item itself
+        if (columnRules.has(key)) {
+            // It's the leader of a column set.
+            const rule = columnRules.get(key)!;
+            // Gather values for all keys defined in the rule
+            const groupValues = rule.keys
+                .map((k) => data[k])
+                // Filter out undefined/null, but keep 0 or false
+                .filter((v) => v !== undefined && v !== null && v !== "");
+
+            // Only render if it has content
+            if (groupValues.length > 0) {
+                finalItems.push({ type: "columns", items: groupValues });
+            }
+        } else {
+            // It's a standard key-value pair.
+            // Check if there is an alias for this key.
+            const label = aliasRules.has(key) ? aliasRules.get(key)! : key;
+
+            // Render it as a default item.
+            finalItems.push({ type: "default", item: [label, value] });
+        }
+
+        // C. Inject items positioned "Below" this key
+        if (itemsBelow.has(key)) {
+            finalItems.push(...itemsBelow.get(key)!);
+        }
+    }
+
+    return finalItems;
+}
+
+// --- Logic: Parsing (YAML -> Editor State) ---
 
 /**
  * Parses raw YAML frontmatter data into a structured state object for the editor.
@@ -57,11 +275,18 @@ export function parseInfoboxData(data: any): InfoboxState {
     const subtitle = data.subtitle || "";
     const tags = Array.isArray(data.tags) ? [...data.tags] : [];
 
-    // Map layout rules, adding IDs for internal tracking
-    const layoutRules = (data.layout || []).map((rule: any) => ({
-        ...rule,
-        id: crypto.randomUUID(),
-    }));
+    // Map layout rules, adding IDs for internal tracking.
+    // We normalize 'group' to 'columns' here so the editor only deals with 'columns'.
+    const layoutRules = (data.layout || []).map((rule: any) => {
+        let type = rule.type;
+        if (type === "group") type = "columns";
+
+        return {
+            ...rule,
+            type,
+            id: crypto.randomUUID(),
+        };
+    });
 
     // Parse Images
     const images: ImageEntry[] = [];
@@ -86,18 +311,11 @@ export function parseInfoboxData(data: any): InfoboxState {
 
     // Parse Custom Fields
     const customFields: EditorField[] = [];
-    const ignoredKeys = new Set([
-        "title",
-        "subtitle",
-        "tags",
-        "image",
-        "layout",
-        "infobox",
-    ]);
 
     if (data) {
         Object.entries(data).forEach(([key, value]) => {
-            if (ignoredKeys.has(key)) return;
+            // Skip reserved keys
+            if (RESERVED_INFOBOX_KEYS.has(key)) return;
 
             let type: FieldType = "text";
             let val = value;
@@ -181,6 +399,8 @@ export function mergeTemplateState(
     };
 }
 
+// --- Logic: Persistence (Editor State -> YAML) ---
+
 /**
  * Constructs a plain JavaScript object suitable for YAML dumping from the editor state.
  * @param state The current editor state.
@@ -233,6 +453,7 @@ export function buildInfoboxYamlObject(state: InfoboxState): any {
     if (state.layoutRules.length > 0) {
         obj.layout = state.layoutRules.map(({ id, ...rest }) => {
             const rule: any = { type: rest.type };
+            // Editor uses 'columns', which maps directly to 'columns' in YAML now
             if (rest.text) rule.text = rest.text;
             if (rest.above) rule.above = rest.above;
             if (rest.below) rule.below = rest.below;
@@ -242,6 +463,25 @@ export function buildInfoboxYamlObject(state: InfoboxState): any {
     }
 
     return obj;
+}
+
+/**
+ * Saves the editor state to the physical file frontmatter.
+ * @param filePath The path of the file to update.
+ * @param state The current editor state.
+ */
+export async function saveInfoboxState(
+    filePath: string,
+    state: InfoboxState,
+): Promise<void> {
+    // 1. Convert state to YAML-ready object
+    const yamlObject = buildInfoboxYamlObject(state);
+
+    // 2. Dump to string
+    const yamlString = jsyaml.dump(yamlObject, { lineWidth: -1 });
+
+    // 3. Write to file
+    await updatePageFrontmatter(filePath, yamlString);
 }
 
 // --- Generic Array Helpers ---
@@ -303,7 +543,7 @@ export async function resolveAllImagePreviews(
  * Returns an array of objects containing the full path and a display label.
  */
 export function getAvailableTemplates(
-    files: any[], // Typed as any[] to decouple from specific FileNode type, but expects node structure
+    files: any[], // Typed as any[] to decouple from specific FileNode type
     vaultPath: string,
 ): { path: string; label: string }[] {
     if (!files || !vaultPath) return [];
@@ -340,14 +580,14 @@ export function createImage(): ImageEntry {
 }
 
 export function createLayoutRule(
-    type: "header" | "separator" | "group",
-): LayoutRule {
+    type: "header" | "separator" | "columns",
+): EditorLayoutRule {
     return {
         id: crypto.randomUUID(),
         type,
         text: type === "header" ? "Header" : undefined,
         above: "",
-        keys: type === "group" ? [] : undefined,
+        keys: type === "columns" ? [] : undefined,
     };
 }
 
@@ -441,25 +681,4 @@ export function getAutocompleteSuggestions(
     return source
         .filter((item) => item.toLowerCase().includes(lowerQuery))
         .slice(0, limit);
-}
-
-// --- Persistence Logic ---
-
-/**
- * Saves the editor state to the physical file frontmatter.
- * @param filePath The path of the file to update.
- * @param state The current editor state.
- */
-export async function saveInfoboxState(
-    filePath: string,
-    state: InfoboxState,
-): Promise<void> {
-    // 1. Convert state to YAML-ready object
-    const yamlObject = buildInfoboxYamlObject(state);
-
-    // 2. Dump to string
-    const yamlString = jsyaml.dump(yamlObject, { lineWidth: -1 });
-
-    // 3. Write to file
-    await updatePageFrontmatter(filePath, yamlString);
 }
