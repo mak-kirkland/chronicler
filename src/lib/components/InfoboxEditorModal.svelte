@@ -1,9 +1,9 @@
 <script lang="ts">
-    import { onMount, tick } from "svelte";
+    import { onMount } from "svelte";
     import Modal from "./Modal.svelte";
     import Button from "./Button.svelte";
     import Icon from "./Icon.svelte";
-    import { updatePageFrontmatter, buildPageView } from "$lib/commands";
+    import { buildPageView } from "$lib/commands";
     import {
         allFileTitles,
         allImageFiles,
@@ -12,15 +12,17 @@
         tags as worldTags,
     } from "$lib/worldStore";
     import {
-        normalizePath,
-        findNodeByPath,
-        resolveImageSource,
-    } from "$lib/utils";
-    import { TEMPLATE_FOLDER_PATH } from "$lib/config";
-    import {
         parseInfoboxData,
-        buildInfoboxYamlObject,
         getAutocompleteContext,
+        getAutocompleteSuggestions,
+        mergeTemplateState,
+        createField,
+        createImage,
+        createLayoutRule,
+        saveInfoboxState,
+        reorderArrayItem,
+        resolveAllImagePreviews,
+        getAvailableTemplates,
         type EditorField,
         type ImageEntry,
         type LayoutRule,
@@ -30,7 +32,7 @@
     let { onClose, filePath, onSaveSuccess } = $props<{
         onClose: () => void;
         filePath: string;
-        onSaveSuccess?: () => void;
+        onSaveSuccess?: () => Promise<void> | void;
     }>();
 
     // --- State ---
@@ -66,33 +68,25 @@
     } | null>(null);
     let selectedIndex = $state(0);
 
-    // Track where the inline trigger began (e.g. index of '[[')
+    // Track where the inline trigger began
     let autocompleteTriggerIndex = $state(-1);
     let autocompleteTriggerLength = $state(0);
 
     // Derived Suggestions
-    const currentSuggestions = $derived.by(() => {
-        if (!activeAutocompleteType || !fieldSearchQuery) return [];
+    const currentSuggestions = $derived(
+        activeAutocompleteType
+            ? getAutocompleteSuggestions(
+                  fieldSearchQuery,
+                  activeAutocompleteType,
+                  tags,
+                  $worldTags,
+                  $allFileTitles,
+                  $allImageFiles,
+              )
+            : [],
+    );
 
-        let source: string[] = [];
-        if (activeAutocompleteType === "tag") {
-            source = $worldTags
-                .map((t) => t[0])
-                .filter((t) => !tags.includes(t));
-        } else if (activeAutocompleteType === "link") {
-            source = $allFileTitles;
-        } else if (activeAutocompleteType === "image") {
-            source = $allImageFiles;
-        }
-
-        return source
-            .filter((t) =>
-                t.toLowerCase().includes(fieldSearchQuery.toLowerCase()),
-            )
-            .slice(0, 8);
-    });
-
-    // Reset index when suggestions change or list shrinks
+    // Reset selection when list changes
     $effect(() => {
         if (
             currentSuggestions.length > 0 &&
@@ -102,32 +96,20 @@
         }
     });
 
-    // Watch images array and resolve previews when src changes
+    // Watch images array and resolve previews using shared utility
     $effect(() => {
-        if (!$vaultPath) return;
+        if (!$vaultPath || images.length === 0) return;
 
-        images.forEach(async (img) => {
-            if (!img.src) return;
-
-            // If it's a web URL, use it directly
-            if (img.src.startsWith("http")) {
-                imagePreviews[img.id] = img.src;
-                return;
-            }
-
-            // Otherwise, try to resolve it from the vault
-            const url = await resolveImageSource(img.src, $vaultPath);
-            imagePreviews[img.id] = url;
+        // Use the centralized async resolver from infobox.ts
+        resolveAllImagePreviews(images, $vaultPath).then((previews) => {
+            imagePreviews = previews;
         });
     });
 
-    // Templates
-    let availableTemplates = $derived.by(() => {
-        if (!$vaultPath || !$files) return [];
-        const tPath = normalizePath(`${$vaultPath}/${TEMPLATE_FOLDER_PATH}`);
-        const node = findNodeByPath($files, tPath);
-        return node?.children?.filter((c) => c.file_type === "Markdown") || [];
-    });
+    // Templates - Use shared utility to get available templates with labels
+    let availableTemplates = $derived(
+        $files && $vaultPath ? getAvailableTemplates($files, $vaultPath) : [],
+    );
     let selectedTemplatePath = $state("");
 
     // --- Initialization ---
@@ -135,26 +117,23 @@
     onMount(async () => {
         try {
             const data = await buildPageView(filePath);
-            const rawContent = data.raw_content;
-            const match = rawContent.match(/^---\n([\s\S]*?)\n---/);
+            const match = data.raw_content.match(/^---\n([\s\S]*?)\n---/);
             if (match) {
                 const parsed = jsyaml.load(match[1]) as any;
-                initializeForm(parsed);
+                initializeForm(parseInfoboxData(parsed));
+            } else {
+                // Initialize empty
+                initializeForm(parseInfoboxData({}));
             }
         } catch (e) {
             console.error("Failed to load file data", e);
-            alert("Could not load file data.");
-            onClose();
+            // Don't crash, just show empty
         } finally {
             isLoading = false;
         }
     });
 
-    function initializeForm(data: any) {
-        // Use the pure parsing logic from our new utility
-        const state = parseInfoboxData(data);
-
-        // Hydrate local state
+    function initializeForm(state: any) {
         title = state.title;
         subtitle = state.subtitle;
         tags = state.tags;
@@ -163,13 +142,16 @@
         layoutRules = state.layoutRules;
     }
 
-    // --- Actions ---
-
-    // TAGS
+    // --- Actions: Tags ---
     function addTag(tagToAdd: string = newTagInput) {
         const cleaned = tagToAdd.trim();
+        // Check if valid and not already present
         if (cleaned && !tags.includes(cleaned)) {
             tags.push(cleaned);
+            newTagInput = "";
+            closeSuggestions();
+        } else if (tags.includes(cleaned)) {
+            // If already exists, just clear input
             newTagInput = "";
             closeSuggestions();
         }
@@ -179,68 +161,42 @@
         tags = tags.filter((t) => t !== tag);
     }
 
-    // FIELDS
+    // --- Actions: Fields & Images ---
     function addField() {
-        customFields.push({
-            id: crypto.randomUUID(),
-            key: "New Field",
-            value: "",
-            type: "text",
-        });
+        customFields.push(createField());
     }
-
     function removeField(index: number) {
         customFields.splice(index, 1);
     }
-
+    // Consolidated move logic
     function moveField(index: number, direction: -1 | 1) {
-        if (index + direction < 0 || index + direction >= customFields.length)
-            return;
-        const temp = customFields[index];
-        customFields[index] = customFields[index + direction];
-        customFields[index + direction] = temp;
+        customFields = reorderArrayItem(customFields, index, direction);
     }
 
-    // IMAGES
     function addImage() {
-        images.push({ id: crypto.randomUUID(), src: "", caption: "" });
+        images.push(createImage());
     }
-
     function removeImage(index: number) {
         images.splice(index, 1);
     }
-
+    // Consolidated move logic
     function moveImage(index: number, direction: -1 | 1) {
-        if (index + direction < 0 || index + direction >= images.length) return;
-        const temp = images[index];
-        images[index] = images[index + direction];
-        images[index + direction] = temp;
+        images = reorderArrayItem(images, index, direction);
     }
 
-    // LAYOUT RULES
+    // --- Actions: Layout ---
     function addLayoutRule(type: "header" | "separator" | "group") {
-        layoutRules.push({
-            id: crypto.randomUUID(),
-            type,
-            text: type === "header" ? "Header" : undefined,
-            above: "",
-            keys: type === "group" ? [] : undefined,
-        });
+        layoutRules.push(createLayoutRule(type));
     }
-
     function removeLayoutRule(index: number) {
         layoutRules.splice(index, 1);
     }
-
+    // Consolidated move logic
     function moveLayoutRule(index: number, direction: -1 | 1) {
-        if (index + direction < 0 || index + direction >= layoutRules.length)
-            return;
-        const temp = layoutRules[index];
-        layoutRules[index] = layoutRules[index + direction];
-        layoutRules[index + direction] = temp;
+        layoutRules = reorderArrayItem(layoutRules, index, direction);
     }
 
-    // TEMPLATES
+    // --- Actions: Template ---
     async function applyTemplate() {
         if (!selectedTemplatePath) return;
         if (
@@ -255,13 +211,16 @@
             const match = data.raw_content.match(/^---\n([\s\S]*?)\n---/);
             if (match) {
                 const templateData = jsyaml.load(match[1]) as any;
-                if (templateData.title === "{{title}}")
-                    delete templateData.title;
-
-                // Build current state object to merge against
-                const currentObj = constructYamlObject();
-                // Simple shallow merge
-                const merged = { ...currentObj, ...templateData };
+                // Construct current state to merge against
+                const currentState = {
+                    title,
+                    subtitle,
+                    tags,
+                    images,
+                    customFields,
+                    layoutRules,
+                };
+                const merged = mergeTemplateState(currentState, templateData);
                 initializeForm(merged);
                 activeTab = "content"; // Switch back to see changes
             }
@@ -318,8 +277,8 @@
             focusedFieldId = id;
             updateDropdownPosition(target);
             selectedIndex = 0;
-        } else {
-            if (activeAutocompleteType) closeSuggestions();
+        } else if (activeAutocompleteType) {
+            closeSuggestions();
         }
     }
 
@@ -332,38 +291,71 @@
         };
     }
 
-    function handleInputKeydown(e: KeyboardEvent) {
-        // Only handle nav keys if we have suggestions showing
-        if (!activeAutocompleteType || currentSuggestions.length === 0) return;
+    // Unified Key Handler
+    function handleKeydown(e: KeyboardEvent, isTagInput = false) {
+        // 1. Navigation within Suggestions
+        if (activeAutocompleteType && currentSuggestions.length > 0) {
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                selectedIndex = (selectedIndex + 1) % currentSuggestions.length;
+                return;
+            }
+            if (e.key === "ArrowUp") {
+                e.preventDefault();
+                selectedIndex =
+                    (selectedIndex - 1 + currentSuggestions.length) %
+                    currentSuggestions.length;
+                return;
+            }
+            if (e.key === "Tab") {
+                e.preventDefault();
+                confirmSuggestion(currentSuggestions[selectedIndex]);
+                return;
+            }
+        }
 
-        if (e.key === "ArrowDown") {
+        // 2. Selection / Creation logic on Enter
+        if (e.key === "Enter") {
+            // We only want to intercept Enter if:
+            // a) We are in a tag input (always triggers addTag)
+            // b) We are in an active autocomplete session for a field/image
+
+            if (!activeAutocompleteType && !isTagInput) return;
+
+            // Prevent form submission if any
             e.preventDefault();
-            selectedIndex = (selectedIndex + 1) % currentSuggestions.length;
-        } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            selectedIndex =
-                (selectedIndex - 1 + currentSuggestions.length) %
-                currentSuggestions.length;
-        } else if (e.key === "Enter") {
-            e.preventDefault();
-            confirmSuggestion(currentSuggestions[selectedIndex]);
-        } else if (e.key === "Escape") {
+
+            // Case A: Shift+Enter -> Force Create (Early exit)
+            // Case B: No suggestions -> Create (allow typing new tags)
+            if (e.shiftKey || currentSuggestions.length === 0) {
+                if (isTagInput) {
+                    addTag(newTagInput); // Adds content of newTagInput
+                } else if (focusedFieldId) {
+                    // Force the current input as the value
+                    confirmSuggestion(fieldSearchQuery);
+                }
+                closeSuggestions();
+                return;
+            }
+
+            // Case C: Suggestions exist -> Use Selection
+            if (currentSuggestions.length > 0) {
+                confirmSuggestion(currentSuggestions[selectedIndex]);
+                return;
+            }
+        }
+
+        if (e.key === "Escape") {
             closeSuggestions();
-        } else if (e.key === "Tab") {
-            e.preventDefault();
-            confirmSuggestion(currentSuggestions[selectedIndex]);
         }
     }
 
     function confirmSuggestion(val: string) {
-        // Tag handling (independent)
         if (activeAutocompleteType === "tag") {
             addTag(val);
-            closeSuggestions();
             return;
         }
 
-        // Image Tab inputs (Full Replace)
         const img = images.find((i) => i.id === focusedFieldId);
         if (img) {
             img.src = val;
@@ -383,7 +375,6 @@
                     (activeAutocompleteType === "image" ? "![[" : "[[") +
                     val +
                     "]]";
-
                 const currentVal = field.value;
                 const prefix = currentVal.slice(0, autocompleteTriggerIndex);
                 const cutEnd =
@@ -391,7 +382,6 @@
                     autocompleteTriggerLength +
                     fieldSearchQuery.length;
                 const suffix = currentVal.slice(cutEnd);
-
                 field.value = prefix + tag + suffix;
             }
         }
@@ -406,37 +396,30 @@
         autocompleteTriggerIndex = -1;
     }
 
-    function handleScroll() {
-        if (activeAutocompleteType) closeSuggestions();
-    }
-
     // --- Save Logic ---
-
-    function constructYamlObject() {
-        return buildInfoboxYamlObject({
-            title,
-            subtitle,
-            tags,
-            images,
-            customFields,
-            layoutRules,
-        });
-    }
-
     async function handleSave(shouldClose: boolean) {
         isSaving = true;
-        const obj = constructYamlObject();
-        const yamlString = jsyaml.dump(obj, { lineWidth: -1 });
 
         try {
-            await updatePageFrontmatter(filePath, yamlString);
+            // Construct state object
+            const currentState = {
+                title,
+                subtitle,
+                tags,
+                images,
+                customFields,
+                layoutRules,
+            };
 
-            // Critical: Always call success to trigger world reload
+            // Use the centralized save function
+            await saveInfoboxState(filePath, currentState);
+
+            // Run success callback (delegated to parent, preserving existing logic)
+            // Editor.svelte: refreshes file content
+            // Infobox.svelte: refreshes preview
             if (onSaveSuccess) await onSaveSuccess();
 
-            if (shouldClose) {
-                onClose();
-            }
+            if (shouldClose) onClose();
         } catch (e) {
             console.error(e);
             alert(`Failed to save: ${e}`);
@@ -456,34 +439,22 @@
         <div class="editor-container">
             <!-- Tabs -->
             <div class="tabs-header">
-                <button
-                    class:active={activeTab === "content"}
-                    onclick={() => (activeTab = "content")}
-                >
-                    <Icon type="file" /> Content
-                </button>
-                <button
-                    class:active={activeTab === "images"}
-                    onclick={() => (activeTab = "images")}
-                >
-                    <Icon type="image" /> Images
-                </button>
-                <button
-                    class:active={activeTab === "structure"}
-                    onclick={() => (activeTab = "structure")}
-                >
-                    <Icon type="split" /> Structure
-                </button>
-                <button
-                    class:active={activeTab === "templates"}
-                    onclick={() => (activeTab = "templates")}
-                >
-                    <Icon type="settings" /> Templates
-                </button>
+                {#each [{ id: "content", icon: "file", label: "Content" }, { id: "images", icon: "image", label: "Images" }, { id: "structure", icon: "split", label: "Structure" }, { id: "templates", icon: "settings", label: "Templates" }] as tab}
+                    <button
+                        class:active={activeTab === tab.id}
+                        onclick={() => (activeTab = tab.id as any)}
+                    >
+                        <Icon type={tab.icon as any} />
+                        {tab.label}
+                    </button>
+                {/each}
             </div>
 
-            <!-- Tab Content (Scrollable) -->
-            <div class="tab-content custom-scrollbar" onscroll={handleScroll}>
+            <!-- Tab Content -->
+            <div
+                class="tab-content custom-scrollbar"
+                onscroll={() => activeAutocompleteType && closeSuggestions()}
+            >
                 <!-- === CONTENT TAB === -->
                 {#if activeTab === "content"}
                     <div class="form-section">
@@ -512,14 +483,14 @@
                             <div class="tag-input-container">
                                 <div class="tag-list">
                                     {#each tags as tag}
-                                        <span class="tag-pill">
-                                            #{tag}
+                                        <span class="tag-pill"
+                                            >#{tag}
                                             <button
                                                 class="tag-remove"
                                                 onclick={() => removeTag(tag)}
                                                 >×</button
-                                            >
-                                        </span>
+                                            ></span
+                                        >
                                     {/each}
                                 </div>
                                 <input
@@ -535,19 +506,12 @@
                                             newTagInput,
                                         )}
                                     oninput={(e) => handleInputInput(e, "tag")}
-                                    onkeydown={(e) => {
-                                        if (
-                                            e.key === "Enter" &&
-                                            !activeAutocompleteType
-                                        ) {
-                                            e.preventDefault();
-                                            addTag();
-                                        } else {
-                                            handleInputKeydown(e);
-                                        }
-                                    }}
+                                    onkeydown={(e) => handleKeydown(e, true)}
                                 />
                             </div>
+                            <small class="helper-text"
+                                >Enter to select, Shift+Enter to create new.</small
+                            >
                         </div>
 
                         <div class="separator-line"></div>
@@ -577,14 +541,13 @@
                                             >▼</button
                                         >
                                     </div>
-
                                     <div class="field-main">
                                         <div class="field-row-top">
                                             <input
                                                 type="text"
                                                 class="key-input"
                                                 bind:value={field.key}
-                                                placeholder="Field Name (e.g. Age)"
+                                                placeholder="Field Name"
                                             />
                                             <select
                                                 class="type-select"
@@ -609,12 +572,9 @@
                                             <button
                                                 class="delete-btn"
                                                 onclick={() => removeField(i)}
-                                                title="Remove field"
+                                                ><Icon type="close" /></button
                                             >
-                                                <Icon type="close" />
-                                            </button>
                                         </div>
-
                                         <div class="field-value-row">
                                             {#if field.type === "multiline"}
                                                 <textarea
@@ -627,12 +587,8 @@
                                                             e,
                                                             field.id,
                                                         )}
-                                                    onkeydown={handleInputKeydown}
-                                                    onblur={() =>
-                                                        setTimeout(
-                                                            closeSuggestions,
-                                                            200,
-                                                        )}
+                                                    onkeydown={(e) =>
+                                                        handleKeydown(e)}
                                                 ></textarea>
                                             {:else if field.type === "list"}
                                                 <input
@@ -664,30 +620,20 @@
                                                             field.id,
                                                             field.value,
                                                         )}
-                                                    oninput={(e) => {
-                                                        if (
-                                                            field.type ===
-                                                            "wikilink"
-                                                        ) {
-                                                            handleInputInput(
-                                                                e,
-                                                                "link",
-                                                                field.id,
-                                                            );
-                                                        } else {
-                                                            // Standard text: check for inline triggers [[
-                                                            handleInlineInput(
-                                                                e,
-                                                                field.id,
-                                                            );
-                                                        }
-                                                    }}
-                                                    onkeydown={handleInputKeydown}
-                                                    onblur={() =>
-                                                        setTimeout(
-                                                            closeSuggestions,
-                                                            200,
-                                                        )}
+                                                    oninput={(e) =>
+                                                        field.type ===
+                                                        "wikilink"
+                                                            ? handleInputInput(
+                                                                  e,
+                                                                  "link",
+                                                                  field.id,
+                                                              )
+                                                            : handleInlineInput(
+                                                                  e,
+                                                                  field.id,
+                                                              )}
+                                                    onkeydown={(e) =>
+                                                        handleKeydown(e)}
                                                 />
                                             {/if}
                                         </div>
@@ -706,10 +652,8 @@
                 {:else if activeTab === "images"}
                     <div class="form-section">
                         <p class="helper-text">
-                            Add multiple images to create a carousel in the
-                            infobox.
+                            Add multiple images to create a carousel.
                         </p>
-
                         {#each images as img, i (img.id)}
                             <div class="image-card">
                                 <div class="image-preview-box">
@@ -718,21 +662,15 @@
                                             src={imagePreviews[img.id]}
                                             alt="preview"
                                         />
-                                    {:else if img.src}
-                                        <div class="file-icon">
-                                            <!-- Fallback icon while loading or if not found -->
-                                            <Icon type="image" />
-                                        </div>
                                     {:else}
                                         <div class="empty-icon">
                                             <Icon type="image" />
                                         </div>
                                     {/if}
                                 </div>
-
                                 <div class="image-details">
                                     <div class="autocomplete-wrapper">
-                                        <label>Source Filename or URL</label>
+                                        <label>Source</label>
                                         <input
                                             type="text"
                                             class="input-text"
@@ -751,15 +689,9 @@
                                                     "image",
                                                     img.id,
                                                 )}
-                                            onkeydown={handleInputKeydown}
-                                            onblur={() =>
-                                                setTimeout(
-                                                    closeSuggestions,
-                                                    200,
-                                                )}
+                                            onkeydown={(e) => handleKeydown(e)}
                                         />
                                     </div>
-
                                     <label
                                         >Caption <span class="sub-label"
                                             >(Optional)</span
@@ -769,10 +701,9 @@
                                         type="text"
                                         class="input-text"
                                         bind:value={img.caption}
-                                        placeholder="e.g. 'Map of the City'"
+                                        placeholder="Caption..."
                                     />
                                 </div>
-
                                 <div class="image-actions">
                                     <button
                                         class="move-btn"
@@ -793,7 +724,6 @@
                                 </div>
                             </div>
                         {/each}
-
                         <Button onclick={addImage}>+ Add Image</Button>
                     </div>
 
@@ -801,10 +731,8 @@
                 {:else if activeTab === "structure"}
                     <div class="form-section">
                         <p class="helper-text">
-                            Define visual structure rules. These inject headers
-                            and separators relative to your fields.
+                            Define visual structure rules.
                         </p>
-
                         <div class="structure-toolbar">
                             <Button
                                 size="small"
@@ -822,7 +750,6 @@
                                 >+ Group</Button
                             >
                         </div>
-
                         <div class="fields-list">
                             {#each layoutRules as rule, i (rule.id)}
                                 <div class="field-card rule-card">
@@ -854,7 +781,6 @@
                                                 ><Icon type="close" /></button
                                             >
                                         </div>
-
                                         <div class="rule-body">
                                             {#if rule.type === "header"}
                                                 <input
@@ -864,43 +790,36 @@
                                                     placeholder="Header Text"
                                                 />
                                             {/if}
-
-                                            <div class="rule-row">
-                                                {#if rule.type === "group"}
-                                                    <label>Group Keys:</label>
-                                                    <input
-                                                        type="text"
-                                                        class="input-text"
-                                                        value={rule.keys?.join(
-                                                            ", ",
-                                                        )}
-                                                        oninput={(e) =>
-                                                            (rule.keys =
-                                                                e.currentTarget.value
-                                                                    .split(",")
-                                                                    .map((s) =>
-                                                                        s.trim(),
-                                                                    ))}
-                                                        placeholder="field1, field2"
-                                                    />
-                                                {:else}
-                                                    <label>Place Above:</label>
-                                                    <select
-                                                        class="type-select"
-                                                        bind:value={rule.above}
+                                            {#if rule.type === "group"}
+                                                <input
+                                                    type="text"
+                                                    class="input-text"
+                                                    value={rule.keys?.join(
+                                                        ", ",
+                                                    )}
+                                                    oninput={(e) =>
+                                                        (rule.keys =
+                                                            e.currentTarget.value
+                                                                .split(",")
+                                                                .map((s) =>
+                                                                    s.trim(),
+                                                                ))}
+                                                    placeholder="keys, separated, by, comma"
+                                                />
+                                            {:else}
+                                                <select
+                                                    class="type-select"
+                                                    bind:value={rule.above}
+                                                >
+                                                    <option value=""
+                                                        >Place Above...</option
                                                     >
-                                                        <option value=""
-                                                            >Select Field...</option
-                                                        >
-                                                        {#each customFields as f}
-                                                            <option
-                                                                value={f.key}
-                                                                >{f.key}</option
-                                                            >
-                                                        {/each}
-                                                    </select>
-                                                {/if}
-                                            </div>
+                                                    {#each customFields as f}<option
+                                                            value={f.key}
+                                                            >{f.key}</option
+                                                        >{/each}
+                                                </select>
+                                            {/if}
                                         </div>
                                     </div>
                                 </div>
@@ -914,8 +833,7 @@
                         <div class="template-selector-box">
                             <h4>Inherit Template</h4>
                             <p class="helper-text">
-                                Merge fields from an existing template into this
-                                page.
+                                Merge fields from an existing template.
                             </p>
                             <div class="split-row">
                                 <select
@@ -926,7 +844,7 @@
                                         >Select a template...</option
                                     >
                                     {#each availableTemplates as t}
-                                        <option value={t.path}>{t.title}</option
+                                        <option value={t.path}>{t.label}</option
                                         >
                                     {/each}
                                 </select>
@@ -957,7 +875,7 @@
                 </div>
             </div>
 
-            <!-- FIXED AUTOCOMPLETE DROPDOWN -->
+            <!-- Autocomplete Dropdown -->
             {#if activeAutocompleteType && currentSuggestions.length > 0 && dropdownPos}
                 <div
                     class="fixed-dropdown"
