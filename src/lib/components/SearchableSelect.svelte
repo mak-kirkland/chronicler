@@ -60,175 +60,163 @@
         dropdownStyle = `top: ${top}px; left: ${left}px; width: ${width}px;`;
 
         isOpen = true;
-        searchQuery = "";
-        highlightedIndex = 0;
-    }
-
-    function scrollIntoView(index: number) {
-        if (!listContainer) return;
-        const item = listContainer.children[index] as HTMLElement;
-        if (item) {
-            item.scrollIntoView({ block: "nearest" });
-        }
     }
 
     function handleKeydown(e: KeyboardEvent) {
-        // If closed, only listen for open triggers
         if (!isOpen) {
-            if (["Enter", " ", "ArrowDown", "ArrowUp"].includes(e.key)) {
+            if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
                 e.preventDefault();
                 openDropdown();
             }
             return;
         }
 
-        // Navigation logic when open
-        switch (e.key) {
-            case "ArrowDown":
-                e.preventDefault();
-                if (filteredOptions.length > 0) {
-                    highlightedIndex =
-                        (highlightedIndex + 1) % filteredOptions.length;
-                    scrollIntoView(highlightedIndex);
-                }
-                break;
-            case "ArrowUp":
-                e.preventDefault();
-                if (filteredOptions.length > 0) {
-                    highlightedIndex =
-                        (highlightedIndex - 1 + filteredOptions.length) %
-                        filteredOptions.length;
-                    scrollIntoView(highlightedIndex);
-                }
-                break;
-            case "Enter":
-                e.preventDefault();
-                if (filteredOptions.length > 0) {
-                    selectOption(filteredOptions[highlightedIndex]);
-                }
-                break;
-            case "Escape":
-                e.preventDefault();
-                closeDropdown();
-                break;
+        if (e.key === "Escape") {
+            closeDropdown();
+            triggerElement?.focus();
+            return;
+        }
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            highlightedIndex = (highlightedIndex + 1) % filteredOptions.length;
+            scrollToHighlighted();
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            highlightedIndex =
+                (highlightedIndex - 1 + filteredOptions.length) %
+                filteredOptions.length;
+            scrollToHighlighted();
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (filteredOptions[highlightedIndex]) {
+                selectOption(filteredOptions[highlightedIndex]);
+            }
+        }
+    }
+
+    function scrollToHighlighted() {
+        if (!listContainer) return;
+        const item = listContainer.children[highlightedIndex] as HTMLElement;
+        if (item) {
+            item.scrollIntoView({ block: "nearest" });
+        }
+    }
+
+    function handleWindowClick(e: MouseEvent) {
+        if (
+            isOpen &&
+            triggerElement &&
+            !triggerElement.contains(e.target as Node) &&
+            // Check if click is inside the dropdown portal (we can't easily check ref since it's in a portal,
+            // but we can check the class)
+            !(e.target as HTMLElement).closest(".searchable-select-dropdown")
+        ) {
+            closeDropdown();
         }
     }
 </script>
 
-<!-- Close on window resize/scroll to keep fixed position aligned -->
-<svelte:window on:resize={closeDropdown} on:scroll={closeDropdown} />
+<svelte:window onclick={handleWindowClick} onresize={closeDropdown} />
 
-<div class="custom-select">
-    <!-- Trigger Button -->
+<div class="searchable-select-wrapper">
     <button
-        type="button"
-        class="select-trigger"
         bind:this={triggerElement}
+        class="trigger-btn"
         onclick={toggleOpen}
         onkeydown={handleKeydown}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
+        type="button"
     >
-        <span class="truncate">{formatLabel(value)}</span>
+        <span class="label-text {value ? '' : 'placeholder'}">
+            {value ? formatLabel(value) : placeholder}
+        </span>
         <span class="arrow">▼</span>
     </button>
 
     {#if isOpen}
-        <!--
-            Use fixed positioning with calculated coordinates to render
-            on top of everything, avoiding modal scrollbars.
-        -->
-        <div class="dropdown-menu" style={dropdownStyle}>
+        <!-- Portal-like behavior: Fixed position to break out of overflow:hidden parents -->
+        <div class="searchable-select-dropdown" style={dropdownStyle}>
             <input
                 type="text"
                 class="dropdown-search"
-                {placeholder}
                 bind:value={searchQuery}
+                placeholder="Filter..."
                 use:autofocus
                 onclick={(e) => e.stopPropagation()}
                 onkeydown={handleKeydown}
             />
-
-            <ul class="options-list" role="listbox" bind:this={listContainer}>
-                {#each filteredOptions as option, i (option)}
-                    <li role="option" aria-selected={i === highlightedIndex}>
+            <ul class="options-list" bind:this={listContainer}>
+                {#each filteredOptions as opt, i}
+                    <li>
                         <button
-                            type="button"
                             class="option-btn"
                             class:highlighted={i === highlightedIndex}
-                            class:selected={option === value}
-                            onclick={() => selectOption(option)}
+                            class:selected={opt === value}
+                            onclick={() => selectOption(opt)}
                             onmouseenter={() => (highlightedIndex = i)}
                         >
-                            {formatLabel(option)}
+                            {formatLabel(opt)}
                         </button>
                     </li>
                 {/each}
                 {#if filteredOptions.length === 0}
-                    <li class="no-results">No matches found</li>
+                    <li class="no-results">No results found</li>
                 {/if}
             </ul>
         </div>
-
-        <!-- Backdrop to close when clicking outside -->
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-            class="backdrop"
-            role="button"
-            tabindex="-1"
-            onclick={closeDropdown}
-            onkeydown={closeDropdown}
-        ></div>
     {/if}
 </div>
 
 <style>
-    .custom-select {
+    .searchable-select-wrapper {
         position: relative;
         width: 100%;
     }
 
-    .select-trigger {
+    .trigger-btn {
         width: 100%;
-        padding: 0.5rem 0.75rem;
-        border-radius: 6px;
-        border: 1px solid var(--color-border-primary);
-        background-color: var(--color-background-primary);
-        color: var(--color-text-primary);
-        font-size: 1rem;
-        text-align: left;
-        cursor: pointer;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        background: var(--color-background-secondary);
+        border: 1px solid var(--color-border-primary);
+        color: var(--color-text-primary);
+        padding: 0.6rem;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        text-align: left;
+    }
+    .trigger-btn:focus {
+        outline: 2px solid var(--color-accent-primary);
+        outline-offset: -1px;
     }
 
-    .select-trigger:focus {
-        outline: 1px solid var(--color-accent-primary);
-        border-color: var(--color-accent-primary);
-    }
-
-    .truncate {
+    .label-text {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        flex-grow: 1;
+    }
+    .label-text.placeholder {
+        color: var(--color-text-secondary);
+        font-style: italic;
     }
 
     .arrow {
-        font-size: 0.8em;
-        opacity: 0.7;
+        font-size: 0.7rem;
         margin-left: 0.5rem;
+        opacity: 0.7;
     }
 
-    .dropdown-menu {
-        position: fixed; /* Changed from absolute to fixed */
-        /* top, left, and width are set via inline styles */
-        background-color: var(--color-background-primary);
+    /* Dropdown - Fixed Position */
+    .searchable-select-dropdown {
+        position: fixed; /* Fixed to viewport to escape modals */
+        z-index: 9999;
+        background: var(--color-background-secondary);
         border: 1px solid var(--color-border-primary);
         border-radius: 6px;
-        box-shadow: 0 4px 12px var(--color-overlay-subtle);
-        z-index: 1000; /* Higher z-index to sit above modals */
-        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
         max-height: 250px;
         display: flex;
         flex-direction: column;
@@ -280,19 +268,9 @@
     }
 
     .no-results {
-        padding: 0.75rem;
+        padding: 1rem;
         color: var(--color-text-secondary);
-        font-style: italic;
         text-align: center;
-    }
-
-    .backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 900;
-        cursor: default;
+        font-size: 0.9rem;
     }
 </style>

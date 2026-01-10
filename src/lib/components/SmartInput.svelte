@@ -1,32 +1,38 @@
 <script lang="ts">
-    import {
-        getAutocompleteSuggestions,
-        getAutocompleteContext,
-    } from "$lib/infobox";
-    import {
-        allFileTitles,
-        allImageFiles,
-        tags as worldTags,
-    } from "$lib/worldStore";
+    // Defined locally to decouple from specific business logic types
+    export interface SmartInputContext {
+        type: "link" | "image" | "tag" | string;
+        query: string;
+        triggerLength: number;
+        triggerIndex: number;
+    }
 
     let {
         value = $bindable(),
         type = "text",
         placeholder = "",
-        existingTags = [],
         onEnter = undefined, // Callback for Enter key (e.g., adding a tag)
         multiline = false,
         id = "",
         className = "",
+        // Props for Logic Injection
+        onSearch,
+        getContext,
     } = $props<{
         value: string;
         type?: "text" | "link" | "image" | "tag" | "multiline";
         placeholder?: string;
-        existingTags?: string[];
         onEnter?: (val: string) => void;
         multiline?: boolean;
         id?: string;
         className?: string;
+        // Function to fetch suggestions based on query + type
+        onSearch: (
+            query: string,
+            type: "tag" | "link" | "image" | any,
+        ) => string[];
+        // Function to check if we are in a trigger state (e.g. "[[")
+        getContext?: (text: string) => SmartInputContext | null;
     }>();
 
     // --- State ---
@@ -38,7 +44,9 @@
         width: number;
     } | null>(null);
     let selectedIndex = $state(0);
-    let activeAutocompleteType = $state<"tag" | "link" | "image" | null>(null);
+    let activeAutocompleteType = $state<
+        "tag" | "link" | "image" | string | null
+    >(null);
     let searchQuery = $state("");
 
     // For inline autocomplete (text/multiline)
@@ -48,14 +56,7 @@
     // --- Derived Suggestions ---
     const currentSuggestions = $derived(
         activeAutocompleteType
-            ? getAutocompleteSuggestions(
-                  searchQuery,
-                  activeAutocompleteType,
-                  existingTags,
-                  $worldTags as [string, any][],
-                  $allFileTitles,
-                  $allImageFiles,
-              )
+            ? onSearch(searchQuery, activeAutocompleteType)
             : [],
     );
 
@@ -86,11 +87,11 @@
         }
 
         // 2. Inline Mode (Text, Multiline)
-        // These triggers autocomplete only on [[ or ![[
-        if (type === "text" || type === "multiline") {
+        // These trigger autocomplete only if the parent provided a context detector
+        if ((type === "text" || type === "multiline") && getContext) {
             const cursor = target.selectionStart || 0;
             const textBefore = val.slice(0, cursor);
-            const context = getAutocompleteContext(textBefore);
+            const context = getContext(textBefore);
 
             if (context) {
                 activeAutocompleteType = context.type;

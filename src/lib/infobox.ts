@@ -78,7 +78,7 @@ export type RenderItem =
 
 // --- 3. Editor Types (The Shape of Data in the UI) ---
 
-export type FieldType = "text" | "wikilink" | "spoiler" | "list" | "multiline";
+export type FieldType = "text" | "link" | "spoiler" | "list" | "multiline";
 
 export interface EditorField {
     id: string; // Unique ID for UI lists (drag-drop)
@@ -336,7 +336,7 @@ export function parseInfoboxData(data: any): InfoboxState {
                 } else if (value.includes("\n")) {
                     type = "multiline";
                 } else if (value.startsWith("[[") && value.endsWith("]]")) {
-                    type = "wikilink";
+                    type = "link";
                     // Strip brackets for cleaner editing
                     val = value.slice(2, -2);
                 }
@@ -443,7 +443,7 @@ export function buildInfoboxYamlObject(state: InfoboxState): any {
         let val = f.value;
         if (f.type === "spoiler") {
             val = `||${f.value}||`;
-        } else if (f.type === "wikilink") {
+        } else if (f.type === "link") {
             // Re-add brackets
             if (val && !val.startsWith("[[")) {
                 val = `[[${val}]]`;

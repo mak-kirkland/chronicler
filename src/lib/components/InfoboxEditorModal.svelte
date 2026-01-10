@@ -4,7 +4,15 @@
     import Button from "./Button.svelte";
     import Icon from "./Icon.svelte";
     import SmartInput from "./SmartInput.svelte";
-    import { files, vaultPath } from "$lib/worldStore";
+    import InfoboxFieldRow from "./InfoboxFieldRow.svelte";
+    import SearchableSelect from "./SearchableSelect.svelte";
+    import {
+        files,
+        vaultPath,
+        allFileTitles,
+        allImageFiles,
+        tags as worldTags,
+    } from "$lib/worldStore";
     import {
         parseInfoboxData,
         mergeTemplateState,
@@ -15,7 +23,8 @@
         reorderArrayItem,
         resolveAllImagePreviews,
         getAvailableTemplates,
-        buildInfoboxYamlObject,
+        getAutocompleteSuggestions,
+        getAutocompleteContext,
         type EditorField,
         type ImageEntry,
         type EditorLayoutRule,
@@ -115,9 +124,16 @@
     function removeField(index: number) {
         customFields.splice(index, 1);
     }
-    // Consolidated move logic
-    function moveField(index: number, direction: -1 | 1) {
-        customFields = reorderArrayItem(customFields, index, direction);
+
+    // Generic Move Handler (Replaces specific move functions)
+    function handleMove<T>(list: T[], index: number, direction: number) {
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= list.length) return;
+
+        // Swap elements in place (Svelte 5 proxy friendly)
+        const temp = list[index];
+        list[index] = list[targetIndex];
+        list[targetIndex] = temp;
     }
 
     function addImage() {
@@ -125,10 +141,6 @@
     }
     function removeImage(index: number) {
         images.splice(index, 1);
-    }
-    // Consolidated move logic
-    function moveImage(index: number, direction: -1 | 1) {
-        images = reorderArrayItem(images, index, direction);
     }
 
     // --- Actions: Layout ---
@@ -138,9 +150,17 @@
     function removeLayoutRule(index: number) {
         layoutRules.splice(index, 1);
     }
-    // Consolidated move logic
-    function moveLayoutRule(index: number, direction: -1 | 1) {
-        layoutRules = reorderArrayItem(layoutRules, index, direction);
+
+    // --- Data Provider for SmartInputs ---
+    function handleAutocomplete(query: string, type: "tag" | "link" | "image") {
+        return getAutocompleteSuggestions(
+            query,
+            type,
+            tags, // current tags to exclude
+            $worldTags as [string, any][],
+            $allFileTitles,
+            $allImageFiles,
+        );
     }
 
     // --- Actions: Template ---
@@ -284,6 +304,7 @@
                                         onEnter={addTag}
                                         value=""
                                         className="tag-input-field-wrapper"
+                                        onSearch={handleAutocomplete}
                                     />
                                 </div>
                             </div>
@@ -304,93 +325,16 @@
 
                         <div class="fields-list">
                             {#each customFields as field, i (field.id)}
-                                <div class="field-card">
-                                    <div class="field-drag-handle">
-                                        <button
-                                            class="move-btn"
-                                            onclick={() => moveField(i, -1)}
-                                            disabled={i === 0}>▲</button
-                                        >
-                                        <button
-                                            class="move-btn"
-                                            onclick={() => moveField(i, 1)}
-                                            disabled={i ===
-                                                customFields.length - 1}
-                                            >▼</button
-                                        >
-                                    </div>
-                                    <div class="field-main">
-                                        <div class="field-row-top">
-                                            <input
-                                                type="text"
-                                                class="key-input"
-                                                bind:value={field.key}
-                                                placeholder="Field Name"
-                                                aria-label="Field Name"
-                                            />
-                                            <select
-                                                class="type-select"
-                                                bind:value={field.type}
-                                                aria-label="Field Type"
-                                            >
-                                                <option value="text"
-                                                    >Text</option
-                                                >
-                                                <option value="wikilink"
-                                                    >Link</option
-                                                >
-                                                <option value="spoiler"
-                                                    >Spoiler</option
-                                                >
-                                                <option value="multiline"
-                                                    >Long Text</option
-                                                >
-                                                <option value="list"
-                                                    >List</option
-                                                >
-                                            </select>
-                                            <button
-                                                class="delete-btn"
-                                                onclick={() => removeField(i)}
-                                                title="Remove Field"
-                                                ><Icon type="close" /></button
-                                            >
-                                        </div>
-                                        <div class="field-value-row">
-                                            {#if field.type === "multiline"}
-                                                <SmartInput
-                                                    type="multiline"
-                                                    bind:value={field.value}
-                                                    placeholder="Value..."
-                                                />
-                                            {:else if field.type === "list"}
-                                                <input
-                                                    type="text"
-                                                    class="value-input"
-                                                    value={field.value}
-                                                    oninput={(e) =>
-                                                        (field.value =
-                                                            e.currentTarget.value.split(
-                                                                ",",
-                                                            ))}
-                                                    placeholder="Item 1, Item 2..."
-                                                />
-                                            {:else if field.type === "wikilink"}
-                                                <SmartInput
-                                                    type="link"
-                                                    bind:value={field.value}
-                                                    placeholder="Page Name"
-                                                />
-                                            {:else}
-                                                <SmartInput
-                                                    type="text"
-                                                    bind:value={field.value}
-                                                    placeholder="Value..."
-                                                />
-                                            {/if}
-                                        </div>
-                                    </div>
-                                </div>
+                                <InfoboxFieldRow
+                                    bind:field={customFields[i]}
+                                    isFirst={i === 0}
+                                    isLast={i === customFields.length - 1}
+                                    onMove={(dir) =>
+                                        handleMove(customFields, i, dir)}
+                                    onDelete={() => removeField(i)}
+                                    handleSearch={handleAutocomplete}
+                                    handleContext={getAutocompleteContext}
+                                />
                             {/each}
                             {#if customFields.length === 0}
                                 <div class="empty-state">
@@ -430,6 +374,7 @@
                                             bind:value={img.src}
                                             placeholder="my-image.png"
                                             id="img-src-{img.id}"
+                                            onSearch={handleAutocomplete}
                                         />
                                     </div>
                                     <label for="img-cap-{img.id}"
@@ -448,12 +393,13 @@
                                 <div class="image-actions">
                                     <button
                                         class="move-btn"
-                                        onclick={() => moveImage(i, -1)}
+                                        onclick={() =>
+                                            handleMove(images, i, -1)}
                                         disabled={i === 0}>▲</button
                                     >
                                     <button
                                         class="move-btn"
-                                        onclick={() => moveImage(i, 1)}
+                                        onclick={() => handleMove(images, i, 1)}
                                         disabled={i === images.length - 1}
                                         >▼</button
                                     >
@@ -498,12 +444,13 @@
                                         <button
                                             class="move-btn"
                                             onclick={() =>
-                                                moveLayoutRule(i, -1)}
+                                                handleMove(layoutRules, i, -1)}
                                             disabled={i === 0}>▲</button
                                         >
                                         <button
                                             class="move-btn"
-                                            onclick={() => moveLayoutRule(i, 1)}
+                                            onclick={() =>
+                                                handleMove(layoutRules, i, 1)}
                                             disabled={i ===
                                                 layoutRules.length - 1}
                                             >▼</button
@@ -550,19 +497,15 @@
                                                     aria-label="Column Keys"
                                                 />
                                             {:else}
-                                                <select
-                                                    class="type-select"
-                                                    bind:value={rule.above}
-                                                    aria-label="Place Rule Above Field"
-                                                >
-                                                    <option value=""
-                                                        >Place Above...</option
-                                                    >
-                                                    {#each customFields as f}<option
-                                                            value={f.key}
-                                                            >{f.key}</option
-                                                        >{/each}
-                                                </select>
+                                                <div style="min-width: 200px;">
+                                                    <SearchableSelect
+                                                        options={customFields.map(
+                                                            (f) => f.key,
+                                                        )}
+                                                        bind:value={rule.above}
+                                                        placeholder="Place Above..."
+                                                    />
+                                                </div>
                                             {/if}
                                         </div>
                                     </div>
@@ -585,19 +528,19 @@
                                     class="visually-hidden"
                                     >Select Template</label
                                 >
-                                <select
-                                    id="template-select"
-                                    class="dropdown-select"
-                                    bind:value={selectedTemplatePath}
-                                >
-                                    <option value=""
-                                        >Select a template...</option
-                                    >
-                                    {#each availableTemplates as t}
-                                        <option value={t.path}>{t.label}</option
-                                        >
-                                    {/each}
-                                </select>
+                                <div style="flex-grow: 1;">
+                                    <SearchableSelect
+                                        options={availableTemplates.map(
+                                            (t) => t.path,
+                                        )}
+                                        bind:value={selectedTemplatePath}
+                                        placeholder="Select a template..."
+                                        formatLabel={(path) =>
+                                            availableTemplates.find(
+                                                (t) => t.path === path,
+                                            )?.label || path}
+                                    />
+                                </div>
                                 <Button
                                     onclick={applyTemplate}
                                     disabled={!selectedTemplatePath}
@@ -805,88 +748,6 @@
         margin: 0;
     }
 
-    .field-card {
-        display: flex;
-        background: var(--color-background-tertiary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: 8px;
-        margin-bottom: 0.75rem;
-        overflow: hidden;
-    }
-    .field-drag-handle {
-        background: var(--color-background-secondary);
-        border-right: 1px solid var(--color-border-primary);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        padding: 0.25rem;
-    }
-    .move-btn {
-        background: none;
-        border: none;
-        font-size: 0.7rem;
-        padding: 0.25rem;
-        cursor: pointer;
-        color: var(--color-text-secondary);
-        opacity: 0.6;
-    }
-    .move-btn:hover:not(:disabled) {
-        opacity: 1;
-        color: var(--color-text-primary);
-    }
-    .move-btn:disabled {
-        opacity: 0.2;
-        cursor: default;
-    }
-
-    .field-main {
-        flex-grow: 1;
-        padding: 0.75rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        min-width: 0; /* Prevents overflow from children */
-    }
-    .field-row-top {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-    .key-input {
-        flex: 1;
-        background: transparent;
-        border: none;
-        border-bottom: 1px dashed var(--color-border-primary);
-        font-weight: bold;
-        color: var(--color-text-primary);
-        padding: 0.25rem;
-        min-width: 0; /* Allow shrinking */
-    }
-    .key-input:focus {
-        outline: none;
-        border-bottom-style: solid;
-        border-bottom-color: var(--color-accent-primary);
-    }
-
-    .type-select {
-        background: var(--color-background-secondary);
-        border: 1px solid var(--color-border-primary);
-        color: var(--color-text-secondary);
-        border-radius: 4px;
-        padding: 0.2rem;
-        font-size: 0.8rem;
-    }
-    .delete-btn {
-        background: none;
-        border: none;
-        color: var(--color-text-secondary);
-        cursor: pointer;
-        padding: 0.25rem;
-    }
-    .delete-btn:hover {
-        color: var(--color-error);
-    }
-
     /* --- Images --- */
     .image-card {
         display: flex;
@@ -932,6 +793,35 @@
         justify-content: center;
     }
 
+    .move-btn {
+        background: none;
+        border: none;
+        font-size: 0.7rem;
+        padding: 0.25rem;
+        cursor: pointer;
+        color: var(--color-text-secondary);
+        opacity: 0.6;
+    }
+    .move-btn:hover:not(:disabled) {
+        opacity: 1;
+        color: var(--color-text-primary);
+    }
+    .move-btn:disabled {
+        opacity: 0.2;
+        cursor: default;
+    }
+
+    .delete-btn {
+        background: none;
+        border: none;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        padding: 0.25rem;
+    }
+    .delete-btn:hover {
+        color: var(--color-error);
+    }
+
     /* --- Structure / Rules --- */
     .structure-toolbar {
         display: flex;
@@ -939,7 +829,28 @@
         margin-bottom: 0.5rem;
     }
     .rule-card {
+        display: flex;
         background: var(--color-overlay-light);
+        border: 1px solid var(--color-border-primary);
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+    }
+    .field-drag-handle {
+        background: var(--color-background-secondary);
+        border-right: 1px solid var(--color-border-primary);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0.25rem;
+    }
+    .field-main {
+        flex-grow: 1;
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 0;
     }
     .rule-header {
         display: flex;
@@ -966,6 +877,14 @@
         display: flex;
         gap: 0.5rem;
         align-items: center;
+    }
+    .type-select {
+        background: var(--color-background-secondary);
+        border: 1px solid var(--color-border-primary);
+        color: var(--color-text-secondary);
+        border-radius: 4px;
+        padding: 0.2rem;
+        font-size: 0.8rem;
     }
 
     /* --- Template --- */
