@@ -78,6 +78,16 @@ pub fn sanitize_html(dirty_html: &str) -> String {
             "button",
             "small",
             "meter",
+            // --- Math Support (MathML tags) ---
+            "math",
+            "mi",
+            "mn",
+            "mo",
+            "ms",
+            "mtext",
+            "mrow",
+            "semantics",
+            "annotation",
         ]))
         .add_tag_attributes("img", &["src", "alt", "style", "width", "height", "class"])
         .add_tag_attributes("figure", &["style"])
@@ -117,6 +127,9 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         )
         .add_tag_attributes("button", &["class"])
         .add_tag_attributes("meter", &["value", "min", "max"])
+        // --- Math Support Attributes ---
+        .add_tag_attributes("math", &["xmlns", "display"])
+        .add_tag_attributes("annotation", &["encoding"])
         .clean(dirty_html)
         .to_string()
 }
