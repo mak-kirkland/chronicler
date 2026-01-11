@@ -358,6 +358,7 @@ impl Renderer {
     fn render_inline_markdown(&self, markdown: &str) -> String {
         let mut options = Options::empty();
         options.insert(Options::ENABLE_STRIKETHROUGH);
+        options.insert(Options::ENABLE_MATH);
 
         let parser = Parser::new_ext(markdown, options);
 
@@ -741,6 +742,7 @@ impl Renderer {
         options.insert(Options::ENABLE_STRIKETHROUGH);
         options.insert(Options::ENABLE_TABLES);
         options.insert(Options::ENABLE_FOOTNOTES);
+        options.insert(Options::ENABLE_MATH);
 
         // Create the event stream parser from the raw Markdown string.
         let parser = Parser::new_ext(markdown, options);
