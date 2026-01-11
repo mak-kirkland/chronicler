@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.41.2-alpha] - 2026-01-11
+
+### 🐞 Fixed
+
+- **CI / macOS**: Fixed a critical failure in the automated build process for Intel-based Macs. The workflow has been updated to use the new `macos-15-intel` runner, resolving issues caused by GitHub deprecating the older environment.
+
+---
+
 ## [v0.41.1-alpha] - 2026-01-10
 
 ### 🐞 Fixed
