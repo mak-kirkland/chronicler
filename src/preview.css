@@ -424,3 +424,11 @@
     display: block;
     overflow: hidden;
 }
+
+/* --- Math Styling --- */
+/* Add basic padding if needed, although Katex handles most. */
+.chronicler-content .math-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.5em 0;
+}

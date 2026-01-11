@@ -62,6 +62,9 @@ importers:
       js-yaml:
         specifier: ^4.1.1
         version: 4.1.1
+      katex:
+        specifier: ^0.16.27
+        version: 0.16.27
       marked:
         specifier: ^16.4.2
         version: 16.4.2
@@ -646,6 +649,10 @@ packages:
   codemirror@6.0.2:
     resolution: {integrity: sha512-VhydHotNW5w1UGK0Qj96BwSk/Zqbp9WbnyK2W/eVMv4QyF41INRGpjUhFJY7/uDNuudSc33a/PKr4iDqRduvHw==}
 
+  commander@8.3.0:
+    resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
+    engines: {node: '>= 12'}
+
   cookie@0.6.0:
     resolution: {integrity: sha512-U71cyTamuh1CRNCfpGY6to28lxvNwPG4Guz/EVjgf3Jmzv0vlDp1atT9eS5dDjMYHucpHbWns6Lwf3BKz6svdw==}
     engines: {node: '>= 0.6'}
@@ -699,6 +706,10 @@ packages:
 
   js-yaml@4.1.1:
     resolution: {integrity: sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA==}
+    hasBin: true
+
+  katex@0.16.27:
+    resolution: {integrity: sha512-aeQoDkuRWSqQN6nSvVCEFvfXdqo1OQiCmmW1kc9xSdjutPv7BGO7pqY9sQRJpMOGrEdfDgF2TfRXe5eUAD2Waw==}
     hasBin: true
 
   kleur@4.1.5:
@@ -1344,6 +1355,8 @@ snapshots:
       '@codemirror/state': 6.5.4
       '@codemirror/view': 6.39.12
 
+  commander@8.3.0: {}
+
   cookie@0.6.0: {}
 
   crelt@1.0.6: {}
@@ -1405,6 +1418,10 @@ snapshots:
   js-yaml@4.1.1:
     dependencies:
       argparse: 2.0.1
+
+  katex@0.16.27:
+    dependencies:
+      commander: 8.3.0
 
   kleur@4.1.5: {}
 
