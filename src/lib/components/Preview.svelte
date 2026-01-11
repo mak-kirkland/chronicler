@@ -7,6 +7,7 @@
         tablesort,
         hydrateCarousels,
         enhanceGalleries,
+        renderMath,
     } from "$lib/domActions";
     import { navigateToTag } from "$lib/actions";
     import { buildInfoboxLayout, type InfoboxFrontmatter } from "$lib/infobox";
@@ -69,6 +70,7 @@
     use:tablesort={renderedData}
     use:hydrateCarousels={renderedData}
     use:enhanceGalleries={renderedData}
+    use:renderMath={renderedData}
 >
     {#if showInfobox}
         <!-- Use <aside> for better semantics. It's floated, so order in HTML matters. -->
