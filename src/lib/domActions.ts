@@ -564,3 +564,20 @@ export function renderMath(node: HTMLElement, data: any) {
         },
     };
 }
+
+/**
+ * A Svelte action that moves a DOM node to document.body.
+ * This is useful for Modals, Tooltips, and Menus that need to escape
+ * parent stacking contexts (z-index traps) to ensure they appear on top.
+ * * @param node The element to move
+ */
+export function portal(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+        destroy() {
+            if (node.parentNode) {
+                node.parentNode.removeChild(node);
+            }
+        },
+    };
+}
