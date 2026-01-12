@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.42.0-alpha] - 2026-01-12
+
+### ✨ Added
+
+- **Vault Selector**: The vault selection screen has been completely overhauled. It now features a redesigned layout with a hero banner and introduces a **Recent Vaults** list.
+
+---
+
 ## [v0.41.2-alpha] - 2026-01-11
 
 ### 🐞 Fixed
