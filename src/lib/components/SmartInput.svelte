@@ -5,6 +5,11 @@
      * Automatically detects `[[` and `![[` triggers.
      */
     import { allFileTitles, allImageFiles } from "$lib/worldStore";
+    import FloatingMenu from "$lib/components/FloatingMenu.svelte";
+    import {
+        ListNavigator,
+        handleListNavigation,
+    } from "$lib/ListNavigator.svelte";
 
     let {
         value = $bindable(),
@@ -26,12 +31,9 @@
 
     // Dropdown Logic
     let isOpen = $state(false);
-    let dropdownPos = $state<{
-        top: number;
-        left: number;
-        width: number;
-    } | null>(null);
-    let selectedIndex = $state(0);
+    const nav = new ListNavigator<string>();
+
+    // We hold suggestions locally because they depend on the REGEX match, not just 'value'
     let suggestions = $state<string[]>([]);
 
     // Logic tracking
@@ -65,7 +67,6 @@
             isImageLink = trigger.includes("!");
 
             // Choose source based on trigger
-            // Using $store syntax directly thanks to Svelte 5 auto-sub
             const source = isImageLink ? $allImageFiles : $allFileTitles;
 
             suggestions = source
@@ -74,68 +75,10 @@
                 )
                 .slice(0, 10);
 
-            if (suggestions.length > 0) {
-                openDropdown();
-            } else {
-                closeDropdown();
-            }
+            nav.setOptions(suggestions);
+            isOpen = suggestions.length > 0;
         } else {
-            closeDropdown();
-        }
-    }
-
-    function openDropdown() {
-        if (!inputEl) return;
-        const rect = inputEl.getBoundingClientRect();
-        dropdownPos = {
-            top: rect.bottom + 4,
-            left: rect.left,
-            width: rect.width,
-        };
-        isOpen = true;
-        selectedIndex = 0;
-    }
-
-    function closeDropdown() {
-        isOpen = false;
-        selectedIndex = 0;
-    }
-
-    function scrollToHighlighted() {
-        if (!listContainer) return;
-        // In SmartInput, the container div scrolls, but the scrollIntoView on the item
-        // works regardless of where the scrollbar is.
-        const item = listContainer.children[selectedIndex] as HTMLElement;
-        if (item) {
-            item.scrollIntoView({ block: "nearest" });
-        }
-    }
-
-    function handleKeydown(e: KeyboardEvent) {
-        if (isOpen && suggestions.length > 0) {
-            if (e.key === "ArrowDown") {
-                e.preventDefault();
-                selectedIndex = (selectedIndex + 1) % suggestions.length;
-                scrollToHighlighted();
-                return;
-            }
-            if (e.key === "ArrowUp") {
-                e.preventDefault();
-                selectedIndex =
-                    (selectedIndex - 1 + suggestions.length) %
-                    suggestions.length;
-                scrollToHighlighted();
-                return;
-            }
-            if (e.key === "Enter" || e.key === "Tab") {
-                e.preventDefault();
-                confirmSuggestion(suggestions[selectedIndex]);
-                return;
-            }
-            if (e.key === "Escape") {
-                closeDropdown();
-                return;
-            }
+            isOpen = false;
         }
     }
 
@@ -150,7 +93,7 @@
 
         value = before + insertion + after;
 
-        closeDropdown();
+        isOpen = false;
 
         // Restore focus and move cursor to end of inserted link
         setTimeout(() => {
@@ -161,9 +104,18 @@
             }
         }, 0);
     }
-</script>
 
-<svelte:window onresize={closeDropdown} onscroll={closeDropdown} />
+    function handleKeydown(e: KeyboardEvent) {
+        handleListNavigation(e, {
+            isOpen,
+            nav,
+            listContainer,
+            onSelect: confirmSuggestion,
+            onClose: () => (isOpen = false),
+            triggerElement: inputEl,
+        });
+    }
+</script>
 
 <div class="smart-input-wrapper {className}">
     {#if multiline}
@@ -176,7 +128,6 @@
             class="form-input"
             oninput={handleInput}
             onkeydown={handleKeydown}
-            onblur={() => setTimeout(closeDropdown, 200)}
         ></textarea>
     {:else}
         <input
@@ -188,29 +139,28 @@
             class="form-input"
             oninput={handleInput}
             onkeydown={handleKeydown}
-            onblur={() => setTimeout(closeDropdown, 200)}
         />
     {/if}
 
-    {#if isOpen && dropdownPos}
-        <div
-            class="dropdown-menu"
-            style="position: fixed; top: {dropdownPos.top}px; left: {dropdownPos.left}px; width: {dropdownPos.width}px; max-height: 250px;"
-        >
-            <ul bind:this={listContainer}>
-                {#each suggestions as s, i}
-                    <li>
-                        <button
-                            class:highlighted={i === selectedIndex}
-                            onmousedown={() => confirmSuggestion(s)}
-                        >
-                            {s}
-                        </button>
-                    </li>
-                {/each}
-            </ul>
-        </div>
-    {/if}
+    <FloatingMenu
+        {isOpen}
+        anchorEl={inputEl}
+        onClose={() => (isOpen = false)}
+        style="max-height: 250px;"
+    >
+        <ul bind:this={listContainer}>
+            {#each suggestions as s, i}
+                <li>
+                    <button
+                        class:highlighted={i === nav.index}
+                        onmousedown={() => confirmSuggestion(s)}
+                    >
+                        {s}
+                    </button>
+                </li>
+            {/each}
+        </ul>
+    </FloatingMenu>
 </div>
 
 <style>

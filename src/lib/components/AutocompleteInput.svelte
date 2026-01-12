@@ -5,6 +5,11 @@
      * Best for fields like "Location", "Author", "Type" where the value
      * is often an existing entity.
      */
+    import FloatingMenu from "$lib/components/FloatingMenu.svelte";
+    import {
+        ListNavigator,
+        handleListNavigation,
+    } from "$lib/ListNavigator.svelte";
 
     let {
         value = $bindable(),
@@ -23,16 +28,11 @@
     }>();
 
     let isOpen = $state(false);
-    let selectedIndex = $state(0);
     let inputEl = $state<HTMLInputElement | null>(null);
     let listContainer = $state<HTMLUListElement | null>(null);
 
-    // State for fixed positioning to escape overflow containers
-    let dropdownPos = $state<{
-        top: number;
-        left: number;
-        width: number;
-    } | null>(null);
+    // --- Logic Extraction ---
+    const nav = new ListNavigator<string>();
 
     // Filter options based on current input
     // We limit to 10 to keep the UI snappy
@@ -46,41 +46,22 @@
             : [],
     );
 
-    // Auto-close if suggestions disappear (e.g. user cleared input or specific match)
+    // Sync navigator with suggestions
     $effect(() => {
+        nav.setOptions(suggestions);
         if (suggestions.length === 0) {
             isOpen = false;
         }
     });
 
-    /**
-     * Calculates the position of the input relative to the viewport
-     * so we can fix-position the dropdown.
-     */
-    function updateDropdownPosition() {
-        if (inputEl) {
-            const rect = inputEl.getBoundingClientRect();
-            dropdownPos = {
-                top: rect.bottom + 4,
-                left: rect.left,
-                width: rect.width,
-            };
-        }
-    }
-
     function handleInput() {
         isOpen = suggestions.length > 0;
-        selectedIndex = 0;
-        if (isOpen) {
-            updateDropdownPosition();
-        }
     }
 
     function handleClick() {
         // Recalculate position on click in case the modal moved/resized
         if (suggestions.length > 0) {
             isOpen = true;
-            updateDropdownPosition();
         }
     }
 
@@ -89,22 +70,11 @@
         isOpen = false;
         // Refocus input to keep user flow
         inputEl?.focus();
-    }
-
-    function scrollToHighlighted() {
-        if (!listContainer) return;
-        // In AutocompleteInput, the UL is the scroll container
-        // We target the LI at the selected index
-        const item = listContainer.children[selectedIndex] as HTMLElement;
-        if (item) {
-            item.scrollIntoView({ block: "nearest" });
-        }
+        if (onEnter) onEnter(suggestion);
     }
 
     function handleKeydown(e: KeyboardEvent) {
-        // 1. Shift+Enter: Force Submit/Create
-        // This takes priority to allow creating a new tag even if it matches a suggestion,
-        // or just to quickly submit without looking at the list.
+        // 1. Shift+Enter: Force Submit/Create (Bypasses list)
         if (e.key === "Enter" && e.shiftKey) {
             if (onEnter && value.trim()) {
                 e.preventDefault();
@@ -114,43 +84,19 @@
             return;
         }
 
-        // 2. Dropdown Navigation (Only if open and has suggestions)
-        if (isOpen && suggestions.length > 0) {
-            if (e.key === "ArrowDown") {
-                e.preventDefault();
-                selectedIndex = (selectedIndex + 1) % suggestions.length;
-                scrollToHighlighted();
-                return;
-            } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                selectedIndex =
-                    (selectedIndex - 1 + suggestions.length) %
-                    suggestions.length;
-                scrollToHighlighted();
-                return;
-            } else if (e.key === "Escape") {
-                isOpen = false;
-                return;
-            } else if (e.key === "Tab") {
-                e.preventDefault();
-                selectSuggestion(suggestions[selectedIndex]);
-                return;
-            } else if (e.key === "Enter") {
-                e.preventDefault();
-                const selected = suggestions[selectedIndex];
-                selectSuggestion(selected);
+        // 2. Delegate Navigation to Shared Logic
+        const handled = handleListNavigation(e, {
+            isOpen: isOpen && suggestions.length > 0,
+            nav,
+            listContainer,
+            onSelect: selectSuggestion,
+            onClose: () => (isOpen = false),
+            triggerElement: inputEl,
+        });
 
-                // If onEnter is provided (like in Tag inputs), submit immediately
-                if (onEnter) {
-                    onEnter(selected);
-                }
-                return;
-            }
-        }
+        if (handled) return;
 
-        // 3. Enter (No Dropdown Interaction): Submit/Create
-        // If the dropdown is closed, OR if the user just hits Enter while bypassing selection,
-        // we treat it as submission.
+        // 3. Fallback Enter
         if (e.key === "Enter") {
             if (onEnter && value.trim()) {
                 e.preventDefault();
@@ -159,20 +105,7 @@
             }
         }
     }
-
-    function handleBlur() {
-        // Small delay to allow click events on the dropdown to register
-        setTimeout(() => {
-            isOpen = false;
-        }, 200);
-    }
 </script>
-
-<!-- Close dropdown on scroll/resize since fixed position will drift otherwise -->
-<svelte:window
-    onresize={() => (isOpen = false)}
-    onscroll={() => (isOpen = false)}
-/>
 
 <div class="autocomplete-wrapper {className}">
     <input
@@ -186,19 +119,23 @@
         oninput={handleInput}
         onclick={handleClick}
         onkeydown={handleKeydown}
-        onblur={handleBlur}
     />
 
-    {#if isOpen && suggestions.length > 0 && dropdownPos}
+    <FloatingMenu
+        isOpen={isOpen && suggestions.length > 0}
+        anchorEl={inputEl}
+        onClose={() => (isOpen = false)}
+        style="max-height: 200px;"
+    >
         <ul
             bind:this={listContainer}
-            class="dropdown-menu"
-            style="position: fixed; top: {dropdownPos.top}px; left: {dropdownPos.left}px; width: {dropdownPos.width}px; max-height: 200px;"
+            class="suggestions-list"
+            style="list-style: none; padding: 0; margin: 0;"
         >
             {#each suggestions as suggestion, i}
                 <li>
                     <button
-                        class:highlighted={i === selectedIndex}
+                        class:highlighted={i === nav.index}
                         onmousedown={() => selectSuggestion(suggestion)}
                     >
                         {suggestion}
@@ -206,7 +143,7 @@
                 </li>
             {/each}
         </ul>
-    {/if}
+    </FloatingMenu>
 </div>
 
 <style>
