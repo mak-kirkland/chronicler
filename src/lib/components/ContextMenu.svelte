@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { onMount } from "svelte";
     import type { ContextMenuItem } from "$lib/types";
+    import FloatingMenu from "$lib/components/FloatingMenu.svelte";
 
     let { x, y, actions, onClose } = $props<{
         x: number;
@@ -9,58 +9,30 @@
         onClose: () => void;
     }>();
 
-    let menuElement: HTMLDivElement;
+    // ContextMenu mainly acts as a wrapper around FloatingMenu now.
+    // FloatingMenu handles the 'click outside', escape key (via global logic potentially,
+    // or we add it here), and positioning logic including boundary checks.
 
-    onMount(() => {
-        // This function handles clicks outside the menu to close it
-        function handleClickOutside(event: MouseEvent) {
-            if (menuElement && !menuElement.contains(event.target as Node)) {
-                onClose();
-            }
+    function handleKeydown(event: KeyboardEvent) {
+        if (event.key === "Escape") {
+            onClose();
         }
-
-        function handleKeydown(event: KeyboardEvent) {
-            if (event.key === "Escape") {
-                onClose();
-            }
-        }
-
-        // Use setTimeout to ensure this listener is added after the current event cycle,
-        // preventing the click that opened the menu from immediately closing it.
-        setTimeout(() => {
-            window.addEventListener("click", handleClickOutside);
-            window.addEventListener("keydown", handleKeydown);
-        }, 0);
-
-        // Adjust position if menu is too close to the edge of the viewport
-        const { innerWidth, innerHeight } = window;
-        const { offsetWidth, offsetHeight } = menuElement;
-
-        if (x + offsetWidth > innerWidth) {
-            x = innerWidth - offsetWidth - 10;
-        }
-        if (y + offsetHeight > innerHeight) {
-            y = innerHeight - offsetHeight - 10;
-        }
-
-        // Cleanup function to remove listeners when the component is destroyed
-        return () => {
-            window.removeEventListener("click", handleClickOutside);
-            window.removeEventListener("keydown", handleKeydown);
-        };
-    });
-
-    function handleActionClick(handler: () => void) {
-        handler();
-        onClose();
     }
 </script>
 
-<div
-    bind:this={menuElement}
-    class="context-menu"
-    style="top: {y}px; left: {x}px;"
-    role="menu"
+<svelte:window onkeydown={handleKeydown} />
+
+<!--
+    We pass a style string to override FloatingMenu's calculated fixed width.
+    width: auto + min-width restores the original behavior of growing with content.
+-->
+<FloatingMenu
+    isOpen={true}
+    {x}
+    {y}
+    {onClose}
+    className="context-menu"
+    style="width: auto; min-width: 180px;"
 >
     {#each actions as action}
         {#if action.isSeparator}
@@ -68,25 +40,28 @@
         {:else}
             <button
                 class="menu-item"
-                onclick={() => handleActionClick(action.handler)}
+                onclick={() => {
+                    action.handler();
+                    onClose();
+                }}
             >
                 {action.label}
             </button>
         {/if}
     {/each}
-</div>
+</FloatingMenu>
 
 <style>
-    .context-menu {
-        position: fixed;
-        z-index: 1000;
-        background-color: var(--color-background-primary);
-        border: 1px solid var(--color-border-primary);
+    /* We use :global(.context-menu) to target the div rendered by FloatingMenu.
+    */
+    :global(.context-menu) {
+        background-color: var(--color-background-primary) !important;
+        border: 1px solid var(--color-border-primary) !important;
         border-radius: 6px;
-        box-shadow: 0 4px 12px var(--color-overlay-subtle);
-        padding: 0.5rem;
-        min-width: 180px;
+        box-shadow: 0 4px 12px var(--color-overlay-subtle) !important;
+        padding: 0.5rem !important;
     }
+
     .menu-item {
         display: block;
         width: 100%;
@@ -97,9 +72,12 @@
         cursor: pointer;
         border-radius: 4px;
         color: var(--color-text-primary);
+        font-size: 0.8rem; /* Reduced from 1rem to match standard dropdowns */
+        line-height: normal; /* Removed 1.5 line-height to reduce vertical bulk */
     }
     .menu-item:hover {
         background-color: var(--color-background-tertiary);
+        color: var(--color-text-primary);
     }
     .separator {
         border: none;
