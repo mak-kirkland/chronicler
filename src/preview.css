@@ -246,6 +246,13 @@
     display: none;
 }
 
+/* --- Generic Media Constraints --- */
+/* Ensure images never overflow their container */
+.chronicler-content img {
+    max-width: 100%;
+    height: auto; /* Maintains aspect ratio */
+}
+
 /* --- Preview Gallery specific styles --- */
 /* Apply base styles to ALL images inside a gallery */
 .chronicler-content .gallery {
