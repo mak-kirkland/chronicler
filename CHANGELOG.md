@@ -2,6 +2,15 @@
 
 ---
 
+## [v0.42.1-alpha] - 2026-01-14
+
+### 🐞 Fixed
+
+- **Preview**: Fixed a layout issue where massive images would overflow the preview area and push the right sidebar off-screen. A new global constraint ensures that all images automatically resize to fit within the page width, preventing horizontal scrolling issues in split view.
+- **Preview**: Fixed a layout issue in Split View where wide tables caused the preview pane to expand uncontrollably, pushing the sidebar off-screen. The layout now strictly enforces width constraints, ensuring that wide content scrolls horizontally instead of breaking the UI.
+
+---
+
 ## [v0.42.0-alpha] - 2026-01-12
 
 ### ✨ Added
