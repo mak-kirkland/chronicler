@@ -341,6 +341,9 @@
     .unified-preview-pane,
     .preview-pane {
         flex: 1;
+        /* "width: 0" combined with "flex: 1" is a robust fix for preventing
+           flex items from blowing out when containing wide children like tables/code blocks */
+        width: 0;
         min-width: 0; /* Allows the pane to shrink */
         position: relative; /* Context for the absolute wrapper */
         height: 100%;
