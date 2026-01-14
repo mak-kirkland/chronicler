@@ -82,8 +82,15 @@
 }
 
 /* --- Tables --- */
+/* Force tables to become scrollable blocks when they are too wide.
+   This prevents them from expanding the parent container. */
 .chronicler-content table {
-    max-width: 100%;
+    /* Critical Layout Resets */
+    display: block; /* Behave like a div wrapper */
+    max-width: 100%; /* Ensure it never exceeds the parent container width */
+    overflow-x: auto; /* Add a scrollbar if content is wider than width */
+
+    /* Aesthetics */
     border-collapse: collapse;
     margin-block: 1.5em;
     font-size: 0.95rem;
