@@ -211,10 +211,13 @@
         z-index: 0;
     }
 
-    img {
+    /* We target .image-wrapper img specifically to ensure higher specificity
+       than global generic styles (like .chronicler-content img). */
+    .image-wrapper img {
         display: block;
         height: var(--gallery-height);
         width: auto;
+        /* Ensure it never exceeds the wrapper, even if height would dictate otherwise (e.g. panoramas) */
         max-width: 100%;
         object-fit: contain;
         position: relative;
