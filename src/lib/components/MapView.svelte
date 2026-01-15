@@ -12,23 +12,34 @@
         mapPathLookup,
     } from "$lib/worldStore";
     import { writePageContent } from "$lib/commands";
-    import type { MapConfig, MapPin } from "$lib/mapModels";
+    import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
     import type { PageHeader } from "$lib/bindings";
     import ErrorBox from "./ErrorBox.svelte";
     import ViewHeader from "./ViewHeader.svelte";
     import ContextMenu from "./ContextMenu.svelte";
     import AddPinModal from "./AddPinModal.svelte";
+    import AddRegionModal from "./AddRegionModal.svelte";
     import ConfirmModal from "./ConfirmModal.svelte";
     import { openModal, closeModal } from "$lib/modalStore";
+    import Button from "./Button.svelte";
 
     let { data } = $props<{ data: PageHeader }>();
 
     let mapElement: HTMLElement;
     let map: L.Map | null = null;
     let markerLayerGroup: L.LayerGroup | null = null;
+    let shapeLayerGroup: L.LayerGroup | null = null;
+    // Temp layer for drawing in progress
+    let drawLayerGroup: L.LayerGroup | null = null;
     let error = $state<string | null>(null);
     let currentMapPath: string | null = null;
     let prevConfigStr = ""; // Track config state to prevent re-renders
+
+    // Drawing State
+    let isDrawing = $state(false);
+    let drawMode = $state<"polygon" | null>(null);
+    let tempPoints: L.LatLng[] = [];
+    let tempLayer: L.Layer | null = null; // Visual feedback during draw
 
     let contextMenu = $state<{
         x: number;
@@ -37,6 +48,7 @@
         mapX?: number;
         mapY?: number;
         pinId?: string;
+        shapeId?: string; // Context for shapes
         // Custom actions for the context menu (used for the dual-link choice)
         customActions?: { label: string; handler: () => void }[];
     } | null>(null);
@@ -104,6 +116,8 @@
             map.remove();
             map = null;
             markerLayerGroup = null;
+            shapeLayerGroup = null;
+            drawLayerGroup = null;
         }
     });
 
@@ -114,6 +128,8 @@
                     map.remove();
                     map = null;
                     markerLayerGroup = null;
+                    shapeLayerGroup = null;
+                    drawLayerGroup = null;
                     prevConfigStr = ""; // Reset config tracking
                 }
                 currentMapPath = data.path;
@@ -122,17 +138,14 @@
         }
     });
 
-    // Helper to navigate to a map
+    // --- Navigation Helpers ---
     function navigateToMap(mapTitle: string) {
         const lookup = get(mapPathLookup);
         const mapPath = lookup.get(mapTitle.toLowerCase());
         if (mapPath) {
             currentView.set({
                 type: "map",
-                data: {
-                    path: mapPath,
-                    title: mapTitle,
-                },
+                data: { path: mapPath, title: mapTitle },
             });
         } else {
             console.warn(`Map not found: ${mapTitle}`);
@@ -147,10 +160,39 @@
         const finalPath = resolvedPath || pageTitle;
         currentView.set({
             type: "file",
-            data: {
-                path: finalPath,
-                title: pageTitle,
-            },
+            data: { path: finalPath, title: pageTitle },
+        });
+    }
+
+    // --- Interaction Helper ---
+    function attachClickBehavior(
+        layer: L.Layer,
+        item: { targetPage?: string; targetMap?: string },
+    ) {
+        layer.on("click", (e: L.LeafletMouseEvent) => {
+            if (isDrawing) return; // Ignore interactions while drawing
+
+            if (item.targetPage && item.targetMap) {
+                contextMenu = {
+                    x: e.originalEvent.clientX,
+                    y: e.originalEvent.clientY,
+                    show: true,
+                    customActions: [
+                        {
+                            label: `Open Page: ${item.targetPage}`,
+                            handler: () => navigateToPage(item.targetPage!),
+                        },
+                        {
+                            label: `Open Map: ${item.targetMap}`,
+                            handler: () => navigateToMap(item.targetMap!),
+                        },
+                    ],
+                };
+            } else if (item.targetMap) {
+                navigateToMap(item.targetMap);
+            } else if (item.targetPage) {
+                navigateToPage(item.targetPage);
+            }
         });
     }
 
@@ -220,8 +262,12 @@
                 map.setMinZoom(fitZoom);
 
                 markerLayerGroup = L.layerGroup().addTo(map);
+                shapeLayerGroup = L.layerGroup().addTo(map);
+                drawLayerGroup = L.layerGroup().addTo(map);
 
                 map.on("contextmenu", (e: L.LeafletMouseEvent) => {
+                    if (isDrawing) return; // Don't show context menu while drawing
+
                     const mapX = e.latlng.lng;
                     const mapY = h - e.latlng.lat;
                     contextMenu = {
@@ -234,15 +280,46 @@
                 });
 
                 map.on("click movestart zoomstart", () => {
-                    contextMenu = null;
+                    // While drawing, clicks are handled by separate listener
+                    if (!isDrawing) contextMenu = null;
+                });
+
+                // --- Drawing Interactions ---
+                map.on("click", (e: L.LeafletMouseEvent) => {
+                    if (!isDrawing) return;
+
+                    if (drawMode === "polygon") {
+                        tempPoints.push(e.latlng);
+
+                        if (!tempLayer) {
+                            // First point: Create the layer with interactive: false
+                            // This ensures click/dblclick events pass through to the map
+                            tempLayer = L.polyline(tempPoints, {
+                                color: "red",
+                                dashArray: "5, 5",
+                                interactive: false, // Critical for robust double-click
+                            }).addTo(drawLayerGroup!);
+                        } else {
+                            // Subsequent points: Update existing layer
+                            (tempLayer as L.Polyline).setLatLngs(tempPoints);
+                        }
+                    }
+                });
+
+                // Finisher for polygon (double click)
+                map.on("dblclick", (e: L.LeafletMouseEvent) => {
+                    if (isDrawing && drawMode === "polygon") {
+                        // Pass the LATEST config (mapConfig), not the stale 'config' from closure
+                        // Since mapConfig is reactive, we can just access it here (it's in the component scope)
+                        finishDrawing();
+                    }
                 });
             }
 
-            // Update Markers
+            // --- Update Pins ---
             if (markerLayerGroup) {
                 markerLayerGroup.clearLayers();
             }
-
             if (config.pins && markerLayerGroup) {
                 config.pins.forEach(
                     (pin: MapPin & { icon?: string; color?: string }) => {
@@ -255,9 +332,11 @@
 
                         const marker = L.marker([leafletLat, leafletLng], {
                             icon: iconToUse,
+                            // Use Leaflet's native property to stop map events
+                            // This replaces e.originalEvent.stopPropagation() usage
+                            bubblingMouseEvents: false,
                         });
 
-                        // Determine label
                         let tooltipText = pin.label || "Pin";
                         if (!pin.label) {
                             if (pin.targetPage) tooltipText = pin.targetPage;
@@ -269,44 +348,9 @@
                             offset: [0, -40],
                         });
 
-                        // --- CLICK HANDLER WITH DUAL LINK LOGIC ---
-                        marker.on("click", (e: L.LeafletMouseEvent) => {
-                            // Stop propagation so map click doesn't close what we just opened
-                            L.DomEvent.stopPropagation(e.originalEvent);
-
-                            // Scenario 1: Both Page and Map links exist
-                            if (pin.targetPage && pin.targetMap) {
-                                contextMenu = {
-                                    x: e.originalEvent.clientX,
-                                    y: e.originalEvent.clientY,
-                                    show: true,
-                                    // Custom actions to choose destination
-                                    customActions: [
-                                        {
-                                            label: `Open Page: ${pin.targetPage}`,
-                                            handler: () =>
-                                                navigateToPage(pin.targetPage!),
-                                        },
-                                        {
-                                            label: `Open Map: ${pin.targetMap}`,
-                                            handler: () =>
-                                                navigateToMap(pin.targetMap!),
-                                        },
-                                    ],
-                                };
-                            }
-                            // Scenario 2: Only Map link
-                            else if (pin.targetMap) {
-                                navigateToMap(pin.targetMap);
-                            }
-                            // Scenario 3: Only Page link (or no link)
-                            else if (pin.targetPage) {
-                                navigateToPage(pin.targetPage);
-                            }
-                        });
+                        attachClickBehavior(marker, pin);
 
                         marker.on("contextmenu", (e: L.LeafletMouseEvent) => {
-                            L.DomEvent.stopPropagation(e.originalEvent);
                             contextMenu = {
                                 x: e.originalEvent.clientX,
                                 y: e.originalEvent.clientY,
@@ -319,9 +363,119 @@
                     },
                 );
             }
+
+            // --- Update Regions (Shapes) ---
+            if (shapeLayerGroup) {
+                shapeLayerGroup.clearLayers();
+            }
+            if (config.shapes && shapeLayerGroup) {
+                config.shapes.forEach((shape: MapRegion) => {
+                    let layer: L.Layer;
+                    const color = shape.color || "#3498db";
+
+                    if (shape.type === "polygon") {
+                        const latLngs = shape.points.map(
+                            (p) => [h - p.y, p.x] as [number, number],
+                        );
+                        layer = L.polygon(latLngs, {
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: 0.2,
+                        });
+                    } else {
+                        return;
+                    }
+
+                    if (shape.label) {
+                        layer.bindTooltip(shape.label, { sticky: true });
+                    }
+
+                    attachClickBehavior(layer, shape);
+
+                    // Context menu for shapes
+                    layer.on("contextmenu", (e: L.LeafletMouseEvent) => {
+                        if (isDrawing) return;
+
+                        L.DomEvent.stopPropagation(e); // Stop propagation to map
+                        L.DomEvent.preventDefault(e); // Prevent browser menu
+
+                        // Prevent the map's own contextmenu event from firing
+                        // by creating the context menu here and stopping propagation.
+                        const mapX = e.latlng.lng;
+                        const mapY = h - e.latlng.lat;
+
+                        contextMenu = {
+                            x: e.originalEvent.clientX,
+                            y: e.originalEvent.clientY,
+                            show: true,
+                            shapeId: shape.id,
+                            // Ensure general map coordinates are also captured so "Add Pin Here" works
+                            mapX,
+                            mapY,
+                        };
+                    });
+
+                    layer.addTo(shapeLayerGroup!);
+                });
+            }
         } catch (e: any) {
             console.error("Map Error:", e);
             error = `Map Error: ${e.message}`;
+        }
+    }
+
+    // --- Drawing Handlers ---
+
+    function startDrawing(mode: "polygon") {
+        isDrawing = true;
+        drawMode = mode;
+        tempPoints = [];
+        if (drawLayerGroup) drawLayerGroup.clearLayers();
+        tempLayer = null; // Explicitly reset the tempLayer reference
+        if (map) map.doubleClickZoom.disable(); // Prevent zoom on dblclick finish
+        contextMenu = null; // Close menu
+    }
+
+    function finishDrawing() {
+        // Use get(loadedMaps) to ensure we have the absolute latest version of the config from the store
+        // This fixes the issue where using a potentially stale `mapConfig` (derived)
+        // might overwrite recent changes (like adding a pin) if the reactivity hasn't propagated yet.
+        const currentCache = get(loadedMaps).get(data.path);
+        const currentConfig = currentCache?.config;
+
+        if (!currentConfig) {
+            console.error("Cannot finish drawing: Map config not found.");
+            return;
+        }
+
+        const h = currentConfig.height || 2048;
+        let shapeData: any;
+
+        if (drawMode === "polygon" && tempPoints.length >= 3) {
+            // Convert LatLngs back to map coordinates (Y flip)
+            const points = tempPoints.map((p) => ({
+                x: Math.round(p.lng),
+                y: Math.round(h - p.lat),
+            }));
+            shapeData = { type: "polygon", points };
+        }
+
+        // Cleanup drawing state
+        isDrawing = false;
+        drawMode = null;
+        if (drawLayerGroup) drawLayerGroup.clearLayers();
+        if (map) map.doubleClickZoom.enable();
+
+        if (shapeData) {
+            openModal({
+                component: AddRegionModal,
+                props: {
+                    onClose: closeModal,
+                    mapPath: data.path,
+                    mapConfig: currentConfig, // Pass the fresh config
+                    shapeData: shapeData,
+                },
+            });
         }
     }
 
@@ -378,6 +532,38 @@
             },
         });
     }
+
+    function handleDeleteShape(shapeId: string) {
+        if (!mapConfig) return;
+        const currentConfig = mapConfig;
+        contextMenu = null;
+        openModal({
+            component: ConfirmModal,
+            props: {
+                title: "Delete Region",
+                message: "Are you sure you want to delete this region?",
+                onClose: closeModal,
+                onConfirm: async () => {
+                    try {
+                        const updatedConfig = {
+                            ...currentConfig,
+                            shapes: (currentConfig.shapes || []).filter(
+                                (s) => s.id !== shapeId,
+                            ),
+                        };
+                        await writePageContent(
+                            data.path,
+                            JSON.stringify(updatedConfig, null, 2),
+                        );
+                        registerMap(data.path, updatedConfig);
+                        closeModal();
+                    } catch (e) {
+                        alert("Failed to delete region.");
+                    }
+                },
+            },
+        });
+    }
 </script>
 
 <div class="map-view-container">
@@ -385,7 +571,26 @@
         <div slot="left">
             <h2 class="view-title">{data?.title.replace(".map.json", "")}</h2>
         </div>
-        <div slot="right"></div>
+        <div slot="right">
+            <!-- Draw Controls -->
+            {#if isDrawing}
+                <div class="draw-controls">
+                    <span class="draw-hint">
+                        {drawMode === "polygon"
+                            ? "Click to add points. Double-click to finish."
+                            : "Draw mode active"}
+                    </span>
+                    <Button
+                        size="small"
+                        onclick={() => {
+                            isDrawing = false;
+                            drawLayerGroup?.clearLayers();
+                            map?.doubleClickZoom.enable();
+                        }}>Cancel</Button
+                    >
+                </div>
+            {/if}
+        </div>
     </ViewHeader>
 
     {#if error}
@@ -395,7 +600,7 @@
     {:else if !mapConfig}
         <div class="status-container"><p>Loading Map Configuration...</p></div>
     {:else}
-        <div class="map-wrapper">
+        <div class="map-wrapper" class:drawing={isDrawing}>
             <div bind:this={mapElement} class="leaflet-container"></div>
         </div>
     {/if}
@@ -407,16 +612,41 @@
             onClose={() => (contextMenu = null)}
             actions={contextMenu.customActions
                 ? contextMenu.customActions
-                : contextMenu.pinId
-                  ? [
-                        {
-                            label: "Delete Pin",
-                            handler: () =>
-                                contextMenu?.pinId &&
-                                handleDeletePin(contextMenu.pinId),
-                        },
-                    ]
-                  : [{ label: "Add Pin Here...", handler: handleAddPin }]}
+                : [
+                      // Only show Delete options if a specific ID is present
+                      ...(contextMenu.pinId
+                          ? [
+                                {
+                                    label: "Delete Pin",
+                                    handler: () =>
+                                        contextMenu?.pinId &&
+                                        handleDeletePin(contextMenu.pinId),
+                                },
+                            ]
+                          : []),
+                      // Add a separator if we have deletion options AND we're about to add creation options
+                      ...(contextMenu.pinId ? [{ isSeparator: true }] : []),
+                      // Always show creation options (Add Pin, Draw Region)
+                      {
+                          label: "Add Pin Here...",
+                          handler: handleAddPin,
+                      },
+                      { isSeparator: true },
+                      {
+                          label: "Draw Polygon Region",
+                          handler: () => startDrawing("polygon"),
+                      },
+                      ...(contextMenu.shapeId
+                          ? [
+                                {
+                                    label: "Delete Region",
+                                    handler: () =>
+                                        contextMenu?.shapeId &&
+                                        handleDeleteShape(contextMenu.shapeId),
+                                },
+                            ]
+                          : []),
+                  ]}
         />
     {/if}
 </div>
@@ -434,6 +664,16 @@
         margin: 0;
         font-size: 1.5rem;
     }
+    .draw-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .draw-hint {
+        font-size: 0.9rem;
+        color: var(--color-text-secondary);
+        font-style: italic;
+    }
     .error-container,
     .status-container {
         padding: 2rem;
@@ -448,6 +688,10 @@
         position: relative;
         background-color: #222;
         overflow: hidden;
+    }
+    /* Cursor styling for drawing mode */
+    .map-wrapper.drawing .leaflet-container {
+        cursor: crosshair !important;
     }
     .leaflet-container {
         width: 100%;

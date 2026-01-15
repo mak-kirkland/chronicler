@@ -51,21 +51,65 @@ export interface MapPin {
      */
     targetMap?: string;
     /**
-     * Optional editor metadata: Color of the pin.
+     * Optional label to display on hover/always.
      */
-    color?: string;
+    label?: string;
     /**
      * Optional icon/emoji for the pin.
      */
     icon?: string;
     /**
-     * Optional editor metadata: Which layer this pin "belongs" to.
+     * Optional color hex code.
      */
-    layerId?: string;
+    color?: string;
+}
+
+/**
+ * Represents a polygon region.
+ */
+export interface MapPolygon {
+    id: string;
+    type: 'polygon';
     /**
-     * Optional label to display on hover/always.
+     * Array of points {x, y} defining the shape.
      */
+    points: { x: number; y: number }[];
+    targetPage?: string;
+    targetMap?: string;
     label?: string;
+    color?: string; // Stroke/Fill color
+}
+
+/**
+ * Represents a circular region.
+ */
+export interface MapCircle {
+    id: string;
+    type: 'circle';
+    x: number;
+    y: number;
+    radius: number;
+    targetPage?: string;
+    targetMap?: string;
+    label?: string;
+    color?: string;
+}
+
+/**
+ * Union type for any shape region.
+ */
+export type MapRegion = MapPolygon | MapCircle;
+
+/**
+ * Defines the scale ratio of the map.
+ */
+export interface MapScale {
+    /** The length of the reference line in pixels */
+    pixels: number;
+    /** The real-world value that line represents */
+    value: number;
+    /** The label for the unit (e.g., "miles", "km", "ft") */
+    unit: string;
 }
 
 /**
@@ -80,6 +124,16 @@ export interface MapConfig {
      */
     width: number;
     height: number;
+
+    /**
+     * The scale configuration for the map.
+     */
+    scale?: MapScale;
+
     layers: MapLayer[];
     pins: MapPin[];
+    /**
+     * List of vector shapes (polygons, circles) defined on the map.
+     */
+    shapes?: MapRegion[];
 }
