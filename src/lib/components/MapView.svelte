@@ -6,7 +6,11 @@
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { currentView } from "$lib/viewStores";
     import { loadedMaps, registerMap } from "$lib/mapStore";
-    import { imagePathLookup, pagePathLookup } from "$lib/worldStore";
+    import {
+        imagePathLookup,
+        pagePathLookup,
+        mapPathLookup,
+    } from "$lib/worldStore";
     import { writePageContent } from "$lib/commands";
     import type { MapConfig, MapPin } from "$lib/mapModels";
     import type { PageHeader } from "$lib/bindings";
@@ -33,6 +37,8 @@
         mapX?: number;
         mapY?: number;
         pinId?: string;
+        // Custom actions for the context menu (used for the dual-link choice)
+        customActions?: { label: string; handler: () => void }[];
     } | null>(null);
 
     const mapConfig = $derived.by(() => {
@@ -97,6 +103,38 @@
             updateMap(mapConfig);
         }
     });
+
+    // Helper to navigate to a map
+    function navigateToMap(mapTitle: string) {
+        const lookup = get(mapPathLookup);
+        const mapPath = lookup.get(mapTitle.toLowerCase());
+        if (mapPath) {
+            currentView.set({
+                type: "map",
+                data: {
+                    path: mapPath,
+                    title: mapTitle,
+                },
+            });
+        } else {
+            console.warn(`Map not found: ${mapTitle}`);
+            alert(`Linked map "${mapTitle}" not found.`);
+        }
+    }
+
+    // Helper to navigate to a page
+    function navigateToPage(pageTitle: string) {
+        const lookup = get(pagePathLookup);
+        const resolvedPath = lookup.get(pageTitle.toLowerCase());
+        const finalPath = resolvedPath || pageTitle;
+        currentView.set({
+            type: "file",
+            data: {
+                path: finalPath,
+                title: pageTitle,
+            },
+        });
+    }
 
     function updateMap(config: MapConfig) {
         // 1. Prevent unnecessary re-renders (Fixes zoom flashing/resetting)
@@ -219,24 +257,52 @@
                             icon: iconToUse,
                         });
 
-                        marker.bindTooltip(pin.label || "Page", {
+                        // Determine label
+                        let tooltipText = pin.label || "Pin";
+                        if (!pin.label) {
+                            if (pin.targetPage) tooltipText = pin.targetPage;
+                            else if (pin.targetMap) tooltipText = pin.targetMap;
+                        }
+
+                        marker.bindTooltip(tooltipText, {
                             direction: "top",
                             offset: pin.icon ? [0, -40] : [0, -34],
                         });
 
-                        marker.on("click", () => {
-                            const lookup = get(pagePathLookup);
-                            const resolvedPath = lookup.get(
-                                pin.targetPage.toLowerCase(),
-                            );
-                            const finalPath = resolvedPath || pin.targetPage;
-                            currentView.set({
-                                type: "file",
-                                data: {
-                                    path: finalPath,
-                                    title: pin.label || pin.targetPage,
-                                },
-                            });
+                        // --- CLICK HANDLER WITH DUAL LINK LOGIC ---
+                        marker.on("click", (e: L.LeafletMouseEvent) => {
+                            // Stop propagation so map click doesn't close what we just opened
+                            L.DomEvent.stopPropagation(e.originalEvent);
+
+                            // Scenario 1: Both Page and Map links exist
+                            if (pin.targetPage && pin.targetMap) {
+                                contextMenu = {
+                                    x: e.originalEvent.clientX,
+                                    y: e.originalEvent.clientY,
+                                    show: true,
+                                    // Custom actions to choose destination
+                                    customActions: [
+                                        {
+                                            label: `Open Page: ${pin.targetPage}`,
+                                            handler: () =>
+                                                navigateToPage(pin.targetPage!),
+                                        },
+                                        {
+                                            label: `Open Map: ${pin.targetMap}`,
+                                            handler: () =>
+                                                navigateToMap(pin.targetMap!),
+                                        },
+                                    ],
+                                };
+                            }
+                            // Scenario 2: Only Map link
+                            else if (pin.targetMap) {
+                                navigateToMap(pin.targetMap);
+                            }
+                            // Scenario 3: Only Page link (or no link)
+                            else if (pin.targetPage) {
+                                navigateToPage(pin.targetPage);
+                            }
                         });
 
                         marker.on("contextmenu", (e: L.LeafletMouseEvent) => {
@@ -339,16 +405,18 @@
             x={contextMenu.x}
             y={contextMenu.y}
             onClose={() => (contextMenu = null)}
-            actions={contextMenu.pinId
-                ? [
-                      {
-                          label: "Delete Pin",
-                          handler: () =>
-                              contextMenu?.pinId &&
-                              handleDeletePin(contextMenu.pinId),
-                      },
-                  ]
-                : [{ label: "Add Pin Here...", handler: handleAddPin }]}
+            actions={contextMenu.customActions
+                ? contextMenu.customActions
+                : contextMenu.pinId
+                  ? [
+                        {
+                            label: "Delete Pin",
+                            handler: () =>
+                                contextMenu?.pinId &&
+                                handleDeletePin(contextMenu.pinId),
+                        },
+                    ]
+                  : [{ label: "Add Pin Here...", handler: handleAddPin }]}
         />
     {/if}
 </div>

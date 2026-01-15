@@ -12,7 +12,6 @@ export interface MapLayer {
     name: string;
     /**
      * The image filename.
-     * Must be a sibling of the .map.json file in the file system.
      */
     image: string;
     /**
@@ -43,9 +42,14 @@ export interface MapPin {
      */
     y: number;
     /**
-     * The absolute path to the target Markdown page.
+     * The title of the target Markdown page.
      */
-    targetPage: string;
+    targetPage?: string;
+    /**
+     * The title of the target Map (filename without extension).
+     * Used for nested maps (drill-down).
+     */
+    targetMap?: string;
     /**
      * Optional editor metadata: Color of the pin.
      */

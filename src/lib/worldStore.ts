@@ -292,3 +292,42 @@ export const pagePathLookup = derived(files, ($files) => {
     }
     return map;
 });
+
+/**
+ * Recursively flattens the file tree to find all .map.json files.
+ * Returns PageHeader objects (title + path).
+ */
+function flattenMapTree(node: FileNode | null): PageHeader[] {
+    if (!node) return [];
+    const maps: PageHeader[] = [];
+    // We manually check for the .map.json extension since we don't have an isMap helper here
+    if (node.name.endsWith(".map.json")) {
+        maps.push({ title: node.name.replace(".map.json", ""), path: node.path });
+    }
+    if (node.children) {
+        for (const child of node.children) {
+            maps.push(...flattenMapTree(child));
+        }
+    }
+    return maps;
+}
+
+/**
+ * A derived store that provides a flattened list of all Interactive Maps.
+ * Useful for linking pins to other maps.
+ */
+export const allMaps = derived(files, ($files) =>
+    flattenMapTree($files).sort((a, b) => a.title.localeCompare(b.title)),
+);
+
+/**
+ * A derived store that maps map titles to their absolute paths.
+ * Example: { "Kingdom": "C:/Vault/Maps/Kingdom.map.json" }
+ */
+export const mapPathLookup = derived(allMaps, ($allMaps) => {
+    const map = new Map<string, string>();
+    for (const m of $allMaps) {
+        map.set(m.title.toLowerCase(), m.path);
+    }
+    return map;
+});

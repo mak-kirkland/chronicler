@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { allFileTitles } from "$lib/worldStore";
+    import { allFileTitles, allMaps } from "$lib/worldStore";
     import { writePageContent } from "$lib/commands";
     import { registerMap } from "$lib/mapStore";
     import Button from "./Button.svelte";
@@ -15,14 +15,16 @@
         y: number;
     }>();
 
-    let selectedPageTitle = $state("");
+    let selectedPage = $state("");
+    let selectedMap = $state("");
     let label = $state("");
     let selectedIcon = $state("📍");
-    let selectedColor = $state("#3498db"); // Default blue background
+    let selectedColor = $state("#3498db"); // Default blue
     let isSaving = $state(false);
 
-    // Use titles directly for the options
+    // Options derived from stores
     const pageOptions = $derived($allFileTitles);
+    const mapOptions = $derived($allMaps.map((m) => m.title));
 
     const ICONS = [
         "📍",
@@ -107,27 +109,29 @@
         "#1abc9c", // Teal
     ];
 
-    // Auto-fill label when page is selected
+    // Auto-fill label when target is selected
     $effect(() => {
-        if (selectedPageTitle && !label) {
-            label = selectedPageTitle;
+        if (!label) {
+            if (selectedPage) label = selectedPage;
+            else if (selectedMap) label = selectedMap;
         }
     });
 
     async function handleSubmit(event?: Event) {
         if (event) event.preventDefault();
-        if (!selectedPageTitle) return;
+        // Require at least one link or a label to be set
+        if (!selectedPage && !selectedMap && !label) return;
 
         isSaving = true;
         try {
-            const targetTitle = selectedPageTitle;
-
             const newPin: MapPin & { icon?: string; color?: string } = {
                 id: crypto.randomUUID(),
                 x: Math.round(x),
                 y: Math.round(y),
-                targetPage: targetTitle,
-                label: label || targetTitle,
+                // Allow both targets to be set
+                targetPage: selectedPage || undefined,
+                targetMap: selectedMap || undefined,
+                label: label || selectedPage || selectedMap || "Pin",
                 icon: selectedIcon,
                 color: selectedColor,
             };
@@ -156,11 +160,20 @@
 <Modal title="Add Pin" {onClose}>
     <form onsubmit={handleSubmit} class="form">
         <div class="form-group">
-            <label for="page-select">Target Page</label>
+            <label>Linked Page (Optional)</label>
             <SearchableSelect
                 options={pageOptions}
-                bind:value={selectedPageTitle}
+                bind:value={selectedPage}
                 placeholder="Search pages..."
+            />
+        </div>
+
+        <div class="form-group">
+            <label>Linked Map (Optional)</label>
+            <SearchableSelect
+                options={mapOptions}
+                bind:value={selectedMap}
+                placeholder="Search maps..."
             />
         </div>
 
@@ -224,7 +237,10 @@
             <Button type="button" variant="ghost" onclick={onClose}
                 >Cancel</Button
             >
-            <Button type="submit" disabled={!selectedPageTitle || isSaving}>
+            <Button
+                type="submit"
+                disabled={(!selectedPage && !selectedMap && !label) || isSaving}
+            >
                 {isSaving ? "Saving..." : "Add Pin"}
             </Button>
         </div>
