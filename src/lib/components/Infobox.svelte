@@ -348,6 +348,9 @@
     dd ul {
         margin: 0;
         padding-left: 1.2rem;
+        /* Restore list-style in the LinkPreview because FloatingMenu (dropdown-menu)
+           resets it globally */
+        list-style: disc;
     }
     .infobox :global(.embedded-image) {
         height: 1.2em;

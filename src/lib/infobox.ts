@@ -285,6 +285,39 @@ export function buildInfoboxLayout(
     return finalItems;
 }
 
+/**
+ * Determines if the infobox has enough content to be worth displaying.
+ * Used by both the main Preview view and LinkPreviews to avoid showing
+ * empty boxes that only contain a Title/Subtitle.
+ *
+ * Criteria: Has Images OR Has Error OR Has Custom Fields.
+ *
+ * This intentionally avoids calling buildInfoboxLayout() for performance,
+ * since it may be invoked for many link previews on a single page.
+ */
+export function hasInfoboxContent(data: InfoboxFrontmatter | null): boolean {
+    if (!data) return false;
+
+    // 1. Check for Images
+    if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+        return true;
+    }
+
+    // 2. Check for Errors
+    if (data.error) return true;
+
+    // 3. Check for any non-reserved custom field
+    // This is equivalent to what buildInfoboxLayout would find, but O(keys)
+    // instead of building the full render list.
+    for (const key of Object.keys(data)) {
+        if (!RESERVED_INFOBOX_KEYS.has(key) && key !== "infobox") {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // --- Logic: Parsing (YAML -> Editor State) ---
 
 /**

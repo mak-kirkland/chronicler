@@ -2,6 +2,7 @@
     import type { RenderedPage } from "$lib/bindings";
     import Infobox from "./Infobox.svelte";
     import TableOfContents from "./TableOfContents.svelte";
+    import LinkPreview from "./LinkPreview.svelte"; // Import the new component
     import { isTocVisible, areFooterTagsVisible } from "$lib/settingsStore";
     import {
         tablesort,
@@ -10,7 +11,7 @@
         renderMath,
     } from "$lib/domActions";
     import { navigateToTag } from "$lib/actions";
-    import { buildInfoboxLayout, type InfoboxFrontmatter } from "$lib/infobox";
+    import { hasInfoboxContent, type InfoboxFrontmatter } from "$lib/infobox";
 
     let {
         renderedData,
@@ -25,48 +26,64 @@
     }>();
 
     // --- Infobox Visibility Logic ---
-    // Calculate if the infobox has "real" content (images, errors, or key-value pairs).
-    // If it only has metadata (title, subtitle, tags), we consider it "empty" to reduce clutter.
-
-    const layoutItems = $derived(buildInfoboxLayout(infoboxData));
-
-    const hasImages = $derived(
-        infoboxData?.images &&
-            Array.isArray(infoboxData.images) &&
-            infoboxData.images.length > 0,
-    );
-
-    const hasError = $derived(!!infoboxData?.error);
-
-    const hasContentFields = $derived(layoutItems.length > 0);
-
-    // Show the infobox ONLY if it has images, an error, or actual data fields.
-    const showInfobox = $derived(
-        infoboxData && (hasImages || hasError || hasContentFields),
-    );
+    const showInfobox = $derived(hasInfoboxContent(infoboxData));
 
     // --- Footer Tag Logic ---
-    // Show tags in the footer if:
-    // 1. There are tags to show.
-    // 2. AND (The user enabled footer tags globally OR the infobox is hidden).
+    // Only show footer tags if there ARE tags, and either the global setting says so
+    // OR the sidebar infobox is hidden.
     const showFooterTags = $derived(
         infoboxData?.tags &&
             Array.isArray(infoboxData.tags) &&
             infoboxData.tags.length > 0 &&
             ($areFooterTagsVisible || !showInfobox),
     );
+
+    // --- Link Preview Logic ---
+    let hoveredLinkEl = $state<HTMLElement | null>(null);
+    let hoveredLinkPath = $state<string | null>(null);
+
+    function handleMouseOver(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+
+        // We check for 'internal-link' class which identifies wikilinks.
+        if (
+            target.tagName === "A" &&
+            target.classList.contains("internal-link")
+        ) {
+            const dataPath = target.getAttribute("data-path");
+            const broken = target.classList.contains("broken");
+
+            if (!broken) {
+                hoveredLinkEl = target;
+                hoveredLinkPath = dataPath;
+            }
+        }
+    }
+
+    function handleMouseOut(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        if (
+            target.tagName === "A" &&
+            target.classList.contains("internal-link")
+        ) {
+            hoveredLinkEl = null;
+            hoveredLinkPath = null;
+        }
+    }
 </script>
 
 <!--
-  The main container has a mode class and will control the layout.
-  The main content is wrapped in its own div to create a distinct flex item.
-  It is also marked with the 'chronicler-content' class for scoped styling from preview.css.
-  -->
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex -->
+  The LinkPreview component manages its own visibility based on the props we pass it.
+-->
+<LinkPreview anchorEl={hoveredLinkEl} targetPath={hoveredLinkPath} />
+
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex, a11y_mouse_events_have_key_events -->
 <div
     class="preview-container chronicler-content mode-{mode}"
     role="document"
     tabindex="0"
+    onmouseover={handleMouseOver}
+    onmouseout={handleMouseOut}
     use:tablesort={renderedData}
     use:hydrateCarousels={renderedData}
     use:enhanceGalleries={renderedData}
