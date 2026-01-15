@@ -285,36 +285,6 @@ layout:
 
 ### 📸 Advanced Images
 
-#### 📐 Size & Alignment
-
-For full control over an image's size, alignment, and caption, use HTML tags in the body of your page.
-
-**Float an image to the right of your text:**
-```html
-<img
-  src="rivertown-market.png"
-  style="float: right; margin-left: 1em; width: 300px;"
->
-```
-
-**Add a caption using `<figure>`:**
-```html
-<figure style="float: right; width: 250px;">
-  <img src="silverflow-river.jpg" style="width: 100%;">
-  <figcaption style="text-align: center; font-style: italic;">
-    The Silverflow River at dawn.
-  </figcaption>
-</figure>
-```
-
-#### 🎌 Inline Images (e.g. Flags or Icons)
-
-You can also place small images directly into a line of text. This is perfect for icons or flags. The `height: 1em;` style makes the image scale with the text, and `vertical-align: middle;` centers it nicely.
-
-```html
-The Gooblboys invaded the Lynorian Empire <img src="lynorian-flag.png" alt="Lynorian Empire Flag" style="height: 1em; vertical-align: middle;"> on a Saturday.
-```
-
 #### 🔗 Clickable Images
 
 You can turn any image into a link to another page by using the image as the link's **alias**.
@@ -327,7 +297,7 @@ This allows you to create clickable icons or badges directly in your text.
 
 #### 🖼️ Image Galleries
 
-Create responsive, wiki-style image galleries that automatically arrange themselves into a grid. Images in a gallery are uniform in size and look great on any screen.
+Create wiki-style image galleries that arrange themselves into a grid. Images in a gallery are uniform in size and look great on any screen.
 
 ##### Basic Gallery
 
@@ -384,8 +354,6 @@ For precise control, you can set the exact dimensions using the `--gallery-heigh
   ![[Tall Tower]]
 </div>
 ```
-
----
 
 #### 🎠 Image Carousels
 
@@ -455,6 +423,36 @@ You can control the height of the carousel using the same helper classes as the 
   ![[World Map]]
   ![[Region Map]]
 </div>
+```
+
+#### 📐 Size & Alignment
+
+For full control over an image's size, alignment, and caption, use HTML tags in the body of your page.
+
+**Float an image to the right of your text:**
+```html
+<img
+  src="rivertown-market.png"
+  style="float: right; margin-left: 1em; width: 300px;"
+>
+```
+
+**Add a caption using `<figure>`:**
+```html
+<figure style="float: right; width: 250px;">
+  <img src="silverflow-river.jpg" style="width: 100%;">
+  <figcaption style="text-align: center; font-style: italic;">
+    The Silverflow River at dawn.
+  </figcaption>
+</figure>
+```
+
+#### 🎌 Inline Images (e.g. Flags or Icons)
+
+You can also place small images directly into a line of text. This is perfect for icons or flags. The `height: 1em;` style makes the image scale with the text, and `vertical-align: middle;` centers it nicely.
+
+```html
+The Gooblboys invaded the Lynorian Empire <img src="lynorian-flag.png" style="height: 1em; vertical-align: middle;"> on a Saturday.
 ```
 
 ---
