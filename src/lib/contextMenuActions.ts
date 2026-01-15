@@ -21,6 +21,7 @@ import { manuallyExpandedPaths, showImages } from "$lib/explorerStore";
 // Import modal components that can be triggered from the context menu
 import TextInputModal from "./components/TextInputModal.svelte";
 import ConfirmModal from "./components/ConfirmModal.svelte";
+import CreateMapModal from "./components/CreateMapModal.svelte";
 
 /**
  * This function dynamically builds the list of actions for the context menu
@@ -106,6 +107,22 @@ export function getContextMenuActions(
         actions.push({
             label: "New Page...",
             handler: () => promptAndCreateItem("file", node.path),
+        });
+        actions.push({
+            label: "New Map...",
+            handler: () => {
+                // Open the specific CreateMapModal instead of the generic prompt
+                // We assume CreateMapModal can accept a parent path or defaults to root/current context.
+                // Note: CreateMapModal implementation we wrote uses `vaultPath` by default.
+                // To make it context-aware (create in THIS folder), we might need to update CreateMapModal
+                // to accept a `parentDir` prop. For now, we'll open it as is.
+                openModal({
+                    component: CreateMapModal,
+                    props: {
+                        onClose: closeModal
+                    }
+                });
+            },
         });
         actions.push({
             label: "New Folder...",

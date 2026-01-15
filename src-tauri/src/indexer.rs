@@ -7,7 +7,8 @@ use crate::{
     error::{ChroniclerError, Result},
     events::FileEvent,
     models::{
-        BrokenImage, BrokenLink, FileNode, FileType, Link, Page, PageHeader, ParseError, VaultAsset,
+        BrokenImage, BrokenLink, FileNode, FileType, Link, MapConfig, Page, PageHeader, ParseError,
+        VaultAsset,
     },
     parser,
     utils::{file_stem_string, is_image_file, is_markdown_file},
@@ -47,6 +48,10 @@ pub struct Indexer {
     /// Stores the complete link graph: Source Path -> Target Path -> Vec<Link>.
     /// The Vec<Link> captures every link instance, to calculate link strength.
     pub link_graph: HashMap<PathBuf, HashMap<PathBuf, Vec<Link>>>,
+
+    /// Stores the reverse index for Maps: Page Path -> Set of Map Paths that link to it.
+    /// Used to populate the "Associated Maps" list in the file view.
+    pub map_backlinks: HashMap<PathBuf, HashSet<PathBuf>>,
 }
 
 /// Helper struct to hold the result of processing a single file during scan.
@@ -116,11 +121,40 @@ impl Indexer {
                 error: None,
             }
         } else {
-            // Ignore other file types
-            ScanResult {
-                path: canonical_path,
-                asset: None,
-                error: None,
+            // CHECK FOR MAP FILES (.map.json)
+            // We use file_name() string matching because standard extension() only returns 'json'
+            let file_name = canonical_path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("");
+
+            if file_name.ends_with(".map.json") {
+                match fs::read_to_string(&canonical_path) {
+                    Ok(content) => match serde_json::from_str::<MapConfig>(&content) {
+                        Ok(config) => ScanResult {
+                            path: canonical_path,
+                            asset: Some(VaultAsset::Map(Box::new(config))),
+                            error: None,
+                        },
+                        Err(e) => ScanResult {
+                            path: canonical_path,
+                            asset: None,
+                            error: Some(format!("Map parse error: {}", e)),
+                        },
+                    },
+                    Err(e) => ScanResult {
+                        path: canonical_path,
+                        asset: None,
+                        error: Some(format!("Could not read map file: {}", e)),
+                    },
+                }
+            } else {
+                // Ignore other file types
+                ScanResult {
+                    path: canonical_path,
+                    asset: None,
+                    error: None,
+                }
             }
         }
     }
@@ -157,6 +191,7 @@ impl Indexer {
         self.link_resolver.clear();
         self.media_resolver.clear();
         self.link_graph.clear();
+        self.map_backlinks.clear();
 
         // 1. Collect all file paths first.
         let paths: Vec<PathBuf> = WalkDir::new(root_path)
@@ -185,12 +220,13 @@ impl Indexer {
         // Second pass: Build relationships between pages now that all assets are indexed.
         self.rebuild_relations();
 
-        let (page_count, image_count) =
+        let (page_count, image_count, map_count) =
             self.assets
                 .values()
-                .fold((0, 0), |(p, i), asset| match asset {
-                    VaultAsset::Page(_) => (p + 1, i),
-                    VaultAsset::Image => (p, i + 1),
+                .fold((0, 0, 0), |(p, i, m), asset| match asset {
+                    VaultAsset::Page(_) => (p + 1, i, m),
+                    VaultAsset::Image => (p, i + 1, m),
+                    VaultAsset::Map(_) => (p, i, m + 1),
                 });
 
         let links_found = self
@@ -203,6 +239,7 @@ impl Indexer {
         info!(
             pages_indexed = page_count,
             images_indexed = image_count,
+            maps_indexed = map_count,
             tags_found = self.tags.len(),
             links_found,
             duration_ms = start_time.elapsed().as_millis(),
@@ -337,6 +374,7 @@ impl Indexer {
         let mut new_tags: HashMap<String, HashSet<PathBuf>> = HashMap::new();
         let mut new_link_graph: HashMap<PathBuf, HashMap<PathBuf, Vec<Link>>> = HashMap::new();
         let mut new_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
+        let mut new_map_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
 
         // --- PASS 1: Build resolver maps ---
         // This pass ensures that all potential link targets are known before we process any links.
@@ -356,30 +394,67 @@ impl Indexer {
         // --- PASS 2: Build relationships using the resolvers ---
         // This pass can now safely assume that the resolvers are complete.
         for (path, asset) in &self.assets {
-            if let VaultAsset::Page(page) = asset {
-                // Rebuild tag associations
-                for tag in &page.tags {
-                    new_tags
-                        .entry(tag.clone())
-                        .or_default()
-                        .insert(path.clone());
-                }
-
-                // Rebuild the link graph and calculate backlinks
-                for link in &page.links {
-                    if let Some(target_path) = new_link_resolver.get(&link.target.to_lowercase()) {
-                        new_link_graph
-                            .entry(path.clone())
-                            .or_default()
-                            .entry(target_path.clone())
-                            .or_default()
-                            .push(link.clone());
-                        new_backlinks
-                            .entry(target_path.clone())
+            match asset {
+                VaultAsset::Page(page) => {
+                    // Rebuild tag associations
+                    for tag in &page.tags {
+                        new_tags
+                            .entry(tag.clone())
                             .or_default()
                             .insert(path.clone());
                     }
+
+                    // Rebuild the link graph and calculate backlinks
+                    for link in &page.links {
+                        if let Some(target_path) =
+                            new_link_resolver.get(&link.target.to_lowercase())
+                        {
+                            new_link_graph
+                                .entry(path.clone())
+                                .or_default()
+                                .entry(target_path.clone())
+                                .or_default()
+                                .push(link.clone());
+                            new_backlinks
+                                .entry(target_path.clone())
+                                .or_default()
+                                .insert(path.clone());
+                        }
+                    }
                 }
+                VaultAsset::Map(config) => {
+                    // Index map pins linking to pages
+                    if let Some(pins) = &config.pins {
+                        for pin in pins {
+                            if let Some(target) = &pin.target_page {
+                                if let Some(target_path) =
+                                    new_link_resolver.get(&target.to_lowercase())
+                                {
+                                    new_map_backlinks
+                                        .entry(target_path.clone())
+                                        .or_default()
+                                        .insert(path.clone());
+                                }
+                            }
+                        }
+                    }
+                    // Index map regions linking to pages
+                    if let Some(shapes) = &config.shapes {
+                        for shape in shapes {
+                            if let Some(target) = &shape.target_page {
+                                if let Some(target_path) =
+                                    new_link_resolver.get(&target.to_lowercase())
+                                {
+                                    new_map_backlinks
+                                        .entry(target_path.clone())
+                                        .or_default()
+                                        .insert(path.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
 
@@ -395,6 +470,7 @@ impl Indexer {
         let _ = mem::replace(&mut self.media_resolver, new_media_resolver);
         let _ = mem::replace(&mut self.tags, new_tags);
         let _ = mem::replace(&mut self.link_graph, new_link_graph);
+        let _ = mem::replace(&mut self.map_backlinks, new_map_backlinks);
     }
 
     /// Resolves a wikilink to an absolute file path using the resolver map.
@@ -466,7 +542,13 @@ impl Indexer {
         } else if is_image_file(path) {
             FileType::Image
         } else {
-            FileType::Markdown
+            // Check for map file
+            let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+            if file_name.ends_with(".map.json") {
+                FileType::Map
+            } else {
+                FileType::Markdown
+            }
         };
 
         let children = if file_type == FileType::Directory {
@@ -481,6 +563,7 @@ impl Indexer {
                     if child_path.is_dir()
                         || is_markdown_file(&child_path)
                         || is_image_file(&child_path)
+                        || file_name.ends_with(".map.json")
                     {
                         entries.push(Self::build_tree_recursive(&child_path, file_name)?);
                     }

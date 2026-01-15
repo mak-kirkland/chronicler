@@ -114,6 +114,7 @@ fn main() {
             commands::render_page_preview,
             commands::build_page_view,
             commands::write_page_content,
+            commands::read_text_file,
             commands::get_file_tree,
             commands::create_new_file,
             commands::create_new_folder,
