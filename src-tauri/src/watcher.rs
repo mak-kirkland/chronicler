@@ -8,7 +8,7 @@ use crate::{
     config::{DEBOUNCE_INTERVAL, DEFAULT_EVENT_CHANNEL_CAPACITY},
     error::Result,
     events::FileEvent,
-    utils::{is_image_file, is_markdown_file},
+    utils::{is_image_file, is_map_file, is_markdown_file},
 };
 use notify_debouncer_full::{
     new_debouncer,
@@ -141,7 +141,7 @@ impl Drop for Watcher {
 ///
 /// This function processes raw filesystem events from the debouncer, converts them
 /// to our standardized `FileEvent` format, and publishes them to subscribers.
-/// It processes both markdown and image files, ignoring temporary files.
+/// It processes markdown files, image files, and map files, ignoring temporary files.
 ///
 /// # Arguments
 /// * `event_sender` - The broadcast sender to publish events to
@@ -160,7 +160,7 @@ fn handle_debounced_events(
                 .map(|path| {
                     // This is an educated guess. If a path doesn't have an extension
                     // that we track, we'll assume it was a folder.
-                    if !is_markdown_file(path) && !is_image_file(path) {
+                    if !is_markdown_file(path) && !is_image_file(path) && !is_map_file(path) {
                         FileEvent::FolderDeleted(path.to_path_buf())
                     } else {
                         FileEvent::Deleted(path.to_path_buf())
@@ -253,7 +253,7 @@ fn handle_debounced_events(
 /// Checks if a path points to a valid file that should be processed.
 /// This ignores temporary/lock files (like .#file.md).
 fn is_valid_file(path: &Path) -> bool {
-    !is_temp_file(path) && (is_markdown_file(path) || is_image_file(path))
+    !is_temp_file(path) && (is_markdown_file(path) || is_image_file(path) || is_map_file(path))
 }
 
 /// Checks if a path points to a temporary/lock file (like .#file.md).
