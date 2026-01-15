@@ -196,6 +196,13 @@ pub fn open_in_explorer(app_handle: AppHandle, path: String) -> Result<()> {
     Ok(())
 }
 
+/// Reads and parses a `.map.json` file from within the vault.
+#[command]
+#[instrument(skip(world))]
+pub fn get_map_config(path: String, world: State<World>) -> Result<serde_json::Value> {
+    world.get_map_config(&path)
+}
+
 // --- Importer ---
 
 /// Imports a list of .docx files, converting them to Markdown.

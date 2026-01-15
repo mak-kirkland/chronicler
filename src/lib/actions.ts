@@ -159,6 +159,43 @@ export function navigateToImage(image: PageHeader) {
 }
 
 /**
+ * Navigates the main view to display a specific map.
+ * @param page The header of the map to navigate to, containing its path and title.
+ */
+export function navigateToMap(page: PageHeader) {
+    currentView.set({ type: "map", data: page });
+}
+
+/**
+ * Helper to update the current view if the file at oldPath is currently active.
+ * Handles renaming/moving logic for Files, Images, and Maps.
+ */
+function navigateToUpdatedPath(oldPath: string, newPath: string) {
+    const view = get(currentView);
+    // Check if the current view corresponds to the old path
+    const isActive =
+        (view.type === "file" ||
+            view.type === "image" ||
+            view.type === "map") &&
+        view.data?.path === oldPath;
+
+    if (isActive) {
+        const newTitle = fileStemString(newPath);
+
+        // If the file type changed to markdown or image (e.g. via rename), switch views.
+        if (isMarkdownFile(newPath)) {
+            navigateToPage({ path: newPath, title: newTitle });
+        } else if (isImageFile(newPath)) {
+            navigateToImage({ path: newPath, title: newTitle });
+        } else if (view.type === "map") {
+            // If we were in a map view and it hasn't become a standard file/image,
+            // assume it remains a map (handles .cmap).
+            navigateToMap({ path: newPath, title: newTitle });
+        }
+    }
+}
+
+/**
  * Initializes the vault at the given path.
  * This is the main entry point after a user selects a vault folder.
  * @param path The absolute path to the vault directory.
@@ -214,26 +251,12 @@ export async function createFile(
  */
 export async function renamePath(path: string, newName: string) {
     try {
-        // Before the operation, check if the file being renamed is the one currently open.
-        const view = get(currentView);
-        const wasFileOpen =
-            (view.type === "file" || view.type === "image") &&
-            view.data &&
-            view.data.path === path;
-
         // Execute the rename command and get the new path from the backend.
         const newPath = await commands.renamePath(path, newName);
         await world.initialize(); // Refresh all data after the operation.
 
         // If the file was open, navigate the view to its new path.
-        if (wasFileOpen) {
-            const newTitle = fileStemString(newPath);
-            if (isMarkdownFile(newPath)) {
-                navigateToPage({ path: newPath, title: newTitle });
-            } else if (isImageFile(newPath)) {
-                navigateToImage({ path: newPath, title: newTitle });
-            }
-        }
+        navigateToUpdatedPath(path, newPath);
     } catch (e) {
         console.error(`Rename failed for path: ${path}`, e);
         alert(`Error: ${e}`);
@@ -328,26 +351,12 @@ export async function movePath(sourcePath: string, destinationDir: string) {
     }
 
     try {
-        // Before the operation, check if the file being moved is the one currently open.
-        const view = get(currentView);
-        const wasFileOpen =
-            (view.type === "file" || view.type === "image") &&
-            view.data &&
-            view.data.path === sourcePath;
-
         // Execute the move command and get the new path.
         const newPath = await commands.movePath(sourcePath, destinationDir);
         await world.initialize(); // Refresh data to show the move in the UI.
 
         // If the file was open, navigate the view to its new path.
-        if (wasFileOpen) {
-            const newTitle = fileStemString(newPath);
-            if (isMarkdownFile(newPath)) {
-                navigateToPage({ path: newPath, title: newTitle });
-            } else if (isImageFile(newPath)) {
-                navigateToImage({ path: newPath, title: newTitle });
-            }
-        }
+        navigateToUpdatedPath(sourcePath, newPath);
     } catch (e) {
         console.error(
             `Move failed for source '${sourcePath}' to '${destinationDir}'`,

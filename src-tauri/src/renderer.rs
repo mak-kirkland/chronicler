@@ -9,7 +9,7 @@
 
 use crate::config::IMAGES_DIR_NAME;
 use crate::error::ChroniclerError;
-use crate::models::{Backlink, FullPageData, TocEntry, VaultAsset};
+use crate::models::{Backlink, FullPageData, MapLink, TocEntry, VaultAsset};
 use crate::sanitizer;
 use crate::utils::file_stem_string;
 use crate::wikilink::WIKILINK_RE;
@@ -948,7 +948,7 @@ impl Renderer {
 
     /// Fetches all data for a given page path and returns a `FullPageData`
     /// object suitable for displaying in the main file view. This includes
-    /// raw content, rendered content, and backlink information.
+    /// raw content, rendered content, backlink information, and associated maps.
     pub fn build_page_view(&self, path: &str) -> Result<FullPageData> {
         let raw_content = fs::read_to_string(path)?;
         let rendered_page = self.render_page_preview(&raw_content)?;
@@ -968,6 +968,7 @@ impl Renderer {
             })
             .ok_or_else(|| ChroniclerError::FileNotFound(canonical_path.clone()))?;
 
+        // 1. Process standard Backlinks
         let mut backlinks: Vec<Backlink> = page
             .backlinks
             .iter()
@@ -998,10 +999,37 @@ impl Renderer {
         // Sort backlinks alphabetically by title (case-insensitive)
         backlinks.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
 
+        // 2. Process Associated Maps (new functionality)
+        // We look up the current page in the `map_backlinks` index.
+        let mut associated_maps: Vec<MapLink> = indexer
+            .map_backlinks
+            .get(&canonical_path)
+            .map(|map_paths| {
+                map_paths
+                    .iter()
+                    .filter_map(|map_path| {
+                        // Retrieve the map asset to get its title
+                        if let Some(VaultAsset::Map(config)) = indexer.assets.get(map_path) {
+                            Some(MapLink {
+                                title: config.title.clone(),
+                                path: map_path.clone(),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        // Sort maps alphabetically by title
+        associated_maps.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+
         Ok(FullPageData {
             raw_content,
             rendered_page,
             backlinks,
+            associated_maps,
         })
     }
 }

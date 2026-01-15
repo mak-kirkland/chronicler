@@ -44,6 +44,28 @@ export function isImage(node: FileNode): boolean {
 }
 
 /**
+ * A helper function to check if a FileNode is a Map file.
+ * @param node The FileNode to check.
+ * @returns True if the node's file_type is 'Map'
+ */
+export function isMap(node: FileNode): boolean {
+    return node.file_type === "Map";
+}
+
+/**
+ * Returns the formatted display name for a file node.
+ * This handles stripping specific extensions (like .map.json) for UI presentation.
+ * @param node The FileNode to process.
+ * @returns The cleaned name string.
+ */
+export function getDisplayName(node: FileNode): string {
+    if (isMap(node)) {
+        return node.name.replace(".map.json", "");
+    }
+    return node.name;
+}
+
+/**
  * Checks if a given path string points to a Markdown file based on its extension.
  * This is useful for client-side logic where we only have the path string.
  * @param path The file path string.
@@ -61,6 +83,15 @@ export function isMarkdownFile(path: string): boolean {
 export function isImageFile(path: string): boolean {
     const extension = path.split(".").pop()?.toLowerCase();
     return extension ? IMAGE_EXTENSIONS.includes(extension) : false;
+}
+
+/**
+ * Checks if a given path string points to a Map file.
+ * @param path The file path or filename string.
+ * @returns True if the path ends with .map.json
+ */
+export function isMapFile(path: string): boolean {
+    return path.toLowerCase().endsWith(".map.json");
 }
 
 /**
@@ -110,14 +141,18 @@ export async function resolveImageSource(
 export function fileStemString(path: string): string {
     const fileName = path.split(/[\\/]/).pop() || "";
 
-    // 1. Handle Markdown (Case-insensitive)
-    // We need this because this function is also used on full paths (e.g. in links),
-    // which DO have the .md extension.
+    // 1. Handle Map Files
+    // Check this first to handle the double extension ".map.json"
+    if (fileName.toLowerCase().endsWith(".map.json")) {
+        return fileName.slice(0, -9); // Remove ".map.json"
+    }
+
+    // 2. Handle Markdown (Case-insensitive)
     if (fileName.toLowerCase().endsWith(".md")) {
         return fileName.slice(0, -3);
     }
 
-    // 2. Handle Images
+    // 3. Handle Images
     // We check against our known list. If it matches, we strip it.
     const lastDotIndex = fileName.lastIndexOf(".");
     if (lastDotIndex > 0) {
@@ -127,7 +162,7 @@ export function fileStemString(path: string): string {
         }
     }
 
-    // 3. Fallback: Return as-is.
+    // 4. Fallback: Return as-is.
     // This correctly handles "Mr. Husk" (folder) or "Chapter 1.5" (file without visible extension)
     return fileName;
 }

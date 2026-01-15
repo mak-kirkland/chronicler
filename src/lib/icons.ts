@@ -13,6 +13,7 @@ export interface IconPack {
         folderOpen: string;
         file: string;
         image: string;
+        map: string;
 
         // Navigation & Sidebar
         tags: string;
@@ -56,6 +57,7 @@ export const coreIcons: IconPack = {
         folderOpen: "📂",
         file: "📄",
         image: "🖼️",
+        map: "🗺",
         tags: "#",
         gallery: "🖼️",
         reports: "📈",
