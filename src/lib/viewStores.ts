@@ -17,6 +17,7 @@ export type ViewState =
     | { type: "tag"; tagName: string }
     | { type: "file"; data: PageHeader | null; sectionId?: string | null }
     | { type: "image"; data: PageHeader | null }
+    | { type: "map"; data: PageHeader | null }
     | { type: "report"; name: string };
 
 /**

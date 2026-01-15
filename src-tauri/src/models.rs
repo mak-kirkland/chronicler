@@ -21,6 +21,8 @@ pub enum VaultAsset {
     Page(Box<Page>),
     /// An image file. For now, we only need to know it exists; its path is the key.
     Image,
+    /// An interactive map configuration file (.map.json).
+    Map,
     // Example of future extension:
     // Audio,
 }
@@ -89,6 +91,8 @@ pub enum FileType {
     Markdown,
     /// A supported image file (e.g., `.png`, `.jpg`).
     Image,
+    /// An interactive map configuration (`.map.json`).
+    Map,
 }
 
 /// Implements partial ordering for `FileType`.
@@ -104,7 +108,7 @@ impl PartialOrd for FileType {
 /// Implements total ordering for `FileType` to define a custom sort order.
 ///
 /// This implementation ensures that `Directory` variants are always considered
-/// "less than" file variants (`Markdown`, `Image`), causing them to appear
+/// "less than" file variants (`Markdown`, `Image`, `Map`), causing them to appear
 /// first when a list of `FileNode`s is sorted.
 impl Ord for FileType {
     fn cmp(&self, other: &Self) -> Ordering {

@@ -109,6 +109,14 @@ export const writePageContent = (path: string, content: string) =>
   invoke("write_page_content", { path, content });
 
 /**
+ * Reads a text file from disk using the backend, bypassing frontend capability checks.
+ * @param path The absolute path to the file.
+ * @returns A promise that resolves to the file content as a string.
+ */
+export const readTextFile = (path: string) =>
+    invoke<string>("read_text_file", { path });
+
+/**
  * Renders a preview of markdown content without saving it to disk.
  * @param content The raw markdown content to render.
  * @returns A promise that resolves to the rendered page data.

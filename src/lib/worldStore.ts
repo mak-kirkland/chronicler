@@ -226,11 +226,29 @@ function flattenImageTree(node: FileNode | null): PageHeader[] {
 }
 
 /**
+ * Recursively flattens the file tree to find all Markdown pages.
+ * Returns PageHeader objects (title + path).
+ */
+function flattenPageTree(node: FileNode | null): PageHeader[] {
+    if (!node) return [];
+    const pages: PageHeader[] = [];
+    if (node.name && isMarkdown(node)) {
+        pages.push({ title: node.name, path: node.path });
+    }
+    if (node.children) {
+        for (const child of node.children) {
+            pages.push(...flattenPageTree(child));
+        }
+    }
+    return pages;
+}
+
+/**
  * A derived store that provides a flattened list of all page titles.
  * Useful for autocompletion features.
  */
 export const allFileTitles = derived(files, ($files) =>
-    flattenFileTree($files),
+    flattenFileTree($files).sort((a, b) => a.localeCompare(b)),
 );
 
 /**
@@ -257,6 +275,20 @@ export const imagePathLookup = derived(allImages, ($allImages) => {
     for (const img of $allImages) {
         // Normalize keys to lowercase to match backend behavior
         map.set(img.title.toLowerCase(), img.path);
+    }
+    return map;
+});
+
+/**
+ * A derived store that maps page titles (filenames) to their absolute paths.
+ * Useful for resolving pin targets or wikilinks stored by name.
+ * Example: { "kingdom of aethelgard": "C:/Vault/Places/Kingdom of Aethelgard.md" }
+ */
+export const pagePathLookup = derived(files, ($files) => {
+    const map = new Map<string, string>();
+    const pages = flattenPageTree($files);
+    for (const page of pages) {
+        map.set(page.title.toLowerCase(), page.path);
     }
     return map;
 });

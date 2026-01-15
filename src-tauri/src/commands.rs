@@ -130,6 +130,14 @@ pub fn get_image_as_base64(path: String, world: State<World>) -> Result<String> 
 
 // --- File and Folder Operations ---
 
+/// Reads a text file from disk directly via the backend.
+/// This bypasses frontend scope restrictions for known safe file types (like .map.json).
+#[command]
+#[instrument]
+pub fn read_text_file(path: String) -> Result<String> {
+    Ok(std::fs::read_to_string(path)?)
+}
+
 /// Writes content to a page on disk. The file watcher will pick up the change.
 #[command]
 #[instrument(skip(world, content))]

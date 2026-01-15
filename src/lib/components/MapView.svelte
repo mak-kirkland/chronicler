@@ -1,0 +1,397 @@
+<script lang="ts">
+    import { onMount, onDestroy } from "svelte";
+    import { get } from "svelte/store";
+    import L from "leaflet";
+    import "leaflet/dist/leaflet.css";
+    import { convertFileSrc } from "@tauri-apps/api/core";
+    import { currentView } from "$lib/viewStores";
+    import { loadedMaps, registerMap } from "$lib/mapStore";
+    import { imagePathLookup, pagePathLookup } from "$lib/worldStore";
+    import { writePageContent } from "$lib/commands";
+    import type { MapConfig, MapPin } from "$lib/mapModels";
+    import type { PageHeader } from "$lib/bindings";
+    import ErrorBox from "./ErrorBox.svelte";
+    import ViewHeader from "./ViewHeader.svelte";
+    import ContextMenu from "./ContextMenu.svelte";
+    import AddPinModal from "./AddPinModal.svelte";
+    import ConfirmModal from "./ConfirmModal.svelte";
+    import { openModal, closeModal } from "$lib/modalStore";
+
+    let { data } = $props<{ data: PageHeader }>();
+
+    let mapElement: HTMLElement;
+    let map: L.Map | null = null;
+    let markerLayerGroup: L.LayerGroup | null = null;
+    let error = $state<string | null>(null);
+    let currentMapPath: string | null = null;
+    let prevConfigStr = ""; // Track config state to prevent re-renders
+
+    let contextMenu = $state<{
+        x: number;
+        y: number;
+        show: boolean;
+        mapX?: number;
+        mapY?: number;
+        pinId?: string;
+    } | null>(null);
+
+    const mapConfig = $derived.by(() => {
+        const config = $loadedMaps.get(data.path)?.config;
+        return config;
+    });
+
+    const defaultIcon = L.icon({
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        iconRetinaUrl:
+            "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        shadowUrl:
+            "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41],
+    });
+
+    function createEmojiIcon(emoji: string, color: string = "#ffffff") {
+        const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="32" height="48">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12z" fill="${color}" stroke="#444" stroke-width="1.5"/>
+                <text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-family="Segoe UI Emoji, Apple Color Emoji, sans-serif" dy="1">${emoji}</text>
+            </svg>
+        `;
+
+        return L.divIcon({
+            className: "custom-pin-marker",
+            html: svg,
+            iconSize: [32, 48],
+            iconAnchor: [16, 48],
+            popupAnchor: [0, -48],
+        });
+    }
+
+    onMount(() => {
+        if (mapConfig) {
+            updateMap(mapConfig);
+        }
+    });
+
+    onDestroy(() => {
+        if (map) {
+            map.remove();
+            map = null;
+            markerLayerGroup = null;
+        }
+    });
+
+    $effect(() => {
+        if (mapConfig && mapElement) {
+            if (currentMapPath !== data.path) {
+                if (map) {
+                    map.remove();
+                    map = null;
+                    markerLayerGroup = null;
+                    prevConfigStr = ""; // Reset config tracking
+                }
+                currentMapPath = data.path;
+            }
+            updateMap(mapConfig);
+        }
+    });
+
+    function updateMap(config: MapConfig) {
+        // 1. Prevent unnecessary re-renders (Fixes zoom flashing/resetting)
+        const configStr = JSON.stringify(config);
+        if (configStr === prevConfigStr && map) {
+            return;
+        }
+        prevConfigStr = configStr;
+
+        if (!mapElement) return;
+        error = null;
+
+        try {
+            const w = config.width || 2048;
+            const h = config.height || 2048;
+            // Define bounds: Top-Left [0,0] to Bottom-Right [height, width]
+            // We pad the bounds slightly so the user can drag a bit past the edge
+            // In CRS.Simple, [0,0] is bottom-left. We map our top-left to [h, 0]
+            const bounds: L.LatLngBoundsExpression = [
+                [0, 0],
+                [h, w],
+            ];
+
+            if (!map) {
+                map = L.map(mapElement, {
+                    crs: L.CRS.Simple,
+                    minZoom: -5, // Temporary low min zoom to allow fitting logic to work
+                    maxZoom: 3,
+                    zoomControl: false,
+                    // Allow fractional zoom levels for perfect fitting (fills screen exactly)
+                    zoomSnap: 0,
+                    // Restrict panning to the image area exactly (no padding)
+                    maxBounds: bounds,
+                    maxBoundsViscosity: 1.0, // Strong "rubber band" effect (hard limit)
+                });
+
+                L.control.zoom({ position: "topright" }).addTo(map);
+
+                const sortedLayers = [...config.layers].sort(
+                    (a, b) => a.zIndex - b.zIndex,
+                );
+                sortedLayers.forEach((layer) => {
+                    if (!layer.visible) return;
+                    const imagePath = $imagePathLookup.get(
+                        layer.image.toLowerCase(),
+                    );
+                    if (imagePath) {
+                        const assetUrl = convertFileSrc(imagePath);
+                        L.imageOverlay(assetUrl, bounds).addTo(map!);
+                    }
+                });
+
+                // Calculate the optimal zoom to fit the image exactly in the container
+                // This ensures the map always fills the screen on load
+                const fitZoom = map.getBoundsZoom(bounds);
+
+                // Set the initial view to the calculated fit zoom level
+                map.setView([h / 2, w / 2], fitZoom, { animate: false });
+
+                // Set this fitZoom as the absolute minimum zoom level allowed
+                // This prevents the user from zooming out further than the image boundaries
+                map.setMinZoom(fitZoom);
+
+                // Constraint Logic: Disable dragging when at min zoom (fully zoomed out)
+                const updateDragging = () => {
+                    if (!map) return;
+                    const currentZoom = map.getZoom();
+                    const minZoom = map.getMinZoom();
+                    // Use a small epsilon for float comparison due to zoomSnap: 0
+                    if (currentZoom <= minZoom + 0.001) {
+                        map.dragging.disable();
+                        // Force center alignment when zoomed all the way out
+                        // This fixes the issue where the map might be stuck to a side
+                        map.panTo([h / 2, w / 2], { animate: true });
+                    } else {
+                        map.dragging.enable();
+                    }
+                };
+
+                // Listen to zoom events to toggle dragging and re-center
+                map.on("zoomend", updateDragging);
+
+                // Initial check
+                updateDragging();
+
+                markerLayerGroup = L.layerGroup().addTo(map);
+
+                map.on("contextmenu", (e: L.LeafletMouseEvent) => {
+                    const mapX = e.latlng.lng;
+                    const mapY = h - e.latlng.lat;
+                    contextMenu = {
+                        x: e.originalEvent.clientX,
+                        y: e.originalEvent.clientY,
+                        show: true,
+                        mapX,
+                        mapY,
+                    };
+                });
+
+                map.on("click movestart zoomstart", () => {
+                    contextMenu = null;
+                });
+            }
+
+            // Update Markers
+            if (markerLayerGroup) {
+                markerLayerGroup.clearLayers();
+            }
+
+            if (config.pins && markerLayerGroup) {
+                config.pins.forEach(
+                    (pin: MapPin & { icon?: string; color?: string }) => {
+                        const leafletLat = h - pin.y;
+                        const leafletLng = pin.x;
+                        const iconToUse = pin.icon
+                            ? createEmojiIcon(pin.icon, pin.color || "#ffffff")
+                            : defaultIcon;
+
+                        const marker = L.marker([leafletLat, leafletLng], {
+                            icon: iconToUse,
+                        });
+
+                        marker.bindTooltip(pin.label || "Page", {
+                            direction: "top",
+                            offset: pin.icon ? [0, -40] : [0, -34],
+                        });
+
+                        marker.on("click", () => {
+                            const lookup = get(pagePathLookup);
+                            const resolvedPath = lookup.get(
+                                pin.targetPage.toLowerCase(),
+                            );
+                            const finalPath = resolvedPath || pin.targetPage;
+                            currentView.set({
+                                type: "file",
+                                data: {
+                                    path: finalPath,
+                                    title: pin.label || pin.targetPage,
+                                },
+                            });
+                        });
+
+                        marker.on("contextmenu", (e: L.LeafletMouseEvent) => {
+                            L.DomEvent.stopPropagation(e.originalEvent);
+                            contextMenu = {
+                                x: e.originalEvent.clientX,
+                                y: e.originalEvent.clientY,
+                                show: true,
+                                pinId: pin.id,
+                            };
+                        });
+
+                        marker.addTo(markerLayerGroup!);
+                    },
+                );
+            }
+        } catch (e: any) {
+            console.error("Map Error:", e);
+            error = `Map Error: ${e.message}`;
+        }
+    }
+
+    function handleAddPin() {
+        if (
+            !contextMenu ||
+            !mapConfig ||
+            contextMenu.mapX === undefined ||
+            contextMenu.mapY === undefined
+        )
+            return;
+        const { mapX, mapY } = contextMenu;
+        contextMenu = null;
+        openModal({
+            component: AddPinModal,
+            props: {
+                onClose: closeModal,
+                mapPath: data.path,
+                mapConfig: mapConfig,
+                x: mapX,
+                y: mapY,
+            },
+        });
+    }
+
+    function handleDeletePin(pinId: string) {
+        if (!mapConfig) return;
+        const currentConfig = mapConfig;
+        contextMenu = null;
+        openModal({
+            component: ConfirmModal,
+            props: {
+                title: "Delete Pin",
+                message: "Are you sure you want to delete this pin?",
+                onClose: closeModal,
+                onConfirm: async () => {
+                    try {
+                        const updatedConfig = {
+                            ...currentConfig,
+                            pins: currentConfig.pins.filter(
+                                (p) => p.id !== pinId,
+                            ),
+                        };
+                        await writePageContent(
+                            data.path,
+                            JSON.stringify(updatedConfig, null, 2),
+                        );
+                        registerMap(data.path, updatedConfig);
+                        closeModal();
+                    } catch (e) {
+                        alert("Failed to delete pin.");
+                    }
+                },
+            },
+        });
+    }
+</script>
+
+<div class="map-view-container">
+    <ViewHeader>
+        <div slot="left">
+            <h2 class="view-title">{data?.title.replace(".map.json", "")}</h2>
+        </div>
+        <div slot="right"></div>
+    </ViewHeader>
+
+    {#if error}
+        <div class="error-container">
+            <ErrorBox title="Map Error">{error}</ErrorBox>
+        </div>
+    {:else if !mapConfig}
+        <div class="status-container"><p>Loading Map Configuration...</p></div>
+    {:else}
+        <div class="map-wrapper">
+            <div bind:this={mapElement} class="leaflet-container"></div>
+        </div>
+    {/if}
+
+    {#if contextMenu && contextMenu.show}
+        <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={() => (contextMenu = null)}
+            actions={contextMenu.pinId
+                ? [
+                      {
+                          label: "Delete Pin",
+                          handler: () =>
+                              contextMenu?.pinId &&
+                              handleDeletePin(contextMenu.pinId),
+                      },
+                  ]
+                : [{ label: "Add Pin Here...", handler: handleAddPin }]}
+        />
+    {/if}
+</div>
+
+<style>
+    .map-view-container {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+    }
+    .view-title {
+        font-family: var(--font-family-heading);
+        color: var(--color-text-heading);
+        margin: 0;
+        font-size: 1.5rem;
+    }
+    .error-container,
+    .status-container {
+        padding: 2rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: var(--color-text-secondary);
+        font-style: italic;
+    }
+    .map-wrapper {
+        flex-grow: 1;
+        position: relative;
+        background-color: #222;
+        overflow: hidden;
+    }
+    .leaflet-container {
+        width: 100%;
+        height: 100%;
+        background: transparent;
+    }
+
+    /* Optimized marker style: drop-shadow moved here for better performance */
+    :global(.custom-pin-marker) {
+        background: transparent;
+        border: none;
+        filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+        will-change: transform; /* Hint to browser to optimize layering */
+    }
+</style>

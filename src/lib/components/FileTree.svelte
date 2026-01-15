@@ -14,6 +14,7 @@
     import Button from "./Button.svelte";
     import Icon from "./Icon.svelte";
     import { isDirectory, isImage, isMarkdown } from "$lib/utils";
+
     let {
         node,
         onContextMenu,
@@ -29,6 +30,11 @@
     // A folder is expanded if we are searching OR if it's in our global set
     const expanded = $derived(isSearching || isManuallyExpanded);
 
+    // Helper to detect map files
+    function isMap(node: FileNode): boolean {
+        return node.name.endsWith(".map.json");
+    }
+
     /**
      * Handles a click on any non-directory node, routing to the correct
      * view based on the file type. Note the capitalized enum variant names.
@@ -38,6 +44,15 @@
             navigateToPage({ title: node.name, path: node.path });
         } else if (isImage(node)) {
             navigateToImage({ title: node.name, path: node.path });
+        } else if (isMap(node)) {
+            // Open the map view
+            currentView.set({
+                type: "map",
+                data: {
+                    title: node.name.replace(".map.json", ""),
+                    path: node.path,
+                },
+            });
         }
     }
 
@@ -59,6 +74,14 @@
         const destinationDir = node.path;
 
         await movePath(sourcePath, destinationDir);
+    }
+
+    // Clean up the display name for maps
+    function getDisplayName(node: FileNode): string {
+        if (isMap(node)) {
+            return node.name.replace(".map.json", "");
+        }
+        return node.name;
     }
 </script>
 
@@ -114,7 +137,8 @@
         <div
             class="file"
             class:active={($currentView.type === "file" ||
-                $currentView.type === "image") &&
+                $currentView.type === "image" ||
+                $currentView.type === "map") &&
                 $currentView.data?.path === node.path}
             onclick={() => handleNodeClick(node)}
             onkeydown={(e) => e.key === "Enter" && handleNodeClick(node)}
@@ -125,8 +149,10 @@
             }}
             use:draggable={node.path}
         >
-            <Icon type={isImage(node) ? "image" : "file"} />
-            <span class="node-name-text">{node.name}</span>
+            <Icon
+                type={isImage(node) ? "image" : isMap(node) ? "map" : "file"}
+            />
+            <span class="node-name-text">{getDisplayName(node)}</span>
         </div>
     {/if}
 </div>

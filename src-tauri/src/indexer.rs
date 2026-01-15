@@ -116,11 +116,26 @@ impl Indexer {
                 error: None,
             }
         } else {
-            // Ignore other file types
-            ScanResult {
-                path: canonical_path,
-                asset: None,
-                error: None,
+            // CHECK FOR MAP FILES (.map.json)
+            // We use file_name() string matching because standard extension() only returns 'json'
+            let file_name = canonical_path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("");
+
+            if file_name.ends_with(".map.json") {
+                ScanResult {
+                    path: canonical_path,
+                    asset: Some(VaultAsset::Map),
+                    error: None,
+                }
+            } else {
+                // Ignore other file types
+                ScanResult {
+                    path: canonical_path,
+                    asset: None,
+                    error: None,
+                }
             }
         }
     }
@@ -185,12 +200,13 @@ impl Indexer {
         // Second pass: Build relationships between pages now that all assets are indexed.
         self.rebuild_relations();
 
-        let (page_count, image_count) =
+        let (page_count, image_count, map_count) =
             self.assets
                 .values()
-                .fold((0, 0), |(p, i), asset| match asset {
-                    VaultAsset::Page(_) => (p + 1, i),
-                    VaultAsset::Image => (p, i + 1),
+                .fold((0, 0, 0), |(p, i, m), asset| match asset {
+                    VaultAsset::Page(_) => (p + 1, i, m),
+                    VaultAsset::Image => (p, i + 1, m),
+                    VaultAsset::Map => (p, i, m + 1),
                 });
 
         let links_found = self
@@ -203,6 +219,7 @@ impl Indexer {
         info!(
             pages_indexed = page_count,
             images_indexed = image_count,
+            maps_indexed = map_count,
             tags_found = self.tags.len(),
             links_found,
             duration_ms = start_time.elapsed().as_millis(),
@@ -466,7 +483,13 @@ impl Indexer {
         } else if is_image_file(path) {
             FileType::Image
         } else {
-            FileType::Markdown
+            // Check for map file
+            let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+            if file_name.ends_with(".map.json") {
+                FileType::Map
+            } else {
+                FileType::Markdown
+            }
         };
 
         let children = if file_type == FileType::Directory {
@@ -481,6 +504,7 @@ impl Indexer {
                     if child_path.is_dir()
                         || is_markdown_file(&child_path)
                         || is_image_file(&child_path)
+                        || file_name.ends_with(".map.json")
                     {
                         entries.push(Self::build_tree_recursive(&child_path, file_name)?);
                     }
