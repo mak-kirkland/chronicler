@@ -6,9 +6,9 @@ This guide is split into three parts. Start with **The Essentials** to learn the
 
 ---
 
-# Part 1: The Essentials
+## 🧱 Part 1: The Essentials
 
-## 📁 Vaults and Files
+### 📦 Vaults and Files
 
 Chronicler stores your notes as plain Markdown (`.md`) files in a folder on your computer, called a **vault**.
 
@@ -18,7 +18,7 @@ Chronicler stores your notes as plain Markdown (`.md`) files in a folder on your
 
 ---
 
-## 📝 Writing in Markdown
+### 📝 Writing in Markdown
 
 Chronicler uses **Markdown** to format your pages.
 
@@ -34,17 +34,16 @@ Here is a simple footnote[^1]. With some additional text after it.
 
 ---
 
-## 🔗 Linking Between Pages
+### 🔗 Linking Between Pages
 
 Use `[[Page Name]]` to link to other pages in your vault.
 
 -   Create an alias with `[[Page Name|link text]]`.
 -   When you rename a page, all links to it are automatically updated.
--   See all pages that link *to* your current page in the **Backlinks** panel.
 
 ---
 
-## 🔖 Infoboxes
+### 🔖 Infoboxes
 
 At the top of each page is an **infobox** for at-a-glance details. This is controlled by a block of text at the very top of your file called **YAML frontmatter**. This is where you can set the page's title, add an image, and apply tags.
 
@@ -58,26 +57,26 @@ tags: [city, trade, river]
 
 ---
 
-## 📂 Organizing with Tags & Folders
+### 🗂️ Organizing with Tags & Folders
 
 There are two main ways to organize your vault:
 
-1.  🗂️ **Folders**: Create folders in the file explorer to group related pages, like `Places/`, `Characters/`, or `History/`.
+1.  📂 **Folders**: Create folders in the file explorer to group related pages, like `Places/`, `Characters/`, or `History/`.
 2.  🏷️ **Tags**: Add a list of tags to the `tags` field in the infobox. Click any tag to see all other pages with that tag.
 
 ```yaml
 tags: [city, coastal]
 ```
 
-Tip: Pages and folders are ordered alphabetically. If you want to enforce a specific order, you can prefix them with numbers (e.g., `01_Characters`, `02_Places`, `03_History`).
+> Tip: Pages and folders are ordered alphabetically. If you want to enforce a specific order, you can prefix them with numbers (e.g., `01_Characters`, `02_Places`, `03_History`).
 
 ---
 
-## 🖼️ Images
+### 🖼️ Images
 
 You can store your images in any folder within your vault, e.g a central `images/` folder, or right next to your notes. Chronicler will find them automatically. You can also refer to images outside your vault by providing the full path (e.g `C:\Users\Michael\map.png`), or by using shortcuts/symlinks within the vault, however this is *not* recommended as it may slow down your pages.
 
-### Infobox Images
+#### 👤 Infobox Images
 
 You can display an image in a page’s **infobox** by adding the `image` field to the frontmatter at the top of your file:
 
@@ -85,7 +84,7 @@ You can display an image in a page’s **infobox** by adding the `image` field t
 image: rivertown.jpg
 ```
 
-### Page Images
+#### 🏞️ Page Images
 
 The easiest way to add an image to the body of your page is with the wikilink syntax:
 
@@ -97,15 +96,17 @@ The easiest way to add an image to the body of your page is with the wikilink sy
 
 ---
 
-## 🫣 Spoilers
+### 🫣 Spoilers
 
 Hide text by wrapping it in double pipes `||like this||`. The text will be blacked out until a reader clicks on it.
 
-> The king’s advisor is ||secretly a vampire||.
+```markdown
+The king’s advisor is ||secretly a vampire||.
+```
 
 ---
 
-## 🗄️ Tables
+### 🗄️ Tables
 
 Create simple tables with pipes `|` and dashes `-`.
 
@@ -116,13 +117,13 @@ Create simple tables with pipes `|` and dashes `-`.
 | Shield | 75gp  |
 ```
 
-Tip: Links with custom text (e.g., `[[Page|Link text]]`) use the `|` symbol, which can break a table's structure. To fix this, just add a backslash `\` before it: `[[Page\|Link text]]`.
+> Tip: Links with custom text (e.g., `[[Page|Link text]]`) use the `|` symbol, which can break a table's structure. To fix this, just add a backslash `\` before it: `[[Page\|Link text]]`.
 
 *For more control over tables, see the Advanced Guide.*
 
 ---
 
-## 🧩 Page Inserts
+### 🧩 Page Inserts
 
 Embed the content of one page directly inside another. This is great for reusing information (e.g navboxes, item cards, stat blocks...) so you only have to update it in one place.
 
@@ -140,35 +141,40 @@ You can also set a custom title for the header, start the insert hidden, or remo
 
 ---
 
-# Part 2: Customization
-
-This section covers customization for your workflow and the appearance of your pages.
-
-## Application Settings Directory
-Chronicler stores global settings, themes, fonts, and templates in a dedicated folder on your computer. You can find it here:
-
--   **Windows**: `%AppData%\io.github.mak-kirkland.chronicler\`
--   **Linux**: `~/.local/share/io.github.mak-kirkland.chronicler/`
--   **macOS**: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
-
-## 📄 Page Templates
+### 📄 Page Templates
 
 Use templates to create new pages with a pre-defined structure, saving you time and ensuring consistency across your vault. For example, you could have templates for characters, locations, or session notes, each with pre-defined YAML frontmatter and section headings.
 
--   **Manage Templates**: Go to **Settings → Manage Templates** to create and edit them.
--   **Automatic Title**: Use the `{{title}}` placeholder in a template. It will be automatically replaced with the new page's name.
-
-## 🎨 Themes & Fonts
--   **Themes**: Switch between built-in color schemes or create your own with the Theme Editor.
--   **Custom Fonts**: Add your own `.woff2`, `.ttf`, or `.otf` font files to the `fonts` subfolder within the **Application Settings Directory**. After a restart, they will be available in the theme editor.hemes
+- **Manage Templates**: Go to **Settings → Manage Templates** to create and edit them.
+- **Automatic Title**: Use the `{{title}}` placeholder in a template. It will be automatically replaced with the new page's name.
 
 ---
 
-# 🚀 Part 3: Advanced Guide
+## 🛠️ Part 2: Customization
+
+This section covers customization for your workflow and the appearance of your pages.
+
+### ⚙️ Application Settings Directory
+Chronicler stores global settings, themes and fonts in a dedicated folder on your computer. You can find it here:
+
+- **Windows**: `%AppData%\io.github.mak-kirkland.chronicler\`
+- **Linux**: `~/.local/share/io.github.mak-kirkland.chronicler/`
+- **macOS**: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
+
+---
+
+### 🎨 Themes & Fonts
+
+- **Themes**: Switch between built-in color schemes or create your own with the Theme Editor.
+- **Custom Fonts**: Add your own `.woff2`, `.ttf`, or `.otf` font files to the `fonts` subfolder within the **Application Settings Directory**. After a restart, they will be available in the theme editor.hemes
+
+---
+
+## 🚀 Part 3: Advanced Guide
 
 This section covers powerful features for enhancing your workflow.
 
-## 🔖 Mastering the Infobox (YAML Frontmatter)
+### 🪪 Mastering the Infobox
 
 The "infobox" at the top of each page is controlled by a block of text called **YAML frontmatter**. You can add any custom fields you want (e.g., `population`, `leader`, `age`), and they will automatically appear in the infobox.
 
@@ -183,7 +189,7 @@ Several fields have special functionality:
 | `image`    | An image or carousel of images for the infobox.             |
 | `layout`   | Rules for creating headers and columns in the infobox.      |
 
-### 🖼️ Image Carousels
+#### 🎠 Infobox Carousels
 
 Besides a single image, you can provide a list of images to create a carousel in the **infobox**:
 
@@ -197,7 +203,7 @@ You can also add captions to each image in the carousel:
 image: [[rivertown_day.jpg, "Day"], [rivertown_night.jpg, "Night"]]
 ```
 
-### ⚠️ Special syntax inside frontmatter values
+#### 🚨 Special Syntax
 
 Some values may contain special characters that need to be treated properly (for example `[[wikilinks]]` or `||spoilers||`). There are two safe ways to include these without breaking the frontmatter:
 
@@ -216,7 +222,7 @@ notes: |
   It can also span multiple lines.
 ```
 
-### ✍️ Inline Markdown in Field Values
+#### ✒️ Inline Markdown
 
 You can use Markdown like `**bold**` and `*italic*` inside field values.
 
@@ -225,7 +231,7 @@ motto: '*Strength and Honor*'
 homepage: '[Official Site](https://example.com)'
 ```
 
-### ⚜️ Inline Images
+#### ⚜️ Inline Images
 
 You can embed small images like flags or icons directly into infobox fields. This is great for adding visual flair next to text.
 
@@ -233,26 +239,26 @@ You can embed small images like flags or icons directly into infobox fields. Thi
 allegiance: 'Lynorian Empire ![[lynorian-flag.png]]'
 ```
 
-### 🪄 Advanced Infobox Layouts
+#### 🏗️ Infobox Layout
 
 Use the `layout` key to add headers and group fields into columns for a professional, wiki-style infobox.
 
-#### Adding Separators
+##### Adding Separators
 -   `type: separator`: Defines the rule as a horizontal separator.
 -   `above: 'field_name'`: Injects the separator immediately before `field_name`.
 
 > Tip: You can define multiple separators using an array, e.g `below: [field1, field2]`.
 
-#### Adding Headers
+##### Adding Headers
 -   `type: header`: Defines the rule as a header.
 -   `text: 'Your Text'`: The text to display in the header.
 -   `below: 'field_name'`: Injects the header immediately after `field_name`.
 
-#### Grouping Fields into Columns
+##### Grouping Fields into Columns
 -   `type: group`: Defines the rule as a group.
 -   `keys: [field1, field2]`: A list of the frontmatter keys to include in the group.
 
-#### Full Example
+##### Full Example
 ```yaml
 ---
 title: Battle of the Somme
@@ -277,9 +283,9 @@ layout:
 
 ---
 
-## 🖼️ Advanced Images
+### 📸 Advanced Images
 
-### ✨ Images in the Page Body
+#### 📐 Size & Alignment
 
 For full control over an image's size, alignment, and caption, use HTML tags in the body of your page.
 
@@ -301,7 +307,7 @@ For full control over an image's size, alignment, and caption, use HTML tags in 
 </figure>
 ```
 
-### ⚜️ Inline Images (e.g., Flags or Icons)
+#### 🎌 Inline Images (e.g. Flags or Icons)
 
 You can also place small images directly into a line of text. This is perfect for icons or flags. The `height: 1em;` style makes the image scale with the text, and `vertical-align: middle;` centers it nicely.
 
@@ -464,7 +470,7 @@ You can also use **standard HTML `<table>` tags** to create more complex tables 
 
 ---
 
-## 🪄 Advanced Layouts
+### 🪄 Floating Content
 
 Use floating layouts to place tables or images beside your text instead of above or below it.
 
@@ -482,11 +488,11 @@ Wrap your content in a `<div class="float-container">`, and add either `.float-l
 </div>
 ```
 
-⚠️ Markdown headers (`##`) won't wrap inside the container. Use HTML tags instead (`<h2>`).
+> ⚠️ Markdown headers (`##`) won't wrap inside the container. Use HTML tags instead (`<h2>`).
 
 ---
 
-## ✒️ Inline Styling
+### ✒️ Inline Styling
 
 Use basic HTML tags directly in your Markdown to style specific pieces of text. This is useful for adding thematic fonts or colors. The `style` attribute is supported on `<p>` and `<span>` tags.
 
@@ -500,7 +506,7 @@ This text is normal, but <span style="font-family:'Your Custom Font';">these wor
 
 ---
 
-## 📥 Importing Word Docs
+### 📥 Importing Word Docs
 
 You can import `.docx` files from Microsoft Word directly into your vault.
 
@@ -510,7 +516,7 @@ You can import `.docx` files from Microsoft Word directly into your vault.
 
 ---
 
-## ❓ Need Help?
+### ❓ Need Help?
 
 - [Join the Discord community!](https://discord.gg/cXJwcbe2b7)
 - [GitHub Issues](https://github.com/mak-kirkland/chronicler/issues) for bugs or feature requests
