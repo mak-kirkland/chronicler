@@ -13,6 +13,8 @@ export interface IconPack {
         folderOpen: string;
         file: string;
         image: string;
+        map: string;
+        globe: string;
 
         // Navigation & Sidebar
         tags: string;
@@ -56,6 +58,8 @@ export const coreIcons: IconPack = {
         folderOpen: "📂",
         file: "📄",
         image: "🖼️",
+        map: "🗺",
+        globe: "🌍",
         tags: "#",
         gallery: "🖼️",
         reports: "📈",
@@ -89,6 +93,8 @@ export const professionalPack: IconPack = {
         folderOpen: `<path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>`,
         file: `<path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-7-7zM6 20V4h6v5h5v11H6z"/>`,
         image: `<path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>`,
+        map: `<path d="M20.5 3l-6 2-6-2-5.5 1.83c-.55.18-.9.71-.9 1.29v14.47c0 .76.81 1.27 1.5 1.04l5.4-1.8 6 2 5.5-1.83c.55-.18.9-.71.9-1.29V4.29c0-.76-.81-1.27-1.5-1.04l-5.4 1.8zM15 19l-6-2.11V5l6 2.11V19z"/>`,
+        globe: `<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-1.07 3.97-2.9 5.4z"/>`,
 
         // Navigation
         tags: `<path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>`,
@@ -142,6 +148,19 @@ export const fantasyIcons: IconPack = {
         image: `<path d="M19,3H5A2,2,0,0,0,3,5V19a2,2,0,0,0,2,2H19a2,2,0,0,0,2-2V5A2,2,0,0,0,19,3Zm0,16H5V5H19ZM8,15l2.5,3.01L14,12l4,5H6Z" fill="#DAA520"/>
                 <rect x="5" y="5" width="14" height="14" fill="#87CEEB" opacity="0.3"/>`, // Subtle sky bg
 
+        // Treasure Map
+        map: `<path d="M20.5 3l-6 2-6-2-5.5 1.83c-.55.18-.9.71-.9 1.29v14.47c0 .76.81 1.27 1.5 1.04l5.4-1.8 6 2 5.5-1.83c.55-.18.9-.71.9-1.29V4.29c0-.76-.81-1.27-1.5-1.04l-5.4 1.8z" fill="#F5DEB3"/>
+              <path d="M14.5 5v14.47l-6-2.11V2.83l6 2.17z" fill="#DEB887" opacity="0.3"/>
+              <path d="M16 12l2 2m0-2l-2 2" stroke="#8B0000" stroke-width="2" stroke-linecap="round"/>
+              <path d="M6 16c2 0 3-1 5-1s3 1 5 1" stroke="#8B4513" stroke-width="1" fill="none" stroke-dasharray="2 2"/>`,
+
+        // Crystal Ball
+        globe: `<circle cx="12" cy="11" r="7" fill="#E0FFFF" opacity="0.4"/>
+                <circle cx="12" cy="11" r="7" stroke="#DAA520" stroke-width="0.5" fill="none"/>
+                <ellipse cx="12" cy="11" rx="4" ry="1.5" fill="#FFFFFF" opacity="0.4" transform="rotate(-30 12 11)"/>
+                <path d="M8 17l1 3h6l1-3H8z" fill="#8B4513"/>
+                <path d="M7 20h10v2H7z" fill="#DAA520"/>`,
+
         // Navigation - Golden Compass
         tags: `<path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" fill="#B8860B"/>
                <path d="M12,6l-1.5,4.5L6,12l4.5,1.5L12,18l1.5-4.5L18,12l-4.5-1.5Z" fill="#FFD700"/>`,
@@ -158,7 +177,7 @@ export const fantasyIcons: IconPack = {
                   <path d="M9,6h6v2H9ZM9,10h6v2H9ZM9,14h4v2H9Z" fill="#8B4513"/>`,
 
         // Bronze Arrows
-        back: `<path d="M20,11H7.83l5.59-5.59L12,4,4,12l8,8,1.41-1.41L7.83,13H20Z" fill="#CD7F32"/>`,
+        back: `<path d="M20,11H7.83l5.59-5.59L12,4,4,12l8,8,1.41-1.41L7.83 13H20Z" fill="#CD7F32"/>`,
         forward: `<path d="M12,4,10.59,5.41,16.17,11H4v2H16.17l-5.58,5.59L12,20l8-8Z" fill="#CD7F32"/>`,
 
         // Bronze Gear
@@ -230,6 +249,19 @@ export const sciFiIcons: IconPack = {
         image: `<path d="M4,18l3-6,4,5,3-4,6,8H4Z" fill="#0ff" opacity="0.6"/>
                 <path d="M21,3H3A2,2,0,0,0,1,5V19a2,2,0,0,0,2,2H21a2,2,0,0,0,2-2V5A2,2,0,0,0,21,3ZM21,19H3V5H21Z" stroke="currentColor"/>`,
 
+        // Tactical Map
+        map: `<circle cx="12" cy="12" r="9" fill="none" stroke="#0ff" stroke-width="1.5" stroke-dasharray="2 4"/>
+              <line x1="12" y1="3" x2="12" y2="21" stroke="#0ff" stroke-width="1" opacity="0.4"/>
+              <line x1="3" y1="12" x2="21" y2="12" stroke="#0ff" stroke-width="1" opacity="0.4"/>
+              <path d="M12 12l5-5" stroke="#0ff" stroke-width="2"/>
+              <circle cx="17" cy="7" r="1.5" fill="#f00"/>`,
+
+        // Holo Planet
+        globe: `<circle cx="12" cy="12" r="8" fill="none" stroke="#0ff" stroke-width="1.5"/>
+                <ellipse cx="12" cy="12" rx="8" ry="3" fill="none" stroke="#0ff" opacity="0.7"/>
+                <ellipse cx="12" cy="12" rx="3" ry="8" fill="none" stroke="#0ff" opacity="0.7"/>
+                <circle cx="12" cy="12" r="2" fill="#0ff" opacity="0.3"/>`,
+
         // Navigation - Circuit / Node
         tags: `<circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
                <line x1="12" y1="2" x2="12" y2="9" stroke="currentColor" stroke-width="2"/>
@@ -251,7 +283,7 @@ export const sciFiIcons: IconPack = {
                   <circle cx="8" cy="8" r="2" fill="#0f0"/>`,
 
         // Tech Arrow
-        back: `<path d="M20,11H7.83l5.59-5.59L12,4,4,12l8,8,1.41-1.41L7.83,13H20Z" fill="currentColor"/>
+        back: `<path d="M20,11H7.83l5.59-5.59L12,4,4,12l8,8,1.41-1.41L7.83 13H20Z" fill="currentColor"/>
                <rect x="18" y="10" width="4" height="4" fill="#0ff" opacity="0.5"/>`,
         forward: `<path d="M12,4,10.59,5.41,16.17,11H4v2H16.17l-5.58,5.59L12,20l8-8Z" fill="currentColor"/>
                   <rect x="2" y="10" width="4" height="4" fill="#0ff" opacity="0.5"/>`,

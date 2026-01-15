@@ -17,6 +17,7 @@ import type {
     ParseError,
     UserFont,
 } from "./bindings";
+import type { MapConfig } from "./mapModels";
 
 // --- Vault Commands ---
 
@@ -73,7 +74,7 @@ export const getAllDirectoryPaths = () =>
  * @returns A promise that resolves to an array of BrokenLink objects.
  */
 export const getAllBrokenLinks = () =>
-  invoke<BrokenLink[]>("get_all_broken_links");
+    invoke<BrokenLink[]>("get_all_broken_links");
 
 /**
  * Returns a list of all broken image references in the vault.
@@ -106,7 +107,7 @@ export const buildPageView = (path: string) =>
  * @returns A promise that resolves when the file has been written.
  */
 export const writePageContent = (path: string, content: string) =>
-  invoke("write_page_content", { path, content });
+    invoke("write_page_content", { path, content });
 
 /**
  * Renders a preview of markdown content without saving it to disk.
@@ -203,6 +204,14 @@ export const openLogDirectory = () => invoke<void>("open_log_directory");
  */
 export const getImageAsBase64 = (path: string) =>
     invoke<string>("get_image_as_base64", { path });
+
+/**
+ * Reads and parses a `.map.json` file from within the vault.
+ * @param path The absolute path to the map config file.
+ * @returns A promise that resolves to the parsed map configuration.
+ */
+export const getMapConfig = (path: string) =>
+    invoke<MapConfig>("get_map_config", { path });
 
 // --- Importer Commands ---
 

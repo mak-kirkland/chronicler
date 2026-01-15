@@ -121,6 +121,7 @@ fn main() {
             commands::delete_path,
             commands::move_path,
             commands::open_in_explorer,
+            commands::get_map_config,
             commands::get_all_directory_paths,
             commands::is_pandoc_installed,
             commands::download_pandoc,

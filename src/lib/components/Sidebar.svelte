@@ -12,6 +12,7 @@
     import Button from "./Button.svelte";
     import SearchInput from "./SearchInput.svelte";
     import Icon from "./Icon.svelte";
+    import NewMapModal from "./NewMapModal.svelte";
 
     let { width = $bindable() } = $props();
     let activeTab = $state<"files" | "tags" | "gallery" | "reports">("files");
@@ -42,6 +43,16 @@
         if ($vaultPath) {
             promptAndCreateItem("folder", $vaultPath);
         }
+    }
+
+    function showCreateMap() {
+        if (!$vaultPath) return;
+        openModal({
+            component: NewMapModal,
+            props: {
+                onClose: closeModal,
+            },
+        });
     }
 
     function showHelp() {
@@ -136,6 +147,14 @@
                 onclick={showCreateFile}
             >
                 + Page
+            </Button>
+            <Button
+                size="small"
+                class="new-path-button"
+                title="New Map"
+                onclick={showCreateMap}
+            >
+                + Map
             </Button>
             <Button
                 size="small"

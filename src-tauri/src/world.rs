@@ -298,6 +298,11 @@ impl World {
         }
     }
 
+    /// Reads and parses a `.map.json` file from the vault.
+    pub fn get_map_config(&self, path: &str) -> Result<serde_json::Value> {
+        self.indexer.read().get_map_config(path)
+    }
+
     /// Returns a list of all broken links in the vault.
     pub fn get_all_broken_links(&self) -> Result<Vec<BrokenLink>> {
         self.indexer.read().get_all_broken_links()

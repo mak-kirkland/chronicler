@@ -9,6 +9,31 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+/// Partial representation of a Map Pin for indexing purposes.
+/// We only need the target page to build relationships.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MapPin {
+    #[serde(rename = "targetPage")]
+    pub target_page: Option<String>,
+    // We can ignore x, y, icon, etc. for the backend index to save memory.
+}
+
+/// Partial representation of a Map Region (Shape) for indexing purposes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MapRegion {
+    #[serde(rename = "targetPage")]
+    pub target_page: Option<String>,
+}
+
+/// Partial representation of the Map Configuration file.
+/// Used to extract links without loading the entire heavy JSON into memory.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MapConfig {
+    pub title: String,
+    pub pins: Option<Vec<MapPin>>,
+    pub shapes: Option<Vec<MapRegion>>,
+}
+
 /// Represents any uniquely identifiable asset within the vault.
 /// This enum is the core of the unified indexing strategy, allowing the indexer
 /// to treat all file types generically while still storing specific data where needed.
@@ -21,8 +46,9 @@ pub enum VaultAsset {
     Page(Box<Page>),
     /// An image file. For now, we only need to know it exists; its path is the key.
     Image,
-    // Example of future extension:
-    // Audio,
+    /// An interactive map configuration file (.map.json).
+    /// Stores the parsed config to allow backlink calculations.
+    Map(Box<MapConfig>),
 }
 
 /// Represents the location of a link within a source file.
@@ -89,6 +115,8 @@ pub enum FileType {
     Markdown,
     /// A supported image file (e.g., `.png`, `.jpg`).
     Image,
+    /// An interactive map configuration (`.map.json`).
+    Map,
 }
 
 /// Implements partial ordering for `FileType`.
@@ -104,7 +132,7 @@ impl PartialOrd for FileType {
 /// Implements total ordering for `FileType` to define a custom sort order.
 ///
 /// This implementation ensures that `Directory` variants are always considered
-/// "less than" file variants (`Markdown`, `Image`), causing them to appear
+/// "less than" file variants (`Markdown`, `Image`, `Map`), causing them to appear
 /// first when a list of `FileNode`s is sorted.
 impl Ord for FileType {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -136,6 +164,14 @@ pub struct FileNode {
 /// This is used to efficiently send lists of pages to the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PageHeader {
+    pub title: String,
+    #[serde(serialize_with = "serialize_pathbuf_as_web_str")]
+    pub path: PathBuf,
+}
+
+/// A lightweight representation of a map, used for the "associated maps" list.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MapLink {
     pub title: String,
     #[serde(serialize_with = "serialize_pathbuf_as_web_str")]
     pub path: PathBuf,
@@ -184,6 +220,8 @@ pub struct FullPageData {
     pub raw_content: String,
     pub rendered_page: RenderedPage,
     pub backlinks: Vec<Backlink>,
+    /// Maps that contain pins or regions linking to this page.
+    pub associated_maps: Vec<MapLink>,
 }
 
 /// Represents a broken link report, aggregating all pages that link to a non-existent target.

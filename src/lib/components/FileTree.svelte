@@ -8,12 +8,20 @@
         movePath,
         navigateToPage,
         navigateToImage,
+        navigateToMap,
     } from "$lib/actions";
     import { draggable, droppable } from "$lib/domActions";
     import FileTree from "./FileTree.svelte";
     import Button from "./Button.svelte";
     import Icon from "./Icon.svelte";
-    import { isDirectory, isImage, isMarkdown } from "$lib/utils";
+    import {
+        isDirectory,
+        isImage,
+        isMarkdown,
+        isMap,
+        getDisplayName,
+    } from "$lib/utils";
+
     let {
         node,
         onContextMenu,
@@ -38,6 +46,12 @@
             navigateToPage({ title: node.name, path: node.path });
         } else if (isImage(node)) {
             navigateToImage({ title: node.name, path: node.path });
+        } else if (isMap(node)) {
+            // Open the map view
+            navigateToMap({
+                title: node.name,
+                path: node.path,
+            });
         }
     }
 
@@ -114,7 +128,8 @@
         <div
             class="file"
             class:active={($currentView.type === "file" ||
-                $currentView.type === "image") &&
+                $currentView.type === "image" ||
+                $currentView.type === "map") &&
                 $currentView.data?.path === node.path}
             onclick={() => handleNodeClick(node)}
             onkeydown={(e) => e.key === "Enter" && handleNodeClick(node)}
@@ -125,8 +140,14 @@
             }}
             use:draggable={node.path}
         >
-            <Icon type={isImage(node) ? "image" : "file"} />
-            <span class="node-name-text">{node.name}</span>
+            {#if isImage(node)}
+                <Icon type="image" />
+            {:else if isMap(node)}
+                <Icon type="globe" />
+            {:else}
+                <Icon type="file" />
+            {/if}
+            <span class="node-name-text">{getDisplayName(node)}</span>
         </div>
     {/if}
 </div>

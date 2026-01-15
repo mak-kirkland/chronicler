@@ -7,6 +7,7 @@
     import TagIndexView from "$lib/components/TagIndexView.svelte";
     import FileView from "$lib/components/FileView.svelte";
     import ImageView from "$lib/components/ImageView.svelte";
+    import MapView from "$lib/components/MapView.svelte";
     import BacklinksPanel from "$lib/components/BacklinksPanel.svelte";
     import BrokenLinksReportView from "$lib/components/BrokenLinksReportView.svelte";
     import ParseErrorsReportView from "$lib/components/ParseErrorsReportView.svelte";
@@ -19,6 +20,7 @@
         tag: TagIndexView,
         file: FileView,
         image: ImageView,
+        map: MapView,
         "report:broken-links": BrokenLinksReportView,
         "report:parse-errors": ParseErrorsReportView,
         "report:broken-images": BrokenImagesReport,
@@ -36,6 +38,9 @@
                 props = { file: view.data, sectionId: view.sectionId };
                 break;
             case "image":
+                props = { data: view.data };
+                break;
+            case "map":
                 props = { data: view.data };
                 break;
             case "tag":

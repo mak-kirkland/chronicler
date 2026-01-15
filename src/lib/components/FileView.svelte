@@ -13,13 +13,14 @@
         writePageContent,
         renderPagePreview,
     } from "$lib/commands";
-    import { handleContentClick } from "$lib/actions";
+    import { handleContentClick, navigateToMap } from "$lib/actions";
     import type { PageHeader, FullPageData } from "$lib/bindings";
     import { findFileInTree } from "$lib/utils";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
     import Icon from "./Icon.svelte";
     import { openModal, closeModal } from "$lib/modalStore";
     import InfoboxEditorModal from "./InfoboxEditorModal.svelte";
+    import FloatingMenu from "./FloatingMenu.svelte";
 
     let { file, sectionId } = $props<{
         file: PageHeader;
@@ -36,6 +37,13 @@
     let saveTimeout: number;
     let loadingTimer: number; // Timer to delay showing the loading message
 
+    // State for Map Dropdown
+    let isMapMenuOpen = $state(false);
+    let mapButtonEl = $state<HTMLElement | null>(null);
+
+    // Check if this page is pinned on any maps
+    let associatedMaps = $derived(pageData?.associated_maps || []);
+
     // This effect handles loading the page data whenever the `file` prop changes.
     $effect(() => {
         // --- State Reset ---
@@ -48,6 +56,7 @@
         lastSaveTime = null; // Reset last save time for the new file
         clearTimeout(loadingTimer); // Clear any pending loading message timer
         rightSidebar.update((state) => ({ ...state, backlinks: [] })); // Reset backlinks
+        isMapMenuOpen = false; // Close menu on navigation
 
         // --- Set a timer to show the "Loading..." message only if it takes too long ---
         loadingTimer = window.setTimeout(() => {
@@ -164,6 +173,25 @@
             },
         });
     }
+
+    // --- Map Navigation Handler ---
+    function handleMapClick(e: MouseEvent) {
+        if (associatedMaps.length === 1) {
+            // Single map: Navigate directly
+            navigateToMap({
+                title: associatedMaps[0].title,
+                path: associatedMaps[0].path,
+            });
+        } else if (associatedMaps.length > 1) {
+            // Multiple maps: Toggle dropdown
+            isMapMenuOpen = !isMapMenuOpen;
+            // The Button component forwards the event or we bind the element
+            // We'll use the bind:this on a wrapper or the button itself if possible
+            // but standard Button component might not export element binding easily.
+            // Let's assume we wrap it or the click event target serves as anchor.
+            mapButtonEl = e.currentTarget as HTMLElement;
+        }
+    }
 </script>
 
 <div class="file-view-container">
@@ -184,6 +212,54 @@
                 <SaveStatus status={saveStatus} {lastSaveTime} />
             </div>
             <div slot="right" class="header-actions">
+                <!-- Map Navigation Button -->
+                {#if associatedMaps.length > 0}
+                    <!-- Wrapper div to serve as reliable anchor -->
+                    <div bind:this={mapButtonEl} style="position: relative;">
+                        <Button
+                            size="small"
+                            onclick={handleMapClick}
+                            title={associatedMaps.length === 1
+                                ? `View on Map: ${associatedMaps[0].title}`
+                                : "View on Maps..."}
+                        >
+                            <Icon type="map" />
+                            {associatedMaps.length === 1
+                                ? "View on Map"
+                                : `Maps (${associatedMaps.length})`}
+                        </Button>
+
+                        {#if isMapMenuOpen}
+                            <FloatingMenu
+                                isOpen={isMapMenuOpen}
+                                anchorEl={mapButtonEl}
+                                onClose={() => (isMapMenuOpen = false)}
+                                width={200}
+                            >
+                                <div class="map-dropdown-list">
+                                    {#each associatedMaps as mapItem}
+                                        <button
+                                            class="menu-item"
+                                            onclick={() => {
+                                                navigateToMap({
+                                                    title: mapItem.title,
+                                                    path: mapItem.path,
+                                                });
+                                                isMapMenuOpen = false;
+                                            }}
+                                        >
+                                            <Icon type="map" />
+                                            <span class="truncate"
+                                                >{mapItem.title}</span
+                                            >
+                                        </button>
+                                    {/each}
+                                </div>
+                            </FloatingMenu>
+                        {/if}
+                    </div>
+                {/if}
+
                 {#if pageData.rendered_page && pageData.rendered_page.toc.length > 0}
                     <Button
                         size="small"
@@ -385,5 +461,39 @@
         display: flex;
         justify-content: center;
         align-items: center;
+    }
+
+    /* Map Dropdown Styles */
+    .map-dropdown-list {
+        display: flex;
+        flex-direction: column;
+        background: var(--color-background-secondary);
+        border: 1px solid var(--color-border-primary);
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        padding: 4px 0;
+        min-width: 180px;
+    }
+    .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: none;
+        border: none;
+        color: var(--color-text-primary);
+        text-align: left;
+        cursor: pointer;
+        font-family: var(--font-family-base);
+        font-size: 0.9rem;
+    }
+    .menu-item:hover {
+        background: var(--color-background-hover);
+    }
+    .truncate {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
     }
 </style>
