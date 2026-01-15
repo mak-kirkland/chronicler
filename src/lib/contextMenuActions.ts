@@ -21,6 +21,7 @@ import { manuallyExpandedPaths, showImages } from "$lib/explorerStore";
 // Import modal components that can be triggered from the context menu
 import TextInputModal from "./components/TextInputModal.svelte";
 import ConfirmModal from "./components/ConfirmModal.svelte";
+import NewMapModal from "./components/NewMapModal.svelte";
 
 /**
  * This function dynamically builds the list of actions for the context menu
@@ -106,6 +107,17 @@ export function getContextMenuActions(
         actions.push({
             label: "New Page...",
             handler: () => promptAndCreateItem("file", node.path),
+        });
+        actions.push({
+            label: "New Map...",
+            handler: () => {
+                openModal({
+                    component: NewMapModal,
+                    props: {
+                        onClose: closeModal
+                    }
+                });
+            },
         });
         actions.push({
             label: "New Folder...",

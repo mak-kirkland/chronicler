@@ -7,17 +7,18 @@ use crate::{
     error::{ChroniclerError, Result},
     events::FileEvent,
     models::{
-        BrokenImage, BrokenLink, FileNode, FileType, Link, Page, PageHeader, ParseError, VaultAsset,
+        BrokenImage, BrokenLink, FileNode, FileType, Link, MapConfig, Page, PageHeader, ParseError,
+        VaultAsset,
     },
     parser,
-    utils::{file_stem_string, is_hidden_path, is_image_file, is_markdown_file},
+    utils::{file_stem_string, is_hidden_path, is_image_file, is_map_file, is_markdown_file},
 };
 use natord::compare_ignore_case as nat_compare;
 use path_clean::PathClean;
 use rayon::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
-    mem,
+    fs, mem,
     path::{Path, PathBuf},
     time::Instant,
 };
@@ -49,6 +50,10 @@ pub struct Indexer {
     /// Stores the complete link graph: Source Path -> Target Path -> Vec<Link>.
     /// The Vec<Link> captures every link instance, to calculate link strength.
     pub link_graph: HashMap<PathBuf, HashMap<PathBuf, Vec<Link>>>,
+
+    /// Stores the reverse index for Maps: Page Path -> Set of Map Paths that link to it.
+    /// Used to populate the "Associated Maps" list in the file view.
+    pub map_backlinks: HashMap<PathBuf, HashSet<PathBuf>>,
 }
 
 /// Helper struct to hold the result of processing a single file during scan.
@@ -117,6 +122,26 @@ impl Indexer {
                 asset: Some(VaultAsset::Image),
                 error: None,
             }
+        } else if is_map_file(&canonical_path) {
+            match fs::read_to_string(&canonical_path) {
+                Ok(content) => match serde_json::from_str::<MapConfig>(&content) {
+                    Ok(config) => ScanResult {
+                        path: canonical_path,
+                        asset: Some(VaultAsset::Map(Box::new(config))),
+                        error: None,
+                    },
+                    Err(e) => ScanResult {
+                        path: canonical_path,
+                        asset: None,
+                        error: Some(format!("Map parse error: {}", e)),
+                    },
+                },
+                Err(e) => ScanResult {
+                    path: canonical_path,
+                    asset: None,
+                    error: Some(format!("Could not read map file: {}", e)),
+                },
+            }
         } else {
             // Ignore other file types
             ScanResult {
@@ -159,6 +184,7 @@ impl Indexer {
         self.link_resolver.clear();
         self.media_resolver.clear();
         self.link_graph.clear();
+        self.map_backlinks.clear();
 
         // 1. Collect all paths (files AND directories) first.
         // Use a single WalkDir iterator for efficiency.
@@ -200,13 +226,14 @@ impl Indexer {
         // Second pass: Build relationships between pages now that all assets are indexed.
         self.rebuild_relations();
 
-        let (page_count, image_count, dir_count) =
+        let (page_count, image_count, map_count, dir_count) =
             self.assets
                 .values()
-                .fold((0, 0, 0), |(p, i, d), asset| match asset {
-                    VaultAsset::Page(_) => (p + 1, i, d),
-                    VaultAsset::Image => (p, i + 1, d),
-                    VaultAsset::Directory => (p, i, d + 1),
+                .fold((0, 0, 0, 0), |(p, i, m, d), asset| match asset {
+                    VaultAsset::Page(_) => (p + 1, i, m, d),
+                    VaultAsset::Image => (p, i + 1, m, d),
+                    VaultAsset::Map(_) => (p, i, m + 1, d),
+                    VaultAsset::Directory => (p, i, m, d + 1),
                 });
 
         let links_found = self
@@ -219,6 +246,7 @@ impl Indexer {
         info!(
             pages_indexed = page_count,
             images_indexed = image_count,
+            maps_indexed = map_count,
             directories_indexed = dir_count,
             tags_found = self.tags.len(),
             links_found,
@@ -411,6 +439,7 @@ impl Indexer {
         let mut new_tags: HashMap<String, HashSet<PathBuf>> = HashMap::new();
         let mut new_link_graph: HashMap<PathBuf, HashMap<PathBuf, Vec<Link>>> = HashMap::new();
         let mut new_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
+        let mut new_map_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
 
         // --- PASS 1: Build resolver maps ---
         // This pass ensures that all potential link targets are known before we process any links.
@@ -434,30 +463,67 @@ impl Indexer {
         // --- PASS 2: Build relationships using the resolvers ---
         // This pass can now safely assume that the resolvers are complete.
         for (path, asset) in &self.assets {
-            if let VaultAsset::Page(page) = asset {
-                // Rebuild tag associations
-                for tag in &page.tags {
-                    new_tags
-                        .entry(tag.clone())
-                        .or_default()
-                        .insert(path.clone());
-                }
-
-                // Rebuild the link graph and calculate backlinks
-                for link in &page.links {
-                    if let Some(target_path) = new_link_resolver.get(&link.target.to_lowercase()) {
-                        new_link_graph
-                            .entry(path.clone())
-                            .or_default()
-                            .entry(target_path.clone())
-                            .or_default()
-                            .push(link.clone());
-                        new_backlinks
-                            .entry(target_path.clone())
+            match asset {
+                VaultAsset::Page(page) => {
+                    // Rebuild tag associations
+                    for tag in &page.tags {
+                        new_tags
+                            .entry(tag.clone())
                             .or_default()
                             .insert(path.clone());
                     }
+
+                    // Rebuild the link graph and calculate backlinks
+                    for link in &page.links {
+                        if let Some(target_path) =
+                            new_link_resolver.get(&link.target.to_lowercase())
+                        {
+                            new_link_graph
+                                .entry(path.clone())
+                                .or_default()
+                                .entry(target_path.clone())
+                                .or_default()
+                                .push(link.clone());
+                            new_backlinks
+                                .entry(target_path.clone())
+                                .or_default()
+                                .insert(path.clone());
+                        }
+                    }
                 }
+                VaultAsset::Map(config) => {
+                    // Index map pins linking to pages
+                    if let Some(pins) = &config.pins {
+                        for pin in pins {
+                            if let Some(target) = &pin.target_page {
+                                if let Some(target_path) =
+                                    new_link_resolver.get(&target.to_lowercase())
+                                {
+                                    new_map_backlinks
+                                        .entry(target_path.clone())
+                                        .or_default()
+                                        .insert(path.clone());
+                                }
+                            }
+                        }
+                    }
+                    // Index map regions linking to pages
+                    if let Some(shapes) = &config.shapes {
+                        for shape in shapes {
+                            if let Some(target) = &shape.target_page {
+                                if let Some(target_path) =
+                                    new_link_resolver.get(&target.to_lowercase())
+                                {
+                                    new_map_backlinks
+                                        .entry(target_path.clone())
+                                        .or_default()
+                                        .insert(path.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
 
@@ -473,6 +539,7 @@ impl Indexer {
         let _ = mem::replace(&mut self.media_resolver, new_media_resolver);
         let _ = mem::replace(&mut self.tags, new_tags);
         let _ = mem::replace(&mut self.link_graph, new_link_graph);
+        let _ = mem::replace(&mut self.map_backlinks, new_map_backlinks);
     }
 
     /// Resolves a wikilink to an absolute file path using the resolver map.
@@ -556,6 +623,7 @@ impl Indexer {
             Some(VaultAsset::Directory) => FileType::Directory,
             Some(VaultAsset::Page(_)) => FileType::Markdown,
             Some(VaultAsset::Image) => FileType::Image,
+            Some(VaultAsset::Map(_)) => FileType::Map,
             None => {
                 // This is the root directory case (root itself isn't in assets with this key)
                 // or a path that should be a directory
@@ -745,5 +813,256 @@ impl Indexer {
         // Sort the results alphabetically by page title for a consistent report.
         result.sort_by(|a, b| nat_compare(&a.page.title, &b.page.title));
         Ok(result)
+    }
+
+    /// Reads and parses a `.map.json` file from the vault.
+    ///
+    /// Validates that the path exists in the file index before reading,
+    /// ensuring we only serve known, valid vault assets.
+    pub fn get_map_config(&self, path: &str) -> Result<serde_json::Value> {
+        let path_buf = PathBuf::from(path);
+
+        // Security & Validity Check:
+        if !self.assets.contains_key(&path_buf) {
+            return Err(ChroniclerError::FileNotFound(path_buf));
+        }
+
+        // It is safe to read because the index only contains files within the vault root.
+        let content = fs::read_to_string(&path_buf)?;
+        let config: serde_json::Value = serde_json::from_str(&content)?;
+        Ok(config)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::events::FileEvent;
+    use std::{collections::HashSet, fs, path::Path};
+    use tempfile::tempdir;
+
+    /// Helper function to set up a temporary vault with some files and an image
+    fn setup_test_vault() -> (tempfile::TempDir, PathBuf, PathBuf, PathBuf, PathBuf) {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+
+        let page1_path = root.join("Page One.md");
+        fs::write(
+            &page1_path,
+            r#"---
+title: "First Page"
+tags: ["alpha", "beta"]
+---
+This page links to [[Page Two]].
+"#,
+        )
+        .unwrap();
+
+        let page2_path = root.join("Page Two.md");
+        fs::write(
+            &page2_path,
+            r#"---
+title: "Second Page"
+tags: ["beta", "gamma"]
+---
+This page links back to [[Page One]] and also to [[Page Three|a different name]].
+"#,
+        )
+        .unwrap();
+
+        let page3_path = root.join("Page Three.md");
+        fs::write(
+            &page3_path,
+            r#"---
+title: "Third Page"
+tags: ["gamma"]
+---
+No outgoing links here.
+"#,
+        )
+        .unwrap();
+
+        let image_path = root.join("test_image.png");
+        fs::write(&image_path, "dummy image data").unwrap();
+
+        (dir, page1_path, page2_path, page3_path, image_path)
+    }
+
+    // Helper to extract a Page from the assets map for testing
+    fn get_page<'a>(assets: &'a HashMap<PathBuf, VaultAsset>, path: &Path) -> &'a Page {
+        match assets.get(path) {
+            Some(VaultAsset::Page(p)) => p,
+            _ => panic!("Expected to find a page at path: {:?}", path),
+        }
+    }
+
+    #[test]
+    fn test_indexer_scan_vault() {
+        let (_dir, page1_path, page2_path, page3_path, image_path) = setup_test_vault();
+        let root = _dir.path();
+        let mut indexer = Indexer::new(root);
+
+        indexer.scan_vault(root).unwrap();
+
+        // Test asset counts
+        assert_eq!(indexer.assets.len(), 4);
+        let page_count = indexer
+            .assets
+            .values()
+            .filter(|a| matches!(a, VaultAsset::Page(_)))
+            .count();
+        assert_eq!(page_count, 3);
+
+        // Test media resolver
+        assert_eq!(indexer.media_resolver.len(), 1);
+        assert_eq!(
+            indexer.media_resolver.get("test_image.png").unwrap(),
+            &image_path
+        );
+
+        // Test tags
+        assert_eq!(indexer.tags.len(), 3);
+        assert_eq!(
+            indexer.tags.get("alpha").unwrap(),
+            &HashSet::from([page1_path.clone()])
+        );
+        assert_eq!(
+            indexer.tags.get("beta").unwrap(),
+            &HashSet::from([page1_path.clone(), page2_path.clone()])
+        );
+        assert_eq!(
+            indexer.tags.get("gamma").unwrap(),
+            &HashSet::from([page2_path.clone(), page3_path.clone()])
+        );
+
+        // Test link graph and backlinks
+        let page1 = get_page(&indexer.assets, &page1_path);
+        let page2 = get_page(&indexer.assets, &page2_path);
+        let page3 = get_page(&indexer.assets, &page3_path);
+
+        // Page 1 has an outgoing link to Page 2, so Page 2 should have a backlink from Page 1.
+        assert_eq!(page1.links.len(), 1);
+        assert!(page2.backlinks.contains(&page1_path));
+
+        // Page 2 links to Page 1 and Page 3.
+        assert_eq!(page2.links.len(), 2);
+        assert!(page1.backlinks.contains(&page2_path));
+        assert!(page3.backlinks.contains(&page2_path));
+
+        // Test link resolver
+        assert_eq!(indexer.resolve_link(&page1.links[0]).unwrap(), page2_path);
+        assert_eq!(indexer.resolve_link(&page2.links[0]).unwrap(), page1_path);
+        assert_eq!(indexer.resolve_link(&page2.links[1]).unwrap(), page3_path);
+    }
+
+    #[test]
+    fn test_indexer_file_events() {
+        let (_dir, page1_path, page2_path, page3_path, _) = setup_test_vault();
+        let root = _dir.path();
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        // --- Test Deletion ---
+        indexer.handle_event_and_rebuild(&FileEvent::Deleted(page1_path.clone()));
+
+        let page_count = indexer
+            .assets
+            .values()
+            .filter(|a| matches!(a, VaultAsset::Page(_)))
+            .count();
+        assert_eq!(page_count, 2);
+        assert!(!indexer.tags.contains_key("alpha")); // alpha tag should be gone
+
+        // The link from page 2 to the now-deleted page 1 will be dangling,
+        // but the backlink *from* page 1 on other pages should be removed.
+        let page3_after_delete = get_page(&indexer.assets, &page3_path);
+        assert!(page3_after_delete.backlinks.contains(&page2_path)); // This should still be there.
+
+        let page2_after_delete = get_page(&indexer.assets, &page2_path);
+        assert!(page2_after_delete.backlinks.is_empty()); // Backlink from page1 is gone.
+
+        // --- Test Creation ---
+        let new_page_path = root.join("New Page.md");
+        fs::write(
+            &new_page_path,
+            r#"---
+tags: ["new", "alpha"]
+---
+Linking to [[Page Two]]
+"#,
+        )
+        .unwrap();
+        indexer.handle_event_and_rebuild(&FileEvent::Created(new_page_path.clone()));
+
+        let page_count = indexer
+            .assets
+            .values()
+            .filter(|a| matches!(a, VaultAsset::Page(_)))
+            .count();
+        assert_eq!(page_count, 3);
+        assert!(indexer.tags.contains_key("new"));
+        assert!(indexer.tags.contains_key("alpha")); // alpha is back
+        let page2_after_create = get_page(&indexer.assets, &page2_path);
+        // Page 2 should now have a backlink from New Page
+        assert!(page2_after_create.backlinks.contains(&new_page_path));
+        assert_eq!(page2_after_create.backlinks.len(), 1);
+
+        // --- Test Modification ---
+        fs::write(
+            &page3_path,
+            r#"---
+title: "Third Page Modified"
+tags: ["gamma", "modified"]
+---
+Now I link to [[Page Two]]!
+"#,
+        )
+        .unwrap();
+        indexer.handle_event_and_rebuild(&FileEvent::Modified(page3_path.clone()));
+        let page3_after_modify = get_page(&indexer.assets, &page3_path);
+        assert_eq!(page3_after_modify.title, "Third Page Modified");
+        assert!(page3_after_modify.tags.contains("modified"));
+        assert_eq!(page3_after_modify.links.len(), 1);
+
+        let page2_after_modify = get_page(&indexer.assets, &page2_path);
+        // Page 2 should now have backlinks from both New Page and Page 3
+        assert_eq!(page2_after_modify.backlinks.len(), 2);
+        assert!(page2_after_modify.backlinks.contains(&new_page_path));
+        assert!(page2_after_modify.backlinks.contains(&page3_path));
+    }
+
+    #[test]
+    fn test_get_all_broken_links() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+
+        let page1_path = root.join("Page One.md");
+        fs::write(&page1_path, "Links to [[Page Two]] and [[Missing Page]].").unwrap();
+
+        let page2_path = root.join("Page Two.md");
+        fs::write(&page2_path, "Links to [[Another Missing Page]].").unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        let broken_links = indexer.get_all_broken_links().unwrap();
+
+        assert_eq!(broken_links.len(), 2);
+
+        // Find the "Another Missing Page" report (results are sorted)
+        let another_missing = broken_links
+            .iter()
+            .find(|bl| bl.target == "Another Missing Page")
+            .unwrap();
+        assert_eq!(another_missing.sources.len(), 1);
+        assert_eq!(another_missing.sources[0].path, page2_path);
+
+        // Find the "Missing Page" report
+        let missing_page = broken_links
+            .iter()
+            .find(|bl| bl.target == "Missing Page")
+            .unwrap();
+        assert_eq!(missing_page.sources.len(), 1);
+        assert_eq!(missing_page.sources[0].path, page1_path);
     }
 }

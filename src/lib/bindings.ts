@@ -10,7 +10,7 @@
  * A specific type for the file node category. This improves type safety
  * over using a generic string. It mirrors the `FileType` enum in Rust.
  */
-export type FileType = "Directory" | "Markdown" | "Image";
+export type FileType = "Directory" | "Markdown" | "Image" | "Map";
 
 /**
  * A lightweight representation of a page, containing only the data needed
@@ -21,6 +21,16 @@ export interface PageHeader {
     title: string;
     /** The absolute path to the page file. */
     path: string; // In Rust this is PathBuf
+}
+
+/**
+ * A lightweight representation of a map, used for the "associated maps" list.
+ */
+export interface MapLink {
+    /** The display title of the map. */
+    title: string;
+    /** The absolute path to the map file. */
+    path: string;
 }
 
 /**
@@ -88,7 +98,8 @@ export interface Backlink {
 
 /**
  * A comprehensive data structure containing all information needed to
- * render the main file view, including raw content, rendered HTML, and backlinks.
+ * render the main file view, including raw content, rendered HTML, backlinks,
+ * and associated maps.
  */
 export interface FullPageData {
     /** The raw, un-rendered Markdown content of the page. */
@@ -97,6 +108,8 @@ export interface FullPageData {
     rendered_page: RenderedPage;
     /** A list of all pages that link to this page. */
     backlinks: Backlink[];
+    /** A list of all maps that have pins or regions linking to this page. */
+    associated_maps: MapLink[];
 }
 
 /**

@@ -282,11 +282,29 @@ function flattenImageTree(node: FileNode | null): PageHeader[] {
 }
 
 /**
+ * Recursively flattens the file tree to find all Markdown pages.
+ * Returns PageHeader objects (title + path).
+ */
+function flattenPageTree(node: FileNode | null): PageHeader[] {
+    if (!node) return [];
+    const pages: PageHeader[] = [];
+    if (node.name && isMarkdown(node)) {
+        pages.push({ title: node.name, path: node.path });
+    }
+    if (node.children) {
+        for (const child of node.children) {
+            pages.push(...flattenPageTree(child));
+        }
+    }
+    return pages;
+}
+
+/**
  * A derived store that provides a flattened list of all page titles.
  * Useful for autocompletion features.
  */
 export const allFileTitles = derived(files, ($files) =>
-    flattenFileTree($files),
+    flattenFileTree($files).sort((a, b) => a.localeCompare(b)),
 );
 
 /**
@@ -313,6 +331,59 @@ export const imagePathLookup = derived(allImages, ($allImages) => {
     for (const img of $allImages) {
         // Normalize keys to lowercase to match backend behavior
         map.set(img.title.toLowerCase(), img.path);
+    }
+    return map;
+});
+
+/**
+ * A derived store that maps page titles (filenames) to their absolute paths.
+ * Useful for resolving pin targets or wikilinks stored by name.
+ * Example: { "kingdom of aethelgard": "C:/Vault/Places/Kingdom of Aethelgard.md" }
+ */
+export const pagePathLookup = derived(files, ($files) => {
+    const map = new Map<string, string>();
+    const pages = flattenPageTree($files);
+    for (const page of pages) {
+        map.set(page.title.toLowerCase(), page.path);
+    }
+    return map;
+});
+
+/**
+ * Recursively flattens the file tree to find all .map.json files.
+ * Returns PageHeader objects (title + path).
+ */
+function flattenMapTree(node: FileNode | null): PageHeader[] {
+    if (!node) return [];
+    const maps: PageHeader[] = [];
+    // We manually check for the .map.json extension since we don't have an isMap helper here
+    if (node.name.endsWith(".map.json")) {
+        maps.push({ title: node.name.replace(".map.json", ""), path: node.path });
+    }
+    if (node.children) {
+        for (const child of node.children) {
+            maps.push(...flattenMapTree(child));
+        }
+    }
+    return maps;
+}
+
+/**
+ * A derived store that provides a flattened list of all Interactive Maps.
+ * Useful for linking pins to other maps.
+ */
+export const allMaps = derived(files, ($files) =>
+    flattenMapTree($files).sort((a, b) => a.title.localeCompare(b.title)),
+);
+
+/**
+ * A derived store that maps map titles to their absolute paths.
+ * Example: { "Kingdom": "C:/Vault/Maps/Kingdom.map.json" }
+ */
+export const mapPathLookup = derived(allMaps, ($allMaps) => {
+    const map = new Map<string, string>();
+    for (const m of $allMaps) {
+        map.set(m.title.toLowerCase(), m.path);
     }
     return map;
 });

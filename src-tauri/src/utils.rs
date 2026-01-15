@@ -40,6 +40,13 @@ pub fn is_image_file(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
+/// Checks if a path points to a map configuration file (.map.json).
+pub fn is_map_file(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .is_some_and(|name| name.ends_with(".map.json"))
+}
+
 /// Extracts the file stem from a path and returns it as a clean String.
 /// Returns an empty string if the path has no file stem.
 pub fn file_stem_string(path: &Path) -> String {
