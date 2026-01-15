@@ -315,6 +315,16 @@ You can also place small images directly into a line of text. This is perfect fo
 The Gooblboys invaded the Lynorian Empire <img src="lynorian-flag.png" alt="Lynorian Empire Flag" style="height: 1em; vertical-align: middle;"> on a Saturday.
 ```
 
+#### 🔗 Clickable Images
+
+You can turn any image into a link to another page by using the image as the link's **alias**.
+
+```markdown
+[[Page Name|![[image.png]]]]
+```
+
+This allows you to create clickable icons or badges directly in your text.
+
 #### 🖼️ Image Galleries
 
 Create responsive, wiki-style image galleries that automatically arrange themselves into a grid. Images in a gallery are uniform in size and look great on any screen.
