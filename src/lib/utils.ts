@@ -314,3 +314,68 @@ export function isColorDark(color: string): boolean {
     // "feel" for interfaces, defaulting to Dark Mode slightly earlier.
     return hsp < 140;
 }
+
+/**
+ * Calculates the optimal position for a side-anchored popup.
+ * It biases towards the right, centers vertically, and clamps to the viewport.
+ * It specifically aims to maximize available vertical height.
+ *
+ * @param anchorRect The bounding client rect of the anchor element.
+ * @param popupWidth The desired width of the popup.
+ * @param popupHeight The current actual height of the popup content.
+ * @param viewport The dimensions of the viewport (w, h).
+ */
+export function calculatePopupPosition(
+    anchorRect: DOMRect,
+    popupWidth: number,
+    popupHeight: number,
+    viewport: { w: number; h: number },
+) {
+    const GAP = 14; // Space between link and popup
+    const PADDING = 15; // Minimum distance from screen edges
+
+    // --- 1. Horizontal Positioning (Left vs Right) ---
+    const spaceRight = viewport.w - anchorRect.right;
+    const spaceLeft = anchorRect.left;
+
+    // Default to right. Flip to left ONLY if right is tight AND left has more room.
+    const requiredWidth = popupWidth + GAP + PADDING;
+    const side =
+        spaceRight < requiredWidth && spaceLeft > spaceRight ? "left" : "right";
+
+    const left =
+        side === "right"
+            ? anchorRect.right + GAP
+            : anchorRect.left - popupWidth - GAP;
+
+    // --- 2. Vertical Positioning (Sliding) ---
+    // Goal: Center popup on the link, but slide up/down to fit screen.
+
+    // Start by centering
+    let top = anchorRect.top + anchorRect.height / 2 - popupHeight / 2;
+
+    // Constraint A: Don't go off the top
+    if (top < PADDING) {
+        top = PADDING;
+    }
+
+    // Constraint B: Don't go off the bottom
+    // We check the bottom edge (top + height) against the viewport
+    if (top + popupHeight > viewport.h - PADDING) {
+        top = viewport.h - PADDING - popupHeight;
+
+        // Double check top again (in case the popup is taller than the entire screen)
+        if (top < PADDING) top = PADDING;
+    }
+
+    // --- 3. Maximize Height ---
+    // If the content is massive, cap it at the full screen height minus padding
+    const maxAvailableHeight = viewport.h - PADDING * 2;
+
+    return {
+        left,
+        top,
+        side,
+        maxHeight: maxAvailableHeight,
+    };
+}
