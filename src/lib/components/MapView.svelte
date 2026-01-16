@@ -20,6 +20,8 @@
     import AddPinModal from "./AddPinModal.svelte";
     import AddRegionModal from "./AddRegionModal.svelte";
     import ConfirmModal from "./ConfirmModal.svelte";
+    import LinkPreview from "./LinkPreview.svelte";
+    import MapPreview from "./MapPreview.svelte";
     import { openModal, closeModal } from "$lib/modalStore";
     import Button from "./Button.svelte";
 
@@ -40,6 +42,14 @@
     let drawMode = $state<"polygon" | null>(null);
     let tempPoints: L.LatLng[] = [];
     let tempLayer: L.Layer | null = null; // Visual feedback during draw
+
+    // Link Preview State
+    let hoveredElement = $state<HTMLElement | null>(null);
+    let hoveredPath = $state<string | null>(null);
+
+    // Map Preview State
+    let hoveredMapElement = $state<HTMLElement | null>(null);
+    let hoveredMapPath = $state<string | null>(null);
 
     let contextMenu = $state<{
         x: number;
@@ -196,6 +206,53 @@
         });
     }
 
+    function attachHoverBehavior(
+        layer: L.Layer,
+        item: { targetPage?: string; targetMap?: string },
+    ) {
+        layer.on("mouseover", (e: L.LeafletMouseEvent) => {
+            if (isDrawing) return;
+
+            const targetLayer = e.target as any;
+            const element = targetLayer.getElement
+                ? targetLayer.getElement()
+                : null;
+
+            if (!element) return;
+
+            // Handle Page Preview
+            if (item.targetPage) {
+                const lookup = get(pagePathLookup);
+                // Try to find full path for the page title
+                const path = lookup.get(item.targetPage.toLowerCase());
+
+                // Only show preview if we found a valid file path
+                if (path) {
+                    hoveredPath = path;
+                    hoveredElement = element;
+                }
+            }
+
+            // Handle Map Preview
+            if (item.targetMap) {
+                const lookup = get(mapPathLookup);
+                const path = lookup.get(item.targetMap.toLowerCase());
+                if (path) {
+                    hoveredMapPath = path;
+                    hoveredMapElement = element;
+                }
+            }
+        });
+
+        layer.on("mouseout", () => {
+            // Clear both
+            hoveredPath = null;
+            hoveredElement = null;
+            hoveredMapPath = null;
+            hoveredMapElement = null;
+        });
+    }
+
     function updateMap(config: MapConfig) {
         // 1. Prevent unnecessary re-renders (Fixes zoom flashing/resetting)
         const configStr = JSON.stringify(config);
@@ -349,6 +406,7 @@
                         });
 
                         attachClickBehavior(marker, pin);
+                        attachHoverBehavior(marker, pin);
 
                         marker.on("contextmenu", (e: L.LeafletMouseEvent) => {
                             contextMenu = {
@@ -391,6 +449,7 @@
                     }
 
                     attachClickBehavior(layer, shape);
+                    attachHoverBehavior(layer, shape);
 
                     // Context menu for shapes
                     layer.on("contextmenu", (e: L.LeafletMouseEvent) => {
@@ -565,6 +624,9 @@
         });
     }
 </script>
+
+<LinkPreview anchorEl={hoveredElement} targetPath={hoveredPath} />
+<MapPreview anchorEl={hoveredMapElement} targetPath={hoveredMapPath} />
 
 <div class="map-view-container">
     <ViewHeader>
