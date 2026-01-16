@@ -2,6 +2,20 @@
 
 ---
 
+## [v0.42.2-alpha] - 2026-01-16
+
+### 📚 Documentation
+
+- **Help**: Added a new section on **Clickable Images**. The documentation now explains how to use images as link aliases (e.g., `[[Page|![[icon.png]]]]`) to create navigable graphical icons within your notes.
+
+### 🐞 Fixed
+
+- **UI**: Fixed a visual issue in the File Tree where the "quick action" buttons (rename, delete) were being clipped. These buttons now properly stack above their siblings and feature smoother reveal animations.
+- **UI**: Added padding to modal windows to ensure that content and buttons are not clipped by the container edges.
+- **Parser**: The frontmatter parser now strictly enforces unique keys in your YAML blocks. Previously, duplicate keys (e.g., defining `tags` twice) would silently overwrite earlier values; the system now flags this as an error to help you catch mistakes.
+
+---
+
 ## [v0.42.1-alpha] - 2026-01-14
 
 ### 🐞 Fixed
