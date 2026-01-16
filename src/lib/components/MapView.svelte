@@ -21,6 +21,7 @@
     import AddRegionModal from "./AddRegionModal.svelte";
     import ConfirmModal from "./ConfirmModal.svelte";
     import LinkPreview from "./LinkPreview.svelte";
+    import MapPreview from "./MapPreview.svelte";
     import { openModal, closeModal } from "$lib/modalStore";
     import Button from "./Button.svelte";
 
@@ -46,6 +47,10 @@
     // Link Preview State
     let hoveredElement = $state<HTMLElement | null>(null);
     let hoveredPath = $state<string | null>(null);
+
+    // Map Preview State
+    let hoveredMapElement = $state<HTMLElement | null>(null);
+    let hoveredMapPath = $state<string | null>(null);
 
     let contextMenu = $state<{
         x: number;
@@ -187,11 +192,19 @@
 
     function attachHoverBehavior(
         layer: L.Layer,
-        item: { targetPage?: string },
+        item: { targetPage?: string; targetMap?: string },
     ) {
         layer.on("mouseover", (e: L.LeafletMouseEvent) => {
             if (isDrawing) return;
 
+            const targetLayer = e.target as any;
+            const element = targetLayer.getElement
+                ? targetLayer.getElement()
+                : null;
+
+            if (!element) return;
+
+            // Handle Page Preview
             if (item.targetPage) {
                 const lookup = get(pagePathLookup);
                 // Try to find full path for the page title
@@ -200,18 +213,27 @@
                 // Only show preview if we found a valid file path
                 if (path) {
                     hoveredPath = path;
-                    // Leaflet layers like Marker/Polygon have getElement() when rendered
-                    const targetLayer = e.target as any;
-                    if (targetLayer.getElement) {
-                        hoveredElement = targetLayer.getElement();
-                    }
+                    hoveredElement = element;
+                }
+            }
+
+            // Handle Map Preview
+            if (item.targetMap) {
+                const lookup = get(mapPathLookup);
+                const path = lookup.get(item.targetMap.toLowerCase());
+                if (path) {
+                    hoveredMapPath = path;
+                    hoveredMapElement = element;
                 }
             }
         });
 
         layer.on("mouseout", () => {
+            // Clear both
             hoveredPath = null;
             hoveredElement = null;
+            hoveredMapPath = null;
+            hoveredMapElement = null;
         });
     }
 
@@ -617,6 +639,7 @@
 </script>
 
 <LinkPreview anchorEl={hoveredElement} targetPath={hoveredPath} />
+<MapPreview anchorEl={hoveredMapElement} targetPath={hoveredMapPath} />
 
 <div class="map-view-container">
     <ViewHeader>
