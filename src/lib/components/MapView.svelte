@@ -20,6 +20,7 @@
     import AddPinModal from "./AddPinModal.svelte";
     import AddRegionModal from "./AddRegionModal.svelte";
     import ConfirmModal from "./ConfirmModal.svelte";
+    import LinkPreview from "./LinkPreview.svelte";
     import { openModal, closeModal } from "$lib/modalStore";
     import Button from "./Button.svelte";
 
@@ -41,6 +42,10 @@
     let tempPoints: L.LatLng[] = []; // For polygons
     let tempCircleCenter: L.LatLng | null = null; // TODO: For circle
     let tempLayer: L.Layer | null = null; // Visual feedback during draw
+
+    // Link Preview State
+    let hoveredElement = $state<HTMLElement | null>(null);
+    let hoveredPath = $state<string | null>(null);
 
     let contextMenu = $state<{
         x: number;
@@ -177,6 +182,36 @@
             } else if (item.targetPage) {
                 navigateToPage(item.targetPage);
             }
+        });
+    }
+
+    function attachHoverBehavior(
+        layer: L.Layer,
+        item: { targetPage?: string },
+    ) {
+        layer.on("mouseover", (e: L.LeafletMouseEvent) => {
+            if (isDrawing) return;
+
+            if (item.targetPage) {
+                const lookup = get(pagePathLookup);
+                // Try to find full path for the page title
+                const path = lookup.get(item.targetPage.toLowerCase());
+
+                // Only show preview if we found a valid file path
+                if (path) {
+                    hoveredPath = path;
+                    // Leaflet layers like Marker/Polygon have getElement() when rendered
+                    const targetLayer = e.target as any;
+                    if (targetLayer.getElement) {
+                        hoveredElement = targetLayer.getElement();
+                    }
+                }
+            }
+        });
+
+        layer.on("mouseout", () => {
+            hoveredPath = null;
+            hoveredElement = null;
         });
     }
 
@@ -349,6 +384,7 @@
                         });
 
                         attachClickBehavior(marker, pin);
+                        attachHoverBehavior(marker, pin);
 
                         marker.on("contextmenu", (e: L.LeafletMouseEvent) => {
                             L.DomEvent.stopPropagation(e.originalEvent);
@@ -403,6 +439,7 @@
                     }
 
                     attachClickBehavior(layer, shape);
+                    attachHoverBehavior(layer, shape);
 
                     // Context menu for shapes
                     layer.on("contextmenu", (e: L.LeafletMouseEvent) => {
@@ -578,6 +615,8 @@
         });
     }
 </script>
+
+<LinkPreview anchorEl={hoveredElement} targetPath={hoveredPath} />
 
 <div class="map-view-container">
     <ViewHeader>
