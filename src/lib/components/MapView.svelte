@@ -24,6 +24,7 @@
     import MapPreview from "./MapPreview.svelte";
     import { openModal, closeModal } from "$lib/modalStore";
     import Button from "./Button.svelte";
+    import MapConsole from "./MapConsole.svelte";
 
     let { data } = $props<{ data: PageHeader }>();
 
@@ -44,6 +45,10 @@
     let tempCircleCenter: L.LatLng | null = null; // TODO: For circle
     let tempLayer: L.Layer | null = null; // Visual feedback during draw
 
+    // Console State
+    let isConsoleOpen = $state(false);
+    let highlightedPinId = $state<string | null>(null);
+
     // Link Preview State
     let hoveredElement = $state<HTMLElement | null>(null);
     let hoveredPath = $state<string | null>(null);
@@ -55,6 +60,9 @@
     // Tooltip State for multi-region hover
     let multiTooltip: L.Tooltip | null = null;
     let isHoveringPin = $state(false);
+
+    // Lookup for pin layers to support console highlighting
+    let pinIdToLayer = new Map<string, L.Marker>();
 
     let contextMenu = $state<{
         x: number;
@@ -86,20 +94,25 @@
         shadowSize: [41, 41],
     });
 
-    function createEmojiIcon(emoji: string, color: string = "#ffffff") {
+    function createEmojiIcon(
+        emoji: string,
+        color: string = "#ffffff",
+        highlighted: boolean = false,
+    ) {
+        const scale = highlighted ? 1.3 : 1;
         const svg = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="32" height="48">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12z" fill="${color}" stroke="#444" stroke-width="1.5"/>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${32 * scale}" height="${48 * scale}">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12z" fill="${color}" stroke="${highlighted ? "#fff" : "#444"}" stroke-width="${highlighted ? "2" : "1.5"}"/>
                 <text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-family="Segoe UI Emoji, Apple Color Emoji, sans-serif" dy="1">${emoji}</text>
             </svg>
         `;
 
         return L.divIcon({
-            className: "custom-pin-marker",
+            className: `custom-pin-marker ${highlighted ? "highlighted" : ""}`,
             html: svg,
-            iconSize: [32, 48],
-            iconAnchor: [16, 48],
-            popupAnchor: [0, -48],
+            iconSize: [32 * scale, 48 * scale],
+            iconAnchor: [16 * scale, 48 * scale],
+            popupAnchor: [0, -48 * scale],
         });
     }
 
@@ -117,12 +130,54 @@
             shapeLayerGroup = null;
             drawLayerGroup = null;
             multiTooltip = null;
+            pinIdToLayer.clear();
         }
     });
 
-    // Reactive Effect to Hide Previews when Context Menu is Open
+    // Handle pin highlighting from console
     $effect(() => {
-        if (contextMenu?.show) {
+        if (highlightedPinId && pinIdToLayer.has(highlightedPinId)) {
+            const marker = pinIdToLayer.get(highlightedPinId);
+            const pinConfig = mapConfig?.pins?.find(
+                (p) => p.id === highlightedPinId,
+            );
+            if (marker && pinConfig) {
+                // Temporarily update icon to highlighted state
+                const highlightedIcon = pinConfig.icon
+                    ? createEmojiIcon(
+                          pinConfig.icon,
+                          pinConfig.color || "#ffffff",
+                          true,
+                      )
+                    : defaultIcon; // Standard leaflet marker doesn't easily support highlighting this way, but we primarily use emoji icons
+
+                marker.setIcon(highlightedIcon);
+                marker.setZIndexOffset(1000); // Bring to front
+            }
+        } else {
+            // Reset all icons
+            if (mapConfig?.pins) {
+                mapConfig.pins.forEach((pin) => {
+                    const marker = pinIdToLayer.get(pin.id);
+                    if (marker) {
+                        const normalIcon = pin.icon
+                            ? createEmojiIcon(
+                                  pin.icon,
+                                  pin.color || "#ffffff",
+                                  false,
+                              )
+                            : defaultIcon;
+                        marker.setIcon(normalIcon);
+                        marker.setZIndexOffset(0);
+                    }
+                });
+            }
+        }
+    });
+
+    // Reactive Effect to Hide Previews when Context Menu or Console is Open
+    $effect(() => {
+        if (contextMenu?.show || isConsoleOpen) {
             // Clear Link and Map Previews
             hoveredPath = null;
             hoveredElement = null;
@@ -164,6 +219,7 @@
                     drawLayerGroup = null;
                     prevConfigStr = ""; // Reset config tracking
                     multiTooltip = null;
+                    pinIdToLayer.clear();
                 }
                 currentMapPath = data.path;
             }
@@ -237,8 +293,8 @@
     ) {
         layer.on("mouseover", (e: L.LeafletMouseEvent) => {
             if (isDrawing) return;
-            // Prevent preview if context menu is open
-            if (contextMenu?.show) return;
+            // Prevent preview if context menu or console is open
+            if (contextMenu?.show || isConsoleOpen) return;
 
             const targetLayer = e.target as any;
             const element = targetLayer.getElement
@@ -402,8 +458,8 @@
                 // Handle Hover for Overlapping Regions (Multi-Tooltip)
                 map.on("mousemove", (e: L.LeafletMouseEvent) => {
                     if (isDrawing) return;
-                    // Prevent showing tooltip if context menu is open
-                    if (contextMenu?.show) return;
+                    // Prevent showing tooltip if context menu or console is open
+                    if (contextMenu?.show || isConsoleOpen) return;
 
                     // 1. PIN PRIORITY: If hovering a pin, hide region tooltips and return
                     if (isHoveringPin) {
@@ -573,14 +629,14 @@
                                 const acts = [];
                                 if (s.targetPage) {
                                     acts.push({
-                                        label: `Go to Page: ${s.label || s.targetPage}`,
+                                        label: `Go to Page: ${s.targetPage} (${s.label || "Region"})`,
                                         handler: () =>
                                             navigateToPage(s.targetPage!),
                                     });
                                 }
                                 if (s.targetMap) {
                                     acts.push({
-                                        label: `Go to Map: ${s.label || s.targetMap}`,
+                                        label: `Go to Map: ${s.targetMap} (${s.label || "Region"})`,
                                         handler: () =>
                                             navigateToMap(s.targetMap!),
                                     });
@@ -631,6 +687,7 @@
             // --- Update Pins ---
             if (markerLayerGroup) {
                 markerLayerGroup.clearLayers();
+                pinIdToLayer.clear();
             }
             if (config.pins && markerLayerGroup) {
                 config.pins.forEach(
@@ -660,7 +717,7 @@
 
                         // Set listeners for Pin Priority
                         marker.on("mouseover", () => {
-                            if (contextMenu?.show) return; // Guard
+                            if (contextMenu?.show || isConsoleOpen) return; // Guard
                             isHoveringPin = true;
                         });
                         marker.on("mouseout", () => {
@@ -681,6 +738,7 @@
                         });
 
                         marker.addTo(markerLayerGroup!);
+                        pinIdToLayer.set(pin.id, marker);
                     },
                 );
             }
@@ -691,7 +749,7 @@
             }
             if (config.shapes && shapeLayerGroup) {
                 config.shapes.forEach((shape: MapRegion) => {
-                    let layer: L.Layer;
+                    let layer: L.Path;
                     const color = shape.color || "#3498db";
 
                     if (shape.type === "circle") {
@@ -935,6 +993,13 @@
                     >
                 </div>
             {/if}
+            <!-- Map Console Toggle -->
+            <Button
+                size="small"
+                onclick={() => (isConsoleOpen = !isConsoleOpen)}
+            >
+                {isConsoleOpen ? "Close Console" : "Manage Map"}
+            </Button>
         </div>
     </ViewHeader>
 
@@ -947,6 +1012,15 @@
     {:else}
         <div class="map-wrapper" class:drawing={isDrawing}>
             <div bind:this={mapElement} class="leaflet-container"></div>
+
+            {#if isConsoleOpen}
+                <MapConsole
+                    {mapConfig}
+                    mapPath={data.path}
+                    onClose={() => (isConsoleOpen = false)}
+                    onHoverPin={(id) => (highlightedPinId = id)}
+                />
+            {/if}
         </div>
     {/if}
 
@@ -1044,6 +1118,14 @@
         border: none;
         filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
         will-change: transform; /* Hint to browser to optimize layering */
+        transition:
+            transform 0.2s,
+            z-index 0.2s;
+    }
+
+    :global(.custom-pin-marker.highlighted) {
+        z-index: 1000 !important;
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
     }
 
     /* Styling for the multi-region tooltip */
