@@ -48,6 +48,7 @@
     // Console State
     let isConsoleOpen = $state(false);
     let highlightedPinId = $state<string | null>(null);
+    let highlightedRegionId = $state<string | null>(null);
 
     // Link Preview State
     let hoveredElement = $state<HTMLElement | null>(null);
@@ -61,8 +62,9 @@
     let multiTooltip: L.Tooltip | null = null;
     let isHoveringPin = $state(false);
 
-    // Lookup for pin layers to support console highlighting
+    // Lookup for layers to support console highlighting
     let pinIdToLayer = new Map<string, L.Marker>();
+    let shapeIdToLayer = new Map<string, L.Path>();
 
     let contextMenu = $state<{
         x: number;
@@ -132,6 +134,7 @@
             drawLayerGroup = null;
             multiTooltip = null;
             pinIdToLayer.clear();
+            shapeIdToLayer.clear();
         }
     });
 
@@ -173,6 +176,37 @@
                     }
                 });
             }
+        }
+    });
+
+    // Handle region highlighting from console
+    $effect(() => {
+        // Reset all shapes first
+        if (mapConfig?.shapes) {
+            mapConfig.shapes.forEach((s) => {
+                const layer = shapeIdToLayer.get(s.id);
+                if (layer) {
+                    const isHighlighted = s.id === highlightedRegionId;
+                    const color = s.color || "#3498db";
+
+                    if (isHighlighted) {
+                        layer.setStyle({
+                            weight: 4,
+                            color: color,
+                            fillOpacity: 0.6,
+                            dashArray: undefined, // Solid line for highlight
+                        });
+                        (layer as any).bringToFront();
+                    } else {
+                        layer.setStyle({
+                            weight: 2,
+                            color: color,
+                            fillOpacity: 0.2,
+                            dashArray: undefined,
+                        });
+                    }
+                }
+            });
         }
     });
 
@@ -221,6 +255,7 @@
                     prevConfigStr = ""; // Reset config tracking
                     multiTooltip = null;
                     pinIdToLayer.clear();
+                    shapeIdToLayer.clear();
                 }
                 currentMapPath = data.path;
             }
@@ -760,6 +795,7 @@
             // --- Update Regions (Shapes) ---
             if (shapeLayerGroup) {
                 shapeLayerGroup.clearLayers();
+                shapeIdToLayer.clear();
             }
             if (config.shapes && shapeLayerGroup) {
                 config.shapes.forEach((shape: MapRegion) => {
@@ -773,6 +809,7 @@
                             color: color,
                             fillColor: color,
                             fillOpacity: 0.2,
+                            weight: 2, // Default weight
                             radius: shape.radius,
                         });
                     } else if (shape.type === "polygon") {
@@ -785,12 +822,14 @@
                             color: color,
                             fillColor: color,
                             fillOpacity: 0.2,
+                            weight: 2, // Default weight
                         });
                     } else {
                         return;
                     }
 
                     layer.addTo(shapeLayerGroup!);
+                    shapeIdToLayer.set(shape.id, layer);
                 });
             }
         } catch (e: any) {
@@ -1057,6 +1096,7 @@
                     mapPath={data.path}
                     onClose={() => (isConsoleOpen = false)}
                     onHoverPin={(id) => (highlightedPinId = id)}
+                    onHoverRegion={(id) => (highlightedRegionId = id)}
                 />
             {/if}
         </div>
