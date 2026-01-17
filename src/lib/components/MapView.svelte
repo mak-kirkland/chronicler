@@ -98,6 +98,7 @@
         emoji: string,
         color: string = "#ffffff",
         highlighted: boolean = false,
+        invisible: boolean = false,
     ) {
         const scale = highlighted ? 1.3 : 1;
         const svg = `
@@ -108,7 +109,7 @@
         `;
 
         return L.divIcon({
-            className: `custom-pin-marker ${highlighted ? "highlighted" : ""}`,
+            className: `custom-pin-marker ${highlighted ? "highlighted" : ""} ${invisible ? "ghost-pin-marker" : ""}`,
             html: svg,
             iconSize: [32 * scale, 48 * scale],
             iconAnchor: [16 * scale, 48 * scale],
@@ -143,13 +144,13 @@
             );
             if (marker && pinConfig) {
                 // Temporarily update icon to highlighted state
-                const highlightedIcon = pinConfig.icon
-                    ? createEmojiIcon(
-                          pinConfig.icon,
-                          pinConfig.color || "#ffffff",
-                          true,
-                      )
-                    : defaultIcon; // Standard leaflet marker doesn't easily support highlighting this way, but we primarily use emoji icons
+                const iconChar = pinConfig.icon || "📍";
+                const highlightedIcon = createEmojiIcon(
+                    iconChar,
+                    pinConfig.color || "#ffffff",
+                    true,
+                    !!pinConfig.invisible, // Pass invisible state
+                );
 
                 marker.setIcon(highlightedIcon);
                 marker.setZIndexOffset(1000); // Bring to front
@@ -160,13 +161,13 @@
                 mapConfig.pins.forEach((pin) => {
                     const marker = pinIdToLayer.get(pin.id);
                     if (marker) {
-                        const normalIcon = pin.icon
-                            ? createEmojiIcon(
-                                  pin.icon,
-                                  pin.color || "#ffffff",
-                                  false,
-                              )
-                            : defaultIcon;
+                        const iconChar = pin.icon || "📍";
+                        const normalIcon = createEmojiIcon(
+                            iconChar,
+                            pin.color || "#ffffff",
+                            false,
+                            !!pin.invisible, // Pass invisible state
+                        );
                         marker.setIcon(normalIcon);
                         marker.setZIndexOffset(0);
                     }
@@ -691,12 +692,25 @@
             }
             if (config.pins && markerLayerGroup) {
                 config.pins.forEach(
-                    (pin: MapPin & { icon?: string; color?: string }) => {
+                    (
+                        pin: MapPin & {
+                            icon?: string;
+                            color?: string;
+                            invisible?: boolean;
+                        },
+                    ) => {
                         const leafletLat = h - pin.y;
                         const leafletLng = pin.x;
-                        const iconToUse = pin.icon
-                            ? createEmojiIcon(pin.icon, pin.color || "#ffffff")
-                            : defaultIcon;
+
+                        // Default to standard pin if none selected
+                        const iconChar = pin.icon || "📍";
+
+                        const iconToUse = createEmojiIcon(
+                            iconChar,
+                            pin.color || "#ffffff",
+                            false,
+                            !!pin.invisible, // Pass invisible state
+                        );
 
                         const marker = L.marker([leafletLat, leafletLng], {
                             icon: iconToUse,
@@ -711,7 +725,7 @@
                         // Apply the same styling class to pins as regions for consistency
                         marker.bindTooltip(tooltipText, {
                             direction: "top",
-                            offset: pin.icon ? [0, -40] : [0, -34],
+                            offset: [0, -42],
                             className: "multi-region-tooltip",
                         });
 
@@ -1026,7 +1040,15 @@
     {:else if !mapConfig}
         <div class="status-container"><p>Loading Map Configuration...</p></div>
     {:else}
-        <div class="map-wrapper" class:drawing={isDrawing}>
+        <!--
+            Added 'show-ghosts' class conditional on isConsoleOpen
+            to reveal invisible pins.
+        -->
+        <div
+            class="map-wrapper"
+            class:drawing={isDrawing}
+            class:show-ghosts={isConsoleOpen}
+        >
             <div bind:this={mapElement} class="leaflet-container"></div>
 
             {#if isConsoleOpen}
@@ -1148,6 +1170,34 @@
     :global(.custom-pin-marker.highlighted) {
         z-index: 1000 !important;
         filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+    }
+
+    /* GHOST PIN STYLES
+       Default: Opacity 0 (Invisible but clickable)
+       Console Open: Opacity 0.6 (Visible "Ghost")
+    */
+    :global(.ghost-pin-marker) {
+        background: transparent;
+        border: none;
+        opacity: 0; /* Totally invisible by default */
+        transition:
+            opacity 0.3s ease,
+            transform 0.2s;
+        /* Ensure it captures clicks even when invisible,
+           though often 'opacity: 0' elements do catch events by default. */
+        pointer-events: auto;
+    }
+    /* When .show-ghosts is present on the wrapper (toggled by isConsoleOpen),
+       increase the opacity so the user can see them to edit/delete.
+    */
+    .map-wrapper.show-ghosts :global(.ghost-pin-marker) {
+        opacity: 0.6;
+    }
+
+    :global(.ghost-pin-marker.highlighted) {
+        /* When hovering from console, ensure it's fully visible */
+        opacity: 1 !important;
+        z-index: 1000 !important;
     }
 
     /* Styling for the multi-region tooltip */

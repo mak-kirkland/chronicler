@@ -80,8 +80,14 @@
                                 <span
                                     class="item-icon"
                                     style="color: {pin.color}"
-                                    >{pin.icon || "📍"}</span
                                 >
+                                    {#if pin.invisible}
+                                        <!-- Ghost indicator for invisible pins -->
+                                        <span title="Invisible Pin">👻</span>
+                                    {:else}
+                                        {pin.icon || "📍"}
+                                    {/if}
+                                </span>
                                 <span class="item-label" title={pin.label}
                                     >{pin.label || "Unnamed Pin"}</span
                                 >
@@ -192,6 +198,8 @@
 
     .item-icon {
         font-size: 1.2rem;
+        min-width: 24px;
+        text-align: center;
     }
 
     .item-label {
