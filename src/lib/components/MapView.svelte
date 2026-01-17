@@ -48,7 +48,8 @@
     // Console State
     let isConsoleOpen = $state(false);
     let highlightedPinId = $state<string | null>(null);
-    let highlightedRegionId = $state<string | null>(null);
+    let highlightedRegionId = $state<string | null>(null); // From Console Hover
+    let hoveredRegionId = $state<string | null>(null); // From Map Hover
 
     // Link Preview State
     let hoveredElement = $state<HTMLElement | null>(null);
@@ -179,30 +180,44 @@
         }
     });
 
-    // Handle region highlighting from console
+    // Reactive Effect for Region Visibility & Styling
+    // Logic: Invisible by default, Visible if Console Open, Highlighted if Hovered (Map or Console)
     $effect(() => {
         // Reset all shapes first
         if (mapConfig?.shapes) {
             mapConfig.shapes.forEach((s) => {
                 const layer = shapeIdToLayer.get(s.id);
                 if (layer) {
-                    const isHighlighted = s.id === highlightedRegionId;
+                    const isTargeted =
+                        s.id === highlightedRegionId ||
+                        s.id === hoveredRegionId;
                     const color = s.color || "#3498db";
 
-                    if (isHighlighted) {
+                    if (isTargeted) {
+                        // High Visibility (Hover State)
                         layer.setStyle({
+                            stroke: true,
                             weight: 4,
                             color: color,
-                            fillOpacity: 0.6,
+                            fillOpacity: 0.5,
                             dashArray: undefined, // Solid line for highlight
                         });
                         (layer as any).bringToFront();
-                    } else {
+                    } else if (isConsoleOpen) {
+                        // Normal Visibility (Edit Mode)
                         layer.setStyle({
+                            stroke: true,
                             weight: 2,
                             color: color,
                             fillOpacity: 0.2,
                             dashArray: undefined,
+                        });
+                    } else {
+                        // Invisible (Default Mode)
+                        // Note: fillOpacity must be 0 to be invisible, but we keep the layer interactive
+                        layer.setStyle({
+                            stroke: false,
+                            fillOpacity: 0,
                         });
                     }
                 }
@@ -800,16 +815,22 @@
             if (config.shapes && shapeLayerGroup) {
                 config.shapes.forEach((shape: MapRegion) => {
                     let layer: L.Path;
+                    // Initial creation style is effectively overridden by the $effect almost immediately
+                    // But we set a reasonable default here (Console Closed state)
                     const color = shape.color || "#3498db";
+                    const initialStyle = {
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0,
+                        weight: 0,
+                        stroke: false,
+                    };
 
                     if (shape.type === "circle") {
                         // Leaflet Circle: Lat (Y), Lng (X), Radius
                         // Y flip: h - y
                         layer = L.circle([h - shape.y, shape.x], {
-                            color: color,
-                            fillColor: color,
-                            fillOpacity: 0.2,
-                            weight: 2, // Default weight
+                            ...initialStyle,
                             radius: shape.radius,
                         });
                     } else if (shape.type === "polygon") {
@@ -818,15 +839,18 @@
                         const latLngs = shape.points.map(
                             (p) => [h - p.y, p.x] as [number, number],
                         );
-                        layer = L.polygon(latLngs, {
-                            color: color,
-                            fillColor: color,
-                            fillOpacity: 0.2,
-                            weight: 2, // Default weight
-                        });
+                        layer = L.polygon(latLngs, initialStyle);
                     } else {
                         return;
                     }
+
+                    // Attach local hover listeners to drive the reactive state
+                    layer.on("mouseover", () => {
+                        hoveredRegionId = shape.id;
+                    });
+                    layer.on("mouseout", () => {
+                        hoveredRegionId = null;
+                    });
 
                     layer.addTo(shapeLayerGroup!);
                     shapeIdToLayer.set(shape.id, layer);
