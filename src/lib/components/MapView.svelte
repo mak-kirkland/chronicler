@@ -856,6 +856,22 @@
         });
     }
 
+    function handleEditPin(pinId: string) {
+        const pin = mapConfig?.pins?.find((p) => p.id === pinId);
+        if (!pin || !mapConfig) return;
+
+        contextMenu = null;
+        openModal({
+            component: AddPinModal,
+            props: {
+                onClose: closeModal,
+                mapPath: data.path,
+                mapConfig: mapConfig,
+                existingPin: pin,
+            },
+        });
+    }
+
     function handleDeletePin(pinId: string) {
         if (!mapConfig) return;
         const currentConfig = mapConfig;
@@ -992,29 +1008,35 @@
             actions={[
                 ...(!contextMenu.isNavigation
                     ? [
-                          // 1. Delete Pin (if right-clicked on a pin)
+                          // 3. Pin Actions (Edit/Delete) - only if clicked on a pin
                           ...(contextMenu.pinId
                               ? [
+                                    {
+                                        label: "Edit Pin",
+                                        handler: () =>
+                                            contextMenu?.pinId &&
+                                            handleEditPin(contextMenu.pinId),
+                                    },
                                     {
                                         label: "Delete Pin",
                                         handler: () =>
                                             contextMenu?.pinId &&
                                             handleDeletePin(contextMenu.pinId),
                                     },
-                                    { isSeparator: true },
+                                    // No separator needed here
                                 ]
-                              : []),
-
-                          // 2. Creation Actions (always available for editing context)
-                          {
-                              label: "Add Pin Here...",
-                              handler: handleAddPin,
-                          },
-                          { isSeparator: true },
-                          {
-                              label: "Draw Polygon Region",
-                              handler: () => startDrawing("polygon"),
-                          },
+                              : [
+                                    // 2. Creation Actions (always available for editing context)
+                                    {
+                                        label: "Add Pin Here...",
+                                        handler: handleAddPin,
+                                    },
+                                    { isSeparator: true },
+                                    {
+                                        label: "Draw Polygon Region",
+                                        handler: () => startDrawing("polygon"),
+                                    },
+                                ]),
                       ]
                     : []),
                 // 3. Custom actions (e.g. Delete specific overlapping region, OR Navigate Disambiguation)
