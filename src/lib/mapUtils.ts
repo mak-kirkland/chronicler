@@ -1,9 +1,94 @@
 /**
- * @file Pure utility functions for Map domain logic.
- * Handles geometry calculations, and shape intersections.
+ * @file Utilities for Map domain logic.
+ * Handles geometry calculations, coordinate scaling, shape intersections,
+ * and centralized theme assets (icons, colors).
  */
 
 import type { MapConfig, MapRegion } from "./mapModels";
+// --- THEME CONSTANTS ---
+
+export const DEFAULT_SHAPE_COLOR = "#3498db";
+export const DEFAULT_PIN_ICON = "📍";
+export const PALETTE = [
+    "#3498db", // Blue
+    "#e74c3c", // Red
+    "#2ecc71", // Green
+    "#f1c40f", // Yellow
+    "#9b59b6", // Purple
+    "#e67e22", // Orange
+    "#95a5a6", // Grey
+    "#ffffff", // White
+    "#000000", // Black
+];
+
+export const ICONS = [
+    "📍",
+    // Settlements & structures
+    "🏰",
+    "🏯",
+    "🏠",
+    "🛖",
+    "⛺",
+    "🏘️",
+    "🏛️",
+    "⛪",
+    "⛩️",
+    // Nature & Terrain
+    "🌲",
+    "🌳",
+    "🌴",
+    "🌵",
+    "⛰️",
+    "🏔️",
+    "🌋",
+    "🌊",
+    "🏝️",
+    "❄️",
+    "🍀",
+    "🍁",
+    // Travel & trade
+    "⚓",
+    "⛵",
+    // Conflict & danger
+    "⚔️",
+    "🛡️",
+    "💀",
+    "☠️",
+    "🪦",
+    "🔥",
+    // Magic & mystery
+    "✨",
+    "🔮",
+    "🌀",
+    "🕯️",
+    // Points of Interest
+    "💎",
+    "💰",
+    "📜",
+    "⚰️",
+    "🏺",
+    "🗝️",
+    // Knowledge
+    "👁️",
+    "🧠",
+    "⏳",
+    "🔔",
+    "⚖️",
+    // Characters & Monsters
+    "👑",
+    "🐉",
+    // Generic markers
+    "⭐",
+    "❌",
+    "⭕",
+    "❗",
+    "❓",
+    "🚩",
+    "🟢",
+    "🟡",
+    "🔴",
+    "🔵",
+];
 
 /**
  * Standard Ray-casting algorithm to check if a point is inside a polygon.

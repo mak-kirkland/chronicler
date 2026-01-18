@@ -3,8 +3,7 @@
     import { registerMap } from "$lib/mapStore";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
     import { openModal, closeModal } from "$lib/modalStore";
-    import AddPinModal from "./AddPinModal.svelte";
-    import AddRegionModal from "./AddRegionModal.svelte";
+    import MapObjectModal from "./MapObjectModal.svelte";
     import ConfirmModal from "./ConfirmModal.svelte";
     import Button from "./Button.svelte";
 
@@ -31,12 +30,26 @@
 
     function handleEditPin(pin: MapPin) {
         openModal({
-            component: AddPinModal,
+            component: MapObjectModal,
             props: {
                 onClose: closeModal,
                 mapPath: mapPath,
                 mapConfig: mapConfig,
-                existingPin: pin,
+                mode: "pin",
+                initialData: pin,
+            },
+        });
+    }
+
+    function handleEditRegion(region: MapRegion) {
+        openModal({
+            component: MapObjectModal,
+            props: {
+                onClose: closeModal,
+                mapPath: mapPath,
+                mapConfig: mapConfig,
+                mode: "region",
+                initialData: region,
             },
         });
     }
@@ -66,18 +79,6 @@
                         alert("Failed to delete pin.");
                     }
                 },
-            },
-        });
-    }
-
-    function handleEditRegion(region: MapRegion) {
-        openModal({
-            component: AddRegionModal,
-            props: {
-                onClose: closeModal,
-                mapPath: mapPath,
-                mapConfig: mapConfig,
-                existingRegion: region,
             },
         });
     }
