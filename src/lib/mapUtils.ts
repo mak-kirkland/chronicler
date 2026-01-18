@@ -91,6 +91,53 @@ export const ICONS = [
 ];
 
 /**
+ * Rescales all pins and shapes in a map configuration based on a scale factor.
+ * Returns a new object with the updated coordinates.
+ */
+export function resizeMapData(
+    config: MapConfig,
+    scaleFactor: number,
+    newWidth: number,
+    newHeight: number
+): MapConfig {
+    // 1. Scale Pins
+    const updatedPins = (config.pins || []).map((pin) => ({
+        ...pin,
+        x: Math.round(pin.x * scaleFactor),
+        y: Math.round(pin.y * scaleFactor),
+    }));
+
+    // 2. Scale Shapes
+    const updatedShapes = (config.shapes || []).map((shape) => {
+        if (shape.type === "circle") {
+            return {
+                ...shape,
+                x: Math.round(shape.x * scaleFactor),
+                y: Math.round(shape.y * scaleFactor),
+                radius: shape.radius * scaleFactor,
+            };
+        } else if (shape.type === "polygon") {
+            return {
+                ...shape,
+                points: shape.points.map((p) => ({
+                    x: Math.round(p.x * scaleFactor),
+                    y: Math.round(p.y * scaleFactor),
+                })),
+            };
+        }
+        return shape;
+    });
+
+    return {
+        ...config,
+        width: newWidth,
+        height: newHeight,
+        pins: updatedPins,
+        shapes: updatedShapes,
+    };
+}
+
+/**
  * Standard Ray-casting algorithm to check if a point is inside a polygon.
  */
 export function isPointInPolygon(

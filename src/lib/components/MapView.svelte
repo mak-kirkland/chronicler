@@ -37,6 +37,10 @@
     let currentMapPath: string | null = null;
     let prevConfigStr = ""; // Track config state to prevent re-renders
 
+    // Track state to know when to fully re-init map
+    // We only need to check these 3 properties. Much faster than JSON hashing.
+    let prevStructure = { w: 0, h: 0, baseImage: "" };
+
     // Drawing State
     let isDrawing = $state(false);
     let drawMode = $state<"polygon" | null>(null);
@@ -471,6 +475,40 @@
         error = null;
 
         try {
+            // Check if major structural changes occurred (Dimensions or Base Image).
+            // If so, we must destroy and recreate the map to update bounds and base layer correctly.
+            // This is simpler and faster than a full JSON hash.
+            const baseLayer =
+                config.layers.find((l) => l.id === "base") || config.layers[0];
+            const currentBaseImage = baseLayer?.image || "";
+
+            const hasStructuralChange =
+                config.width !== prevStructure.w ||
+                config.height !== prevStructure.h ||
+                currentBaseImage !== prevStructure.baseImage;
+
+            if (map && hasStructuralChange) {
+                console.log(
+                    "Map dimensions or base image changed, recreating map...",
+                );
+                map.remove();
+                map = null;
+                markerLayerGroup = null;
+                shapeLayerGroup = null;
+                drawLayerGroup = null;
+                if (multiTooltip) {
+                    multiTooltip.remove();
+                    multiTooltip = null;
+                }
+            }
+
+            // Update tracking state
+            prevStructure = {
+                w: config.width,
+                h: config.height,
+                baseImage: currentBaseImage,
+            };
+
             const w = config.width;
             const h = config.height;
             // Define bounds: Top-Left [0,0] to Bottom-Right [height, width]
