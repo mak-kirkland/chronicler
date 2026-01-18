@@ -18,8 +18,7 @@
     import ErrorBox from "./ErrorBox.svelte";
     import ViewHeader from "./ViewHeader.svelte";
     import ContextMenu from "./ContextMenu.svelte";
-    import AddPinModal from "./AddPinModal.svelte";
-    import AddRegionModal from "./AddRegionModal.svelte";
+    import MapObjectModal from "./MapObjectModal.svelte";
     import ConfirmModal from "./ConfirmModal.svelte";
     import LinkPreview from "./LinkPreview.svelte";
     import MapPreview from "./MapPreview.svelte";
@@ -1003,12 +1002,13 @@
 
         if (shapeData) {
             openModal({
-                component: AddRegionModal,
+                component: MapObjectModal,
                 props: {
                     onClose: closeModal,
                     mapPath: data.path,
                     mapConfig: currentConfig, // Pass the fresh config
-                    shapeData: shapeData,
+                    mode: "region",
+                    initialData: { shapeData },
                 },
             });
         }
@@ -1025,13 +1025,13 @@
         const { mapX, mapY } = contextMenu;
         contextMenu = null;
         openModal({
-            component: AddPinModal,
+            component: MapObjectModal,
             props: {
                 onClose: closeModal,
                 mapPath: data.path,
                 mapConfig: mapConfig,
-                x: mapX,
-                y: mapY,
+                mode: "pin",
+                initialData: { x: mapX, y: mapY },
             },
         });
     }
@@ -1042,12 +1042,13 @@
 
         contextMenu = null;
         openModal({
-            component: AddPinModal,
+            component: MapObjectModal,
             props: {
                 onClose: closeModal,
                 mapPath: data.path,
                 mapConfig: mapConfig,
-                existingPin: pin,
+                mode: "pin",
+                initialData: pin,
             },
         });
     }
