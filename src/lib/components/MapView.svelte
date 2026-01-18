@@ -53,6 +53,7 @@
     // Map Hover State
     // We use a Set to track multiple overlapping regions if necessary
     let hoveredRegionIds = $state(new Set<string>());
+    let hoveredPinId = $state<string | null>(null);
 
     // Layer Revision State
     // Incremented whenever layers are rebuilt to force styling effects to re-run
@@ -68,7 +69,6 @@
 
     // Tooltip State for multi-region hover
     let multiTooltip: L.Tooltip | null = null;
-    let isHoveringPin = $state(false);
 
     // Lookup for layers to support console highlighting
     let pinIdToLayer = new Map<string, L.Marker>();
@@ -186,6 +186,7 @@
 
                 marker.setIcon(highlightedIcon);
                 marker.setZIndexOffset(1000); // Bring to front
+                marker.openTooltip(); // Show tooltip on console hover
             }
         } else {
             // Reset all icons
@@ -202,6 +203,11 @@
                         );
                         marker.setIcon(normalIcon);
                         marker.setZIndexOffset(0);
+
+                        // Close tooltip only if not hovered by mouse
+                        if (pin.id !== hoveredPinId) {
+                            marker.closeTooltip();
+                        }
                     }
                 });
             }
@@ -306,11 +312,14 @@
                 multiTooltip = null;
             }
 
-            // Reset Pin Hover State
-            isHoveringPin = false;
+            // Reset Pin Hover State if context menu opens
+            if (contextMenu?.show) {
+                hoveredPinId = null;
+            }
 
             // Close native Leaflet tooltips if any are open
-            if (map) {
+            // ONLY if context menu is open. If console is open, we allow tooltips.
+            if (contextMenu?.show && map) {
                 map.eachLayer((layer) => {
                     if (
                         layer instanceof L.Marker ||
@@ -564,7 +573,7 @@
                     if (contextMenu?.show) return;
 
                     // 1. PIN PRIORITY: If hovering a pin, hide region tooltips and return
-                    if (isHoveringPin) {
+                    if (hoveredPinId) {
                         if (multiTooltip) {
                             multiTooltip.remove();
                             multiTooltip = null;
@@ -878,10 +887,10 @@
                         // Set listeners for Pin Priority
                         marker.on("mouseover", () => {
                             if (contextMenu?.show) return; // Only guard Context Menu
-                            isHoveringPin = true;
+                            hoveredPinId = pin.id;
                         });
                         marker.on("mouseout", () => {
-                            isHoveringPin = false;
+                            hoveredPinId = null;
                         });
 
                         attachClickBehavior(marker, pin);
@@ -1175,6 +1184,11 @@
                     onClose={() => (isConsoleOpen = false)}
                     onHoverPin={(id) => (highlightedPinId = id)}
                     onHoverRegion={(id) => (highlightedRegionId = id)}
+                    activePinId={hoveredPinId || highlightedPinId}
+                    activeRegionIds={new Set([
+                        ...hoveredRegionIds,
+                        ...(highlightedRegionId ? [highlightedRegionId] : []),
+                    ])}
                 />
             {/if}
         </div>
