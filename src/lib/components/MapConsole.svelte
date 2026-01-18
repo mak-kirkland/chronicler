@@ -8,12 +8,22 @@
     import ConfirmModal from "./ConfirmModal.svelte";
     import Button from "./Button.svelte";
 
-    let { mapConfig, mapPath, onClose, onHoverPin, onHoverRegion } = $props<{
+    let {
+        mapConfig,
+        mapPath,
+        onClose,
+        onHoverPin,
+        onHoverRegion,
+        activePinId = null,
+        activeRegionIds = new Set(),
+    } = $props<{
         mapConfig: MapConfig;
         mapPath: string;
         onClose: () => void;
         onHoverPin?: (pinId: string | null) => void;
         onHoverRegion?: (regionId: string | null) => void;
+        activePinId?: string | null;
+        activeRegionIds?: Set<string>;
     }>();
 
     let pins = $derived(mapConfig.pins || []);
@@ -118,6 +128,7 @@
                 <ul class="item-list">
                     {#each pins as pin}
                         <li
+                            class:active={activePinId === pin.id}
                             onmouseenter={() => onHoverPin?.(pin.id)}
                             onmouseleave={() => onHoverPin?.(null)}
                         >
@@ -164,6 +175,7 @@
                 <ul class="item-list">
                     {#each regions as region}
                         <li
+                            class:active={activeRegionIds.has(region.id)}
                             onmouseenter={() => onHoverRegion?.(region.id)}
                             onmouseleave={() => onHoverRegion?.(null)}
                         >
@@ -275,11 +287,19 @@
         background: var(--color-background-primary);
         border: 1px solid var(--color-border-subtle);
         border-radius: 4px;
-        transition: border-color 0.2s;
+        transition:
+            border-color 0.2s,
+            background-color 0.2s;
     }
 
     .item-list li:hover {
         border-color: var(--color-accent-primary);
+    }
+
+    .item-list li.active {
+        background-color: var(--color-background-tertiary);
+        border-color: var(--color-accent-primary);
+        box-shadow: inset 2px 0 0 var(--color-accent-primary);
     }
 
     .item-info {
