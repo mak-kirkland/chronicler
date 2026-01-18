@@ -544,6 +544,12 @@
                         config.shapes,
                     );
 
+                    // Create edit actions for each shape found
+                    const editActions = shapesAtCursor.map((shape) => ({
+                        label: `Edit Region: ${shape.label || "Unnamed"}`,
+                        handler: () => handleEditRegion(shape),
+                    }));
+
                     // Create delete actions for each shape found
                     const deleteActions = shapesAtCursor.map((shape) => ({
                         label: `Delete Region: ${shape.label || "Unnamed"}`,
@@ -557,10 +563,14 @@
                         mapX,
                         mapY,
                         // If we have overlapping shapes, populate custom actions to allow the user to choose which to delete
-                        customActions:
+                        customActions: [
+                            ...(editActions.length > 0 ||
                             deleteActions.length > 0
-                                ? deleteActions
-                                : undefined,
+                                ? [{ isSeparator: true } as any]
+                                : []),
+                            ...(editActions.length > 0 ? editActions : []),
+                            ...(deleteActions.length > 0 ? deleteActions : []),
+                        ],
                     };
                 });
 
@@ -1049,6 +1059,22 @@
                 mapConfig: mapConfig,
                 mode: "pin",
                 initialData: pin,
+            },
+        });
+    }
+
+    function handleEditRegion(region: MapRegion) {
+        if (!mapConfig) return;
+
+        contextMenu = null;
+        openModal({
+            component: MapObjectModal,
+            props: {
+                onClose: closeModal,
+                mapPath: data.path,
+                mapConfig: mapConfig,
+                mode: "region",
+                initialData: region,
             },
         });
     }
