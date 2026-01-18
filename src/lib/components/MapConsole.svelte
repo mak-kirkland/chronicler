@@ -3,8 +3,10 @@
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
     import { openModal, closeModal } from "$lib/modalStore";
     import MapObjectModal from "./MapObjectModal.svelte";
+    import MapSettingsModal from "./MapSettingsModal.svelte";
     import ConfirmModal from "./ConfirmModal.svelte";
     import Button from "./Button.svelte";
+    import Icon from "./Icon.svelte";
 
     let {
         mapConfig,
@@ -100,12 +102,33 @@
             },
         });
     }
+
+    function openSettings() {
+        openModal({
+            component: MapSettingsModal,
+            props: {
+                onClose: closeModal,
+                mapPath,
+                mapConfig,
+            },
+        });
+    }
 </script>
 
 <div class="map-console">
     <div class="console-header">
         <h3>Map Console</h3>
-        <Button variant="ghost" size="small" onclick={onClose}>×</Button>
+        <div class="console-controls">
+            <Button
+                variant="ghost"
+                size="small"
+                onclick={openSettings}
+                title="Map Settings"
+            >
+                <Icon type="settings" />
+            </Button>
+            <Button variant="ghost" size="small" onclick={onClose}>×</Button>
+        </div>
     </div>
 
     <div class="console-content">
@@ -224,7 +247,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 1rem;
+        padding: 0.5rem 1rem;
         border-bottom: 1px solid var(--color-border-primary);
         background: var(--color-background-primary);
     }
@@ -233,6 +256,11 @@
         margin: 0;
         font-size: 1.1rem;
         color: var(--color-text-heading);
+    }
+
+    .console-controls {
+        display: flex;
+        gap: 0.25rem;
     }
 
     .console-content {
