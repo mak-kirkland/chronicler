@@ -8,6 +8,8 @@ on:
             # Only run this workflow if these specific files are modified
             - "CHANGELOG.md"
             - "HELP.md"
+            - "PRIVACY.md"
+            - "EULA.md"
 
 jobs:
     rebuild-site:
