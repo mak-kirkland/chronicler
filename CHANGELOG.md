@@ -2,6 +2,19 @@
 
 ---
 
+## [v0.43.0-alpha] - 2026-01-22
+
+### ✨ Added
+
+- **Reports**: Added a new **Broken Images** report to identify missing image files across all formats, including standard Markdown links, wikilink embeds (`![[...]]`), HTML `<img>` tags, and frontmatter metadata.
+- **Infobox**: Introduced an `alias` rule for infobox layouts. This allows you to map different data keys to the same display label, creating the visual appearance of duplicate keys.
+
+### 🐞 Fixed
+
+- **Reports**: Fixed an issue where image files (such as `.png` or `.jpg`) were incorrectly listed as missing *pages* in the Broken Links report. The parser now properly distinguishes between media assets and navigable page links.
+
+---
+
 ## [v0.42.2-alpha] - 2026-01-16
 
 ### 📚 Documentation
