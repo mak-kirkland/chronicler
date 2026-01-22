@@ -27,6 +27,7 @@ use crate::{
     writer::Writer,
 };
 use parking_lot::{Mutex, RwLock};
+use serde::Serialize;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -35,6 +36,16 @@ use std::{
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info, instrument};
+
+/// Payload sent to the frontend when the index changes.
+/// This struct allows the frontend to know whether a heavy re-fetch of the
+/// file tree is necessary.
+#[derive(Debug, Clone, Serialize)]
+pub struct IndexUpdatePayload {
+    /// Whether the file tree structure (folders/files added/removed) has changed.
+    /// If false, the frontend can skip reloading the heavy file tree.
+    pub structure_changed: bool,
+}
 
 /// The main `World` struct containing all application subsystems and state.
 ///
@@ -270,8 +281,22 @@ impl World {
                     index.handle_event_batch(&events_batch);
                 }
 
-                // --- 5. Notify Frontend ---
-                if let Err(e) = app_handle.emit("index-updated", ()) {
+                // --- 5. Determine Update Type ---
+                // Check if any event in the batch requires a structure reload.
+                // Modifications do NOT require a structure reload.
+                let structure_changed = events_batch.iter().any(|e| match e {
+                    FileEvent::Created(_)
+                    | FileEvent::FolderCreated(_)
+                    | FileEvent::Deleted(_)
+                    | FileEvent::FolderDeleted(_)
+                    | FileEvent::Renamed { .. } => true,
+                    FileEvent::Modified(_) => false,
+                });
+
+                // --- 6. Notify Frontend ---
+                if let Err(e) =
+                    app_handle.emit("index-updated", IndexUpdatePayload { structure_changed })
+                {
                     error!("Failed to emit index-updated event: {}", e);
                 }
             }

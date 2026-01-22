@@ -23,6 +23,7 @@ import {
     getAllBrokenImages,
 } from "./commands";
 import { isMarkdown, isImage } from "./utils";
+import { WORLD_UPDATE_DEBOUNCE_MS } from "./config";
 import type {
     FileNode,
     TagMap,
@@ -30,6 +31,7 @@ import type {
     BrokenImage,
     ParseError,
     PageHeader,
+    IndexUpdatePayload,
 } from "./bindings";
 
 /**
@@ -85,38 +87,54 @@ function createWorldStore() {
     const { subscribe, set, update } = writable<WorldState>(initialState);
     let unlisten: (() => void) | null = null;
 
+    // Track if a structure update is pending across multiple debounced calls
+    let pendingStructureUpdate = false;
+
     /**
      * Fetches all necessary data from the backend and updates the store state.
+     * @param fetchTree If true, fetches the file tree structure. If false, skips it.
      */
-    const loadData = async () => {
+    const loadData = async (fetchTree: boolean) => {
         try {
-            // Fetch all data in parallel for efficiency.
-            const [
-                files,
-                tags,
-                vaultPath,
-                brokenLinks,
-                brokenImages,
-                parseErrors,
-            ] = await Promise.all([
-                getFileTree(),
+            // Always fetch metadata that might have changed with content edits
+            const metadataPromises = [
                 getAllTags(),
                 getVaultPath(),
                 getAllBrokenLinks(),
                 getAllBrokenImages(),
                 getAllParseErrors(),
-            ]);
-            update((s) => ({
-                ...s,
+            ] as const;
+
+            // Conditionally fetch the heavy file tree
+            const treePromise = fetchTree ? getFileTree() : Promise.resolve(null);
+
+            const [
+                [tags, vaultPath, brokenLinks, brokenImages, parseErrors],
                 files,
-                tags,
-                vaultPath,
-                brokenLinks,
-                brokenImages,
-                parseErrors,
-                isLoaded: true,
-                error: null,
-            }));
+            ] = await Promise.all([
+                Promise.all(metadataPromises),
+                treePromise,
+            ]);
+
+            update((s) => {
+                const newState: WorldState = {
+                    ...s,
+                    tags,
+                    vaultPath,
+                    brokenLinks,
+                    brokenImages,
+                    parseErrors,
+                    isLoaded: true,
+                    error: null,
+                };
+
+                // Only update the files tree if we actually fetched a new one
+                if (files !== null) {
+                    newState.files = files;
+                }
+
+                return newState;
+            });
         } catch (e: any) {
             console.error("Failed to load world data:", e);
             update((s) => ({
@@ -128,7 +146,12 @@ function createWorldStore() {
     };
 
     // Create a debounced version of loadData.
-    const debouncedLoadData = debounce(loadData, WORLD_UPDATE_DEBOUNCE_MS);
+    const debouncedLoadData = debounce(() => {
+        // Execute the load using the accumulated state
+        loadData(pendingStructureUpdate);
+        // Reset the flag after execution starts
+        pendingStructureUpdate = false;
+    }, WORLD_UPDATE_DEBOUNCE_MS);
 
     return {
         subscribe, // so components can subscribe to the store via $
@@ -143,12 +166,19 @@ function createWorldStore() {
                 unlisten = null;
             }
 
-            // Initial load is immediate (no debounce needed on startup)
-            await loadData();
+            // Initial load MUST fetch the tree
+            await loadData(true);
 
-            unlisten = await listen("index-updated", () => {
+            unlisten = await listen<IndexUpdatePayload>("index-updated", (event) => {
+                // Accumulate the structure change flag.
+                // If ANY event in the debounce window has structure_changed=true,
+                // we must reload the tree.
+                if (event.payload.structure_changed) {
+                    pendingStructureUpdate = true;
+                }
+
                 console.log(
-                    "Index update received from backend, scheduling refresh...",
+                    `Index update received (structure_changed=${event.payload.structure_changed}), scheduling refresh...`,
                 );
                 // When an event comes in, we don't load immediately.
                 // We wait to see if another event comes in right after.
