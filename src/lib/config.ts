@@ -12,6 +12,13 @@
  */
 export const AUTOSAVE_DEBOUNCE_MS = 500;
 
+/**
+ * The debounce interval in milliseconds for processing backend world updates.
+ * This prevents the UI from freezing during high-frequency file system events
+ * (like bulk imports or git operations) by grouping them into a single update.
+ */
+export const WORLD_UPDATE_DEBOUNCE_MS = 500;
+
 // --- UI Layout ---
 
 /**
