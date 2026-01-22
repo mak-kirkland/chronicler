@@ -1,5 +1,6 @@
 <script lang="ts">
     import { openUrl } from "@tauri-apps/plugin-opener";
+    import { licenseStore } from "$lib/licenseStore";
 </script>
 
 <div class="welcome-container">
@@ -15,41 +16,44 @@
         </div>
     </div>
 
-    <div class="welcome-footer">
-        <p>
-            🧙‍♂️ Chronicler is in active development. Thank you for trying it out!
-        </p>
-        <p>
-            ❤️ If you find this app useful, please consider
-            <a
-                href="https://chronicler.pro/#support"
-                onclick={(event) => {
-                    event.preventDefault();
-                    openUrl("https://chronicler.pro/#support");
-                }}>supporting its development</a
-            >. Thanks! :)
-        </p>
-        <p>
-            💬 Join the community on <a
-                href="https://discord.gg/cXJwcbe2b7"
-                onclick={(event) => {
-                    event.preventDefault();
-                    openUrl("https://discord.gg/cXJwcbe2b7");
-                }}>Discord</a
-            > to ask questions and share your work.
-        </p>
-        <p>
-            🐞 Found a bug? Have a feature request? Please <a
-                href="https://github.com/mak-kirkland/chronicler/issues"
-                onclick={(event) => {
-                    event.preventDefault();
-                    openUrl(
-                        "https://github.com/mak-kirkland/chronicler/issues",
-                    );
-                }}>open an issue on GitHub.</a
-            >
-        </p>
-    </div>
+    {#if $licenseStore.status !== "licensed"}
+        <div class="welcome-footer">
+            <p>
+                🧙‍♂️ Chronicler is in active development. Thank you for trying it
+                out!
+            </p>
+            <p>
+                ❤️ If you find this app useful, please consider
+                <a
+                    href="https://chronicler.pro/#support"
+                    onclick={(event) => {
+                        event.preventDefault();
+                        openUrl("https://chronicler.pro/#support");
+                    }}>supporting its development</a
+                >. Thanks! :)
+            </p>
+            <p>
+                💬 Join the community on <a
+                    href="https://discord.gg/cXJwcbe2b7"
+                    onclick={(event) => {
+                        event.preventDefault();
+                        openUrl("https://discord.gg/cXJwcbe2b7");
+                    }}>Discord</a
+                > to ask questions and share your work.
+            </p>
+            <p>
+                🐞 Found a bug? Have a feature request? Please <a
+                    href="https://github.com/mak-kirkland/chronicler/issues"
+                    onclick={(event) => {
+                        event.preventDefault();
+                        openUrl(
+                            "https://github.com/mak-kirkland/chronicler/issues",
+                        );
+                    }}>open an issue on GitHub.</a
+                >
+            </p>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -88,8 +92,8 @@
         height: 100%;
         object-fit: cover;
         opacity: 0.4; /* Fade image slightly so text pops */
-        /* Ensure image stays to the right so the left fade works well */
-        object-position: center right;
+        /* Center the image in the container */
+        object-position: center;
     }
 
     /* Gradient Overlay:
