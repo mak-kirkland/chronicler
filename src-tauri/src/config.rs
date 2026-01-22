@@ -15,6 +15,10 @@ use tauri::{AppHandle, Manager};
 /// This helps prevent multiple rapid updates from triggering too many re-indexes.
 pub const DEBOUNCE_INTERVAL: Duration = Duration::from_millis(500);
 
+/// Maximum time we wait before forcing a process, to prevent infinite delay
+/// if a process is constantly spamming events.
+pub const MAX_DEBOUNCE_DELAY: Duration = Duration::from_secs(2);
+
 /// Maximum file size to parse (1MB)
 pub const MAX_FILE_SIZE: u64 = 1024 * 1024;
 
