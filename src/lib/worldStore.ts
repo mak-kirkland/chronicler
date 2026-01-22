@@ -58,6 +58,26 @@ const initialState: WorldState = {
 };
 
 /**
+ * A simple debounce function to prevent "machine-gun" updates.
+ * It ensures the function is only called once after the 'wait' period has elapsed
+ * since the last time it was invoked.
+ */
+function debounce<T extends (...args: any[]) => void>(
+    func: T,
+    wait: number,
+): (...args: Parameters<T>) => void {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    return (...args: Parameters<T>) => {
+        if (timeout !== null) {
+            clearTimeout(timeout);
+        }
+        timeout = setTimeout(() => {
+            func(...args);
+        }, wait);
+    };
+}
+
+/**
  * A factory function to create a managed store for the application's "world" data.
  * This encapsulates asynchronous loading, error handling, and real-time updates.
  */
@@ -107,6 +127,9 @@ function createWorldStore() {
         }
     };
 
+    // Create a debounced version of loadData.
+    const debouncedLoadData = debounce(loadData, WORLD_UPDATE_DEBOUNCE_MS);
+
     return {
         subscribe, // so components can subscribe to the store via $
         /**
@@ -120,13 +143,16 @@ function createWorldStore() {
                 unlisten = null;
             }
 
+            // Initial load is immediate (no debounce needed on startup)
             await loadData();
 
             unlisten = await listen("index-updated", () => {
                 console.log(
-                    "Index update received from backend, refreshing world data...",
+                    "Index update received from backend, scheduling refresh...",
                 );
-                loadData();
+                // When an event comes in, we don't load immediately.
+                // We wait to see if another event comes in right after.
+                debouncedLoadData();
             });
         },
         /**
