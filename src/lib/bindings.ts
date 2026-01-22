@@ -166,3 +166,14 @@ export interface UserFont {
     /** The absolute path to the font file. */
     path: string;
 }
+
+/**
+ * Payload received from the backend 'index-updated' event.
+ * Mirrors `IndexUpdatePayload` in `src-tauri/src/world.rs`.
+ */
+export interface IndexUpdatePayload {
+    /** * Whether the file tree structure (folders/files added/removed) has changed.
+     * If false, the frontend can skip reloading the heavy file tree.
+     */
+    structure_changed: boolean;
+}
