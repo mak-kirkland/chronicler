@@ -12,7 +12,7 @@
 //! - Providing a unified API for Tauri commands to interact with the backend.
 
 use crate::{
-    config::{self, DEBOUNCE_INTERVAL},
+    config::{self, DEBOUNCE_INTERVAL, MAX_DEBOUNCE_DELAY},
     error::{ChroniclerError, Result},
     events::FileEvent,
     importer,
@@ -151,11 +151,10 @@ impl World {
 
     /// Background task that collects and processes file events from the watcher.
     ///
-    /// This task implements a debouncing and batching strategy. It waits for an
-    /// initial event, then waits for a short duration (100ms) to collect any
-    /// other events that have occurred in rapid succession. This batch is then
-    /// processed by the `Indexer` in one go, preventing repeated, expensive
-    /// relationship rebuilds.
+    /// This task implements a "sliding window" debouncing strategy.
+    /// It collects events and only triggers processing when the stream of events
+    /// pauses for `DEBOUNCE_INTERVAL`. This is crucial for performance during
+    /// bulk operations (like unzip, git checkout, or batch renames).
     #[instrument(level = "debug", skip(app_handle, indexer, writer, event_receiver))]
     async fn process_file_events(
         app_handle: AppHandle,
@@ -164,34 +163,73 @@ impl World {
         mut event_receiver: broadcast::Receiver<FileEvent>,
     ) {
         loop {
-            // --- 1. Event Collection ---
-            let mut events_batch = Vec::new();
-            match event_receiver.recv().await {
-                Ok(first_event) => {
-                    events_batch.push(first_event);
-                    // Wait a moment to see if more events are coming.
-                    sleep(DEBOUNCE_INTERVAL).await;
-                    // Drain any other events that have queued up.
-                    while let Ok(event) = event_receiver.try_recv() {
-                        events_batch.push(event);
-                    }
-                }
+            // --- 1. Wait for the first event ---
+            let first_event = match event_receiver.recv().await {
+                Ok(event) => event,
                 Err(broadcast::error::RecvError::Closed) => {
                     info!("Event channel closed, stopping file event processing");
                     break;
                 }
                 Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                    tracing::warn!(
-                        "File event processing fell behind, skipped {} events",
-                        skipped
+                    tracing::warn!("Event channel lagged, skipped {} events", skipped);
+                    continue;
+                }
+            };
+
+            let mut events_batch = vec![first_event];
+            let batch_start_time = std::time::Instant::now();
+
+            // --- 2. Sliding Window Collection ---
+            // Keep collecting events until we get a quiet period OR we hit the max delay.
+            loop {
+                // Calculate how much longer we can theoretically wait before force-processing
+                let elapsed = batch_start_time.elapsed();
+                if elapsed >= MAX_DEBOUNCE_DELAY {
+                    info!(
+                        "Max batch delay reached, forcing process of {} events",
+                        events_batch.len()
                     );
-                    continue; // Skip to next iteration
+                    break;
+                }
+
+                // Wait for either the debounce interval to pass (silence) OR a new event
+                tokio::select! {
+                    // Case A: The silence timer expires. No new events came in.
+                    _ = sleep(DEBOUNCE_INTERVAL) => {
+                        // The stream has paused, time to process.
+                        break;
+                    }
+                    // Case B: A new event arrived before the timer expired.
+                    res = event_receiver.recv() => {
+                        match res {
+                            Ok(event) => {
+                                events_batch.push(event);
+                                // Loop continues, which effectively resets the sleep timer
+                                // because `tokio::select!` cancels the `sleep` future and
+                                // we create a new one in the next iteration.
+                            }
+                            Err(broadcast::error::RecvError::Closed) => {
+                                // Channel closed, process what we have then exit outer loop
+                                break;
+                            }
+                            Err(broadcast::error::RecvError::Lagged(_)) => {
+                                // If we lag, just continue collecting what we can
+                                continue;
+                            }
+                        }
+                    }
                 }
             }
 
             // If we have events, process them.
             if !events_batch.is_empty() {
-                // --- 2. Transactional Backlink Updates (for renames) ---
+                // Remove duplicate events for the same path to save processing time
+                // (e.g., keeping only the last event for a specific file if appropriate,
+                // though for now we just process the batch as is to be safe).
+
+                info!("Processing batch of {} file events", events_batch.len());
+
+                // --- 3. Transactional Backlink Updates (for renames) ---
                 for event in &events_batch {
                     if let FileEvent::Renamed { from, to } = &event {
                         if let Some(writer) = writer.read().clone() {
@@ -226,13 +264,13 @@ impl World {
                     }
                 }
 
-                // --- 3. Batch Index Update ---
+                // --- 4. Batch Index Update ---
                 {
                     let mut index = indexer.write();
                     index.handle_event_batch(&events_batch);
                 }
 
-                // --- 4. Notify Frontend ---
+                // --- 5. Notify Frontend ---
                 if let Err(e) = app_handle.emit("index-updated", ()) {
                     error!("Failed to emit index-updated event: {}", e);
                 }
