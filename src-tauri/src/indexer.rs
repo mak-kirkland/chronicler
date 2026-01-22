@@ -207,14 +207,52 @@ impl Indexer {
         Ok(())
     }
 
-    /// Processes a batch of events and rebuilds relations once at the end.
-    /// This is the primary method for handling asynchronous updates from the file watcher.
-    #[instrument(level = "debug", skip(self, events))]
+    /// Handles a batch of file events efficiently.
+    ///
+    /// This method implements "event coalescing" to solve the Windows Atomic Write issue
+    /// (where a file is reported as Deleted and then immediately Created/Modified).
+    /// By calculating the *net effect* of the batch for each path before processing,
+    /// we prevent the indexer from unnecessarily deleting and re-adding files.
+    #[instrument(skip(self, events))]
     pub fn handle_event_batch(&mut self, events: &[FileEvent]) {
-        for event in events {
-            self.handle_file_event(event); // Call the low-level handler for each event
+        if events.is_empty() {
+            return;
         }
-        self.rebuild_relations(); // Rebuild all relationships only once
+
+        // Track the final required operation for each path.
+        // True = File exists (Update/Create). False = File gone (Delete).
+        let mut path_states: HashMap<PathBuf, bool> = HashMap::new();
+
+        for event in events {
+            match event {
+                FileEvent::Created(p) | FileEvent::FolderCreated(p) | FileEvent::Modified(p) => {
+                    path_states.insert(p.clone(), true);
+                }
+                FileEvent::Deleted(p) | FileEvent::FolderDeleted(p) => {
+                    path_states.insert(p.clone(), false);
+                }
+                FileEvent::Renamed { from, to } => {
+                    path_states.insert(from.clone(), false);
+                    path_states.insert(to.clone(), true);
+                }
+            }
+        }
+
+        // Apply changes based on the net state
+        for (path, exists) in path_states {
+            if exists {
+                // If the file exists in the end state, update it (re-parse)
+                // This covers Created, Modified, and the 'To' side of Renamed
+                // It also implicitly recovers from the 'Deleted' side of an atomic write
+                self.update_file(&path);
+            } else {
+                // If the file is gone in the end state, remove it
+                self.remove_file(&path);
+            }
+        }
+
+        // Always rebuild relations after a batch of changes to ensure backlinks are correct
+        self.rebuild_relations();
     }
 
     /// Processes a single UI-initiated event and rebuilds relations immediately.
