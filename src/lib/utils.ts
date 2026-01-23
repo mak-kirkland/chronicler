@@ -9,7 +9,6 @@ import { resolveResource } from "@tauri-apps/api/path";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { getImageAsBase64 } from "./commands";
-import type { InfoboxData, LayoutGroup, RenderItem } from "./types";
 
 /** A list of common image file extensions. */
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
@@ -288,175 +287,6 @@ export function capitalizeFirstLetter(text: string): string {
 }
 
 /**
- * Processes raw infobox data and applies layout rules to generate a structured
- * list of items for rendering.
- * @param data The raw InfoboxData object, which is the frontmatter.
- * @returns A structured array of `RenderItem` objects.
- */
-export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
-    if (!data) return [];
-
-    const finalItems: RenderItem[] = [];
-    // Ensure layout is an array
-    const layout = Array.isArray(data.layout) ? data.layout : [];
-
-    // --- 1. First Pass: Parse Rules ---
-    // We build maps to know which items to inject/modify when iterating the data.
-
-    const itemsAbove = new Map<string, RenderItem[]>();
-    const itemsBelow = new Map<string, RenderItem[]>();
-    const groupRules = new Map<string, LayoutGroup>();
-    const keysInGroups = new Set<string>();
-    const aliasRules = new Map<string, string>();
-
-    // Helper to register items to be injected above/below a target key
-    const registerInjection = (
-        targetKey: string | string[],
-        item: RenderItem,
-        map: Map<string, RenderItem[]>,
-    ) => {
-        const targets = Array.isArray(targetKey) ? targetKey : [targetKey];
-        for (const target of targets) {
-            if (!map.has(target)) {
-                map.set(target, []);
-            }
-            map.get(target)!.push({ ...item }); // push a copy
-        }
-    };
-
-    for (const rule of layout) {
-        // Protect against malformed YAML (nulls, strings, numbers)
-        if (!rule || typeof rule !== "object") continue;
-
-        // A. Alias Rules
-        // Register keys that should be renamed for display
-        if (rule.type === "alias") {
-            if (Array.isArray(rule.keys) && typeof rule.text === "string") {
-                for (const key of rule.keys) {
-                    aliasRules.set(key, rule.text);
-                }
-            }
-            continue;
-        }
-
-        // B. Grouping Rules
-        // Groups allow multiple keys to be displayed in a single row/grid.
-        if (rule.type === "group" || rule.type === "columns") {
-            if (Array.isArray(rule.keys) && rule.keys.length > 0) {
-                // We register the group rule against the FIRST key in the list.
-                // When the iterator hits this key, it will render the whole group.
-                groupRules.set(rule.keys[0], rule);
-
-                // We mark all SUBSEQUENT keys as being "in a group".
-                // The iterator will skip these when it encounters them naturally.
-                for (let i = 1; i < rule.keys.length; i++) {
-                    keysInGroups.add(rule.keys[i]);
-                }
-            }
-            continue;
-        }
-
-        // C. Injection Rules (Headers & Separators)
-        if (rule.type === "header") {
-            if (rule.above) {
-                registerInjection(
-                    rule.above,
-                    { type: "header", text: rule.text },
-                    itemsAbove,
-                );
-            }
-            if (rule.below) {
-                registerInjection(
-                    rule.below,
-                    { type: "header", text: rule.text },
-                    itemsBelow,
-                );
-            }
-        } else if (rule.type === "separator") {
-            if (rule.above) {
-                registerInjection(
-                    rule.above,
-                    { type: "separator" },
-                    itemsAbove,
-                );
-            }
-            if (rule.below) {
-                registerInjection(
-                    rule.below,
-                    { type: "separator" },
-                    itemsBelow,
-                );
-            }
-        }
-    }
-
-    // --- 2. Second Pass: Iterate Data & Construct Layout ---
-
-    // Define keys to exclude from the main list (metadata, special fields)
-    const excludedKeys = new Set([
-        "layout",
-        "title",
-        "subtitle",
-        "image",
-        "images",
-        "image_captions",
-        "image_paths",
-        "tags",
-        "infobox",
-        "details", // Error details
-        "error",
-    ]);
-
-    // We filter the entries first to ignore metadata
-    const allEntries = Object.entries(data).filter(
-        ([key]) => !excludedKeys.has(key),
-    );
-
-    for (const [key, value] of allEntries) {
-        // If this key is part of a group but NOT the leader, skip it.
-        // It will be rendered when the leader is processed.
-        if (keysInGroups.has(key)) {
-            continue;
-        }
-
-        // A. Inject items positioned "Above" this key
-        if (itemsAbove.has(key)) {
-            finalItems.push(...itemsAbove.get(key)!);
-        }
-
-        // B. Render the item itself
-        if (groupRules.has(key)) {
-            // It's the leader of a group.
-            const rule = groupRules.get(key)!;
-            // Gather values for all keys in the group
-            const groupValues = rule.keys
-                .map((k) => data[k])
-                // Filter out undefined/null, but keep 0 or false
-                .filter((v) => v !== undefined && v !== null && v !== "");
-
-            // Only render the group if it has content
-            if (groupValues.length > 0) {
-                finalItems.push({ type: "group", items: groupValues });
-            }
-        } else {
-            // It's a standard key-value pair.
-            // Check if there is an alias for this key.
-            const label = aliasRules.has(key) ? aliasRules.get(key)! : key;
-
-            // Render it as a default item.
-            finalItems.push({ type: "default", item: [label, value] });
-        }
-
-        // C. Inject items positioned "Below" this key
-        if (itemsBelow.has(key)) {
-            finalItems.push(...itemsBelow.get(key)!);
-        }
-    }
-
-    return finalItems;
-}
-
-/**
  * Calculates if a given hex color is considered "dark" based on HSP luminance.
  * @param color The hex color string (e.g., "#ffffff" or "000000").
  * @returns True if the color is considered dark, false otherwise.
@@ -478,9 +308,7 @@ export function isColorDark(color: string): boolean {
     const b = parseInt(hex.substring(4, 6), 16);
 
     // HSP equation from http://alienryderflex.com/hsp.html
-    const hsp = Math.sqrt(
-        0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b),
-    );
+    const hsp = Math.sqrt(0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b));
 
     // Threshold of 127.5 is the mathematical midpoint, but 140 gives a better
     // "feel" for interfaces, defaulting to Dark Mode slightly earlier.
