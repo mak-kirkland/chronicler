@@ -2,6 +2,15 @@
 
 ---
 
+## [v0.43.1-alpha] - 2026-01-23
+
+### 🐞 Fixed
+
+- **Infobox**: Fixed a bug where the page subtitle was being rendered twice, once in the header and again as a standard metadata row in the infobox body.
+- **Infobox**: Restored a safety guard to prevent the application from crashing when encountering empty or undefined layout rules in a page's frontmatter.
+
+---
+
 ## [v0.43.0-alpha] - 2026-01-22
 
 ### ✨ Added
