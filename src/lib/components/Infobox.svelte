@@ -1,8 +1,8 @@
 <script lang="ts">
     import { navigateToTag, navigateToImage } from "$lib/actions";
-    import { capitalizeFirstLetter, buildInfoboxLayout } from "$lib/utils";
+    import { capitalizeFirstLetter } from "$lib/utils";
+    import { buildInfoboxLayout, type InfoboxFrontmatter } from "$lib/infobox";
     import ErrorBox from "./ErrorBox.svelte";
-    import type { InfoboxData } from "$lib/types";
     import { openModal, closeModal } from "$lib/modalStore";
     import { areInfoboxTagsVisible } from "$lib/settingsStore";
     import InfoboxSettingsModal from "./InfoboxSettingsModal.svelte";
@@ -10,8 +10,9 @@
     import Icon from "./Icon.svelte";
 
     // --- Props ---
-    let { data } = $props<{
-        data: InfoboxData | null;
+    let { data, onEdit } = $props<{
+        data: InfoboxFrontmatter | null;
+        onEdit?: () => void;
     }>();
 
     // --- Derived State ---
@@ -100,13 +101,29 @@
             {#if data?.title}
                 <h3 class="infobox-title">{@html data.title}</h3>
             {/if}
-            <button
-                class="infobox-controls-button"
-                onclick={openSettingsModal}
-                title="Infobox settings"
-            >
-                <Icon type="settings" />
-            </button>
+
+            <div class="controls-group">
+                <!--
+                    The Edit button now delegates to the parent via onEdit.
+                    This ensures we edit the live content, not stale disk content.
+                -->
+                {#if onEdit}
+                    <button
+                        class="infobox-controls-button"
+                        onclick={onEdit}
+                        title="Edit Infobox"
+                    >
+                        <Icon type="edit" />
+                    </button>
+                {/if}
+                <button
+                    class="infobox-controls-button"
+                    onclick={openSettingsModal}
+                    title="Infobox settings"
+                >
+                    <Icon type="settings" />
+                </button>
+            </div>
         </div>
 
         {#if data?.subtitle}
@@ -150,8 +167,8 @@
                         <h4 class="layout-header">{@html renderItem.text}</h4>
                     {:else if renderItem.type === "separator"}
                         <hr class="layout-separator" />
-                    {:else if renderItem.type === "group"}
-                        <!-- Groups also span the full width to contain their own layout. -->
+                    {:else if renderItem.type === "columns"}
+                        <!-- Columns span the full width to contain their own layout. -->
                         <!--
                             We transpose the data here to use CSS Grid for row alignment.
                             Instead of rendering column-by-column, we render cell-by-cell in row-major order.
@@ -205,7 +222,7 @@
                             -->
                             {#each data.tags as tag, i (`${tag}-${i}`)}
                                 <button
-                                    class="tag-link"
+                                    class="tag-pill tag-link"
                                     onclick={() => navigateToTag(tag)}
                                 >
                                     #{tag}
@@ -248,6 +265,11 @@
         border-bottom: 1px solid var(--color-border-primary);
         padding-bottom: var(--space-sm);
         margin-bottom: var(--space-md);
+    }
+
+    .controls-group {
+        display: flex;
+        gap: 0.5rem;
     }
 
     .infobox-controls-button {
@@ -337,18 +359,15 @@
         flex-wrap: wrap;
         gap: var(--space-sm);
     }
+
+    /* .tag-link extends global .tag-pill with interactivity */
     .tag-link {
-        background-color: var(--color-overlay-dark);
-        color: var(--color-text-primary);
-        padding: 0.2rem 0.6rem;
-        border-radius: 9999px; /* pill shape */
-        font-size: 0.8rem;
-        font-weight: bold;
-        border: 1px solid transparent;
         cursor: pointer;
-        transition: all 0.2s ease-in-out;
-        word-break: break-word; /* Ensure long words break if necessary */
+        /* Reset any default button border/background beyond what .tag-pill provides */
+        background-color: var(--color-overlay-dark);
+        border: 1px solid transparent;
         text-align: left;
+        word-break: break-word;
     }
     .tag-link:hover,
     .tag-link:focus {

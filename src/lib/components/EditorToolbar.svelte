@@ -9,7 +9,10 @@
     } from "$lib/editor";
     import type { IconType } from "$lib/icons";
 
-    let { editorView } = $props<{ editorView: EditorView | undefined }>();
+    let { editorView, onInfoboxClick } = $props<{
+        editorView: EditorView | undefined;
+        onInfoboxClick?: () => void;
+    }>();
 
     // Define an interface for the actions
     interface ToolbarAction {
@@ -66,6 +69,14 @@
             <Icon type={iconType} />
         </button>
     {/each}
+
+    <!-- Separator -->
+    <div class="separator"></div>
+
+    <!-- Infobox Button -->
+    <button title="Edit Infobox" onclick={onInfoboxClick}>
+        <Icon type="edit" />
+    </button>
 </div>
 
 <style>
@@ -97,5 +108,12 @@
     button:hover {
         background-color: var(--color-background-secondary);
         color: var(--color-text-primary);
+    }
+
+    .separator {
+        width: 1px;
+        height: 20px;
+        background-color: var(--color-border-primary);
+        margin: 0 0.5rem;
     }
 </style>

@@ -32,7 +32,8 @@
         "codemirror": "^6.0.2",
         "js-yaml": "^4.1.1",
         "marked": "^16.4.2",
-        "svelte-codemirror-editor": "^1.4.2"
+        "svelte-codemirror-editor": "^1.4.2",
+        "yaml": "^2.8.2"
     },
     "devDependencies": {
         "@sveltejs/adapter-static": "^3.0.10",

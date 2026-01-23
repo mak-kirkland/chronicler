@@ -6,11 +6,13 @@
         value = $bindable(),
         placeholder = "Search...",
         formatLabel = (s: string) => s,
+        onSelect = undefined,
     } = $props<{
         options: string[];
         value: string;
         placeholder?: string;
         formatLabel?: (s: string) => string;
+        onSelect?: (value: string) => void;
     }>();
 
     let isOpen = $state(false);
@@ -31,6 +33,7 @@
 
     function selectOption(option: string) {
         value = option;
+        if (onSelect) onSelect(option);
         closeDropdown();
     }
 
@@ -60,178 +63,145 @@
         dropdownStyle = `top: ${top}px; left: ${left}px; width: ${width}px;`;
 
         isOpen = true;
-        searchQuery = "";
-        highlightedIndex = 0;
-    }
-
-    function scrollIntoView(index: number) {
-        if (!listContainer) return;
-        const item = listContainer.children[index] as HTMLElement;
-        if (item) {
-            item.scrollIntoView({ block: "nearest" });
-        }
     }
 
     function handleKeydown(e: KeyboardEvent) {
-        // If closed, only listen for open triggers
         if (!isOpen) {
-            if (["Enter", " ", "ArrowDown", "ArrowUp"].includes(e.key)) {
+            if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
                 e.preventDefault();
                 openDropdown();
             }
             return;
         }
 
-        // Navigation logic when open
-        switch (e.key) {
-            case "ArrowDown":
-                e.preventDefault();
-                if (filteredOptions.length > 0) {
-                    highlightedIndex =
-                        (highlightedIndex + 1) % filteredOptions.length;
-                    scrollIntoView(highlightedIndex);
-                }
-                break;
-            case "ArrowUp":
-                e.preventDefault();
-                if (filteredOptions.length > 0) {
-                    highlightedIndex =
-                        (highlightedIndex - 1 + filteredOptions.length) %
-                        filteredOptions.length;
-                    scrollIntoView(highlightedIndex);
-                }
-                break;
-            case "Enter":
-                e.preventDefault();
-                if (filteredOptions.length > 0) {
-                    selectOption(filteredOptions[highlightedIndex]);
-                }
-                break;
-            case "Escape":
-                e.preventDefault();
-                closeDropdown();
-                break;
+        if (e.key === "Escape") {
+            closeDropdown();
+            triggerElement?.focus();
+            return;
+        }
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            highlightedIndex = (highlightedIndex + 1) % filteredOptions.length;
+            scrollToHighlighted();
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            highlightedIndex =
+                (highlightedIndex - 1 + filteredOptions.length) %
+                filteredOptions.length;
+            scrollToHighlighted();
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (filteredOptions[highlightedIndex]) {
+                selectOption(filteredOptions[highlightedIndex]);
+            }
+        }
+    }
+
+    function scrollToHighlighted() {
+        if (!listContainer) return;
+        const item = listContainer.children[highlightedIndex] as HTMLElement;
+        if (item) {
+            item.scrollIntoView({ block: "nearest" });
+        }
+    }
+
+    function handleWindowClick(e: MouseEvent) {
+        if (
+            isOpen &&
+            triggerElement &&
+            !triggerElement.contains(e.target as Node) &&
+            // Check if click is inside the dropdown portal (we can't easily check ref since it's in a portal,
+            // but we can check the class)
+            !(e.target as HTMLElement).closest(".dropdown-menu")
+        ) {
+            closeDropdown();
         }
     }
 </script>
 
-<!-- Close on window resize/scroll to keep fixed position aligned -->
-<svelte:window on:resize={closeDropdown} on:scroll={closeDropdown} />
+<svelte:window onclick={handleWindowClick} onresize={closeDropdown} />
 
-<div class="custom-select">
-    <!-- Trigger Button -->
+<div class="searchable-select-wrapper">
+    <!-- Reusing .form-input styles for the visual look, adding specific layout -->
     <button
-        type="button"
-        class="select-trigger"
         bind:this={triggerElement}
+        class="form-input trigger-btn"
         onclick={toggleOpen}
         onkeydown={handleKeydown}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
+        type="button"
     >
-        <span class="truncate">{formatLabel(value)}</span>
+        <span class="label-text {value ? '' : 'placeholder'}">
+            {value ? formatLabel(value) : placeholder}
+        </span>
         <span class="arrow">▼</span>
     </button>
 
     {#if isOpen}
-        <!--
-            Use fixed positioning with calculated coordinates to render
-            on top of everything, avoiding modal scrollbars.
-        -->
-        <div class="dropdown-menu" style={dropdownStyle}>
+        <!-- Portal-like behavior: Fixed position to break out of overflow:hidden parents -->
+        <div
+            class="dropdown-menu"
+            style="{dropdownStyle} position: fixed; max-height: 250px; display: flex; flex-direction: column; overflow: hidden;"
+        >
             <input
                 type="text"
                 class="dropdown-search"
-                {placeholder}
                 bind:value={searchQuery}
+                placeholder="Filter..."
                 use:autofocus
                 onclick={(e) => e.stopPropagation()}
                 onkeydown={handleKeydown}
             />
-
-            <ul class="options-list" role="listbox" bind:this={listContainer}>
-                {#each filteredOptions as option, i (option)}
-                    <li role="option" aria-selected={i === highlightedIndex}>
+            <ul class="options-list" bind:this={listContainer}>
+                {#each filteredOptions as opt, i}
+                    <li>
                         <button
-                            type="button"
-                            class="option-btn"
                             class:highlighted={i === highlightedIndex}
-                            class:selected={option === value}
-                            onclick={() => selectOption(option)}
+                            class:selected={opt === value}
+                            onclick={() => selectOption(opt)}
                             onmouseenter={() => (highlightedIndex = i)}
                         >
-                            {formatLabel(option)}
+                            {formatLabel(opt)}
                         </button>
                     </li>
                 {/each}
                 {#if filteredOptions.length === 0}
-                    <li class="no-results">No matches found</li>
+                    <li class="no-results">No results found</li>
                 {/if}
             </ul>
         </div>
-
-        <!-- Backdrop to close when clicking outside -->
-        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-        <div
-            class="backdrop"
-            role="button"
-            tabindex="-1"
-            onclick={closeDropdown}
-            onkeydown={closeDropdown}
-        ></div>
     {/if}
 </div>
 
 <style>
-    .custom-select {
+    .searchable-select-wrapper {
         position: relative;
         width: 100%;
     }
 
-    .select-trigger {
-        width: 100%;
-        padding: 0.5rem 0.75rem;
-        border-radius: 6px;
-        border: 1px solid var(--color-border-primary);
-        background-color: var(--color-background-primary);
-        color: var(--color-text-primary);
-        font-size: 1rem;
-        text-align: left;
-        cursor: pointer;
+    .trigger-btn {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        text-align: left;
+        cursor: pointer;
     }
 
-    .select-trigger:focus {
-        outline: 1px solid var(--color-accent-primary);
-        border-color: var(--color-accent-primary);
-    }
-
-    .truncate {
+    .label-text {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        flex-grow: 1;
+    }
+    .label-text.placeholder {
+        color: var(--color-text-secondary);
+        font-style: italic;
     }
 
     .arrow {
-        font-size: 0.8em;
-        opacity: 0.7;
+        font-size: 0.7rem;
         margin-left: 0.5rem;
-    }
-
-    .dropdown-menu {
-        position: fixed; /* Changed from absolute to fixed */
-        /* top, left, and width are set via inline styles */
-        background-color: var(--color-background-primary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: 6px;
-        box-shadow: 0 4px 12px var(--color-overlay-subtle);
-        z-index: 1000; /* Higher z-index to sit above modals */
-        overflow: hidden;
-        max-height: 250px;
-        display: flex;
-        flex-direction: column;
+        opacity: 0.7;
     }
 
     .dropdown-search {
@@ -251,48 +221,15 @@
     }
 
     .options-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
+        /* List styles handled globally by .dropdown-menu ul in app.css */
         overflow-y: auto;
         flex-grow: 1;
     }
 
-    .option-btn {
-        width: 100%;
-        text-align: left;
-        padding: 0.5rem 0.75rem;
-        background: none;
-        border: none;
-        cursor: pointer;
-        color: var(--color-text-primary);
-        font-size: 0.95rem;
-    }
-
-    .option-btn.highlighted {
-        background-color: var(--color-background-secondary);
-    }
-
-    .option-btn.selected {
-        font-weight: bold;
-        color: var(--color-accent-primary);
-        background-color: var(--color-background-tertiary);
-    }
-
     .no-results {
-        padding: 0.75rem;
+        padding: 1rem;
         color: var(--color-text-secondary);
-        font-style: italic;
         text-align: center;
-    }
-
-    .backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 900;
-        cursor: default;
+        font-size: 0.9rem;
     }
 </style>
