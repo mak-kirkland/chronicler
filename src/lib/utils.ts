@@ -273,6 +273,9 @@ export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
     };
 
     for (const rule of layout) {
+        // Protect against malformed YAML (nulls, strings, numbers)
+        if (!rule || typeof rule !== "object") continue;
+
         // A. Alias Rules
         // Register keys that should be renamed for display
         if (rule.type === "alias") {
