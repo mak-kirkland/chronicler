@@ -29,6 +29,8 @@
     } from "$lib/worldStore";
     import { toggleBold, toggleItalic } from "$lib/editor";
     import EditorToolbar from "./EditorToolbar.svelte";
+    import { openModal, closeModal } from "$lib/modalStore";
+    import InfoboxEditorModal from "./InfoboxEditorModal.svelte";
 
     let { content = $bindable() } = $props<{ content?: string }>();
     let editor: EditorView | undefined = $state();
@@ -36,6 +38,27 @@
     onMount(() => {
         editor?.focus();
     });
+
+    /**
+     * Opens the visual Infobox Editor modal using the CURRENT content in memory.
+     * This avoids the data-loss race condition.
+     */
+    function handleInfoboxClick() {
+        if (!content) return;
+
+        openModal({
+            component: InfoboxEditorModal,
+            props: {
+                onClose: closeModal,
+                initialContent: content, // Pass current editor content
+                onSave: (newContent: string) => {
+                    // Update content immediately in memory
+                    // This triggers reactivity -> updates Editor view -> triggers autosave in FileView
+                    content = newContent;
+                },
+            },
+        });
+    }
 
     /**
      * A custom CodeMirror completion source that provides suggestions for links and tags.
@@ -404,7 +427,7 @@
 </script>
 
 <div class="editor-container">
-    <EditorToolbar editorView={editor} />
+    <EditorToolbar editorView={editor} onInfoboxClick={handleInfoboxClick} />
     <div class="editor-wrapper">
         <Codemirror
             on:ready={(e) => (editor = e.detail)}

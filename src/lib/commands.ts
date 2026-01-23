@@ -106,7 +106,7 @@ export const buildPageView = (path: string) =>
  * @returns A promise that resolves when the file has been written.
  */
 export const writePageContent = (path: string, content: string) =>
-    invoke("write_page_content", { path, content });
+  invoke("write_page_content", { path, content });
 
 /**
  * Renders a preview of markdown content without saving it to disk.

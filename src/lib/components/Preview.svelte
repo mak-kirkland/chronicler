@@ -9,17 +9,18 @@
         enhanceGalleries,
     } from "$lib/domActions";
     import { navigateToTag } from "$lib/actions";
-    import { buildInfoboxLayout } from "$lib/utils";
-    import type { InfoboxData } from "$lib/types";
+    import { buildInfoboxLayout, type InfoboxFrontmatter } from "$lib/infobox";
 
     let {
         renderedData,
         infoboxData = null,
         mode = "unified",
+        onInfoboxEdit,
     } = $props<{
         renderedData: RenderedPage | null;
-        infoboxData?: InfoboxData | null;
+        infoboxData?: InfoboxFrontmatter | null;
         mode?: "split" | "unified";
+        onInfoboxEdit?: () => void;
     }>();
 
     // --- Infobox Visibility Logic ---
@@ -72,7 +73,8 @@
     {#if showInfobox}
         <!-- Use <aside> for better semantics. It's floated, so order in HTML matters. -->
         <aside class="infobox-wrapper">
-            <Infobox data={infoboxData} />
+            <!-- Pass the edit handler down to the Infobox -->
+            <Infobox data={infoboxData} onEdit={onInfoboxEdit} />
         </aside>
     {/if}
 

@@ -303,3 +303,16 @@ export const allImages = derived(files, ($files) =>
 export const allImageFiles = derived(allImages, ($allImages) =>
     $allImages.map((img) => img.title),
 );
+
+/**
+ * A derived store that maps image filenames to their absolute paths.
+ * Example: { "my-image.png": "C:/Vault/Assets/my-image.png" }
+ */
+export const imagePathLookup = derived(allImages, ($allImages) => {
+    const map = new Map<string, string>();
+    for (const img of $allImages) {
+        // Normalize keys to lowercase to match backend behavior
+        map.set(img.title.toLowerCase(), img.path);
+    }
+    return map;
+});
