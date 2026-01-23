@@ -341,13 +341,14 @@ export function buildInfoboxLayout(data: InfoboxData | null): RenderItem[] {
     const excludedKeys = new Set([
         "layout",
         "title",
+        "subtitle",
         "image",
         "images",
         "image_captions",
         "image_paths",
         "tags",
         "infobox",
-        "details",
+        "details", // Error details
         "error",
     ]);
 
