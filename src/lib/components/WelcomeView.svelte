@@ -1,18 +1,36 @@
 <script lang="ts">
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { licenseStore } from "$lib/licenseStore";
+
+    let videoReady = false;
 </script>
 
 <div class="welcome-container">
     <div class="welcome-screen">
         <div class="hero-banner">
-            <img src="/banner.png" alt="Chronicler Banner" />
-            <div class="hero-overlay">
-                <h1 class="welcome-title">Chronicler</h1>
-                <p class="welcome-text">
-                    Your digital scriptorium — where knowledge links together.
-                </p>
-            </div>
+            {#if $licenseStore.status === "licensed"}
+                <video
+                    src="/background.webm"
+                    width="100%"
+                    height="100%"
+                    autoplay
+                    muted
+                    loop
+                    playsinline
+                    class:ready={videoReady}
+                    onloadedmetadata={() => (videoReady = true)}
+                >
+                </video>
+            {:else}
+                <img src="/banner.png" alt="Chronicler Banner" />
+                <div class="hero-overlay">
+                    <h1 class="welcome-title">Chronicler</h1>
+                    <p class="welcome-text">
+                        Your digital scriptorium — where knowledge links
+                        together.
+                    </p>
+                </div>
+            {/if}
         </div>
     </div>
 
@@ -82,18 +100,32 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
     }
 
-    .hero-banner img {
+    .hero-banner :is(img, video) {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
-        opacity: 0.4; /* Fade image slightly so text pops */
-        /* Center the image in the container */
         object-position: center;
+
+        /* Start invisible */
+        opacity: 0;
+        transition: opacity 0.4s ease-out; /* Smooth fade-in */
+        will-change: opacity;
+    }
+
+    /* Keep the image always visible (it loads instantly) */
+    .hero-banner img {
+        opacity: 0.4;
+    }
+
+    /* Only show the video when the 'ready' class is added */
+    .hero-banner video.ready {
+        opacity: 1;
     }
 
     /* Gradient Overlay:
