@@ -39,7 +39,7 @@
             </div>
 
             <div class="credit-group">
-                <h4>Artwork</h4>
+                <h4>Artwork & Animation</h4>
                 <p>
                     Banner by
                     <button
@@ -50,6 +50,7 @@
                         Sigmaeus
                     </button>
                 </p>
+                <p>Animation by a kind supporter</p>
             </div>
 
             <div class="credit-group">

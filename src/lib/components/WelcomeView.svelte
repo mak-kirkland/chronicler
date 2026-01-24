@@ -1,18 +1,36 @@
 <script lang="ts">
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { licenseStore } from "$lib/licenseStore";
+
+    let videoReady = false;
 </script>
 
 <div class="welcome-container">
     <div class="welcome-screen">
         <div class="hero-banner">
-            <img src="/banner.png" alt="Chronicler Banner" />
-            <div class="hero-overlay">
-                <h1 class="welcome-title">Chronicler</h1>
-                <p class="welcome-text">
-                    Your digital scriptorium — where knowledge links together.
-                </p>
-            </div>
+            {#if $licenseStore.status === "licensed"}
+                <video
+                    src="/background.webm"
+                    width="100%"
+                    height="100%"
+                    autoplay
+                    muted
+                    loop
+                    playsinline
+                    class:ready={videoReady}
+                    onloadedmetadata={() => (videoReady = true)}
+                >
+                </video>
+            {:else}
+                <img src="/banner.png" alt="Chronicler Banner" />
+                <div class="hero-overlay">
+                    <h1 class="welcome-title">Chronicler</h1>
+                    <p class="welcome-text">
+                        Your digital scriptorium — where knowledge links
+                        together.
+                    </p>
+                </div>
+            {/if}
         </div>
     </div>
 
@@ -82,41 +100,48 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
     }
 
-    .hero-banner img {
+    .hero-banner :is(img, video) {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
-        opacity: 0.4; /* Fade image slightly so text pops */
-        /* Center the image in the container */
         object-position: center;
+
+        /* Start invisible */
+        opacity: 0;
+        transition: opacity 0.4s ease-out; /* Smooth fade-in */
+        will-change: opacity;
+
+        /* This creates an ellipse centered on the right side.
+           It keeps the right side opaque (black) and fades smoothly
+           to transparent as it reaches the left sidebar and bottom corners.
+        */
+        mask-image: radial-gradient(
+            ellipse at right center,
+            black 40%,
+            transparent 95%
+        );
+
+        -webkit-mask-image: radial-gradient(
+            ellipse at right center,
+            black 40%,
+            transparent 95%
+        );
     }
 
-    /* Gradient Overlay:
-       1. Fades to background color at the bottom (vertical fade).
-       2. Fades to background color on the left (horizontal fade).
-       This creates a smooth "L" shaped blend into the UI.
-    */
-    .hero-banner::after {
-        content: "";
-        position: absolute;
-        inset: 0; /* Covers the entire container */
-        background:
-            linear-gradient(
-                to bottom,
-                transparent 50%,
-                var(--color-background-primary) 100%
-            ),
-            linear-gradient(
-                to right,
-                var(--color-background-primary) 0%,
-                transparent 30%
-            );
-        pointer-events: none;
+    /* Keep the image always visible (it loads instantly) */
+    .hero-banner img {
+        opacity: 0.4;
+    }
+
+    /* Only show the video when the 'ready' class is added */
+    .hero-banner video.ready {
+        opacity: 1;
     }
 
     .hero-overlay {
