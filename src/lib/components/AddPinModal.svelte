@@ -22,6 +22,7 @@
     let label = $state(existingPin?.label || "");
     let selectedIcon = $state(existingPin?.icon || "📍");
     let selectedColor = $state(existingPin?.color || "#3498db"); // Default blue
+    let isInvisible = $state(existingPin?.invisible || false);
     let isSaving = $state(false);
 
     // Options derived from stores
@@ -139,6 +140,7 @@
                 label: label || selectedPage || selectedMap || "Pin",
                 icon: selectedIcon,
                 color: selectedColor,
+                invisible: isInvisible,
             };
 
             let updatedPins: MapPin[];
@@ -205,7 +207,18 @@
         </div>
 
         <div class="form-group">
-            <label>Icon</label>
+            <label class="checkbox-wrapper">
+                <input type="checkbox" bind:checked={isInvisible} />
+                <span>Invisible Pin (Ghost)</span>
+            </label>
+            <p class="help-text">
+                Invisible pins are hidden on the map unless the Map Console is
+                open. Useful for adding interactivity to pre-drawn map features.
+            </p>
+        </div>
+
+        <div class="form-group" class:disabled={isInvisible}>
+            <label>Icon {isInvisible ? "(Hidden)" : ""}</label>
             <div class="icon-grid">
                 {#each ICONS as icon}
                     <button
@@ -214,6 +227,7 @@
                         class:selected={selectedIcon === icon}
                         onclick={() => (selectedIcon = icon)}
                         title="Select icon"
+                        disabled={isInvisible}
                     >
                         {icon}
                     </button>
@@ -281,6 +295,10 @@
         flex-direction: column;
         gap: 0.5rem;
     }
+    .form-group.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
     label {
         font-weight: bold;
         color: var(--color-text-secondary);
@@ -298,6 +316,27 @@
     input[type="text"]:focus {
         outline: 1px solid var(--color-accent-primary);
         border-color: var(--color-accent-primary);
+    }
+
+    /* Checkbox Styles */
+    .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        font-weight: normal;
+        color: var(--color-text-primary);
+    }
+    .checkbox-wrapper input[type="checkbox"] {
+        width: 1.2rem;
+        height: 1.2rem;
+        cursor: pointer;
+    }
+    .help-text {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--color-text-secondary);
+        font-style: italic;
     }
 
     /* Icon Grid Styles */
