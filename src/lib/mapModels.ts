@@ -62,6 +62,11 @@ export interface MapPin {
      * Optional color hex code.
      */
     color?: string;
+    /**
+     * If true, the pin is invisible on the map (opacity 0)
+     * unless the editor/console is open.
+     */
+    invisible?: boolean;
 }
 
 /**
