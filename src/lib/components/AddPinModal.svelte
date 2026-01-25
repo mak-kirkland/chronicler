@@ -7,19 +7,21 @@
     import Modal from "./Modal.svelte";
     import type { MapConfig, MapPin } from "$lib/mapModels";
 
-    let { onClose, mapPath, mapConfig, x, y } = $props<{
+    let { onClose, mapPath, mapConfig, x, y, existingPin } = $props<{
         onClose: () => void;
         mapPath: string;
         mapConfig: MapConfig;
-        x: number;
-        y: number;
+        x?: number; // Optional if editing
+        y?: number; // Optional if editing
+        existingPin?: MapPin; // Optional pin to edit
     }>();
 
-    let selectedPage = $state("");
-    let selectedMap = $state("");
-    let label = $state("");
-    let selectedIcon = $state("📍");
-    let selectedColor = $state("#3498db"); // Default blue
+    // Initialize state with defaults or existing pin data
+    let selectedPage = $state(existingPin?.targetPage || "");
+    let selectedMap = $state(existingPin?.targetMap || "");
+    let label = $state(existingPin?.label || "");
+    let selectedIcon = $state(existingPin?.icon || "📍");
+    let selectedColor = $state(existingPin?.color || "#3498db"); // Default blue
     let isSaving = $state(false);
 
     // Options derived from stores
@@ -109,9 +111,9 @@
         "#1abc9c", // Teal
     ];
 
-    // Auto-fill label when target is selected
+    // Auto-fill label when target is selected, only if adding new pin or label is empty
     $effect(() => {
-        if (!label) {
+        if (!label && !existingPin) {
             if (selectedPage) label = selectedPage;
             else if (selectedMap) label = selectedMap;
         }
@@ -124,11 +126,14 @@
 
         isSaving = true;
         try {
-            const newPin: MapPin & { icon?: string; color?: string } = {
-                id: crypto.randomUUID(),
-                x: Math.round(x),
-                y: Math.round(y),
-                // Allow both targets to be set
+            // Determine coordinates: use passed x/y (new pin) or keep existing (edit)
+            const finalX = existingPin ? existingPin.x : Math.round(x || 0);
+            const finalY = existingPin ? existingPin.y : Math.round(y || 0);
+
+            const pinData: MapPin = {
+                id: existingPin ? existingPin.id : crypto.randomUUID(),
+                x: finalX,
+                y: finalY,
                 targetPage: selectedPage || undefined,
                 targetMap: selectedMap || undefined,
                 label: label || selectedPage || selectedMap || "Pin",
@@ -136,9 +141,21 @@
                 color: selectedColor,
             };
 
+            let updatedPins: MapPin[];
+
+            if (existingPin) {
+                // Update existing pin
+                updatedPins = (mapConfig.pins || []).map((p) =>
+                    p.id === existingPin.id ? pinData : p,
+                );
+            } else {
+                // Add new pin
+                updatedPins = [...(mapConfig.pins || []), pinData];
+            }
+
             const updatedConfig = {
                 ...mapConfig,
-                pins: [...(mapConfig.pins || []), newPin],
+                pins: updatedPins,
             };
 
             await writePageContent(
@@ -149,7 +166,7 @@
 
             onClose();
         } catch (e) {
-            console.error("Failed to add pin:", e);
+            console.error("Failed to save pin:", e);
             alert("Failed to save pin.");
         } finally {
             isSaving = false;
@@ -157,7 +174,7 @@
     }
 </script>
 
-<Modal title="Add Pin" {onClose}>
+<Modal title={existingPin ? "Edit Pin" : "Add Pin"} {onClose}>
     <form onsubmit={handleSubmit} class="form">
         <div class="form-group">
             <label>Linked Page (Optional)</label>
@@ -229,9 +246,11 @@
             </div>
         </div>
 
-        <div class="coordinates">
-            Coordinates: {Math.round(x)}, {Math.round(y)}
-        </div>
+        {#if !existingPin}
+            <div class="coordinates">
+                Coordinates: {Math.round(x || 0)}, {Math.round(y || 0)}
+            </div>
+        {/if}
 
         <div class="modal-actions">
             <Button type="button" variant="ghost" onclick={onClose}
@@ -241,7 +260,11 @@
                 type="submit"
                 disabled={(!selectedPage && !selectedMap && !label) || isSaving}
             >
-                {isSaving ? "Saving..." : "Add Pin"}
+                {isSaving
+                    ? "Saving..."
+                    : existingPin
+                      ? "Save Changes"
+                      : "Add Pin"}
             </Button>
         </div>
     </form>
