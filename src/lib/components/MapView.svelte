@@ -6,6 +6,7 @@
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { currentView } from "$lib/viewStores";
     import { loadedMaps, registerMap, loadMapConfig } from "$lib/mapStore";
+    import { getShapesAtPoint } from "$lib/mapUtils";
     import {
         imagePathLookup,
         pagePathLookup,
@@ -51,6 +52,10 @@
     let hoveredMapElement = $state<HTMLElement | null>(null);
     let hoveredMapPath = $state<string | null>(null);
 
+    // Tooltip State for multi-region hover
+    let multiTooltip: L.Tooltip | null = null;
+    let isHoveringPin = $state(false);
+
     let contextMenu = $state<{
         x: number;
         y: number;
@@ -58,9 +63,10 @@
         mapX?: number;
         mapY?: number;
         pinId?: string;
-        shapeId?: string; // Context for shapes
-        // Custom actions for the context menu (used for the dual-link choice)
+        // Custom actions for the context menu (used for overlapping choices)
         customActions?: { label: string; handler: () => void }[];
+        // Flag to indicate this is a navigation/disambiguation menu (hides edit tools)
+        isNavigation?: boolean;
     } | null>(null);
 
     // Fetch the map config on mount or when path changes
@@ -128,6 +134,40 @@
             markerLayerGroup = null;
             shapeLayerGroup = null;
             drawLayerGroup = null;
+            multiTooltip = null;
+        }
+    });
+
+    // Reactive Effect to Hide Previews when Context Menu is Open
+    $effect(() => {
+        if (contextMenu?.show) {
+            // Clear Link and Map Previews
+            hoveredPath = null;
+            hoveredElement = null;
+            hoveredMapPath = null;
+            hoveredMapElement = null;
+
+            // Clear Multi-Region Tooltip
+            if (multiTooltip) {
+                multiTooltip.remove();
+                multiTooltip = null;
+            }
+
+            // Reset Pin Hover State
+            isHoveringPin = false;
+
+            // Close native Leaflet tooltips if any are open
+            if (map) {
+                map.eachLayer((layer) => {
+                    if (
+                        layer instanceof L.Marker ||
+                        layer instanceof L.Polygon ||
+                        layer instanceof L.Circle
+                    ) {
+                        layer.closeTooltip();
+                    }
+                });
+            }
         }
     });
 
@@ -141,6 +181,7 @@
                     shapeLayerGroup = null;
                     drawLayerGroup = null;
                     prevConfigStr = ""; // Reset config tracking
+                    multiTooltip = null;
                 }
                 currentMapPath = data.path;
             }
@@ -197,6 +238,7 @@
                             handler: () => navigateToMap(item.targetMap!),
                         },
                     ],
+                    isNavigation: true,
                 };
             } else if (item.targetMap) {
                 navigateToMap(item.targetMap);
@@ -212,6 +254,8 @@
     ) {
         layer.on("mouseover", (e: L.LeafletMouseEvent) => {
             if (isDrawing) return;
+            // Prevent preview if context menu is open
+            if (contextMenu?.show) return;
 
             const targetLayer = e.target as any;
             const element = targetLayer.getElement
@@ -322,18 +366,152 @@
                 shapeLayerGroup = L.layerGroup().addTo(map);
                 drawLayerGroup = L.layerGroup().addTo(map);
 
+                // --- Global Event Listeners for Overlap Handling ---
+
                 map.on("contextmenu", (e: L.LeafletMouseEvent) => {
                     if (isDrawing) return; // Don't show context menu while drawing
 
                     const mapX = e.latlng.lng;
-                    const mapY = h - e.latlng.lat;
+                    const mapY = h - e.latlng.lat; // Convert Leaflet LatLng to Map Coords (Y-flip)
+
+                    // Find all shapes under cursor
+                    const shapesAtCursor = getShapesAtPoint(
+                        mapX,
+                        mapY,
+                        config.shapes,
+                    );
+
+                    // Create delete actions for each shape found
+                    const deleteActions = shapesAtCursor.map((shape) => ({
+                        label: `Delete Region: ${shape.label || "Unnamed"}`,
+                        handler: () => handleDeleteShape(shape.id),
+                    }));
+
                     contextMenu = {
                         x: e.originalEvent.clientX,
                         y: e.originalEvent.clientY,
                         show: true,
                         mapX,
                         mapY,
+                        // If we have overlapping shapes, populate custom actions to allow the user to choose which to delete
+                        customActions:
+                            deleteActions.length > 0
+                                ? deleteActions
+                                : undefined,
                     };
+                });
+
+                // Handle Hover for Overlapping Regions (Multi-Tooltip)
+                map.on("mousemove", (e: L.LeafletMouseEvent) => {
+                    if (isDrawing) return;
+                    // Prevent showing tooltip if context menu is open
+                    if (contextMenu?.show) return;
+
+                    // 1. PIN PRIORITY: If hovering a pin, hide region tooltips and return
+                    if (isHoveringPin) {
+                        if (multiTooltip) {
+                            multiTooltip.remove();
+                            multiTooltip = null;
+                        }
+                        // We allow the Pin's own hover handlers to manage the preview state.
+                        // We do not clear previews here so that the pin's preview can persist.
+                        return;
+                    }
+
+                    const mapX = e.latlng.lng;
+                    const mapY = h - e.latlng.lat;
+
+                    const shapes = getShapesAtPoint(mapX, mapY, config.shapes);
+
+                    if (shapes.length > 0) {
+                        let content = "";
+
+                        // Condition 1: Single Region
+                        if (shapes.length === 1) {
+                            const s = shapes[0];
+                            content = s.label || "Region";
+
+                            // --- HANDLE PREVIEWS FOR SINGLE REGION ---
+                            const element = e.originalEvent
+                                .target as HTMLElement; // The SVG Path
+                            let foundPreview = false;
+
+                            // Page Preview
+                            if (s.targetPage) {
+                                const lookup = get(pagePathLookup);
+                                const path = lookup.get(
+                                    s.targetPage.toLowerCase(),
+                                );
+                                if (path) {
+                                    hoveredPath = path;
+                                    hoveredElement = element;
+                                    foundPreview = true;
+                                }
+                            }
+                            // Map Preview
+                            if (s.targetMap) {
+                                const lookup = get(mapPathLookup);
+                                const path = lookup.get(
+                                    s.targetMap.toLowerCase(),
+                                );
+                                if (path) {
+                                    hoveredMapPath = path;
+                                    hoveredMapElement = element;
+                                    foundPreview = true;
+                                }
+                            }
+
+                            // If this single shape has no targets, clear previews
+                            if (!foundPreview) {
+                                hoveredPath = null;
+                                hoveredElement = null;
+                                hoveredMapPath = null;
+                                hoveredMapElement = null;
+                            }
+                        }
+                        // Condition 2: Overlapping Regions
+                        else {
+                            // Show Bullet List
+                            const listItems = shapes
+                                .map(
+                                    (s) =>
+                                        `<li>${s.label || "Unnamed Region"}</li>`,
+                                )
+                                .join("");
+                            content = `<ul style="margin: 0; padding-left: 1.2rem; list-style-type: disc;">${listItems}</ul>`;
+
+                            // --- HIDE PREVIEWS ON OVERLAP ---
+                            hoveredPath = null;
+                            hoveredElement = null;
+                            hoveredMapPath = null;
+                            hoveredMapElement = null;
+                        }
+
+                        if (!multiTooltip) {
+                            multiTooltip = L.tooltip({
+                                direction: "top",
+                                sticky: true,
+                                opacity: 0.9,
+                                className: "multi-region-tooltip",
+                            });
+                        }
+
+                        multiTooltip
+                            .setLatLng(e.latlng)
+                            .setContent(content)
+                            .addTo(map!);
+                    } else {
+                        // No shapes under cursor
+                        if (multiTooltip) {
+                            multiTooltip.remove();
+                            multiTooltip = null;
+                        }
+                        // Clear previews
+                        hoveredPath = null;
+                        hoveredElement = null;
+                        hoveredMapPath = null;
+                        hoveredMapElement = null;
+                    }
                 });
 
                 map.on("click movestart zoomstart", () => {
@@ -343,7 +521,87 @@
 
                 // --- Drawing Interactions ---
                 map.on("click", (e: L.LeafletMouseEvent) => {
-                    if (!isDrawing) return;
+                    if (!isDrawing) {
+                        // Handle Click Disambiguation for Overlapping Regions
+                        // Note: This only runs if the click wasn't stopped by a Pin
+                        const mapX = e.latlng.lng;
+                        const mapY = h - e.latlng.lat;
+
+                        // Find shapes with navigation targets
+                        const shapes = getShapesAtPoint(
+                            mapX,
+                            mapY,
+                            config.shapes,
+                        ).filter((s) => s.targetPage || s.targetMap);
+
+                        if (shapes.length === 0) return;
+
+                        // If only one target, navigate directly
+                        if (shapes.length === 1) {
+                            const target = shapes[0];
+                            if (target.targetPage && target.targetMap) {
+                                // Double-linked single region: Ask user (rare but possible)
+                                contextMenu = {
+                                    x: e.originalEvent.clientX,
+                                    y: e.originalEvent.clientY,
+                                    show: true,
+                                    customActions: [
+                                        {
+                                            label: `Open Page: ${target.targetPage}`,
+                                            handler: () =>
+                                                navigateToPage(
+                                                    target.targetPage!,
+                                                ),
+                                        },
+                                        {
+                                            label: `Open Map: ${target.targetMap}`,
+                                            handler: () =>
+                                                navigateToMap(
+                                                    target.targetMap!,
+                                                ),
+                                        },
+                                    ],
+                                    isNavigation: true,
+                                };
+                            } else if (target.targetMap) {
+                                navigateToMap(target.targetMap);
+                            } else if (target.targetPage) {
+                                navigateToPage(target.targetPage);
+                            }
+                            return;
+                        }
+
+                        // If multiple targets (Overlap): Show Disambiguation Menu
+                        if (shapes.length > 1) {
+                            const actions = shapes.flatMap((s) => {
+                                const acts = [];
+                                if (s.targetPage) {
+                                    acts.push({
+                                        label: `Go to Page: ${s.label || s.targetPage}`,
+                                        handler: () =>
+                                            navigateToPage(s.targetPage!),
+                                    });
+                                }
+                                if (s.targetMap) {
+                                    acts.push({
+                                        label: `Go to Map: ${s.label || s.targetMap}`,
+                                        handler: () =>
+                                            navigateToMap(s.targetMap!),
+                                    });
+                                }
+                                return acts;
+                            });
+
+                            contextMenu = {
+                                x: e.originalEvent.clientX,
+                                y: e.originalEvent.clientY,
+                                show: true,
+                                customActions: actions,
+                                isNavigation: true,
+                            };
+                            return;
+                        }
+                    }
 
                     if (drawMode === "polygon") {
                         tempPoints.push(e.latlng);
@@ -400,9 +658,20 @@
                             else if (pin.targetMap) tooltipText = pin.targetMap;
                         }
 
+                        // Apply the same styling class to pins as regions for consistency
                         marker.bindTooltip(tooltipText, {
                             direction: "top",
                             offset: [0, -40],
+                            className: "multi-region-tooltip",
+                        });
+
+                        // Set listeners for Pin Priority
+                        marker.on("mouseover", () => {
+                            if (contextMenu?.show) return; // Guard
+                            isHoveringPin = true;
+                        });
+                        marker.on("mouseout", () => {
+                            isHoveringPin = false;
                         });
 
                         attachClickBehavior(marker, pin);
@@ -443,36 +712,6 @@
                     } else {
                         return;
                     }
-
-                    if (shape.label) {
-                        layer.bindTooltip(shape.label, { sticky: true });
-                    }
-
-                    attachClickBehavior(layer, shape);
-                    attachHoverBehavior(layer, shape);
-
-                    // Context menu for shapes
-                    layer.on("contextmenu", (e: L.LeafletMouseEvent) => {
-                        if (isDrawing) return;
-
-                        L.DomEvent.stopPropagation(e); // Stop propagation to map
-                        L.DomEvent.preventDefault(e); // Prevent browser menu
-
-                        // Prevent the map's own contextmenu event from firing
-                        // by creating the context menu here and stopping propagation.
-                        const mapX = e.latlng.lng;
-                        const mapY = h - e.latlng.lat;
-
-                        contextMenu = {
-                            x: e.originalEvent.clientX,
-                            y: e.originalEvent.clientY,
-                            show: true,
-                            shapeId: shape.id,
-                            // Ensure general map coordinates are also captured so "Add Pin Here" works
-                            mapX,
-                            mapY,
-                        };
-                    });
 
                     layer.addTo(shapeLayerGroup!);
                 });
@@ -672,43 +911,37 @@
             x={contextMenu.x}
             y={contextMenu.y}
             onClose={() => (contextMenu = null)}
-            actions={contextMenu.customActions
-                ? contextMenu.customActions
-                : [
-                      // Only show Delete options if a specific ID is present
-                      ...(contextMenu.pinId
-                          ? [
-                                {
-                                    label: "Delete Pin",
-                                    handler: () =>
-                                        contextMenu?.pinId &&
-                                        handleDeletePin(contextMenu.pinId),
-                                },
-                            ]
-                          : []),
-                      // Add a separator if we have deletion options AND we're about to add creation options
-                      ...(contextMenu.pinId ? [{ isSeparator: true }] : []),
-                      // Always show creation options (Add Pin, Draw Region)
-                      {
-                          label: "Add Pin Here...",
-                          handler: handleAddPin,
-                      },
-                      { isSeparator: true },
-                      {
-                          label: "Draw Polygon Region",
-                          handler: () => startDrawing("polygon"),
-                      },
-                      ...(contextMenu.shapeId
-                          ? [
-                                {
-                                    label: "Delete Region",
-                                    handler: () =>
-                                        contextMenu?.shapeId &&
-                                        handleDeleteShape(contextMenu.shapeId),
-                                },
-                            ]
-                          : []),
-                  ]}
+            actions={[
+                ...(!contextMenu.isNavigation
+                    ? [
+                          // 1. Delete Pin (if right-clicked on a pin)
+                          ...(contextMenu.pinId
+                              ? [
+                                    {
+                                        label: "Delete Pin",
+                                        handler: () =>
+                                            contextMenu?.pinId &&
+                                            handleDeletePin(contextMenu.pinId),
+                                    },
+                                    { isSeparator: true },
+                                ]
+                              : []),
+
+                          // 2. Creation Actions (always available for editing context)
+                          {
+                              label: "Add Pin Here...",
+                              handler: handleAddPin,
+                          },
+                          { isSeparator: true },
+                          {
+                              label: "Draw Polygon Region",
+                              handler: () => startDrawing("polygon"),
+                          },
+                      ]
+                    : []),
+                // 3. Custom actions (e.g. Delete specific overlapping region, OR Navigate Disambiguation)
+                ...(contextMenu.customActions || []),
+            ]}
         />
     {/if}
 </div>
@@ -767,5 +1000,20 @@
         border: none;
         filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
         will-change: transform; /* Hint to browser to optimize layering */
+    }
+
+    /* Styling for the multi-region tooltip */
+    :global(.multi-region-tooltip) {
+        background-color: rgba(0, 0, 0, 0.85);
+        border: 1px solid #444;
+        color: #eee;
+        font-size: 0.9rem;
+        padding: 0.5rem;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+    /* Hide the little triangle tip if desired, or style it */
+    :global(.multi-region-tooltip.leaflet-tooltip-top:before) {
+        border-top-color: rgba(0, 0, 0, 0.85);
     }
 </style>
