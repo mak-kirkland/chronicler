@@ -5,10 +5,22 @@
  */
 
 import type { MapConfig, MapRegion } from "./mapModels";
+import L from "leaflet";
+
 // --- THEME CONSTANTS ---
 
 export const DEFAULT_SHAPE_COLOR = "#3498db";
 export const DEFAULT_PIN_ICON = "📍";
+export const DEFAULT_ICON_COLOR = "#ffffff";
+export const DEFAULT_STROKE_COLOR = "#444444";
+export const HIGHLIGHT_STROKE_COLOR = "#ffffff";
+export const DRAWING_COLOR = "#e74c3c"; // Red
+
+// UI Icons (Chars)
+export const GHOST_ICON = "👻";
+export const REGION_ICON_CIRCLE = "⚪";
+export const REGION_ICON_POLYGON = "⬠";
+
 export const PALETTE = [
     "#3498db", // Blue
     "#e74c3c", // Red
@@ -89,6 +101,50 @@ export const ICONS = [
     "🔴",
     "🔵",
 ];
+
+/**
+ * Generates the SVG string for a map pin.
+ */
+export function generatePinSvg(
+    emoji: string,
+    color: string = DEFAULT_ICON_COLOR,
+    highlighted: boolean = false
+): string {
+    const scale = highlighted ? 1.3 : 1;
+    const stroke = highlighted ? HIGHLIGHT_STROKE_COLOR : DEFAULT_STROKE_COLOR;
+    const strokeWidth = highlighted ? "2" : "1.5";
+
+    // Width: 32 * scale, Height: 48 * scale
+    // Anchor X (center): 16 * scale, Anchor Y (bottom): 48 * scale
+
+    return `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${32 * scale}" height="${48 * scale}">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12z" fill="${color}" stroke="${stroke}" stroke-width="${strokeWidth}"/>
+            <text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-family="Segoe UI Emoji, Apple Color Emoji, sans-serif" dy="1">${emoji}</text>
+        </svg>
+    `;
+}
+
+/**
+ * Creates a Leaflet DivIcon for a map pin.
+ */
+export function createEmojiIcon(
+    emoji: string,
+    color: string = DEFAULT_ICON_COLOR,
+    highlighted: boolean = false,
+    invisible: boolean = false,
+): L.DivIcon {
+    const scale = highlighted ? 1.3 : 1;
+    const svg = generatePinSvg(emoji, color, highlighted);
+
+    return L.divIcon({
+        className: `custom-pin-marker ${highlighted ? "highlighted" : ""} ${invisible ? "ghost-pin-marker" : ""}`,
+        html: svg,
+        iconSize: [32 * scale, 48 * scale],
+        iconAnchor: [16 * scale, 48 * scale],
+        popupAnchor: [0, -48 * scale],
+    });
+}
 
 /**
  * Rescales all pins and shapes in a map configuration based on a scale factor.
