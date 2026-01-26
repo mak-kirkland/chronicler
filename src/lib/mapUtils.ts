@@ -102,6 +102,62 @@ export const ICONS = [
     "🔵",
 ];
 
+// --- IMAGE & GEOMETRY UTILITIES ---
+
+/**
+ * Loads an image to detect its natural dimensions.
+ */
+export function detectImageDimensions(src: string): Promise<{ width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = (err) => reject(err);
+        img.src = src;
+    });
+}
+
+/**
+ * Analyzes the dimensions of a new image against existing map dimensions
+ * to determine scale factors and detect aspect ratio mismatches.
+ */
+export function analyzeMapImageChange(
+    newW: number,
+    newH: number,
+    oldW: number,
+    oldH: number
+): {
+    scaleFactor: number;
+    warning: string | null;
+    error: string | null;
+} {
+    const EPSILON = 0.01;
+    const newRatio = newW / newH;
+    const oldRatio = oldW / oldH;
+
+    let scaleFactor = 1;
+    let warning = null;
+    let error = null;
+
+    // Check Aspect Ratio
+    if (Math.abs(newRatio - oldRatio) > EPSILON) {
+        // Technically we can allow this, but it distorts the map if we don't handle it carefully.
+        // For now, we assume we want to maintain positions relative to the image size.
+        scaleFactor = newW / oldW;
+
+        if (Math.abs(scaleFactor - 1) > 0.001) {
+             warning = `Base layer dimensions changed (${newW}x${newH}). Map objects will be rescaled by ${(scaleFactor * 100).toFixed(1)}%.`;
+        }
+    } else {
+        // Aspect ratio matches, but size might differ
+        scaleFactor = newW / oldW;
+        if (Math.abs(scaleFactor - 1) > 0.001) {
+             warning = `New image is larger/smaller. Map objects will be rescaled by ${(scaleFactor * 100).toFixed(1)}%.`;
+        }
+    }
+
+    return { scaleFactor, warning, error };
+}
+
 /**
  * Generates the SVG string for a map pin.
  */
