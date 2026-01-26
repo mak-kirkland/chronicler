@@ -6,7 +6,14 @@
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { currentView } from "$lib/viewStores";
     import { loadedMaps, loadMapConfig, updateMapConfig } from "$lib/mapStore";
-    import { getShapesAtPoint } from "$lib/mapUtils";
+    import {
+        getShapesAtPoint,
+        createEmojiIcon,
+        DEFAULT_SHAPE_COLOR,
+        DEFAULT_ICON_COLOR,
+        DRAWING_COLOR,
+        DEFAULT_PIN_ICON,
+    } from "$lib/mapUtils";
     import {
         imagePathLookup,
         pagePathLookup,
@@ -124,29 +131,6 @@
         }
     });
 
-    function createEmojiIcon(
-        emoji: string,
-        color: string = "#ffffff",
-        highlighted: boolean = false,
-        invisible: boolean = false,
-    ) {
-        const scale = highlighted ? 1.3 : 1;
-        const svg = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${32 * scale}" height="${48 * scale}">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12z" fill="${color}" stroke="${highlighted ? "#fff" : "#444"}" stroke-width="${highlighted ? "2" : "1.5"}"/>
-                <text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-family="Segoe UI Emoji, Apple Color Emoji, sans-serif" dy="1">${emoji}</text>
-            </svg>
-        `;
-
-        return L.divIcon({
-            className: `custom-pin-marker ${highlighted ? "highlighted" : ""} ${invisible ? "ghost-pin-marker" : ""}`,
-            html: svg,
-            iconSize: [32 * scale, 48 * scale],
-            iconAnchor: [16 * scale, 48 * scale],
-            popupAnchor: [0, -48 * scale],
-        });
-    }
-
     onMount(() => {
         if (mapConfig) {
             updateMap(mapConfig);
@@ -178,10 +162,10 @@
             );
             if (marker && pinConfig) {
                 // Temporarily update icon to highlighted state
-                const iconChar = pinConfig.icon || "📍";
+                const iconChar = pinConfig.icon || DEFAULT_PIN_ICON;
                 const highlightedIcon = createEmojiIcon(
                     iconChar,
-                    pinConfig.color || "#ffffff",
+                    pinConfig.color || DEFAULT_ICON_COLOR,
                     true,
                     !!pinConfig.invisible, // Pass invisible state
                 );
@@ -196,10 +180,10 @@
                 mapConfig.pins.forEach((pin) => {
                     const marker = pinIdToLayer.get(pin.id);
                     if (marker) {
-                        const iconChar = pin.icon || "📍";
+                        const iconChar = pin.icon || DEFAULT_PIN_ICON;
                         const normalIcon = createEmojiIcon(
                             iconChar,
-                            pin.color || "#ffffff",
+                            pin.color || DEFAULT_ICON_COLOR,
                             false,
                             !!pin.invisible, // Pass invisible state
                         );
@@ -229,7 +213,7 @@
                     const isTargeted =
                         s.id === highlightedRegionId ||
                         hoveredRegionIds.has(s.id);
-                    const color = s.color || "#3498db";
+                    const color = s.color || DEFAULT_SHAPE_COLOR;
 
                     if (isTargeted) {
                         // High Visibility (Hover State)
@@ -862,7 +846,7 @@
                             // First point: Create the layer with interactive: false
                             // This ensures click/dblclick events pass through to the map
                             tempLayer = L.polyline(tempPoints, {
-                                color: "red",
+                                color: DRAWING_COLOR,
                                 dashArray: "5, 5",
                                 interactive: false, // Critical for robust double-click
                             }).addTo(drawLayerGroup!);
@@ -901,11 +885,11 @@
                         const leafletLng = pin.x;
 
                         // Default to standard pin if none selected
-                        const iconChar = pin.icon || "📍";
+                        const iconChar = pin.icon || DEFAULT_PIN_ICON;
 
                         const iconToUse = createEmojiIcon(
                             iconChar,
-                            pin.color || "#ffffff",
+                            pin.color || DEFAULT_ICON_COLOR,
                             false,
                             !!pin.invisible, // Pass invisible state
                         );
@@ -965,7 +949,7 @@
             if (config.shapes && shapeLayerGroup) {
                 config.shapes.forEach((shape: MapRegion) => {
                     let layer: L.Path;
-                    const color = shape.color || "#3498db";
+                    const color = shape.color || DEFAULT_SHAPE_COLOR;
 
                     // Initial style setup - invisible by default
                     // Note: We create them invisibly, allowing the reactive effect

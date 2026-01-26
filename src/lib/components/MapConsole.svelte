@@ -1,6 +1,13 @@
 <script lang="ts">
     import { updateMapConfig } from "$lib/mapStore";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
+    import {
+        DEFAULT_SHAPE_COLOR,
+        DEFAULT_PIN_ICON,
+        GHOST_ICON,
+        REGION_ICON_CIRCLE,
+        REGION_ICON_POLYGON,
+    } from "$lib/mapUtils";
     import { openModal, closeModal } from "$lib/modalStore";
     import MapObjectModal from "./MapObjectModal.svelte";
     import MapSettingsModal from "./MapSettingsModal.svelte";
@@ -152,9 +159,11 @@
                                 >
                                     {#if pin.invisible}
                                         <!-- Ghost indicator for invisible pins -->
-                                        <span title="Invisible Pin">👻</span>
+                                        <span title="Invisible Pin"
+                                            >{GHOST_ICON}</span
+                                        >
                                     {:else}
-                                        {pin.icon || "📍"}
+                                        {pin.icon || DEFAULT_PIN_ICON}
                                     {/if}
                                 </span>
                                 <span class="item-label" title={pin.label}
@@ -195,12 +204,13 @@
                             <div class="item-info">
                                 <span
                                     class="item-icon"
-                                    style="color: {region.color || '#3498db'}"
+                                    style="color: {region.color ||
+                                        DEFAULT_SHAPE_COLOR}"
                                 >
                                     {#if region.type === "circle"}
-                                        ⚪
+                                        {REGION_ICON_CIRCLE}
                                     {:else}
-                                        ⬠
+                                        {REGION_ICON_POLYGON}
                                     {/if}
                                 </span>
                                 <span class="item-label" title={region.label}
