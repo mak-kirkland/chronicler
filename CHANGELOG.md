@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.43.2-alpha] - 2026-01-26
+
+### ✨ Added
+
+- **Welcome View**: Licensed users now enjoy a **dynamic video background** in the welcome screen hero banner, hiding the text and footer section.
+
+---
+
 ## [v0.43.1-alpha] - 2026-01-23
 
 ### 🐞 Fixed
