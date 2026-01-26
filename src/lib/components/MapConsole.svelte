@@ -1,20 +1,23 @@
 <script lang="ts">
     import { writePageContent } from "$lib/commands";
     import { registerMap } from "$lib/mapStore";
-    import type { MapConfig, MapPin } from "$lib/mapModels";
+    import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
     import { openModal, closeModal } from "$lib/modalStore";
     import AddPinModal from "./AddPinModal.svelte";
+    import AddRegionModal from "./AddRegionModal.svelte";
     import ConfirmModal from "./ConfirmModal.svelte";
     import Button from "./Button.svelte";
 
-    let { mapConfig, mapPath, onClose, onHoverPin } = $props<{
+    let { mapConfig, mapPath, onClose, onHoverPin, onHoverRegion } = $props<{
         mapConfig: MapConfig;
         mapPath: string;
         onClose: () => void;
         onHoverPin?: (pinId: string | null) => void;
+        onHoverRegion?: (regionId: string | null) => void;
     }>();
 
     let pins = $derived(mapConfig.pins || []);
+    let regions = $derived(mapConfig.shapes || []);
 
     function handleEditPin(pin: MapPin) {
         openModal({
@@ -56,6 +59,47 @@
             },
         });
     }
+
+    function handleEditRegion(region: MapRegion) {
+        openModal({
+            component: AddRegionModal,
+            props: {
+                onClose: closeModal,
+                mapPath: mapPath,
+                mapConfig: mapConfig,
+                existingRegion: region,
+            },
+        });
+    }
+
+    function handleDeleteRegion(regionId: string) {
+        openModal({
+            component: ConfirmModal,
+            props: {
+                title: "Delete Region",
+                message: "Are you sure you want to delete this region?",
+                onClose: closeModal,
+                onConfirm: async () => {
+                    try {
+                        const updatedConfig = {
+                            ...mapConfig,
+                            shapes: (mapConfig.shapes || []).filter(
+                                (s) => s.id !== regionId,
+                            ),
+                        };
+                        await writePageContent(
+                            mapPath,
+                            JSON.stringify(updatedConfig, null, 2),
+                        );
+                        registerMap(mapPath, updatedConfig);
+                        closeModal();
+                    } catch (e) {
+                        alert("Failed to delete region.");
+                    }
+                },
+            },
+        });
+    }
 </script>
 
 <div class="map-console">
@@ -65,6 +109,7 @@
     </div>
 
     <div class="console-content">
+        <!-- PINS SECTION -->
         <div class="section">
             <h4>Pins ({pins.length})</h4>
             {#if pins.length === 0}
@@ -101,6 +146,52 @@
                                 <button
                                     class="action-btn delete"
                                     onclick={() => handleDeletePin(pin.id)}
+                                    title="Delete">🗑️</button
+                                >
+                            </div>
+                        </li>
+                    {/each}
+                </ul>
+            {/if}
+        </div>
+
+        <!-- REGIONS SECTION -->
+        <div class="section">
+            <h4>Regions ({regions.length})</h4>
+            {#if regions.length === 0}
+                <p class="empty-state">No regions defined.</p>
+            {:else}
+                <ul class="item-list">
+                    {#each regions as region}
+                        <li
+                            onmouseenter={() => onHoverRegion?.(region.id)}
+                            onmouseleave={() => onHoverRegion?.(null)}
+                        >
+                            <div class="item-info">
+                                <span
+                                    class="item-icon"
+                                    style="color: {region.color || '#3498db'}"
+                                >
+                                    {#if region.type === "circle"}
+                                        ⚪
+                                    {:else}
+                                        ⬠
+                                    {/if}
+                                </span>
+                                <span class="item-label" title={region.label}
+                                    >{region.label || "Unnamed Region"}</span
+                                >
+                            </div>
+                            <div class="item-actions">
+                                <button
+                                    class="action-btn edit"
+                                    onclick={() => handleEditRegion(region)}
+                                    title="Edit">✎</button
+                                >
+                                <button
+                                    class="action-btn delete"
+                                    onclick={() =>
+                                        handleDeleteRegion(region.id)}
                                     title="Delete">🗑️</button
                                 >
                             </div>
@@ -146,6 +237,9 @@
         flex: 1;
         overflow-y: auto;
         padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem; /* Space between sections */
     }
 
     .section h4 {
