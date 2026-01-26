@@ -48,6 +48,15 @@
     // Console State
     let isConsoleOpen = $state(false);
     let highlightedPinId = $state<string | null>(null);
+    let highlightedRegionId = $state<string | null>(null); // From Console Hover
+
+    // Map Hover State
+    // We use a Set to track multiple overlapping regions if necessary
+    let hoveredRegionIds = $state(new Set<string>());
+
+    // Layer Revision State
+    // Incremented whenever layers are rebuilt to force styling effects to re-run
+    let layerRevision = $state(0);
 
     // Link Preview State
     let hoveredElement = $state<HTMLElement | null>(null);
@@ -61,8 +70,9 @@
     let multiTooltip: L.Tooltip | null = null;
     let isHoveringPin = $state(false);
 
-    // Lookup for pin layers to support console highlighting
+    // Lookup for layers to support console highlighting
     let pinIdToLayer = new Map<string, L.Marker>();
+    let shapeIdToLayer = new Map<string, L.Path>();
 
     let contextMenu = $state<{
         x: number;
@@ -150,11 +160,15 @@
             drawLayerGroup = null;
             multiTooltip = null;
             pinIdToLayer.clear();
+            shapeIdToLayer.clear();
         }
     });
 
     // Handle pin highlighting from console
     $effect(() => {
+        // Subscribe to layerRevision to ensure we run after re-renders
+        const _rev = layerRevision;
+
         if (highlightedPinId && pinIdToLayer.has(highlightedPinId)) {
             const marker = pinIdToLayer.get(highlightedPinId);
             const pinConfig = mapConfig?.pins?.find(
@@ -194,6 +208,85 @@
         }
     });
 
+    // Reactive Effect for Region Visibility & Styling
+    // Logic: Invisible by default, Visible if Console Open, Highlighted if Hovered (Map or Console)
+    $effect(() => {
+        // Subscribe to layerRevision to ensure we run after re-renders
+        const _rev = layerRevision;
+
+        if (mapConfig?.shapes) {
+            mapConfig.shapes.forEach((s) => {
+                const layer = shapeIdToLayer.get(s.id);
+                if (layer) {
+                    const isTargeted =
+                        s.id === highlightedRegionId ||
+                        hoveredRegionIds.has(s.id);
+                    const color = s.color || "#3498db";
+
+                    if (isTargeted) {
+                        // High Visibility (Hover State)
+                        layer.setStyle({
+                            stroke: true,
+                            weight: 4,
+                            color: color,
+                            fillOpacity: 0.5,
+                            dashArray: undefined, // Solid line for highlight
+                        });
+                        (layer as any).bringToFront();
+                    } else if (isConsoleOpen) {
+                        // Normal Visibility (Edit Mode)
+                        layer.setStyle({
+                            stroke: true,
+                            weight: 2,
+                            color: color,
+                            fillOpacity: 0.2,
+                            dashArray: undefined,
+                        });
+                    } else {
+                        // Invisible (Default Mode)
+                        // Note: fillOpacity must be 0 to be invisible, but we keep the layer interactive
+                        layer.setStyle({
+                            stroke: false,
+                            fillOpacity: 0,
+                        });
+                    }
+                }
+            });
+        }
+
+        // Handle explicit console hover tooltip
+        // We use multiTooltip manually here because we removed bindTooltip from regions to avoid duplication
+        if (highlightedRegionId) {
+            const layer = shapeIdToLayer.get(highlightedRegionId);
+            const s = mapConfig?.shapes?.find(
+                (s) => s.id === highlightedRegionId,
+            );
+            if (layer && s) {
+                if (!multiTooltip) {
+                    multiTooltip = L.tooltip({
+                        direction: "top",
+                        sticky: true,
+                        opacity: 0.9,
+                        className: "multi-region-tooltip",
+                    });
+                }
+                // Force tooltip to center of region for console hover
+                const center = (layer as any).getBounds().getCenter();
+                multiTooltip
+                    .setLatLng(center)
+                    .setContent(s.label || "Region")
+                    .addTo(map!);
+            }
+        } else if (hoveredRegionIds.size === 0 && !hoveredPinId) {
+            // If not highlighting from console, AND not hovering map regions, AND not hovering pin
+            // Cleanup tooltip. This cleans up when leaving the console item.
+            if (multiTooltip) {
+                multiTooltip.remove();
+                multiTooltip = null;
+            }
+        }
+    });
+
     // Reactive Effect to Hide Previews when Context Menu or Console is Open
     $effect(() => {
         if (contextMenu?.show || isConsoleOpen) {
@@ -204,7 +297,11 @@
             hoveredMapElement = null;
 
             // Clear Multi-Region Tooltip
-            if (multiTooltip) {
+            // NOTE: We do NOT clear it here if isConsoleOpen is true and we are highlighting a region
+            // But this effect runs when isConsoleOpen changes.
+            // The styling effect above manages the tooltip for highlightedRegionId.
+            // This block is mostly for cleaning up "stuck" previews when modes change.
+            if (multiTooltip && !highlightedRegionId) {
                 multiTooltip.remove();
                 multiTooltip = null;
             }
@@ -239,6 +336,7 @@
                     prevConfigStr = ""; // Reset config tracking
                     multiTooltip = null;
                     pinIdToLayer.clear();
+                    shapeIdToLayer.clear();
                 }
                 currentMapPath = data.path;
             }
@@ -458,11 +556,12 @@
                     };
                 });
 
-                // Handle Hover for Overlapping Regions (Multi-Tooltip)
+                // Handle Hover for Overlapping Regions (Multi-Tooltip + Highlight Sync)
                 map.on("mousemove", (e: L.LeafletMouseEvent) => {
                     if (isDrawing) return;
-                    // Prevent showing tooltip if context menu or console is open
-                    if (contextMenu?.show || isConsoleOpen) return;
+                    // Prevent showing tooltip if context menu is open
+                    // We ALLOW it if console is open now, but we will block full previews below
+                    if (contextMenu?.show) return;
 
                     // 1. PIN PRIORITY: If hovering a pin, hide region tooltips and return
                     if (isHoveringPin) {
@@ -470,8 +569,8 @@
                             multiTooltip.remove();
                             multiTooltip = null;
                         }
-                        // We allow the Pin's own hover handlers to manage the preview state.
-                        // We do not clear previews here so that the pin's preview can persist.
+                        // Clear highlight when moving from region to pin
+                        hoveredRegionIds = new Set();
                         return;
                     }
 
@@ -480,6 +579,26 @@
 
                     const shapes = getShapesAtPoint(mapX, mapY, config.shapes);
 
+                    // 2. SYNC HOVER HIGHLIGHT STATE
+                    // Optimization: Only update state if the set of IDs has actually changed.
+                    // This prevents hammering the reactivity system on every pixel of mouse movement.
+                    const foundIds = new Set(shapes.map((s) => s.id));
+
+                    let changed = foundIds.size !== hoveredRegionIds.size;
+                    if (!changed) {
+                        for (const id of foundIds) {
+                            if (!hoveredRegionIds.has(id)) {
+                                changed = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (changed) {
+                        hoveredRegionIds = foundIds;
+                    }
+
+                    // 3. TOOLTIP LOGIC
                     if (shapes.length > 0) {
                         let content = "";
 
@@ -489,41 +608,57 @@
                             content = s.label || "Region";
 
                             // --- HANDLE PREVIEWS FOR SINGLE REGION ---
-                            const element = e.originalEvent
-                                .target as HTMLElement; // The SVG Path
-                            let foundPreview = false;
+                            // Only show full link previews if Console is CLOSED
+                            if (!isConsoleOpen) {
+                                let foundPreview = false;
 
-                            // Page Preview
-                            if (s.targetPage) {
-                                const lookup = get(pagePathLookup);
-                                const path = lookup.get(
-                                    s.targetPage.toLowerCase(),
-                                );
-                                if (path) {
-                                    hoveredPath = path;
-                                    hoveredElement = element;
-                                    foundPreview = true;
+                                // Page Preview
+                                if (s.targetPage) {
+                                    const lookup = get(pagePathLookup);
+                                    const path = lookup.get(
+                                        s.targetPage.toLowerCase(),
+                                    );
+                                    if (path) {
+                                        hoveredPath = path;
+                                        const layer = shapeIdToLayer.get(s.id);
+                                        if (
+                                            layer &&
+                                            (layer as any).getElement
+                                        ) {
+                                            hoveredElement = (
+                                                layer as any
+                                            ).getElement();
+                                            foundPreview = true;
+                                        }
+                                    }
                                 }
-                            }
-                            // Map Preview
-                            if (s.targetMap) {
-                                const lookup = get(mapPathLookup);
-                                const path = lookup.get(
-                                    s.targetMap.toLowerCase(),
-                                );
-                                if (path) {
-                                    hoveredMapPath = path;
-                                    hoveredMapElement = element;
-                                    foundPreview = true;
+                                // Map Preview
+                                if (s.targetMap) {
+                                    const lookup = get(mapPathLookup);
+                                    const path = lookup.get(
+                                        s.targetMap.toLowerCase(),
+                                    );
+                                    if (path) {
+                                        hoveredMapPath = path;
+                                        const layer = shapeIdToLayer.get(s.id);
+                                        if (
+                                            layer &&
+                                            (layer as any).getElement
+                                        ) {
+                                            hoveredMapElement = (
+                                                layer as any
+                                            ).getElement();
+                                            foundPreview = true;
+                                        }
+                                    }
                                 }
-                            }
 
-                            // If this single shape has no targets, clear previews
-                            if (!foundPreview) {
-                                hoveredPath = null;
-                                hoveredElement = null;
-                                hoveredMapPath = null;
-                                hoveredMapElement = null;
+                                if (!foundPreview) {
+                                    hoveredPath = null;
+                                    hoveredElement = null;
+                                    hoveredMapPath = null;
+                                    hoveredMapElement = null;
+                                }
                             }
                         }
                         // Condition 2: Overlapping Regions
@@ -569,6 +704,11 @@
                         hoveredMapPath = null;
                         hoveredMapElement = null;
                     }
+                });
+
+                // Clear highlights when leaving the map area
+                map.on("mouseout", () => {
+                    hoveredRegionIds = new Set();
                 });
 
                 map.on("click movestart zoomstart", () => {
@@ -737,7 +877,7 @@
 
                         // Set listeners for Pin Priority
                         marker.on("mouseover", () => {
-                            if (contextMenu?.show || isConsoleOpen) return; // Guard
+                            if (contextMenu?.show) return; // Only guard Context Menu
                             isHoveringPin = true;
                         });
                         marker.on("mouseout", () => {
@@ -765,28 +905,42 @@
             // --- Update Regions (Shapes) ---
             if (shapeLayerGroup) {
                 shapeLayerGroup.clearLayers();
+                shapeIdToLayer.clear();
             }
             if (config.shapes && shapeLayerGroup) {
                 config.shapes.forEach((shape: MapRegion) => {
                     let layer: L.Path;
                     const color = shape.color || "#3498db";
 
+                    // Initial style setup - invisible by default
+                    // Note: We create them invisibly, allowing the reactive effect
+                    // or map interaction logic to reveal them.
+                    const initialStyle = {
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0,
+                        weight: 0,
+                        stroke: false,
+                    };
+
                     if (shape.type === "polygon") {
+                        // Leaflet Polygon: Array of [Lat, Lng]
+                        // We must map each point: [h - p.y, p.x]
                         const latLngs = shape.points.map(
                             (p) => [h - p.y, p.x] as [number, number],
                         );
-                        layer = L.polygon(latLngs, {
-                            color: color,
-                            fillColor: color,
-                            fillOpacity: 0.2,
-                        });
+                        layer = L.polygon(latLngs, initialStyle);
                     } else {
                         return;
                     }
 
                     layer.addTo(shapeLayerGroup!);
+                    shapeIdToLayer.set(shape.id, layer);
                 });
             }
+
+            // Increment revision to signal styling effects that layers are rebuilt
+            layerRevision += 1;
         } catch (e: any) {
             console.error("Map Error:", e);
             error = `Map Error: ${e.message}`;
@@ -1020,6 +1174,7 @@
                     mapPath={data.path}
                     onClose={() => (isConsoleOpen = false)}
                     onHoverPin={(id) => (highlightedPinId = id)}
+                    onHoverRegion={(id) => (highlightedRegionId = id)}
                 />
             {/if}
         </div>
