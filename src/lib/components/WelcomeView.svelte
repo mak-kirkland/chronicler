@@ -3,12 +3,20 @@
     import { licenseStore } from "$lib/licenseStore";
 
     let videoReady = false;
+    let videoError = false;
+
+    function handleVideoError() {
+        console.warn(
+            "Video background failed to load, falling back to static image.",
+        );
+        videoError = true;
+    }
 </script>
 
 <div class="welcome-container">
     <div class="welcome-screen">
         <div class="hero-banner">
-            {#if $licenseStore.status === "licensed"}
+            {#if $licenseStore.status === "licensed" && !videoError}
                 <video
                     src="/background.webm"
                     width="100%"
@@ -19,6 +27,7 @@
                     playsinline
                     class:ready={videoReady}
                     onloadedmetadata={() => (videoReady = true)}
+                    onerror={handleVideoError}
                 >
                 </video>
             {:else}
