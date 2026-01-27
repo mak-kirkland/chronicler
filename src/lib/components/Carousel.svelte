@@ -47,6 +47,9 @@
             images.length > 1 &&
             images.every((img: any) => img.caption && img.caption.length > 0),
     );
+
+    // Check if we are specifically inside an infobox to apply strict layout constraints
+    const isInfobox = $derived(className.includes("infobox-carousel"));
 </script>
 
 <!--
@@ -64,6 +67,7 @@
                         e.stopPropagation();
                         goToImage(i);
                     }}
+                    title={isInfobox ? img.caption : ""}
                 >
                     {@html img.caption}
                 </button>
@@ -130,8 +134,15 @@
         {/if}
     </div>
 
-    <!-- Show caption below image if it exists AND we aren't using tabs mode -->
-    {#if currentCaption && !showTabs}
+    <!--
+        Show caption below image if:
+        1. It exists
+        2. AND (we aren't showing tabs OR we are in an infobox context)
+
+        This ensures that in Infoboxes (where tabs are truncated), the full
+        caption is still readable below the image.
+    -->
+    {#if currentCaption && (!showTabs || isInfobox)}
         <div class="carousel-caption">
             {@html currentCaption}
         </div>
@@ -340,6 +351,18 @@
         white-space: nowrap;
         transition: all 0.2s ease-in-out;
     }
+
+    /* Constrain tabs specifically for Infobox usage to prevent overflow */
+    .content-carousel.infobox-carousel .tab {
+        flex: 1; /* Grow to fill available space equally */
+        min-width: 0; /* Allow shrinking below content size */
+        width: 0; /* Cross-browser fix for flex truncation */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: center;
+        padding-inline: 4px; /* Reduce padding slightly for tight spaces */
+    }
+
     .tab:hover {
         color: var(--color-text-primary);
     }
