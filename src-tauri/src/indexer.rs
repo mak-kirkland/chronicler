@@ -14,6 +14,7 @@ use crate::{
     utils::{file_stem_string, is_image_file, is_map_file, is_markdown_file},
 };
 use natord::compare_ignore_case as nat_compare;
+use path_clean::PathClean;
 use rayon::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
@@ -79,18 +80,9 @@ impl Indexer {
     /// and returns a `ScanResult`. It does not modify the Indexer state directly,
     /// making it safe to use in parallel iterators.
     fn process_path(path: PathBuf) -> ScanResult {
-        // RESOLVE SYMLINKS: Get the canonical path for consistent indexing.
-        let canonical_path = match dunce::canonicalize(&path) {
-            Ok(p) => p,
-            Err(e) => {
-                warn!("Could not get canonical path for {:?}: {}", path, e);
-                return ScanResult {
-                    path,
-                    asset: None,
-                    error: Some(format!("Canonicalization error: {}", e)),
-                };
-            }
-        };
+        // Use clean() to normalize the path (remove .. and . segments) without
+        // forcibly resolving symlinks. This keeps the logical path intact.
+        let canonical_path = path.clean();
 
         if is_markdown_file(&canonical_path) {
             match parser::parse_file(&canonical_path) {
@@ -185,8 +177,11 @@ impl Indexer {
         self.map_backlinks.clear();
 
         // 1. Collect all file paths first.
+        // Use a single WalkDir iterator for efficiency.
+        // Configure WalkDir to follow symbolic links (`.follow_links(true)`)
+        // to ensure assets linked into the vault are discovered and indexed.
         let paths: Vec<PathBuf> = WalkDir::new(root_path)
-            .follow_links(true) // Handle symlinks
+            .follow_links(true)
             .into_iter()
             .filter_map(|e| e.ok())
             .map(|e| e.path().to_path_buf())
@@ -332,8 +327,15 @@ impl Indexer {
     /// Updates or creates an index entry for a single file path.
     #[instrument(level = "debug", skip(self))]
     pub fn update_file(&mut self, path: &Path) {
+        // RESOLVE SYMLINKS: We use clean() instead of canonicalize() here.
+        // Canonicalizing resolves the vault root if it's a symlink (e.g., /home/user/Doc -> /mnt/drive/Doc),
+        // which causes a mismatch with the frontend's logical path and breaks the allowed scope.
+        // We rely on WalkDir(follow_links=true) to discover the files, and trust the logical path.
+        let canonical_path = path.clean();
+        let path = &canonical_path;
+
         // Always remove the old entry first to ensure a clean update.
-        // Note: We might remove an entry based on the raw path before canonicalization,
+        // Note: We might remove an entry based on the raw path before normalization,
         // which is correct behavior if the path itself is changing.
         self.remove_file_from_index(path);
 
