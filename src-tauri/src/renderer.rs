@@ -136,7 +136,8 @@ impl Renderer {
     /// 3. **Relative Path (Legacy):** As a fallback for backward compatibility, the input
     ///    is treated as a path relative to the vault's `images` subdirectory.
     ///
-    /// The final path is canonicalized to resolve symbolic links.
+    /// The final path is clean()ed to resolve .. segments but NOT canonicalized to avoid
+    /// resolving symlinks, ensuring consistency with the asset scope.
     fn resolve_image_path(&self, path_str: &str) -> PathBuf {
         let path = Path::new(path_str);
         let mut resolved_path;
@@ -159,12 +160,10 @@ impl Renderer {
             }
         }
 
-        // Final canonicalization step to resolve symlinks and '..' segments.
-        // We use a clean() fallback because canonicalize will fail if the file doesn't exist.
-        resolved_path = match dunce::canonicalize(&resolved_path) {
-            Ok(canonical) => canonical,
-            Err(_) => resolved_path.clean(),
-        };
+        // Final clean step to resolve '..' segments.
+        // We do NOT use canonicalize() here because it resolves symlinks on Linux,
+        // which can break asset loading if the resolved path is outside the allowed scope.
+        resolved_path = resolved_path.clean();
 
         resolved_path
     }
@@ -953,9 +952,10 @@ impl Renderer {
 
         let indexer = self.indexer.read();
 
-        // Canonicalize the path before lookup to handle symlinks (like /home -> /var/home)
+        // Use path.clean() instead of canonicalize() to handle symlinks correctly.
+        // We trust the frontend to provide the correct logical path that matches the index.
         let page_path = PathBuf::from(path);
-        let canonical_path = dunce::canonicalize(&page_path).unwrap_or(page_path);
+        let canonical_path = page_path.clean();
 
         let page = indexer
             .assets
