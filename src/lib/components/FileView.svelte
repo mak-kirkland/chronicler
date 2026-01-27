@@ -209,7 +209,10 @@
                 <h2 class="view-title" title={file.title}>
                     {file.title}
                 </h2>
-                <SaveStatus status={saveStatus} {lastSaveTime} />
+                <!-- Wrapped in fixed-width container to prevent layout shift -->
+                <div class="save-status-wrapper">
+                    <SaveStatus status={saveStatus} {lastSaveTime} />
+                </div>
             </div>
             <div slot="right" class="header-actions">
                 <!-- Map Navigation Button -->
@@ -390,6 +393,15 @@
         flex-shrink: 1;
         overflow: hidden;
         min-width: 0; /* Helps with ellipsis truncation */
+    }
+    .save-status-wrapper {
+        width: 180px; /* Fixed width prevents jitter between "Unsaved" and "Last saved at..." */
+        flex-shrink: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: flex;
+        align-items: center; /* Better vertical alignment than baseline for mixed content */
     }
     .header-actions {
         display: flex;
