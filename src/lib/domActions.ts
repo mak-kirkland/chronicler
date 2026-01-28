@@ -306,9 +306,15 @@ export function tablesort(
             const valA = a.cells[colIndex]?.textContent || "";
             const valB = b.cells[colIndex]?.textContent || "";
 
+            // Remove commas from numbers (e.g., "1,200" -> "1200") so localeCompare
+            // treats them as a single large integer rather than "1" followed by "200".
+            // We use a regex to only strip commas that are between digits, ensuring
+            // we don't break text like "Hello, World".
+            const cleanA = valA.replace(/(\d),(?=\d)/g, "$1");
+            const cleanB = valB.replace(/(\d),(?=\d)/g, "$1");
+
             // Use localeCompare. It handles "10" vs "2" and "Item 10" vs "Item 2"
-            // and mixed content like "100" vs "N/A".
-            const compareResult = valA.localeCompare(valB, undefined, {
+            const compareResult = cleanA.localeCompare(cleanB, undefined, {
                 numeric: true,
             });
 
