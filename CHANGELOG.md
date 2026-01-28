@@ -2,12 +2,20 @@
 
 ---
 
+## [v0.43.4-alpha] - 2026-01-28
+
+### 🐞 Fixed
+
+- **Linux**: Fixed a critical application crash occurring on Linux distributions (such as Arch and Mint) caused by WebKitGTK and GStreamer initialization errors. The background video has been disabled for Linux runtimes in favor of the static hero banner to ensure a stable startup experience.
+
+---
+
 ## [v0.43.3-alpha] - 2026-01-27
 
 ### 🐞 Fixed
 
 - **Filesystem**: Fixed an issue where Wikilinks would fail if the vault was stored in a symlinked directory. The application now uses logical path normalization instead of physical resolution, ensuring consistent indexing and asset visibility across Linux and macOS.
-- **Welcome View**: Fixed a "white screen" issue on Linux systems missing multimedia codecs by implementing an automatic fallback to static banners if the background video fails to load.
+- **Linux**: Fixed a critical "white screen" issue on Linux systems missing multimedia codecs by implementing an automatic fallback to static banners if the background video fails to load.
 
 ---
 
