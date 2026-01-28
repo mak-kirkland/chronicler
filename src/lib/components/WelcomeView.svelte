@@ -11,12 +11,23 @@
         );
         videoError = true;
     }
+
+    // Runtime check
+    const isLinux =
+        typeof navigator !== "undefined" &&
+        navigator.userAgent.includes("Linux");
 </script>
 
 <div class="welcome-container">
     <div class="welcome-screen">
         <div class="hero-banner">
-            {#if $licenseStore.status === "licensed" && !videoError}
+            <!--
+               Update Logic:
+               Only show video if:
+               1. User is licensed
+               2. AND User is NOT on Linux (to prevent crashes)
+            -->
+            {#if $licenseStore.status === "licensed" && !videoError && !isLinux}
                 <video
                     src="/background.webm"
                     width="100%"
@@ -31,6 +42,7 @@
                 >
                 </video>
             {:else}
+                <!-- Fallback for Unlicensed OR Linux users -->
                 <img src="/banner.png" alt="Chronicler Banner" />
                 <div class="hero-overlay">
                     <h1 class="welcome-title">Chronicler</h1>
