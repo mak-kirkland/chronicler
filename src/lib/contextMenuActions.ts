@@ -18,6 +18,8 @@ import {
 import { isDirectory, isMarkdown, fileStemString } from "$lib/utils";
 import { openInExplorer } from "$lib/commands";
 import { manuallyExpandedPaths, showImages } from "$lib/explorerStore";
+import { hasMapsEntitlement } from "$lib/licenseStore";
+
 // Import modal components that can be triggered from the context menu
 import TextInputModal from "./components/TextInputModal.svelte";
 import ConfirmModal from "./components/ConfirmModal.svelte";
@@ -108,17 +110,22 @@ export function getContextMenuActions(
             label: "New Page...",
             handler: () => promptAndCreateItem("file", node.path),
         });
-        actions.push({
-            label: "New Map...",
-            handler: () => {
-                openModal({
-                    component: NewMapModal,
-                    props: {
-                        onClose: closeModal
-                    }
-                });
-            },
-        });
+
+        // Only show if the user has the maps entitlement
+      if (get(hasMapsEntitlement)) {
+            actions.push({
+                label: "New Map...",
+                handler: () => {
+                    openModal({
+                        component: NewMapModal,
+                        props: {
+                            onClose: closeModal,
+                        },
+                    });
+                },
+            });
+        }
+
         actions.push({
             label: "New Folder...",
             handler: () => promptAndCreateItem("folder", node.path),
