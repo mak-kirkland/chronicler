@@ -361,6 +361,15 @@ impl World {
         }
     }
 
+    /// Returns the best source string (Asset URL or Base64) for a given image path.
+    pub fn get_image_source(&self, path: &str) -> Result<String> {
+        if let Some(renderer) = self.renderer.read().as_ref() {
+            Ok(renderer.get_image_source(path))
+        } else {
+            Err(ChroniclerError::VaultNotInitialized)
+        }
+    }
+
     /// Reads and parses a `.map.json` file from the vault.
     pub fn get_map_config(&self, path: &str) -> Result<serde_json::Value> {
         self.indexer.read().get_map_config(path)
