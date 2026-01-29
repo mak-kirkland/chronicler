@@ -14,6 +14,7 @@
     import ConfirmModal from "./ConfirmModal.svelte";
     import Button from "./Button.svelte";
     import Icon from "./Icon.svelte";
+    import SearchInput from "./SearchInput.svelte";
 
     let {
         mapConfig,
@@ -33,6 +34,8 @@
         activeRegionIds?: Set<string>;
     }>();
 
+    let searchTerm = $state("");
+
     // Helper: Determine if an item should be visible in the console
     // Returns true if:
     // 1. The item has no layer assigned (global)
@@ -43,14 +46,26 @@
         return layer ? layer.visible : false;
     }
 
-    // Filter pins based on layer visibility
+    // Filter pins based on layer visibility and search term
     let pins = $derived(
-        (mapConfig.pins || []).filter((p) => isItemVisible(p.layerId)),
+        (mapConfig.pins || [])
+            .filter((p) => isItemVisible(p.layerId))
+            .filter((p) =>
+                (p.label || "")
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase()),
+            ),
     );
 
-    // Filter regions based on layer visibility
+    // Filter regions based on layer visibility and search term
     let regions = $derived(
-        (mapConfig.shapes || []).filter((s) => isItemVisible(s.layerId)),
+        (mapConfig.shapes || [])
+            .filter((s) => isItemVisible(s.layerId))
+            .filter((s) =>
+                (s.label || "")
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase()),
+            ),
     );
 
     function handleEditPin(pin: MapPin) {
@@ -155,12 +170,18 @@
         </div>
     </div>
 
+    <div class="search-container">
+        <SearchInput bind:value={searchTerm} placeholder="Search items..." />
+    </div>
+
     <div class="console-content">
         <!-- PINS SECTION -->
         <div class="section">
             <h4>Pins ({pins.length})</h4>
             {#if pins.length === 0}
-                <p class="empty-state">No visible pins.</p>
+                <p class="empty-state">
+                    {searchTerm ? "No matching pins." : "No visible pins."}
+                </p>
             {:else}
                 <ul class="item-list">
                     {#each pins as pin}
@@ -209,7 +230,11 @@
         <div class="section">
             <h4>Regions ({regions.length})</h4>
             {#if regions.length === 0}
-                <p class="empty-state">No visible regions.</p>
+                <p class="empty-state">
+                    {searchTerm
+                        ? "No matching regions."
+                        : "No visible regions."}
+                </p>
             {:else}
                 <ul class="item-list">
                     {#each regions as region}
@@ -288,6 +313,11 @@
     .console-controls {
         display: flex;
         gap: 0.25rem;
+    }
+
+    .search-container {
+        padding: 0.25rem;
+        background: var(--color-background-secondary);
     }
 
     .console-content {
