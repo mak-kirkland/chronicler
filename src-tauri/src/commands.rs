@@ -128,6 +128,14 @@ pub fn get_image_as_base64(path: String, world: State<World>) -> Result<String> 
     world.get_image_as_base64(&path)
 }
 
+/// Returns the best source string (Asset URL or Base64) for a given image path.
+/// Handles symlinks by checking if they are safe for the Asset Protocol.
+#[command]
+#[instrument(skip(world))]
+pub fn get_image_source(path: String, world: State<World>) -> Result<String> {
+    world.get_image_source(&path)
+}
+
 // --- File and Folder Operations ---
 
 /// Writes content to a page on disk. The file watcher will pick up the change.

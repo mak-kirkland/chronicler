@@ -133,6 +133,7 @@ fn main() {
             commands::get_license_status,
             commands::verify_and_store_license,
             commands::get_image_as_base64,
+            commands::get_image_source,
             commands::get_app_usage_days,
             commands::duplicate_page,
             commands::get_all_broken_links,
