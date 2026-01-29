@@ -42,6 +42,11 @@ export interface MapPin {
      */
     y: number;
     /**
+     * The ID of the layer this pin belongs to.
+     * If undefined or empty, it applies to all layers (always visible).
+     */
+    layerId?: string;
+    /**
      * The title of the target Markdown page.
      */
     targetPage?: string;
@@ -79,6 +84,10 @@ export interface MapPolygon {
      * Array of points {x, y} defining the shape.
      */
     points: { x: number; y: number }[];
+    /**
+     * The ID of the layer this region belongs to.
+     */
+    layerId?: string;
     targetPage?: string;
     targetMap?: string;
     label?: string;
@@ -94,6 +103,10 @@ export interface MapCircle {
     x: number;
     y: number;
     radius: number;
+    /**
+     * The ID of the layer this region belongs to.
+     */
+    layerId?: string;
     targetPage?: string;
     targetMap?: string;
     label?: string;

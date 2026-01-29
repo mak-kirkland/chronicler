@@ -33,8 +33,25 @@
         activeRegionIds?: Set<string>;
     }>();
 
-    let pins = $derived(mapConfig.pins || []);
-    let regions = $derived(mapConfig.shapes || []);
+    // Helper: Determine if an item should be visible in the console
+    // Returns true if:
+    // 1. The item has no layer assigned (global)
+    // 2. OR the item's assigned layer exists AND is visible
+    function isItemVisible(layerId?: string): boolean {
+        if (!layerId) return true;
+        const layer = mapConfig.layers?.find((l) => l.id === layerId);
+        return layer ? layer.visible : false;
+    }
+
+    // Filter pins based on layer visibility
+    let pins = $derived(
+        (mapConfig.pins || []).filter((p) => isItemVisible(p.layerId)),
+    );
+
+    // Filter regions based on layer visibility
+    let regions = $derived(
+        (mapConfig.shapes || []).filter((s) => isItemVisible(s.layerId)),
+    );
 
     function handleEditPin(pin: MapPin) {
         openModal({
@@ -143,7 +160,7 @@
         <div class="section">
             <h4>Pins ({pins.length})</h4>
             {#if pins.length === 0}
-                <p class="empty-state">No pins yet.</p>
+                <p class="empty-state">No visible pins.</p>
             {:else}
                 <ul class="item-list">
                     {#each pins as pin}
@@ -192,7 +209,7 @@
         <div class="section">
             <h4>Regions ({regions.length})</h4>
             {#if regions.length === 0}
-                <p class="empty-state">No regions defined.</p>
+                <p class="empty-state">No visible regions.</p>
             {:else}
                 <ul class="item-list">
                     {#each regions as region}

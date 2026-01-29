@@ -102,6 +102,95 @@ export const ICONS = [
     "🔵",
 ];
 
+// --- IMAGE & GEOMETRY UTILITIES ---
+
+/**
+ * Loads an image to detect its natural dimensions.
+ */
+export function detectImageDimensions(src: string): Promise<{ width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = (err) => reject(err);
+        img.src = src;
+    });
+}
+
+/**
+ * Result of validating a layer image against the map's reference dimensions.
+ */
+export interface LayerImageCheck {
+    /** Blocking error (e.g. aspect ratio mismatch). Null if OK. */
+    error: string | null;
+    /** Non-blocking warning (e.g. rescale notice). Null if none. */
+    warning: string | null;
+    /** Scale factor relative to reference dimensions. 1 = same size. */
+    scaleFactor: number;
+    /** Detected dimensions, or null on failure. */
+    dimensions: { width: number; height: number } | null;
+}
+
+/**
+ * Loads an image and checks its dimensions against reference map dimensions.
+ * Returns an error on aspect ratio mismatch, a warning if the image is a
+ * different size (but same ratio), or neither if dimensions match exactly.
+ *
+ * @param imageSrc  A loadable URL for the image (e.g. from `convertFileSrc`).
+ * @param refWidth  The reference map width to compare against.
+ * @param refHeight The reference map height to compare against.
+ * @param layerName Optional layer name included in messages for context.
+ */
+export async function checkLayerImage(
+    imageSrc: string,
+    refWidth: number,
+    refHeight: number,
+    layerName?: string,
+): Promise<LayerImageCheck> {
+    const ASPECT_EPSILON = 0.01;
+    const SCALE_EPSILON = 0.001;
+    const prefix = layerName ? `Layer "${layerName}": ` : "";
+
+    let dims: { width: number; height: number };
+    try {
+        dims = await detectImageDimensions(imageSrc);
+    } catch {
+        return {
+            error: prefix + "Could not load image to verify dimensions.",
+            warning: null,
+            scaleFactor: 1,
+            dimensions: null,
+        };
+    }
+
+    const newRatio = dims.width / dims.height;
+    const refRatio = refWidth / refHeight;
+    const scaleFactor = dims.width / refWidth;
+
+    if (Math.abs(newRatio - refRatio) > ASPECT_EPSILON) {
+        return {
+            error:
+                prefix +
+                `Aspect ratio mismatch. Map is ${refWidth}×${refHeight} (${refRatio.toFixed(2)}), ` +
+                `but the image is ${dims.width}×${dims.height} (${newRatio.toFixed(2)}).`,
+            warning: null,
+            scaleFactor,
+            dimensions: dims,
+        };
+    }
+
+    const warning =
+        Math.abs(scaleFactor - 1) > SCALE_EPSILON
+            ? prefix + `Coordinates will be rescaled by ${(scaleFactor * 100).toFixed(1)}%.`
+            : null;
+
+    return {
+        error: null,
+        warning,
+        scaleFactor,
+        dimensions: dims,
+    };
+}
+
 /**
  * Generates the SVG string for a map pin.
  */

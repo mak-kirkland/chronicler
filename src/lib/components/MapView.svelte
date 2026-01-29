@@ -31,15 +31,20 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import Button from "./Button.svelte";
     import MapConsole from "./MapConsole.svelte";
+    import MapLayerControl from "./MapLayerControl.svelte";
 
     let { data } = $props<{ data: PageHeader }>();
 
     let mapElement: HTMLElement;
     let map: L.Map | null = null;
+
+    // Layer Groups to manage different types of content
+    let imageOverlays = new Map<string, L.ImageOverlay>(); // Track image layers by ID
     let markerLayerGroup: L.LayerGroup | null = null;
     let shapeLayerGroup: L.LayerGroup | null = null;
     // Temp layer for drawing in progress
     let drawLayerGroup: L.LayerGroup | null = null;
+
     let error = $state<string | null>(null);
     let currentMapPath: string | null = null;
     let prevConfigStr = ""; // Track config state to prevent re-renders
@@ -141,6 +146,7 @@
         if (map) {
             map.remove();
             map = null;
+            imageOverlays.clear();
             markerLayerGroup = null;
             shapeLayerGroup = null;
             drawLayerGroup = null;
@@ -149,6 +155,39 @@
             shapeIdToLayer.clear();
         }
     });
+
+    // --- Layer Management Handlers ---
+
+    async function handleLayerToggle(layerId: string, visible: boolean) {
+        if (!data.path) return;
+        try {
+            // Optimistic update via store for instant feedback
+            await updateMapConfig(data.path, (currentConfig) => ({
+                ...currentConfig,
+                layers: currentConfig.layers.map((l) =>
+                    l.id === layerId ? { ...l, visible } : l,
+                ),
+            }));
+        } catch (e) {
+            console.error("Failed to toggle layer", e);
+        }
+    }
+
+    async function handleLayerOpacity(layerId: string, opacity: number) {
+        if (!data.path) return;
+        try {
+            await updateMapConfig(data.path, (currentConfig) => ({
+                ...currentConfig,
+                layers: currentConfig.layers.map((l) =>
+                    l.id === layerId ? { ...l, opacity } : l,
+                ),
+            }));
+        } catch (e) {
+            console.error("Failed to change opacity", e);
+        }
+    }
+
+    // --- Reactive Effects (Hover, Highlights, Styling) ---
 
     // Handle pin highlighting from console
     $effect(() => {
@@ -319,12 +358,14 @@
         }
     });
 
+    // Map Path Change
     $effect(() => {
         if (mapConfig && mapElement) {
             if (currentMapPath !== data.path) {
                 if (map) {
                     map.remove();
                     map = null;
+                    imageOverlays.clear();
                     markerLayerGroup = null;
                     shapeLayerGroup = null;
                     drawLayerGroup = null;
@@ -477,6 +518,7 @@
                 );
                 map.remove();
                 map = null;
+                imageOverlays.clear(); // Reset tracked layers
                 markerLayerGroup = null;
                 shapeLayerGroup = null;
                 drawLayerGroup = null;
@@ -521,19 +563,10 @@
 
                 L.control.zoom({ position: "topright" }).addTo(map);
 
-                const sortedLayers = [...config.layers].sort(
-                    (a, b) => a.zIndex - b.zIndex,
-                );
-                sortedLayers.forEach((layer) => {
-                    if (!layer.visible) return;
-                    const imagePath = $imagePathLookup.get(
-                        layer.image.toLowerCase(),
-                    );
-                    if (imagePath) {
-                        const assetUrl = convertFileSrc(imagePath);
-                        L.imageOverlay(assetUrl, bounds).addTo(map!);
-                    }
-                });
+                // Initialize Groups
+                markerLayerGroup = L.layerGroup().addTo(map);
+                shapeLayerGroup = L.layerGroup().addTo(map);
+                drawLayerGroup = L.layerGroup().addTo(map);
 
                 // Calculate the optimal zoom to fit the image exactly in the container
                 // This ensures the map always fills the screen on load
@@ -546,24 +579,28 @@
                 // This prevents the user from zooming out further than the image boundaries
                 map.setMinZoom(fitZoom);
 
-                markerLayerGroup = L.layerGroup().addTo(map);
-                shapeLayerGroup = L.layerGroup().addTo(map);
-                drawLayerGroup = L.layerGroup().addTo(map);
-
                 // --- Global Event Listeners for Overlap Handling ---
 
                 map.on("contextmenu", (e: L.LeafletMouseEvent) => {
                     if (isDrawing) return; // Don't show context menu while drawing
+                    if (!mapConfig) return;
 
                     const mapX = e.latlng.lng;
                     const mapY = h - e.latlng.lat; // Convert Leaflet LatLng to Map Coords (Y-flip)
 
                     // Find all shapes under cursor
+                    // Only consider shapes that are visible (layer check)
                     const shapesAtCursor = getShapesAtPoint(
                         mapX,
                         mapY,
-                        config.shapes,
-                    );
+                        mapConfig.shapes,
+                    ).filter((s) => {
+                        if (!s.layerId) return true;
+                        const layer = mapConfig!.layers.find(
+                            (l) => l.id === s.layerId,
+                        );
+                        return layer ? layer.visible : true;
+                    });
 
                     // Create edit actions for each shape found
                     const editActions = shapesAtCursor.map((shape) => ({
@@ -601,6 +638,7 @@
                     // Prevent showing tooltip if context menu is open
                     // We ALLOW it if console is open now, but we will block full previews below
                     if (contextMenu?.show) return;
+                    if (!mapConfig) return;
 
                     // 1. PIN PRIORITY: If hovering a pin, hide region tooltips and return
                     if (hoveredPinId) {
@@ -616,7 +654,18 @@
                     const mapX = e.latlng.lng;
                     const mapY = h - e.latlng.lat;
 
-                    const shapes = getShapesAtPoint(mapX, mapY, config.shapes);
+                    // Filter hidden shapes
+                    const shapes = getShapesAtPoint(
+                        mapX,
+                        mapY,
+                        mapConfig.shapes,
+                    ).filter((s) => {
+                        if (!s.layerId) return true;
+                        const layer = mapConfig!.layers.find(
+                            (l) => l.id === s.layerId,
+                        );
+                        return layer ? layer.visible : true;
+                    });
 
                     // 2. SYNC HOVER HIGHLIGHT STATE
                     // Optimization: Only update state if the set of IDs has actually changed.
@@ -758,17 +807,28 @@
                 // --- Drawing Interactions ---
                 map.on("click", (e: L.LeafletMouseEvent) => {
                     if (!isDrawing) {
+                        if (!mapConfig) return;
+
                         // Handle Click Disambiguation for Overlapping Regions
                         // Note: This only runs if the click wasn't stopped by a Pin
                         const mapX = e.latlng.lng;
                         const mapY = h - e.latlng.lat;
 
                         // Find shapes with navigation targets
+                        // Filter hidden shapes
                         const shapes = getShapesAtPoint(
                             mapX,
                             mapY,
-                            config.shapes,
-                        ).filter((s) => s.targetPage || s.targetMap);
+                            mapConfig.shapes,
+                        )
+                            .filter((s) => {
+                                if (!s.layerId) return true;
+                                const layer = mapConfig!.layers.find(
+                                    (l) => l.id === s.layerId,
+                                );
+                                return layer ? layer.visible : true;
+                            })
+                            .filter((s) => s.targetPage || s.targetMap);
 
                         if (shapes.length === 0) return;
 
@@ -867,6 +927,55 @@
                 });
             }
 
+            // --- SYNC IMAGE LAYERS (Updates Dynamic State) ---
+            const currentLayerIds = new Set<string>();
+
+            // Sort layers by zIndex ascending for Leaflet (higher zIndex renders on top)
+            // Note: MapConfig stores zIndex as "higher number = top"
+            config.layers.forEach((layer) => {
+                currentLayerIds.add(layer.id);
+
+                // If layer is hidden, remove the overlay if it exists
+                if (!layer.visible) {
+                    if (imageOverlays.has(layer.id)) {
+                        imageOverlays.get(layer.id)!.remove();
+                        imageOverlays.delete(layer.id);
+                    }
+                    return;
+                }
+
+                const imagePath = $imagePathLookup.get(
+                    layer.image.toLowerCase(),
+                );
+                if (!imagePath) return;
+
+                const assetUrl = convertFileSrc(imagePath);
+                let overlay = imageOverlays.get(layer.id);
+
+                if (overlay) {
+                    // Update existing overlay properties
+                    overlay.setOpacity(layer.opacity);
+                    overlay.setZIndex(layer.zIndex);
+                    // Leaflet ImageOverlay doesn't strictly support src changes easily
+                    // But if the URL somehow changed (rare for this use case), we could handle it here
+                } else {
+                    // Create new overlay
+                    overlay = L.imageOverlay(assetUrl, bounds, {
+                        opacity: layer.opacity,
+                        zIndex: layer.zIndex,
+                    }).addTo(map!);
+                    imageOverlays.set(layer.id, overlay);
+                }
+            });
+
+            // Cleanup: Remove overlays that are no longer in the config (e.g., deleted layers)
+            for (const [id, overlay] of imageOverlays) {
+                if (!currentLayerIds.has(id)) {
+                    overlay.remove();
+                    imageOverlays.delete(id);
+                }
+            }
+
             // --- Update Pins ---
             if (markerLayerGroup) {
                 markerLayerGroup.clearLayers();
@@ -881,6 +990,16 @@
                             invisible?: boolean;
                         },
                     ) => {
+                        // CHECK LAYER VISIBILITY
+                        if (pin.layerId) {
+                            const layer = config.layers.find(
+                                (l) => l.id === pin.layerId,
+                            );
+                            if (layer && !layer.visible) {
+                                return; // Skip rendering this pin
+                            }
+                        }
+
                         const leafletLat = h - pin.y;
                         const leafletLng = pin.x;
 
@@ -948,6 +1067,16 @@
             }
             if (config.shapes && shapeLayerGroup) {
                 config.shapes.forEach((shape: MapRegion) => {
+                    // CHECK LAYER VISIBILITY
+                    if (shape.layerId) {
+                        const layer = config.layers.find(
+                            (l) => l.id === shape.layerId,
+                        );
+                        if (layer && !layer.visible) {
+                            return; // Skip rendering
+                        }
+                    }
+
                     let layer: L.Path;
                     const color = shape.color || DEFAULT_SHAPE_COLOR;
 
@@ -1211,6 +1340,14 @@
                 </div>
             {/if}
 
+            {#if !isDrawing && mapConfig.layers.length > 0}
+                <MapLayerControl
+                    layers={mapConfig.layers}
+                    onToggle={handleLayerToggle}
+                    onOpacityChange={handleLayerOpacity}
+                />
+            {/if}
+
             {#if isConsoleOpen}
                 <MapConsole
                     {mapConfig}
@@ -1394,5 +1531,29 @@
     /* Hide the little triangle tip if desired, or style it */
     :global(.multi-region-tooltip.leaflet-tooltip-top:before) {
         border-top-color: rgba(0, 0, 0, 0.85);
+    }
+
+    /* Theme overrides for Leaflet controls */
+    :global(.leaflet-bar) {
+        border: 2px solid var(--color-border-primary) !important;
+        border-radius: 4px !important;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4) !important;
+    }
+    :global(.leaflet-bar a) {
+        background-color: var(--color-background-secondary) !important;
+        color: var(--color-text-primary) !important;
+        border-bottom: 1px solid var(--color-border-primary) !important;
+    }
+    :global(.leaflet-bar a:hover) {
+        background-color: var(--color-background-tertiary) !important;
+        color: var(--color-text-primary) !important;
+    }
+    :global(.leaflet-bar a:last-child) {
+        border-bottom: none !important;
+    }
+    :global(.leaflet-control-zoom-in),
+    :global(.leaflet-control-zoom-out) {
+        font-family: var(--font-family-body) !important;
+        font-weight: bold !important;
     }
 </style>
