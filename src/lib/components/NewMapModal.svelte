@@ -12,6 +12,7 @@
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { autofocus } from "$lib/domActions";
     import { normalizePath } from "$lib/utils";
+    import { detectImageDimensions } from "$lib/mapUtils";
     import Button from "./Button.svelte";
     import SearchableSelect from "./SearchableSelect.svelte";
     import Modal from "./Modal.svelte";
@@ -40,21 +41,18 @@
         const fullPath = $imagePathLookup.get(selectedImage.toLowerCase());
 
         if (fullPath) {
-            const img = new Image();
-            img.onload = () => {
-                mapWidth = img.naturalWidth;
-                mapHeight = img.naturalHeight;
-            };
-            img.onerror = (err) => {
-                console.warn(
-                    `[NewMapModal] Failed to load image for dimension detection:`,
-                    err,
-                );
-                // Reset dimensions on error to prevent creating broken maps
-                mapWidth = 0;
-                mapHeight = 0;
-            };
-            img.src = convertFileSrc(fullPath);
+            const src = convertFileSrc(fullPath);
+            // Use shared util
+            detectImageDimensions(src)
+                .then((dims) => {
+                    mapWidth = dims.width;
+                    mapHeight = dims.height;
+                })
+                .catch((err) => {
+                    console.warn(`[CreateMapModal] Failed to load image:`, err);
+                    mapWidth = 0;
+                    mapHeight = 0;
+                });
         }
     });
 
@@ -68,11 +66,6 @@
             mapWidth === 0 ||
             mapHeight === 0
         ) {
-            console.warn("NewMapModal: Missing fields or invalid dimensions", {
-                name,
-                selectedImage,
-                dims: `${mapWidth}x${mapHeight}`,
-            });
             return;
         }
 

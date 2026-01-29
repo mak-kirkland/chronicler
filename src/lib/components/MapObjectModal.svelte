@@ -12,7 +12,7 @@
     import Modal from "./Modal.svelte";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
 
-    let { onClose, mapPath, mode, initialData } = $props<{
+    let { onClose, mapPath, mapConfig, mode, initialData } = $props<{
         onClose: () => void;
         mapPath: string;
         mapConfig: MapConfig;
@@ -27,6 +27,7 @@
             // Region specific
             shapeData?: any; // geometry data
             // Shared
+            layerId?: string;
             targetPage?: string;
             targetMap?: string;
             label?: string;
@@ -42,6 +43,7 @@
     let selectedMap = $state(initialData.targetMap || "");
     let label = $state(initialData.label || "");
     let selectedColor = $state(initialData.color || DEFAULT_SHAPE_COLOR);
+    let selectedLayerId = $state(initialData.layerId || "");
 
     // Pin-specific state
     let selectedIcon = $state(initialData.icon || DEFAULT_PIN_ICON);
@@ -52,6 +54,12 @@
     // Options derived from stores
     const pageOptions = $derived($allFileTitles);
     const mapOptions = $derived($allMaps.map((m) => m.title));
+
+    // Layer options
+    const layerOptions = $derived([
+        { id: "", name: "All Layers (Always Visible)" },
+        ...(mapConfig.layers || []).map((l) => ({ id: l.id, name: l.name })),
+    ]);
 
     // Auto-fill label when target is selected, only if adding new object and label is empty
     $effect(() => {
@@ -75,6 +83,7 @@
                     targetMap: selectedMap || undefined,
                     label: label || undefined,
                     color: selectedColor,
+                    layerId: selectedLayerId || undefined,
                 };
 
                 if (mode === "pin") {
@@ -164,6 +173,20 @@
                 placeholder="Search maps..."
                 bind:value={selectedMap}
             />
+        </div>
+
+        <!-- Layer Select -->
+        <div class="form-group">
+            <label for="layer-select">Assign to Layer</label>
+            <select id="layer-select" bind:value={selectedLayerId}>
+                {#each layerOptions as option}
+                    <option value={option.id}>{option.name}</option>
+                {/each}
+            </select>
+            <p class="help-text">
+                Objects assigned to a specific layer will hide if that layer is
+                hidden.
+            </p>
         </div>
 
         <!-- Label -->
@@ -262,7 +285,8 @@
         color: var(--color-text-secondary);
         font-size: 0.9rem;
     }
-    input[type="text"] {
+    input[type="text"],
+    select {
         width: 100%;
         padding: 0.5rem 0.75rem;
         border-radius: 6px;
@@ -272,7 +296,8 @@
         font-size: 1rem;
         box-sizing: border-box;
     }
-    input[type="text"]:focus {
+    input[type="text"]:focus,
+    select:focus {
         outline: 1px solid var(--color-accent-primary);
         border-color: var(--color-accent-primary);
     }
@@ -366,7 +391,7 @@
         accent-color: var(--color-accent-primary);
     }
     .help-text {
-        margin: 0 0 0 2rem; /* Indent to align with text */
+        margin: 0;
         font-size: 0.85rem;
         color: var(--color-text-secondary);
         font-style: italic;
