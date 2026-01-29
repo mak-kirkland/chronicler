@@ -2,6 +2,7 @@
     import { tags, vaultPath } from "$lib/worldStore";
     import { promptAndCreateItem } from "$lib/actions";
     import { openModal, closeModal } from "$lib/modalStore";
+    import { hasMapsEntitlement } from "$lib/licenseStore";
     import FileExplorer from "./FileExplorer.svelte";
     import TagList from "./TagList.svelte";
     import ReportList from "./ReportList.svelte";
@@ -151,19 +152,21 @@
             <Button
                 size="small"
                 class="new-path-button"
-                title="New Map"
-                onclick={showCreateMap}
-            >
-                + Map
-            </Button>
-            <Button
-                size="small"
-                class="new-path-button"
                 title="New Folder"
                 onclick={showCreateFolder}
             >
                 + Folder
             </Button>
+            {#if $hasMapsEntitlement}
+                <Button
+                    size="small"
+                    class="new-path-button"
+                    title="New Map"
+                    onclick={showCreateMap}
+                >
+                    + Map
+                </Button>
+            {/if}
         </div>
 
         <div class="secondary-actions">
