@@ -91,6 +91,9 @@ pub struct Renderer {
     indexer: Arc<RwLock<Indexer>>,
     // The vault path is needed to resolve relative image paths.
     vault_path: PathBuf,
+    // The physical, canonical path of the vault root.
+    // Used to detect if a symlinked asset points outside the allowed scope.
+    canonical_vault_path: PathBuf,
 }
 
 /// Determines the MIME type of a file based on its extension.
@@ -120,9 +123,17 @@ fn path_to_web_str(path: &Path) -> String {
 impl Renderer {
     /// Creates a new Renderer.
     pub fn new(indexer: Arc<RwLock<Indexer>>, vault_path: PathBuf) -> Self {
+        // Resolve the physical location of the vault root once.
+        // This handles the case where the vault root itself is a symlink,
+        // and allows us to verify if internal symlinks point inside or outside.
+        // We use fs::canonicalize to match the behavior of file system resolution.
+        let canonical_vault_path =
+            fs::canonicalize(&vault_path).unwrap_or_else(|_| vault_path.clone());
+
         Self {
             indexer,
             vault_path,
+            canonical_vault_path,
         }
     }
 
@@ -166,6 +177,44 @@ impl Renderer {
         resolved_path = resolved_path.clean();
 
         resolved_path
+    }
+
+    /// Helper to determine if a path is safe to serve via the Asset Protocol.
+    ///
+    /// Returns true if the path is logically inside the vault AND physically inside the vault.
+    /// Returns false if the path is external OR if it is a symlink pointing outside the vault.
+    fn is_safe_for_asset_protocol(&self, path: &Path) -> bool {
+        // 1. First check: Is it logically inside the vault?
+        // If it's an absolute path to /Pictures/img.png, this fails immediately.
+        if !path.starts_with(&self.vault_path) {
+            return false;
+        }
+
+        // 2. Second check: Does it physically exist inside the physical vault?
+        // This catches symlinks like Vault/link.png -> /External/img.png
+        // We use fs::canonicalize to resolve the symlink to its target.
+        match fs::canonicalize(path) {
+            Ok(physical_path) => physical_path.starts_with(&self.canonical_vault_path),
+            Err(_) => {
+                // If we can't resolve it (e.g. broken link), we default to true to at least
+                // attempt the standard load. The asset protocol will just return 404/failure,
+                // which is the correct behavior for a missing file.
+                true
+            }
+        }
+    }
+
+    /// Returns the best source string (Asset URL or Base64) for a given image path.
+    /// This is used by the frontend (ImageView) to display images correctly, handling
+    /// both standard internal images and symlinked external images.
+    pub fn get_image_source(&self, path_str: &str) -> String {
+        let resolved_path = self.resolve_image_path(path_str);
+
+        if self.is_safe_for_asset_protocol(&resolved_path) {
+            self.convert_image_path_to_asset_url(&path_to_web_str(&resolved_path))
+        } else {
+            self.convert_image_path_to_data_url(&path_to_web_str(&resolved_path))
+        }
     }
 
     /// Processes an image source path, returning a correctly formatted Tauri v2 asset URL.
@@ -229,7 +278,7 @@ impl Renderer {
             let resolved_path = self.resolve_image_path(path_str);
 
             // Apply the hybrid logic: use the best method based on the path type.
-            let image_src = if resolved_path.starts_with(&self.vault_path) {
+            let image_src = if self.is_safe_for_asset_protocol(&resolved_path) {
                 // If the resolved path is inside the vault, use the performant asset protocol.
                 self.convert_image_path_to_asset_url(&path_to_web_str(&resolved_path))
             } else {
@@ -315,7 +364,7 @@ impl Renderer {
                 let resolved_path = self.resolve_image_path(&final_path_str);
 
                 // 3. Check if the path is inside the vault or external and choose the best method.
-                let image_src = if resolved_path.starts_with(&self.vault_path) {
+                let image_src = if self.is_safe_for_asset_protocol(&resolved_path) {
                     // If it's inside the vault, use the performant asset protocol.
                     self.convert_image_path_to_asset_url(&path_to_web_str(&resolved_path))
                 } else {

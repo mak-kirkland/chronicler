@@ -206,6 +206,15 @@ export const getImageAsBase64 = (path: string) =>
     invoke<string>("get_image_as_base64", { path });
 
 /**
+ * Returns the best source string (Asset URL or Base64) for a given image path.
+ * Handles symlinks by checking if they are safe for the Asset Protocol.
+ * @param path The absolute path to the image file.
+ * @returns A promise resolving to the source string.
+ */
+export const getImageSource = (path: string) =>
+    invoke<string>("get_image_source", { path });
+
+/**
  * Reads and parses a `.map.json` file from within the vault.
  * @param path The absolute path to the map config file.
  * @returns A promise that resolves to the parsed map configuration.
