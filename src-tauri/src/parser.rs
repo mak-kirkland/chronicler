@@ -64,26 +64,44 @@ pub fn parse_file(path: &Path) -> Result<Page> {
 /// Returns a tuple `(frontmatter, body)`, where `frontmatter` is the raw string
 /// content between the `---` delimiters, or an empty string if none is found.
 pub fn extract_frontmatter(content: &str) -> (&str, &str) {
-    // Must start with frontmatter delimiter
-    let Some(after_opening) = content.strip_prefix("---\n") else {
+    // 1. Check for opening delimiter (LF or CRLF)
+    let after_opening = if let Some(rest) = content.strip_prefix("---\n") {
+        rest
+    } else if let Some(rest) = content.strip_prefix("---\r\n") {
+        rest
+    } else {
         return ("", content);
     };
 
-    // Find closing delimiter
-    let Some(closing_pos) = after_opening.find("\n---") else {
+    // 2. Find closing delimiter
+    // We look for `\n---` which works for both LF and CRLF files (since CRLF contains LF).
+    let Some(closing_rel_pos) = after_opening.find("\n---") else {
         return ("", content);
     };
 
-    let frontmatter = &after_opening[..closing_pos];
-    let body_start = after_opening[closing_pos..].strip_prefix("\n---").unwrap();
+    // 3. Extract frontmatter and trim potential trailing '\r' (from CRLF)
+    let raw_frontmatter = &after_opening[..closing_rel_pos];
+    let frontmatter = if let Some(trimmed) = raw_frontmatter.strip_suffix('\r') {
+        trimmed
+    } else {
+        raw_frontmatter
+    };
 
-    // Closing delimiter must be followed by newline, EOF, or only whitespace
-    if body_start.is_empty() || body_start.starts_with('\n') {
-        let body = body_start.strip_prefix('\n').unwrap_or(body_start);
-        return (frontmatter, body);
-    }
+    // 4. Locate body start
+    // The `closing_rel_pos` points to the `\n` in `\n---`.
+    // We need to skip `\n---` (length 4) and then check for the following newline.
+    let rest_after_delimiter = &after_opening[closing_rel_pos + 4..];
 
-    ("", content)
+    let body = if let Some(b) = rest_after_delimiter.strip_prefix('\n') {
+        b
+    } else if let Some(b) = rest_after_delimiter.strip_prefix("\r\n") {
+        b
+    } else {
+        // EOF or no newline after delimiter
+        rest_after_delimiter
+    };
+
+    (frontmatter, body)
 }
 
 /// Parses YAML frontmatter string into a JSON Value.
@@ -306,5 +324,33 @@ Here is a normal link to a page: [[Another Page]]
         assert_eq!(page.links[0].target, "Another Page");
 
         Ok(())
+    }
+
+    #[test]
+    fn test_extract_frontmatter_windows_crlf() {
+        // Manually construct a string with CRLF (\r\n) line endings
+        // Structure:
+        // ---
+        // title: Windows
+        // ---
+        // Body starts here
+        let content = "---\r\ntitle: Windows\r\n---\r\nBody starts here";
+
+        let (frontmatter, body) = extract_frontmatter(content);
+
+        // 1. Verify frontmatter is clean (no trailing \r)
+        assert_eq!(frontmatter, "title: Windows");
+
+        // 2. Verify body starts correctly (newline after --- is consumed)
+        assert_eq!(body, "Body starts here");
+
+        // Additional Check: Ensure it preserves internal CRLF in frontmatter values if needed,
+        // but doesn't break the split.
+        let content_multiline = "---\r\nkey: value\r\nlist:\r\n  - item\r\n---\r\n\r\n# Body";
+        let (fm, bd) = extract_frontmatter(content_multiline);
+
+        assert_eq!(fm, "key: value\r\nlist:\r\n  - item");
+        // Should preserve the blank line before the header (first \r\n consumed by parser, second remains)
+        assert_eq!(bd, "\r\n# Body");
     }
 }
