@@ -530,13 +530,13 @@ impl World {
             .clone()
             .ok_or(ChroniclerError::VaultNotInitialized)?;
 
-        writer.delete_path(&path)?;
-
         let event = if path.is_dir() {
-            FileEvent::FolderDeleted(path)
+            FileEvent::FolderDeleted(path.clone())
         } else {
-            FileEvent::Deleted(path)
+            FileEvent::Deleted(path.clone())
         };
+
+        writer.delete_path(&path)?;
         self.indexer.write().handle_event_and_rebuild(&event);
         Ok(())
     }
