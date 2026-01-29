@@ -6,7 +6,7 @@
  * and holds the reactive state for the UI to display.
  */
 
-import { writable } from "svelte/store";
+import { writable, derived } from "svelte/store";
 import { getLicenseStatus, verifyAndStoreLicense } from "./commands";
 import type { License } from "./bindings";
 
@@ -20,9 +20,20 @@ export interface LicenseState {
     error?: string;
 }
 
-const { subscribe, set, update } = writable<LicenseState>({
+// We capture the store object itself so we can use it for derived stores
+const store = writable<LicenseState>({
     status: "loading",
     license: null,
+});
+
+const { subscribe, set, update } = store;
+
+/**
+ * Derived store that returns true if the current license permits Map usage.
+ * Useful for feature gating UI elements.
+ */
+export const hasMapsEntitlement = derived(store, ($state) => {
+    return $state.license?.entitlements.includes("maps") ?? false;
 });
 
 /**

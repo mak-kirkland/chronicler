@@ -32,6 +32,7 @@
     import Button from "./Button.svelte";
     import MapConsole from "./MapConsole.svelte";
     import MapLayerControl from "./MapLayerControl.svelte";
+    import { hasMapsEntitlement } from "$lib/licenseStore";
 
     let { data } = $props<{ data: PageHeader }>();
 
@@ -1314,7 +1315,11 @@
         </div>
     </ViewHeader>
 
-    {#if error}
+    {#if !$hasMapsEntitlement}
+        <div class="status-container">
+            <p>Maps are not unlocked. Please upgrade your license.</p>
+        </div>
+    {:else if error}
         <div class="error-container">
             <ErrorBox title="Map Error">{error}</ErrorBox>
         </div>
