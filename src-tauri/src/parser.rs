@@ -295,6 +295,97 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
+    fn test_parse_file_with_full_frontmatter() -> Result<()> {
+        let content = r#"---
+title: "My Test Page"
+tags:
+  - character
+  - location
+---
+Hello, this is the body. It contains a [[Link To Another Page]].
+"#;
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_page.md");
+        fs::write(&file_path, content).unwrap();
+
+        let page = parse_file(&file_path).unwrap();
+
+        assert_eq!(page.title, "My Test Page");
+        assert_eq!(
+            page.tags,
+            HashSet::from(["character".to_string(), "location".to_string()])
+        );
+        assert_eq!(page.links.len(), 1);
+        assert_eq!(page.links[0].target, "Link To Another Page");
+        assert!(page.frontmatter.get("title").is_some());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_file_no_frontmatter() -> Result<()> {
+        let content = r#"
+This page has no frontmatter.
+It just has a [[Simple Link]].
+"#;
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("no_frontmatter.md");
+        fs::write(&file_path, content).unwrap();
+
+        let page = parse_file(&file_path).unwrap();
+
+        // Title should fall back to the file stem
+        assert_eq!(page.title, "no_frontmatter");
+        // Tags should be empty
+        assert!(page.tags.is_empty());
+        // Link should still be parsed
+        assert_eq!(page.links.len(), 1);
+        assert_eq!(page.links[0].target, "Simple Link");
+        // Frontmatter should be JSON null
+        assert!(page.frontmatter.is_null());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_frontmatter_duplicate_keys() {
+        let content = r#"---
+title: "Duplicate Key Test"
+tags: ["a"]
+tags: ["b"]
+---
+Body
+"#;
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("duplicate.md");
+        fs::write(&file_path, content).unwrap();
+
+        let result = parse_file(&file_path);
+
+        // This confirms that serde_yaml::Value's strict parsing is working
+        assert!(
+            result.is_err(),
+            "Parser should have errored on duplicate keys"
+        );
+
+        match result {
+            Err(ChroniclerError::YamlParseError { source, .. }) => {
+                let msg = source.to_string();
+                // serde_yaml's error message for duplicates usually explicitly mentions it
+                assert!(
+                    msg.to_lowercase().contains("duplicate") || msg.contains("key"),
+                    "Error message should mention duplicate keys, got: {}",
+                    msg
+                );
+            }
+            _ => panic!(
+                "Expected YamlParseError for duplicate keys, got {:?}",
+                result
+            ),
+        }
+    }
+
+    #[test]
     fn test_parse_file_with_images() -> Result<()> {
         let content = r#"---
 image: "cover.jpg"
