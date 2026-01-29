@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { writePageContent } from "$lib/commands";
-    import { registerMap } from "$lib/mapStore";
+    import { updateMapConfig } from "$lib/mapStore";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
     import { openModal, closeModal } from "$lib/modalStore";
     import MapObjectModal from "./MapObjectModal.svelte";
@@ -63,17 +62,12 @@
                 onClose: closeModal,
                 onConfirm: async () => {
                     try {
-                        const updatedConfig = {
-                            ...mapConfig,
-                            pins: (mapConfig.pins || []).filter(
+                        await updateMapConfig(mapPath, (currentConfig) => ({
+                            ...currentConfig,
+                            pins: (currentConfig.pins || []).filter(
                                 (p) => p.id !== pinId,
                             ),
-                        };
-                        await writePageContent(
-                            mapPath,
-                            JSON.stringify(updatedConfig, null, 2),
-                        );
-                        registerMap(mapPath, updatedConfig);
+                        }));
                         closeModal();
                     } catch (e) {
                         alert("Failed to delete pin.");
@@ -92,17 +86,12 @@
                 onClose: closeModal,
                 onConfirm: async () => {
                     try {
-                        const updatedConfig = {
-                            ...mapConfig,
-                            shapes: (mapConfig.shapes || []).filter(
+                        await updateMapConfig(mapPath, (currentConfig) => ({
+                            ...currentConfig,
+                            shapes: (currentConfig.shapes || []).filter(
                                 (s) => s.id !== regionId,
                             ),
-                        };
-                        await writePageContent(
-                            mapPath,
-                            JSON.stringify(updatedConfig, null, 2),
-                        );
-                        registerMap(mapPath, updatedConfig);
+                        }));
                         closeModal();
                     } catch (e) {
                         alert("Failed to delete region.");

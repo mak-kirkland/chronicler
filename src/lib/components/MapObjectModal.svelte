@@ -1,7 +1,6 @@
 <script lang="ts">
     import { allFileTitles, allMaps } from "$lib/worldStore";
-    import { writePageContent } from "$lib/commands";
-    import { registerMap } from "$lib/mapStore";
+    import { updateMapConfig } from "$lib/mapStore";
     import {
         ICONS,
         PALETTE,
@@ -13,7 +12,7 @@
     import Modal from "./Modal.svelte";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
 
-    let { onClose, mapPath, mapConfig, mode, initialData } = $props<{
+    let { onClose, mapPath, mode, initialData } = $props<{
         onClose: () => void;
         mapPath: string;
         mapConfig: MapConfig;
@@ -67,70 +66,66 @@
         isSaving = true;
 
         try {
-            const currentPins = mapConfig.pins || [];
-            const currentShapes = mapConfig.shapes || [];
+            await updateMapConfig(mapPath, (currentConfig) => {
+                const updatedPins = [...(currentConfig.pins || [])];
+                const updatedShapes = [...(currentConfig.shapes || [])];
 
-            let updatedPins = [...currentPins];
-            let updatedShapes = [...currentShapes];
-
-            const commonData = {
-                targetPage: selectedPage || undefined,
-                targetMap: selectedMap || undefined,
-                label: label || undefined,
-                color: selectedColor,
-            };
-
-            if (mode === "pin") {
-                const pinData: MapPin = {
-                    id: initialData.id || crypto.randomUUID(),
-                    x: initialData.x!, // x/y are required for pins
-                    y: initialData.y!,
-                    ...commonData,
-                    icon: selectedIcon,
-                    invisible: isInvisible,
+                const commonData = {
+                    targetPage: selectedPage || undefined,
+                    targetMap: selectedMap || undefined,
+                    label: label || undefined,
+                    color: selectedColor,
                 };
 
-                if (isEditing) {
-                    updatedPins = updatedPins.map((p) =>
-                        p.id === pinData.id ? pinData : p,
-                    );
-                } else {
-                    updatedPins.push(pinData);
-                }
-            } else {
-                // Region mode
-                let regionData: MapRegion;
-
-                if (isEditing) {
-                    // Merge with existing data to preserve geometry (points, etc.)
-                    // We assume initialData contains all necessary fields from the existing region
-                    regionData = {
-                        ...(initialData as MapRegion),
+                if (mode === "pin") {
+                    const pinData: MapPin = {
+                        id: initialData.id || crypto.randomUUID(),
+                        x: initialData.x!, // x/y are required for pins
+                        y: initialData.y!,
                         ...commonData,
-                        id: initialData.id!,
+                        icon: selectedIcon,
+                        invisible: isInvisible,
                     };
-                    updatedShapes = updatedShapes.map((s) =>
-                        s.id === regionData.id ? regionData : s,
-                    );
+
+                    if (isEditing) {
+                        const index = updatedPins.findIndex(
+                            (p) => p.id === pinData.id,
+                        );
+                        if (index !== -1) updatedPins[index] = pinData;
+                    } else {
+                        updatedPins.push(pinData);
+                    }
                 } else {
-                    // New Region
-                    regionData = {
-                        id: crypto.randomUUID(),
-                        ...initialData.shapeData, // Spread geometry (type, points, radius, x, y)
-                        ...commonData,
-                    };
-                    updatedShapes.push(regionData);
+                    // Region mode
+                    let regionData: MapRegion;
+
+                    if (isEditing) {
+                        regionData = {
+                            ...(initialData as MapRegion),
+                            ...commonData,
+                            id: initialData.id!,
+                        };
+                        const index = updatedShapes.findIndex(
+                            (s) => s.id === regionData.id,
+                        );
+                        if (index !== -1) updatedShapes[index] = regionData;
+                    } else {
+                        regionData = {
+                            id: crypto.randomUUID(),
+                            ...initialData.shapeData,
+                            ...commonData,
+                        };
+                        updatedShapes.push(regionData);
+                    }
                 }
-            }
 
-            const newConfig = {
-                ...mapConfig,
-                pins: updatedPins,
-                shapes: updatedShapes,
-            };
+                return {
+                    ...currentConfig,
+                    pins: updatedPins,
+                    shapes: updatedShapes,
+                };
+            });
 
-            await writePageContent(mapPath, JSON.stringify(newConfig, null, 2));
-            registerMap(mapPath, newConfig);
             onClose();
         } catch (e) {
             console.error(e);
