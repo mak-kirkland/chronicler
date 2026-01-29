@@ -5,14 +5,13 @@
     import "leaflet/dist/leaflet.css";
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { currentView } from "$lib/viewStores";
-    import { loadedMaps, registerMap, loadMapConfig } from "$lib/mapStore";
+    import { loadedMaps, loadMapConfig, updateMapConfig } from "$lib/mapStore";
     import { getShapesAtPoint } from "$lib/mapUtils";
     import {
         imagePathLookup,
         pagePathLookup,
         mapPathLookup,
     } from "$lib/worldStore";
-    import { writePageContent } from "$lib/commands";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
     import type { PageHeader } from "$lib/bindings";
     import ErrorBox from "./ErrorBox.svelte";
@@ -1080,8 +1079,6 @@
     }
 
     function handleDeletePin(pinId: string) {
-        if (!mapConfig) return;
-        const currentConfig = mapConfig;
         contextMenu = null;
         openModal({
             component: ConfirmModal,
@@ -1091,17 +1088,12 @@
                 onClose: closeModal,
                 onConfirm: async () => {
                     try {
-                        const updatedConfig = {
+                        await updateMapConfig(data.path, (currentConfig) => ({
                             ...currentConfig,
-                            pins: currentConfig.pins.filter(
+                            pins: (currentConfig.pins || []).filter(
                                 (p) => p.id !== pinId,
                             ),
-                        };
-                        await writePageContent(
-                            data.path,
-                            JSON.stringify(updatedConfig, null, 2),
-                        );
-                        registerMap(data.path, updatedConfig);
+                        }));
                         closeModal();
                     } catch (e) {
                         alert("Failed to delete pin.");
@@ -1112,8 +1104,6 @@
     }
 
     function handleDeleteShape(shapeId: string) {
-        if (!mapConfig) return;
-        const currentConfig = mapConfig;
         contextMenu = null;
         openModal({
             component: ConfirmModal,
@@ -1123,17 +1113,12 @@
                 onClose: closeModal,
                 onConfirm: async () => {
                     try {
-                        const updatedConfig = {
+                        await updateMapConfig(data.path, (currentConfig) => ({
                             ...currentConfig,
                             shapes: (currentConfig.shapes || []).filter(
                                 (s) => s.id !== shapeId,
                             ),
-                        };
-                        await writePageContent(
-                            data.path,
-                            JSON.stringify(updatedConfig, null, 2),
-                        );
-                        registerMap(data.path, updatedConfig);
+                        }));
                         closeModal();
                     } catch (e) {
                         alert("Failed to delete region.");
