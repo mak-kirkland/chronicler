@@ -1,6 +1,6 @@
 //! File indexer that registers page relationships.
 //!
-//! Event-driven indexer that maintains an in-memory index of all pages and tags.
+//! Event-driven indexer that maintains an in-memory index of all pages, tags, and directories.
 //! The indexer processes individual file events but doesn't manage its own subscriptions.
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
         VaultAsset,
     },
     parser,
-    utils::{file_stem_string, is_image_file, is_map_file, is_markdown_file},
+    utils::{file_stem_string, is_hidden_path, is_image_file, is_map_file, is_markdown_file},
 };
 use natord::compare_ignore_case as nat_compare;
 use path_clean::PathClean;
@@ -32,7 +32,8 @@ use walkdir::WalkDir;
 #[derive(Debug, Clone, Default)]
 pub struct Indexer {
     pub root_path: Option<PathBuf>,
-    /// A unified map of all tracked assets (pages, images, etc.) in the vault, keyed by their absolute path.
+    /// A unified map of all tracked assets (pages, images, directories, etc.) in the vault,
+    /// keyed by their absolute path.
     pub assets: HashMap<PathBuf, VaultAsset>,
     pub tags: HashMap<String, HashSet<PathBuf>>,
     /// A map of files that failed to parse, storing their path and the error message.
@@ -83,6 +84,15 @@ impl Indexer {
         // Use clean() to normalize the path (remove .. and . segments) without
         // forcibly resolving symlinks. This keeps the logical path intact.
         let canonical_path = path.clean();
+
+        // Handle directories
+        if canonical_path.is_dir() {
+            return ScanResult {
+                path: canonical_path,
+                asset: Some(VaultAsset::Directory),
+                error: None,
+            };
+        }
 
         if is_markdown_file(&canonical_path) {
             match parser::parse_file(&canonical_path) {
@@ -176,18 +186,28 @@ impl Indexer {
         self.link_graph.clear();
         self.map_backlinks.clear();
 
-        // 1. Collect all file paths first.
+        // 1. Collect all paths (files AND directories) first.
         // Use a single WalkDir iterator for efficiency.
         // Configure WalkDir to follow symbolic links (`.follow_links(true)`)
         // to ensure assets linked into the vault are discovered and indexed.
+        // Use filter_entry to prevent descending into hidden directories.
         let paths: Vec<PathBuf> = WalkDir::new(root_path)
             .follow_links(true)
             .into_iter()
+            .filter_entry(|e| {
+                // Always allow the root directory (depth 0) to be scanned,
+                // even if it starts with a '.'
+                if e.depth() == 0 {
+                    return true;
+                }
+                !is_hidden_path(e.path())
+            })
             .filter_map(|e| e.ok())
             .map(|e| e.path().to_path_buf())
             .collect();
 
         // 2. Process files in PARALLEL using Rayon.
+        // Note: Directories are processed too, but they're lightweight (no I/O beyond the stat).
         let results: Vec<ScanResult> = paths
             .into_par_iter() // Parallel iterator taking ownership of paths
             .map(Self::process_path)
@@ -206,13 +226,14 @@ impl Indexer {
         // Second pass: Build relationships between pages now that all assets are indexed.
         self.rebuild_relations();
 
-        let (page_count, image_count, map_count) =
+        let (page_count, image_count, map_count, dir_count) =
             self.assets
                 .values()
-                .fold((0, 0, 0), |(p, i, m), asset| match asset {
-                    VaultAsset::Page(_) => (p + 1, i, m),
-                    VaultAsset::Image => (p, i + 1, m),
-                    VaultAsset::Map(_) => (p, i, m + 1),
+                .fold((0, 0, 0, 0), |(p, i, m, d), asset| match asset {
+                    VaultAsset::Page(_) => (p + 1, i, m, d),
+                    VaultAsset::Image => (p, i + 1, m, d),
+                    VaultAsset::Map(_) => (p, i, m + 1, d),
+                    VaultAsset::Directory => (p, i, m, d + 1),
                 });
 
         let links_found = self
@@ -226,6 +247,7 @@ impl Indexer {
             pages_indexed = page_count,
             images_indexed = image_count,
             maps_indexed = map_count,
+            directories_indexed = dir_count,
             tags_found = self.tags.len(),
             links_found,
             duration_ms = start_time.elapsed().as_millis(),
@@ -301,9 +323,7 @@ impl Indexer {
             }
             FileEvent::FolderCreated(path) => {
                 info!("Handling folder creation: {:?}", path);
-                // No action is needed on the index itself, as empty folders
-                // don't contain pages or links. The app's overall "world changed"
-                // event will trigger a UI refresh of the file tree.
+                self.add_directory(path);
             }
             FileEvent::Modified(path) => {
                 info!("Handling file modification: {:?}", path);
@@ -322,6 +342,13 @@ impl Indexer {
                 self.handle_rename(from, to);
             }
         }
+    }
+
+    /// Adds a directory to the index.
+    #[instrument(level = "debug", skip(self))]
+    fn add_directory(&mut self, path: &Path) {
+        let canonical_path = path.clean();
+        self.assets.insert(canonical_path, VaultAsset::Directory);
     }
 
     /// Updates or creates an index entry for a single file path.
@@ -384,10 +411,17 @@ impl Indexer {
                 .cloned()
                 .collect();
             for old_path in assets_to_move {
-                self.remove_file_from_index(&old_path);
+                let asset = self.assets.remove(&old_path);
                 let relative_path = old_path.strip_prefix(from).unwrap();
                 let new_path = to.join(relative_path);
-                self.update_file(&new_path);
+
+                // For directories, we can just re-insert with the new path
+                // For files, we need to re-process them to update internal path references
+                if let Some(VaultAsset::Directory) = asset {
+                    self.assets.insert(new_path, VaultAsset::Directory);
+                } else {
+                    self.update_file(&new_path);
+                }
             }
         } else {
             // --- FILE RENAME ---
@@ -409,17 +443,21 @@ impl Indexer {
 
         // --- PASS 1: Build resolver maps ---
         // This pass ensures that all potential link targets are known before we process any links.
-        for path in self.assets.keys() {
-            if is_markdown_file(path) {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    new_link_resolver.insert(stem.to_lowercase(), path.clone());
+        for (path, asset) in &self.assets {
+            match asset {
+                VaultAsset::Page(_) => {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        new_link_resolver.insert(stem.to_lowercase(), path.clone());
+                    }
                 }
-            } else if is_image_file(path) {
-                if let Some(filename) = path.file_name().and_then(|s| s.to_str()) {
-                    new_media_resolver.insert(filename.to_lowercase(), path.clone());
+                VaultAsset::Image => {
+                    if let Some(filename) = path.file_name().and_then(|s| s.to_str()) {
+                        new_media_resolver.insert(filename.to_lowercase(), path.clone());
+                    }
                 }
+                // Directories and Maps don't participate in link resolution
+                _ => {}
             }
-            // Future: else if is_audio_file(path) { ... }
         }
 
         // --- PASS 2: Build relationships using the resolvers ---
@@ -545,7 +583,11 @@ impl Indexer {
         Ok(tags)
     }
 
-    /// Generates a hierarchical file tree representation of the vault.
+    /// Generates a hierarchical file tree representation of the vault from the in-memory index.
+    ///
+    /// This method builds the tree entirely from the `assets` HashMap, avoiding any
+    /// filesystem I/O. This is significantly faster for large vaults compared to
+    /// the previous recursive directory traversal approach.
     ///
     /// # Returns
     /// `Result<FileNode>` representing the root of the file tree
@@ -555,80 +597,84 @@ impl Indexer {
             .root_path
             .as_ref()
             .ok_or(ChroniclerError::VaultNotInitialized)?;
-        let root_name = root
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
 
-        Self::build_tree_recursive(root, &root_name)
+        // Build a map of parent -> children for efficient tree construction
+        let mut children_map: HashMap<&Path, Vec<&PathBuf>> = HashMap::new();
+
+        for path in self.assets.keys() {
+            if let Some(parent) = path.parent() {
+                children_map.entry(parent).or_default().push(path);
+            }
+        }
+
+        // Recursively build the tree starting from root
+        self.build_tree_node(root, &children_map)
     }
 
-    /// Recursively builds the file tree structure.
-    #[instrument(level = "debug", skip(path, name))]
-    fn build_tree_recursive(path: &Path, name: &str) -> Result<FileNode> {
-        // Determine the file type first.
-        let file_type = if path.is_dir() {
-            FileType::Directory
-        } else if is_image_file(path) {
-            FileType::Image
-        } else {
-            // Check for map file
-            let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            if file_name.ends_with(".map.json") {
-                FileType::Map
-            } else {
-                FileType::Markdown
-            }
-        };
+    /// Recursively builds a FileNode from the indexed assets.
+    fn build_tree_node(
+        &self,
+        path: &Path,
+        children_map: &HashMap<&Path, Vec<&PathBuf>>,
+    ) -> Result<FileNode> {
+        let asset = self.assets.get(path);
 
-        let children = if file_type == FileType::Directory {
-            let mut entries = Vec::new();
-            for entry in fs::read_dir(path)? {
-                let entry = entry?;
-                let child_path = entry.path();
-                if let Some(file_name) = child_path.file_name().and_then(|n| n.to_str()) {
-                    if file_name.starts_with('.') {
-                        continue;
-                    }
-                    if child_path.is_dir()
-                        || is_markdown_file(&child_path)
-                        || is_image_file(&child_path)
-                        || file_name.ends_with(".map.json")
-                    {
-                        entries.push(Self::build_tree_recursive(&child_path, file_name)?);
-                    }
+        let file_type = match asset {
+            Some(VaultAsset::Directory) => FileType::Directory,
+            Some(VaultAsset::Page(_)) => FileType::Markdown,
+            Some(VaultAsset::Image) => FileType::Image,
+            Some(VaultAsset::Map(_)) => FileType::Map,
+            None => {
+                // This is the root directory case (root itself isn't in assets with this key)
+                // or a path that should be a directory
+                if path.is_dir() {
+                    FileType::Directory
+                } else {
+                    return Err(ChroniclerError::FileNotFound(path.to_path_buf()));
                 }
             }
-            // Sort children by:
-            // 1. Directories first (based on Ord impl)
-            // 2. Special folders (starting with '_') next
-            // 3. All other items, sorted case-insensitively
-            entries.sort_by(|a, b| {
-                a.file_type
-                    .cmp(&b.file_type) // 1. Directories
-                    .then_with(|| {
-                        // 2. Folders/files starting with '_' come first
-                        let a_is_special = a.name.starts_with('_');
-                        let b_is_special = b.name.starts_with('_');
-                        // This is a reverse-order sort. In Rust, `false` < `true`.
-                        // By comparing `b.cmp(a)`, a `false` value for `b` and a `true`
-                        // value for `a` results in `Ordering::Less`, pushing `a`
-                        // (the special file) to the top of the list.
-                        b_is_special.cmp(&a_is_special)
-                    })
-                    // 3. Then sort all names case-insensitively
-                    .then_with(|| nat_compare(&a.name, &b.name))
-            });
-            Some(entries)
-        } else {
-            None
         };
 
         let name = if file_type == FileType::Markdown {
             file_stem_string(path)
         } else {
-            name.to_string()
+            path.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string()
+        };
+
+        let children = if file_type == FileType::Directory {
+            if let Some(child_paths) = children_map.get(path) {
+                let mut child_nodes: Vec<FileNode> = child_paths
+                    .iter()
+                    .filter_map(|child_path| self.build_tree_node(child_path, children_map).ok())
+                    .collect();
+
+                // Sort children by:
+                // 1. Directories first (based on Ord impl)
+                // 2. Special folders (starting with '_') next
+                // 3. All other items, sorted case-insensitively
+                child_nodes.sort_by(|a, b| {
+                    a.file_type
+                        .cmp(&b.file_type) // 1. Directories
+                        .then_with(|| {
+                            // 2. Folders/files starting with '_' come first
+                            let a_is_special = a.name.starts_with('_');
+                            let b_is_special = b.name.starts_with('_');
+                            b_is_special.cmp(&a_is_special)
+                        })
+                        // 3. Then sort all names case-insensitively
+                        .then_with(|| nat_compare(&a.name, &b.name))
+                });
+
+                Some(child_nodes)
+            } else {
+                // Empty directory
+                Some(Vec::new())
+            }
+        } else {
+            None
         };
 
         Ok(FileNode {
