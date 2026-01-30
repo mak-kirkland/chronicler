@@ -7,7 +7,7 @@
  * 2. A per-vault settings file for workspace-specific configurations.
  */
 
-import { writable, get, derived } from "svelte/store";
+import { writable, get, derived, type Unsubscriber } from "svelte/store";
 import { LazyStore } from "@tauri-apps/plugin-store";
 import { join } from "@tauri-apps/api/path";
 import type { UserFont } from "$lib/bindings";
@@ -82,6 +82,10 @@ let vaultSettingsFile: LazyStore | null = null;
 
 const GLOBAL_SETTINGS_FILENAME = "global.settings.json";
 const VAULT_SETTINGS_FILENAME = ".chronicler.vault.json";
+
+// Keep track of unsubscribe functions to prevent memory leaks when switching vaults.
+let vaultUnsubscribers: Unsubscriber[] = [];
+let globalUnsubscribers: Unsubscriber[] = [];
 
 // Create Svelte stores to hold settings in memory for easy, reactive access.
 // We provide sensible defaults for first-time users or when no vault is loaded.
@@ -218,6 +222,10 @@ async function saveVaultSettings() {
  * This should be called once when the application initializes.
  */
 export async function loadGlobalSettings() {
+    // Cleanup any existing global listeners to avoid duplicates
+    globalUnsubscribers.forEach((unsub) => unsub());
+    globalUnsubscribers = [];
+
     // Global settings are stored in the app's data directory.
     globalSettingsFile = new LazyStore(GLOBAL_SETTINGS_FILENAME);
 
@@ -237,11 +245,12 @@ export async function loadGlobalSettings() {
         // Load the last used theme from the global settings file.
         activeTheme.set(settings.lastActiveTheme ?? "light");
     }
+
     // Enable automatic saving for global settings.
-    userThemes.subscribe(debouncedGlobalSave);
+    globalUnsubscribers.push(userThemes.subscribe(debouncedGlobalSave));
     // Also subscribe the activeTheme to the global saver. This is the key
     // to persisting the theme when it's changed.
-    activeTheme.subscribe(debouncedGlobalSave);
+    globalUnsubscribers.push(activeTheme.subscribe(debouncedGlobalSave));
 }
 
 /**
@@ -249,6 +258,11 @@ export async function loadGlobalSettings() {
  * @param vaultPath The absolute path to the user's current vault.
  */
 export async function initializeVaultSettings(vaultPath: string) {
+    // Safety: Ensure previous vault settings are destroyed before loading new ones.
+    if (vaultUnsubscribers.length > 0) {
+        destroyVaultSettings();
+    }
+
     const settingsFilePath = await join(vaultPath, VAULT_SETTINGS_FILENAME);
     vaultSettingsFile = new LazyStore(settingsFilePath);
 
@@ -277,24 +291,28 @@ export async function initializeVaultSettings(vaultPath: string) {
         saveVaultSettings();
     }
 
-    // Enable automatic saving for vault settings.
-    activeTheme.subscribe(debouncedVaultSave);
-    atmosphere.subscribe(debouncedVaultSave); // Listen to atmosphere changes
-    headingFont.subscribe(debouncedVaultSave);
-    bodyFont.subscribe(debouncedVaultSave);
-    fontSize.subscribe(debouncedVaultSave);
-    sidebarWidth.subscribe(debouncedVaultSave);
-    isTocVisible.subscribe(debouncedVaultSave);
-    areInfoboxTagsVisible.subscribe(debouncedVaultSave);
-    areFooterTagsVisible.subscribe(debouncedVaultSave);
+    // Enable automatic saving for vault settings and track the unsubscribers.
+    vaultUnsubscribers = [
+        activeTheme.subscribe(debouncedVaultSave),
+        atmosphere.subscribe(debouncedVaultSave),
+        headingFont.subscribe(debouncedVaultSave),
+        bodyFont.subscribe(debouncedVaultSave),
+        fontSize.subscribe(debouncedVaultSave),
+        sidebarWidth.subscribe(debouncedVaultSave),
+        isTocVisible.subscribe(debouncedVaultSave),
+        areInfoboxTagsVisible.subscribe(debouncedVaultSave),
+        areFooterTagsVisible.subscribe(debouncedVaultSave),
+    ];
 }
 
 /**
  * Resets vault-specific settings to their defaults when a vault is closed.
  */
 export function destroyVaultSettings() {
-    // Unsubscribe from automatic saving by replacing the stores.
-    // This is simpler than managing unsubscribe functions for this use case.
+    // Unsubscribe from all vault-specific listeners to prevent memory leaks and
+    // saves to stale file handles.
+    vaultUnsubscribers.forEach((unsub) => unsub());
+    vaultUnsubscribers = [];
 
     // Do NOT reset the theme or fonts here. By leaving the activeTheme,
     // headingFont and bodyFont stores untouched, the appearance will
