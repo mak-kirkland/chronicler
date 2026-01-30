@@ -2,6 +2,18 @@
 
 ---
 
+## [v0.43.5-alpha] - 2026-01-30
+
+### 🚀 Performance
+
+- **Indexer**: Replaced slow disk-based file tree generation with in-memory traversal. By tracking directories directly in the asset index, the system no longer needs to query the hard drive repeatedly, drastically reducing the time it takes to render your file sidebar.
+- **File Events**: Implemented "Event Coalescing" to fix performance thrashing. The app now intelligently groups rapid-fire file changes into a single update, preventing the indexer from unnecessarily deleting and recreating file records.
+- **File Events**: Added "Smart Updates" to the communication layer. The backend now tells the frontend whether a change was just to text or to the file structure itself. This allows the UI to skip expensive re-renders of the entire file tree when you are just typing in a note.
+- **File Events**: Introduced "Sliding Window Debouncing." Instead of reacting to every single tiny change, the indexer now waits for a brief quiet period before processing, ensuring your CPU isn't hammered during bulk operations like Git checkouts or mass image imports.
+- **Frontend**: Added a secondary 500ms debounce to the UI data loader. This groups multiple backend signals into a single UI refresh, reducing the "micro-freezes" previously felt during rapid file updates.
+
+---
+
 ## [v0.43.4-alpha] - 2026-01-28
 
 ### 🐞 Fixed
