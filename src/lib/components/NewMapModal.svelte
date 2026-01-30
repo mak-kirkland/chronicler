@@ -71,7 +71,7 @@
 
         isCreating = true;
         try {
-            const filename = `${name.trim()}.map.json`;
+            const filename = `${name.trim()}.cmap`;
             const filePath = await join($vaultPath, filename);
             const normalizedPath = normalizePath(filePath);
 

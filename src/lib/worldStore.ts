@@ -350,15 +350,15 @@ export const pagePathLookup = derived(files, ($files) => {
 });
 
 /**
- * Recursively flattens the file tree to find all .map.json files.
+ * Recursively flattens the file tree to find all .cmap files.
  * Returns PageHeader objects (title + path).
  */
 function flattenMapTree(node: FileNode | null): PageHeader[] {
     if (!node) return [];
     const maps: PageHeader[] = [];
-    // We manually check for the .map.json extension since we don't have an isMap helper here
-    if (node.name.endsWith(".map.json")) {
-        maps.push({ title: node.name.replace(".map.json", ""), path: node.path });
+    // We manually check for the .cmap extension since we don't have an isMap helper here
+    if (node.name.endsWith(".cmap")) {
+        maps.push({ title: node.name.replace(".cmap", ""), path: node.path });
     }
     if (node.children) {
         for (const child of node.children) {
@@ -378,7 +378,7 @@ export const allMaps = derived(files, ($files) =>
 
 /**
  * A derived store that maps map titles to their absolute paths.
- * Example: { "Kingdom": "C:/Vault/Maps/Kingdom.map.json" }
+ * Example: { "Kingdom": "C:/Vault/Maps/Kingdom.cmap" }
  */
 export const mapPathLookup = derived(allMaps, ($allMaps) => {
     const map = new Map<string, string>();

@@ -215,7 +215,7 @@ export const getImageSource = (path: string) =>
     invoke<string>("get_image_source", { path });
 
 /**
- * Reads and parses a `.map.json` file from within the vault.
+ * Reads and parses a `.cmap` file from within the vault.
  * @param path The absolute path to the map config file.
  * @returns A promise that resolves to the parsed map configuration.
  */

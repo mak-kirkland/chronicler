@@ -131,7 +131,7 @@ export interface MapScale {
 }
 
 /**
- * The root configuration structure stored in a .map.json file.
+ * The root configuration structure stored in a .cmap file.
  */
 export interface MapConfig {
     version: string;
