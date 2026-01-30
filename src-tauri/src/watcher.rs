@@ -8,7 +8,7 @@ use crate::{
     config::{DEBOUNCE_INTERVAL, DEFAULT_EVENT_CHANNEL_CAPACITY},
     error::Result,
     events::FileEvent,
-    utils::{is_image_file, is_markdown_file},
+    utils::{is_hidden_path, is_image_file, is_markdown_file},
 };
 use notify_debouncer_full::{
     new_debouncer,
@@ -141,7 +141,8 @@ impl Drop for Watcher {
 ///
 /// This function processes raw filesystem events from the debouncer, converts them
 /// to our standardized `FileEvent` format, and publishes them to subscribers.
-/// It processes both markdown and image files, ignoring temporary files.
+/// It processes markdown files, image files, and directories,
+/// ignoring temporary files and hidden paths.
 ///
 /// # Arguments
 /// * `event_sender` - The broadcast sender to publish events to
@@ -156,7 +157,7 @@ fn handle_debounced_events(
         let resolve_ambiguous_removal = |paths: &[PathBuf]| {
             paths
                 .iter()
-                .filter(|path| !is_temp_file(path))
+                .filter(|path| !is_temp_file(path) && !is_hidden_path(path))
                 .map(|path| {
                     // This is an educated guess. If a path doesn't have an extension
                     // that we track, we'll assume it was a folder.
@@ -181,6 +182,7 @@ fn handle_debounced_events(
             EventKind::Create(CreateKind::Folder) => event
                 .paths
                 .iter()
+                .filter(|path| !is_hidden_path(path))
                 .map(|path| FileEvent::FolderCreated(path.clone()))
                 .collect::<Vec<_>>(),
 
@@ -201,6 +203,7 @@ fn handle_debounced_events(
             EventKind::Remove(RemoveKind::Folder) => event
                 .paths
                 .iter()
+                .filter(|path| !is_hidden_path(path))
                 .map(|path| FileEvent::FolderDeleted(path.clone()))
                 .collect::<Vec<_>>(),
 
@@ -210,14 +213,23 @@ fn handle_debounced_events(
             EventKind::Modify(ModifyKind::Name(rename_mode)) => match rename_mode {
                 // This is a true rename within the watched directory
                 RenameMode::Both => {
-                    // Check if either the source or destination is a valid file we track
-                    if event.paths.len() == 2
-                        && (is_valid_file(&event.paths[0]) || is_valid_file(&event.paths[1]))
-                    {
-                        vec![FileEvent::Renamed {
-                            from: event.paths[0].clone(),
-                            to: event.paths[1].clone(),
-                        }]
+                    if event.paths.len() == 2 {
+                        let from = &event.paths[0];
+                        let to = &event.paths[1];
+
+                        // Check if this is a valid file or a non-hidden directory
+                        let is_valid = is_valid_file(from)
+                            || is_valid_file(to)
+                            || (to.is_dir() && !is_hidden_path(to));
+
+                        if is_valid {
+                            vec![FileEvent::Renamed {
+                                from: from.clone(),
+                                to: to.clone(),
+                            }]
+                        } else {
+                            Vec::new()
+                        }
                     } else {
                         Vec::new()
                     }
@@ -251,9 +263,9 @@ fn handle_debounced_events(
 }
 
 /// Checks if a path points to a valid file that should be processed.
-/// This ignores temporary/lock files (like .#file.md).
+/// This ignores temporary/lock files (like .#file.md) and hidden files.
 fn is_valid_file(path: &Path) -> bool {
-    !is_temp_file(path) && (is_markdown_file(path) || is_image_file(path))
+    !is_temp_file(path) && !is_hidden_path(path) && (is_markdown_file(path) || is_image_file(path))
 }
 
 /// Checks if a path points to a temporary/lock file (like .#file.md).
