@@ -43,7 +43,7 @@
 
         const timer = setTimeout(async () => {
             try {
-                // Read the .map.json file directly
+                // Read the .cmap file directly
                 const config = await getMapConfig(targetPath);
 
                 // Find the base layer image
