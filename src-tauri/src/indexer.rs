@@ -18,7 +18,7 @@ use path_clean::PathClean;
 use rayon::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
-    fs, mem,
+    fs,
     path::{Path, PathBuf},
     time::Instant,
 };
@@ -535,11 +535,11 @@ impl Indexer {
         }
 
         // Atomically swap the new state into place.
-        let _ = mem::replace(&mut self.link_resolver, new_link_resolver);
-        let _ = mem::replace(&mut self.media_resolver, new_media_resolver);
-        let _ = mem::replace(&mut self.tags, new_tags);
-        let _ = mem::replace(&mut self.link_graph, new_link_graph);
-        let _ = mem::replace(&mut self.map_backlinks, new_map_backlinks);
+        self.link_resolver = new_link_resolver;
+        self.media_resolver = new_media_resolver;
+        self.tags = new_tags;
+        self.link_graph = new_link_graph;
+        self.map_backlinks = new_map_backlinks;
     }
 
     /// Resolves a wikilink to an absolute file path using the resolver map.
