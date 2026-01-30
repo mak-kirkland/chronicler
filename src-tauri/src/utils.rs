@@ -55,3 +55,10 @@ pub fn file_stem_string(path: &Path) -> String {
         .to_string_lossy()
         .to_string()
 }
+
+/// Checks if a path is hidden (starts with '.').
+pub fn is_hidden_path(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|s| s.starts_with('.'))
+}
