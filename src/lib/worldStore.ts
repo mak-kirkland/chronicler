@@ -227,74 +227,51 @@ export const parseErrors = derived(world, ($world) => $world.parseErrors);
 export const isWorldLoaded = derived(world, ($world) => $world.isLoaded);
 
 /**
- * Recursively flattens the file tree into a simple array of file titles.
- * This is used to generate link suggestions for autocompletion.
+ * Recursively flattens the file tree into a single array of all leaf nodes.
+ * This runs once per tree update; all other derived stores filter this list.
  */
-function flattenFileTree(node: FileNode | null): string[] {
-    if (!node) return [];
-    const titles: string[] = [];
-    if (node.name && isMarkdown(node)) {
-        // Extract title from path, removing extension
-        titles.push(node.name);
-    }
-    if (node.children) {
+function flattenTree(
+    node: FileNode | null,
+    result: FileNode[] = [],
+): FileNode[] {
+    if (!node) return result;
+    if (!node.children) {
+        // Leaf node (file, not directory)
+        result.push(node);
+    } else {
         for (const child of node.children) {
-            titles.push(...flattenFileTree(child));
+            flattenTree(child, result);
         }
     }
-    return titles;
+    return result;
 }
 
 /**
- * Recursively flattens the file tree to find all image files.
- * Returns PageHeader objects.
+ * A single derived store containing all leaf nodes from the file tree.
+ * Every other lookup/list store derives from this to avoid redundant traversals.
  */
-function flattenImageTree(node: FileNode | null): PageHeader[] {
-    if (!node) return [];
-    const images: PageHeader[] = [];
-    if (node.name && isImage(node)) {
-        images.push({ title: node.name, path: node.path });
-    }
-    if (node.children) {
-        for (const child of node.children) {
-            images.push(...flattenImageTree(child));
-        }
-    }
-    return images;
-}
-
-/**
- * Recursively flattens the file tree to find all Markdown pages.
- * Returns PageHeader objects (title + path).
- */
-function flattenPageTree(node: FileNode | null): PageHeader[] {
-    if (!node) return [];
-    const pages: PageHeader[] = [];
-    if (node.name && isMarkdown(node)) {
-        pages.push({ title: node.name, path: node.path });
-    }
-    if (node.children) {
-        for (const child of node.children) {
-            pages.push(...flattenPageTree(child));
-        }
-    }
-    return pages;
-}
+const allLeafNodes = derived(files, ($files) => flattenTree($files));
 
 /**
  * A derived store that provides a flattened list of all page titles.
  * Useful for autocompletion features.
  */
-export const allFileTitles = derived(files, ($files) =>
-    flattenFileTree($files).sort((a, b) => a.localeCompare(b)),
+export const allFileTitles = derived(allLeafNodes, ($nodes) =>
+    $nodes
+        .filter((n) => isMarkdown(n))
+        .map((n) => n.name)
+        .sort((a, b) => a.localeCompare(b)),
 );
 
 /**
  * A derived store that provides a flattened list of all image objects.
  * Useful for the Gallery view and image cycling.
  */
-export const allImages = derived(files, ($files) =>
-    flattenImageTree($files).sort((a, b) => a.title.localeCompare(b.title)),
+export const allImages = derived(allLeafNodes, ($nodes) =>
+    $nodes
+        .filter((n) => isImage(n))
+        .map((n): PageHeader => ({ title: n.name, path: n.path }))
+        .sort((a, b) => a.title.localeCompare(b.title)),
 );
 
 /**
@@ -322,40 +299,30 @@ export const imagePathLookup = derived(allImages, ($allImages) => {
  * Useful for resolving pin targets or wikilinks stored by name.
  * Example: { "kingdom of aethelgard": "C:/Vault/Places/Kingdom of Aethelgard.md" }
  */
-export const pagePathLookup = derived(files, ($files) => {
+export const pagePathLookup = derived(allLeafNodes, ($nodes) => {
     const map = new Map<string, string>();
-    const pages = flattenPageTree($files);
-    for (const page of pages) {
-        map.set(page.title.toLowerCase(), page.path);
+    for (const n of $nodes) {
+        if (isMarkdown(n)) {
+            map.set(n.name.toLowerCase(), n.path);
+        }
     }
     return map;
 });
 
 /**
- * Recursively flattens the file tree to find all .cmap files.
- * Returns PageHeader objects (title + path).
- */
-function flattenMapTree(node: FileNode | null): PageHeader[] {
-    if (!node) return [];
-    const maps: PageHeader[] = [];
-    // We manually check for the .cmap extension since we don't have an isMap helper here
-    if (node.name.endsWith(".cmap")) {
-        maps.push({ title: node.name.replace(".cmap", ""), path: node.path });
-    }
-    if (node.children) {
-        for (const child of node.children) {
-            maps.push(...flattenMapTree(child));
-        }
-    }
-    return maps;
-}
-
-/**
  * A derived store that provides a flattened list of all Interactive Maps.
  * Useful for linking pins to other maps.
  */
-export const allMaps = derived(files, ($files) =>
-    flattenMapTree($files).sort((a, b) => a.title.localeCompare(b.title)),
+export const allMaps = derived(allLeafNodes, ($nodes) =>
+    $nodes
+        .filter((n) => n.name.endsWith(".cmap"))
+        .map(
+            (n): PageHeader => ({
+                title: n.name.replace(".cmap", ""),
+                path: n.path,
+            }),
+        )
+        .sort((a, b) => a.title.localeCompare(b.title)),
 );
 
 /**
