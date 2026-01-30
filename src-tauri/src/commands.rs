@@ -196,7 +196,7 @@ pub fn open_in_explorer(app_handle: AppHandle, path: String) -> Result<()> {
     Ok(())
 }
 
-/// Reads and parses a `.map.json` file from within the vault.
+/// Reads and parses a `.cmap` file from within the vault.
 #[command]
 #[instrument(skip(world))]
 pub fn get_map_config(path: String, world: State<World>) -> Result<serde_json::Value> {

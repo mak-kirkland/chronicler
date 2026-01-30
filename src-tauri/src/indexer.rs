@@ -815,7 +815,7 @@ impl Indexer {
         Ok(result)
     }
 
-    /// Reads and parses a `.map.json` file from the vault.
+    /// Reads and parses a `.cmap` file from the vault.
     ///
     /// Validates that the path exists in the file index before reading,
     /// ensuring we only serve known, valid vault assets.

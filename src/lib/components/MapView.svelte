@@ -1287,7 +1287,7 @@
 <div class="map-view-container">
     <ViewHeader>
         <div slot="left">
-            <h2 class="view-title">{data?.title.replace(".map.json", "")}</h2>
+            <h2 class="view-title">{data?.title.replace(".cmap", "")}</h2>
         </div>
         <div slot="right">
             <!-- Draw Controls -->
