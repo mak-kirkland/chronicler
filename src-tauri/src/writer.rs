@@ -75,7 +75,10 @@ fn replace_wikilink_in_content(content: &str, old_stem: &str, new_stem: &str) ->
         let target = caps.get(1).map_or("", |m| m.as_str());
         // Perform a case-insensitive comparison on the link target.
         if target.to_lowercase() == old_stem_lower {
-            let section = caps.get(2).map_or("", |m| m.as_str());
+            // Re-insert # if the section capture is present (the capture group excludes the separator).
+            let section = caps
+                .get(2)
+                .map_or(String::new(), |m| format!("#{}", m.as_str()));
 
             // Check if an alias exists.
             if let Some(alias_match) = caps.get(3) {
@@ -501,5 +504,36 @@ mod tests {
             original_content_b2, final_content_b2,
             "The second backlink's content should be unchanged."
         );
+    }
+
+    #[test]
+    fn test_replace_wikilink_preserves_sections_and_aliases() {
+        // 1. Test Section Preservation (The specific fix)
+        // expected: # separator is retained
+        let content_section = "See [[Old Page#Heading]] for details.";
+        let res_section = replace_wikilink_in_content(content_section, "Old Page", "New Page")
+            .expect("Should return Some(String) when content changes");
+        assert_eq!(res_section, "See [[New Page#Heading]] for details.");
+
+        // 2. Test Alias Preservation
+        // expected: | alias is retained
+        let content_alias = "See [[Old Page|custom label]].";
+        let res_alias = replace_wikilink_in_content(content_alias, "Old Page", "New Page")
+            .expect("Should update content");
+        assert_eq!(res_alias, "See [[New Page|custom label]].");
+
+        // 3. Test Both (Section + Alias)
+        // expected: # and | are both retained in the correct order
+        let content_both = "See [[Old Page#Heading|custom label]].";
+        let res_both = replace_wikilink_in_content(content_both, "Old Page", "New Page")
+            .expect("Should update content");
+        assert_eq!(res_both, "See [[New Page#Heading|custom label]].");
+
+        // 4. Test Case Insensitivity
+        // expected: Target matches despite casing, but replaced with New Stem (cased)
+        let content_case = "See [[old page#Heading]].";
+        let res_case = replace_wikilink_in_content(content_case, "Old Page", "New Page")
+            .expect("Should update content");
+        assert_eq!(res_case, "See [[New Page#Heading]].");
     }
 }
