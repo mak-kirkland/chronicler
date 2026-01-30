@@ -40,6 +40,9 @@ pub struct MapConfig {
 /// It can be easily extended with new variants like `Audio` in the future.
 #[derive(Debug, Clone)]
 pub enum VaultAsset {
+    /// A directory in the vault. Stored to enable building the file tree
+    /// entirely from the in-memory index without filesystem I/O.
+    Directory,
     /// A Markdown page with all its parsed metadata.
     /// The `Page` is boxed to prevent the enum from becoming too large,
     /// which would make smaller variants like `Image` inefficient to store.
