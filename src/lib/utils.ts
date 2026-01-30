@@ -410,3 +410,26 @@ export function calculatePopupPosition(
         maxHeight: maxAvailableHeight,
     };
 }
+
+/**
+ * A simple debounce function to prevent "machine-gun" calls.
+ * It ensures the function is only called once after the 'wait' period has elapsed
+ * since the last time it was invoked.
+ *
+ * @param func The function to debounce.
+ * @param wait The wait time in milliseconds.
+ */
+export function debounce<T extends (...args: any[]) => any>(
+    func: T,
+    wait: number,
+): (...args: Parameters<T>) => void {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    return (...args: Parameters<T>) => {
+        if (timeout !== null) {
+            clearTimeout(timeout);
+        }
+        timeout = setTimeout(() => {
+            func(...args);
+        }, wait);
+    };
+}

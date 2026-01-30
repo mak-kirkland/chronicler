@@ -11,7 +11,7 @@ import { writable, get, derived, type Unsubscriber } from "svelte/store";
 import { LazyStore } from "@tauri-apps/plugin-store";
 import { join } from "@tauri-apps/api/path";
 import type { UserFont } from "$lib/bindings";
-import { isColorDark } from "$lib/utils";
+import { isColorDark, debounce } from "$lib/utils";
 import { SIDEBAR_INITIAL_WIDTH } from "$lib/config";
 import {
     BUILT_IN_THEME_FONTS,
@@ -420,21 +420,6 @@ export function forceThemeRefresh() {
 }
 
 // --- Automatic Persistence ---
-
-/**
- * A helper function to prevent rapid, successive writes to disk.
- * @param func The function to call after the delay.
- * @param delay The wait time in milliseconds.
- */
-function debounce(func: () => Promise<void>, delay: number) {
-    let timeout: ReturnType<typeof setTimeout>;
-    return () => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-            func();
-        }, delay);
-    };
-}
 
 // Create two separate debounced savers for the two settings files.
 const debouncedGlobalSave = debounce(saveGlobalSettings, 500);
