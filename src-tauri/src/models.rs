@@ -49,7 +49,7 @@ pub enum VaultAsset {
     Page(Box<Page>),
     /// An image file. For now, we only need to know it exists; its path is the key.
     Image,
-    /// An interactive map configuration file (.map.json).
+    /// An interactive map configuration file (.cmap).
     /// Stores the parsed config to allow backlink calculations.
     Map(Box<MapConfig>),
 }
@@ -118,7 +118,7 @@ pub enum FileType {
     Markdown,
     /// A supported image file (e.g., `.png`, `.jpg`).
     Image,
-    /// An interactive map configuration (`.map.json`).
+    /// An interactive map configuration (`.cmap`).
     Map,
 }
 

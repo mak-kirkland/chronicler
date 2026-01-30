@@ -53,13 +53,13 @@ export function isMap(node: FileNode): boolean {
 
 /**
  * Returns the formatted display name for a file node.
- * This handles stripping specific extensions (like .map.json) for UI presentation.
+ * This handles stripping specific extensions (like .cmap) for UI presentation.
  * @param node The FileNode to process.
  * @returns The cleaned name string.
  */
 export function getDisplayName(node: FileNode): string {
     if (isMap(node)) {
-        return node.name.replace(".map.json", "");
+        return node.name.replace(".cmap", "");
     }
     return node.name;
 }
@@ -87,10 +87,10 @@ export function isImageFile(path: string): boolean {
 /**
  * Checks if a given path string points to a Map file.
  * @param path The file path or filename string.
- * @returns True if the path ends with .map.json
+ * @returns True if the path ends with .cmap
  */
 export function isMapFile(path: string): boolean {
-    return path.toLowerCase().endsWith(".map.json");
+    return path.toLowerCase().endsWith(".cmap");
 }
 
 /**
@@ -138,9 +138,9 @@ export function fileStemString(path: string): string {
     const fileName = path.split(/[\\/]/).pop() || "";
 
     // 1. Handle Map Files
-    // Check this first to handle the double extension ".map.json"
-    if (fileName.toLowerCase().endsWith(".map.json")) {
-        return fileName.slice(0, -9); // Remove ".map.json"
+    // Check this first to handle the double extension ".cmap"
+    if (fileName.toLowerCase().endsWith(".cmap")) {
+        return fileName.slice(0, -5); // Remove ".cmap"
     }
 
     // 2. Handle Markdown (Case-insensitive)
