@@ -106,6 +106,11 @@ function createNavigationStore() {
         }
     }
 
+    function reset() {
+        history.set([{ type: "welcome" }]);
+        currentIndex.set(0);
+    }
+
     const canGoBack = derived(
         currentIndex,
         ($currentIndex) => $currentIndex > 0,
@@ -127,6 +132,7 @@ function createNavigationStore() {
         ).subscribe,
         back,
         forward,
+        reset,
     };
 }
 
@@ -137,8 +143,8 @@ export const navigation = createNavigationStore();
  * This is useful when changing vaults.
  */
 export function resetAllStores() {
-    // Resetting the view will also reset the navigation history
     currentView.set({ type: "welcome" });
+    navigation.reset();
     fileViewMode.set("preview");
     rightSidebar.set(initialRightSidebarState);
 }
