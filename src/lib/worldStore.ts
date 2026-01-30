@@ -22,7 +22,7 @@ import {
     getAllParseErrors,
     getAllBrokenImages,
 } from "./commands";
-import { isMarkdown, isImage } from "./utils";
+import { isMarkdown, isImage, debounce } from "./utils";
 import { WORLD_UPDATE_DEBOUNCE_MS } from "./config";
 import type {
     FileNode,
@@ -60,26 +60,6 @@ const initialState: WorldState = {
 };
 
 /**
- * A simple debounce function to prevent "machine-gun" updates.
- * It ensures the function is only called once after the 'wait' period has elapsed
- * since the last time it was invoked.
- */
-function debounce<T extends (...args: any[]) => void>(
-    func: T,
-    wait: number,
-): (...args: Parameters<T>) => void {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    return (...args: Parameters<T>) => {
-        if (timeout !== null) {
-            clearTimeout(timeout);
-        }
-        timeout = setTimeout(() => {
-            func(...args);
-        }, wait);
-    };
-}
-
-/**
  * A factory function to create a managed store for the application's "world" data.
  * This encapsulates asynchronous loading, error handling, and real-time updates.
  */
@@ -106,15 +86,14 @@ function createWorldStore() {
             ] as const;
 
             // Conditionally fetch the heavy file tree
-            const treePromise = fetchTree ? getFileTree() : Promise.resolve(null);
+            const treePromise = fetchTree
+                ? getFileTree()
+                : Promise.resolve(null);
 
             const [
                 [tags, vaultPath, brokenLinks, brokenImages, parseErrors],
                 files,
-            ] = await Promise.all([
-                Promise.all(metadataPromises),
-                treePromise,
-            ]);
+            ] = await Promise.all([Promise.all(metadataPromises), treePromise]);
 
             update((s) => {
                 const newState: WorldState = {
@@ -169,21 +148,24 @@ function createWorldStore() {
             // Initial load MUST fetch the tree
             await loadData(true);
 
-            unlisten = await listen<IndexUpdatePayload>("index-updated", (event) => {
-                // Accumulate the structure change flag.
-                // If ANY event in the debounce window has structure_changed=true,
-                // we must reload the tree.
-                if (event.payload.structure_changed) {
-                    pendingStructureUpdate = true;
-                }
+            unlisten = await listen<IndexUpdatePayload>(
+                "index-updated",
+                (event) => {
+                    // Accumulate the structure change flag.
+                    // If ANY event in the debounce window has structure_changed=true,
+                    // we must reload the tree.
+                    if (event.payload.structure_changed) {
+                        pendingStructureUpdate = true;
+                    }
 
-                console.log(
-                    `Index update received (structure_changed=${event.payload.structure_changed}), scheduling refresh...`,
-                );
-                // When an event comes in, we don't load immediately.
-                // We wait to see if another event comes in right after.
-                debouncedLoadData();
-            });
+                    console.log(
+                        `Index update received (structure_changed=${event.payload.structure_changed}), scheduling refresh...`,
+                    );
+                    // When an event comes in, we don't load immediately.
+                    // We wait to see if another event comes in right after.
+                    debouncedLoadData();
+                },
+            );
         },
         /**
          * Resets the store to its initial state and cleans up any active listeners.
