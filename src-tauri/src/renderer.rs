@@ -347,9 +347,13 @@ impl Renderer {
                 let encoded_path_str = &caps[1];
                 let other_attrs = &caps[2];
 
-                // If the path is already an external URL, leave it alone.
+                // If the path is already an external URL or asset protocol URL, leave it alone.
+                // The asset:// check prevents double-processing when images inside
+                // {{insert: ...}} transclusions are already resolved.
                 if encoded_path_str.starts_with("http://")
                     || encoded_path_str.starts_with("https://")
+                    || encoded_path_str.starts_with("asset://")
+                    || encoded_path_str.starts_with("data:")
                 {
                     // Reconstruct the original tag and do nothing else.
                     return format!(r#"<img src="{}"{}>"#, encoded_path_str, other_attrs);
