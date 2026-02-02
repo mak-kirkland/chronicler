@@ -490,6 +490,18 @@ impl Indexer {
                                 .insert(path.clone());
                         }
                     }
+
+                    // Track insert transclusions as backlinks so renames propagate to them
+                    for insert_target in &page.inserts {
+                        if let Some(target_path) =
+                            new_link_resolver.get(&insert_target.to_lowercase())
+                        {
+                            new_backlinks
+                                .entry(target_path.clone())
+                                .or_default()
+                                .insert(path.clone());
+                        }
+                    }
                 }
                 VaultAsset::Map(config) => {
                     // Index map pins linking to pages
