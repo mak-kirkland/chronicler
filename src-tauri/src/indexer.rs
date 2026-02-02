@@ -917,7 +917,7 @@ No outgoing links here.
         indexer.scan_vault(root).unwrap();
 
         // Test asset counts
-        assert_eq!(indexer.assets.len(), 4);
+        assert_eq!(indexer.assets.len(), 5);
         let page_count = indexer
             .assets
             .values()
