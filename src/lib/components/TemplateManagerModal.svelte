@@ -29,7 +29,7 @@
 
     // --- Constants ---
     const DEFAULT_TEMPLATE_CONTENT =
-        '---\ntitle: "{{title}}"\ntags: []\n---\n\n';
+        '---\ntags: []\n---\n\n';
 
     // --- Derived State ---
     const fullTemplatePath = $derived(
