@@ -137,22 +137,18 @@ impl Writer {
             return Err(ChroniclerError::FileAlreadyExists(path));
         }
 
-        let title = file_stem_string(&path);
-
         // Use the template content if provided, otherwise use the default.
-        let final_content = match template_content {
-            Some(content) => content.replace("{{title}}", &title),
-            None => format!(
-                r#"---
-title: {title}
+        let final_content = template_content.unwrap_or_else(|| {
+            r#"---
 tags: [add, your, tags]
 ---
 
 "#
-            ),
-        };
+            .to_string()
+        });
 
         atomic_write(&path, &final_content)?;
+        let title = file_stem_string(&path);
         Ok(PageHeader { title, path })
     }
 
