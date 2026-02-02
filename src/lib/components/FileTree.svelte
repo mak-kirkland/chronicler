@@ -145,6 +145,7 @@
         gap: 0.5rem;
         user-select: none;
         justify-content: space-between;
+        position: relative; /* Essential for absolute positioning of children */
         /* Add a transition for smoother visual feedback */
         transition:
             background-color 0.2s ease-in-out,
@@ -156,7 +157,6 @@
         background-color: var(--color-background-secondary);
         /* Ensure hovered items stack on top of siblings to prevent
            dropdowns/effects from being clipped or overlapped */
-        position: relative;
         z-index: 10;
     }
     .file.active {
@@ -193,25 +193,44 @@
        file and folder names can grow and wrap correctly. */
     .node-name-text {
         flex-grow: 1; /* Allows the span to fill the available space */
+        min-width: 0; /* Important for flex child to shrink properly if needed */
     }
     .file .node-name-text {
         /* Remove text-align right to align nicely with the icon on the left */
         text-align: left;
     }
+
     .quick-actions {
+        /* Layout: Absolute position to avoid shifting sibling content */
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+
+        /* Spacing & Sizing */
         display: flex;
         align-items: center;
-        flex-shrink: 0;
+        padding-right: 0.6rem; /* Matches parent .directory padding */
+        padding-left: 2rem; /* Space for the gradient fade */
+
+        /* Visuals: Gradient matches hover background to overlay text smoothly */
+        background: linear-gradient(
+            to right,
+            transparent,
+            var(--color-background-secondary) 30%
+        );
+        border-top-right-radius: 4px; /* Match directory radius */
+        border-bottom-right-radius: 4px;
+
+        /* Interaction & Transition */
         opacity: 0;
-        max-width: 0;
-        overflow: hidden; /* Ensures content doesn't spill out during transition */
+        pointer-events: none; /* Pass clicks through when hidden */
+        transition: opacity 0.2s ease-in-out;
     }
+
     .directory:hover .quick-actions {
         opacity: 1;
-        max-width: 100px; /* A value large enough for the buttons */
-        /* Allow overflow on hover so that button effects (glows, transforms)
-           aren't clipped by the container bounds. */
-        overflow: visible;
+        pointer-events: auto;
     }
 
     /* Use :global() to override the styles of the child Button component */
