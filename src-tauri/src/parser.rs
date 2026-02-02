@@ -6,8 +6,10 @@ use crate::config::MAX_FILE_SIZE;
 use crate::error::{ChroniclerError, Result};
 use crate::models::{Link, Page};
 use crate::wikilink::extract_wikilinks;
+use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
+use std::sync::LazyLock;
 use std::path::Path;
 use tracing::instrument;
 
@@ -46,12 +48,16 @@ pub fn parse_file(path: &Path) -> Result<Page> {
     // Extract images and clean up links
     let images = extract_images_and_clean_links(&content, &frontmatter, &mut links);
 
+    // Extract insert targets
+    let inserts = extract_inserts(&content);
+
     Ok(Page {
         path: path.to_path_buf(),
         title,
         tags,
         links,
         images,
+        inserts,
         backlinks: HashSet::new(),
         frontmatter,
     })
@@ -147,6 +153,31 @@ fn extract_title(frontmatter: &serde_json::Value, path: &Path) -> String {
                 .to_string_lossy()
                 .to_string()
         })
+}
+
+/// Regex for extracting the page name from `{{insert: Page Name | ...}}` syntax.
+static INSERT_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?x)
+        \{\{\s*insert:\s*
+        (?P<path>.*?\S)
+        \s*
+        (?:(?:\|.*?)?)
+        \s*\}\}
+        "#,
+    )
+    .unwrap()
+});
+
+/// Extracts page names referenced via `{{insert: Page Name}}` transclusion syntax.
+fn extract_inserts(content: &str) -> Vec<String> {
+    INSERT_RE
+        .captures_iter(content)
+        .filter_map(|cap| {
+            cap.name("path")
+                .map(|m| m.as_str().trim().to_string())
+        })
+        .collect()
 }
 
 /// Scans the content for image references and removes image-like targets from the links list.
@@ -443,5 +474,36 @@ Here is a normal link to a page: [[Another Page]]
         assert_eq!(fm, "key: value\r\nlist:\r\n  - item");
         // Should preserve the blank line before the header (first \r\n consumed by parser, second remains)
         assert_eq!(bd, "\r\n# Body");
+    }
+
+    #[test]
+    fn test_extract_inserts() {
+        let content = r#"---
+title: Test
+---
+Some text with {{insert: Count Viscar}} and {{insert: Kingdom | hidden}} here.
+Also a normal [[wikilink]] and {{insert: Third Page | title="Custom"}}.
+"#;
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_inserts.md");
+        fs::write(&file_path, content).unwrap();
+
+        let page = parse_file(&file_path).unwrap();
+
+        assert_eq!(page.inserts.len(), 3);
+        assert_eq!(page.inserts[0], "Count Viscar");
+        assert_eq!(page.inserts[1], "Kingdom");
+        assert_eq!(page.inserts[2], "Third Page");
+    }
+
+    #[test]
+    fn test_extract_inserts_empty() {
+        let content = "---\ntitle: Test\n---\nNo inserts here, just [[links]].\n";
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("no_inserts.md");
+        fs::write(&file_path, content).unwrap();
+
+        let page = parse_file(&file_path).unwrap();
+        assert!(page.inserts.is_empty());
     }
 }
