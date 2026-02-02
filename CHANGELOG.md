@@ -2,6 +2,18 @@
 
 ---
 
+## [v0.43.6-alpha] - 2026-02-02
+
+### 🔄 Changed
+
+- **Images**: Unified the image source resolution logic into a single utility. This centralizes how images are fetched via the Asset Protocol or IPC Base64, ensuring consistent loading behavior across the Gallery, Image Viewer, and Note Previews.
+
+### 🐞 Fixed
+
+- **File Tree**: Refactored the folder hover behavior to prevent layout shifts. Quick action buttons (like rename and delete) now use absolute positioning, ensuring that long file names don't "jump" or resize when you hover over them.
+
+---
+
 ## [v0.43.5-alpha] - 2026-01-30
 
 ### 🚀 Performance
