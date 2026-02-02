@@ -97,6 +97,9 @@ pub struct Page {
     /// A list of images embedded in this page (e.g., `![[img.png]]`, `![alt](img.png)`).
     /// Stores the raw target string (filename or path).
     pub images: Vec<String>,
+    /// A list of page names referenced via `{{insert: Page Name}}` transclusion syntax.
+    /// Used for backlink tracking and rename propagation.
+    pub inserts: Vec<String>,
     /// A set of all incoming links (backlinks) from other pages.
     /// This is calculated by the Indexer, not read from the file itself.
     pub backlinks: HashSet<PathBuf>,

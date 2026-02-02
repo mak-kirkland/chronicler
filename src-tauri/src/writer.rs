@@ -10,7 +10,8 @@ use crate::{
     utils::{file_stem_string, is_markdown_file},
     wikilink::WIKILINK_RE,
 };
-use regex::Captures;
+use regex::{Captures, Regex};
+use std::sync::LazyLock;
 use std::{
     collections::HashSet,
     fs,
@@ -95,6 +96,46 @@ fn replace_wikilink_in_content(content: &str, old_stem: &str, new_stem: &str) ->
     });
 
     // Only return the new content if it has actually changed.
+    if new_content != content {
+        Some(new_content.into_owned())
+    } else {
+        None
+    }
+}
+
+/// Regex for matching `{{insert: Page Name | attrs}}` syntax, capturing the page name.
+static INSERT_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?x)
+        \{\{\s*insert:\s*
+        (?P<path>.*?\S)
+        (?P<rest>\s*(?:\|.*?)?)
+        \s*\}\}
+        "#,
+    )
+    .unwrap()
+});
+
+/// Replaces all instances of a given insert target within a string.
+///
+/// Preserves any attributes (title, hidden, etc.) after the page name.
+///
+/// # Returns
+/// - `Some(String)` if the content was changed.
+/// - `None` if no inserts needed to be updated.
+fn replace_insert_in_content(content: &str, old_stem: &str, new_stem: &str) -> Option<String> {
+    let old_stem_lower = old_stem.to_lowercase();
+
+    let new_content = INSERT_RE.replace_all(content, |caps: &Captures| {
+        let path = caps.name("path").map_or("", |m| m.as_str());
+        if path.trim().to_lowercase() == old_stem_lower {
+            let rest = caps.name("rest").map_or("", |m| m.as_str());
+            format!("{{{{insert: {new_stem}{rest}}}}}")
+        } else {
+            caps.get(0).unwrap().as_str().to_string()
+        }
+    });
+
     if new_content != content {
         Some(new_content.into_owned())
     } else {
@@ -302,9 +343,14 @@ tags: [add, your, tags]
                 }
             };
 
-            if let Some(new_content) =
-                replace_wikilink_in_content(&old_content, &old_name_stem, &new_name_stem)
-            {
+            // Apply both wikilink and insert replacements
+            let after_wikilinks =
+                replace_wikilink_in_content(&old_content, &old_name_stem, &new_name_stem);
+            let base = after_wikilinks.as_deref().unwrap_or(&old_content);
+            let after_inserts = replace_insert_in_content(base, &old_name_stem, &new_name_stem);
+
+            // If either replacement changed the content, record the update
+            if let Some(new_content) = after_inserts.or(after_wikilinks) {
                 updates.push(BacklinkUpdate {
                     path: backlink_path.clone(),
                     old_content,
@@ -446,6 +492,66 @@ mod tests {
         let page2_content = fs::read_to_string(&page2_path).unwrap();
         assert!(page2_content.contains("[[First Chapter]]"));
         assert!(!page2_content.contains("[[Page One]]"));
+    }
+
+    #[test]
+    fn test_replace_insert_in_content_basic() {
+        let content = "Some text\n{{insert: Old Page}}\nmore text";
+        let result = replace_insert_in_content(content, "Old Page", "New Page");
+        assert_eq!(result.unwrap(), "Some text\n{{insert: New Page}}\nmore text");
+    }
+
+    #[test]
+    fn test_replace_insert_in_content_with_attrs() {
+        let content = r#"{{insert: Old Page | title="Custom" | hidden}}"#;
+        let result = replace_insert_in_content(content, "Old Page", "New Page");
+        assert_eq!(
+            result.unwrap(),
+            r#"{{insert: New Page | title="Custom" | hidden}}"#
+        );
+    }
+
+    #[test]
+    fn test_replace_insert_in_content_case_insensitive() {
+        let content = "{{insert: old page}}";
+        let result = replace_insert_in_content(content, "Old Page", "New Page");
+        assert_eq!(result.unwrap(), "{{insert: New Page}}");
+    }
+
+    #[test]
+    fn test_replace_insert_in_content_no_match() {
+        let content = "{{insert: Other Page}}";
+        let result = replace_insert_in_content(content, "Old Page", "New Page");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_rename_path_updates_inserts() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+
+        let page1_path = root.join("Page One.md");
+        fs::write(&page1_path, "content").unwrap();
+
+        let page2_path = root.join("Page Two.md");
+        fs::write(
+            &page2_path,
+            "Links: [[Page One]]\nInserts: {{insert: Page One | hidden}}",
+        )
+        .unwrap();
+
+        let writer = Writer::new();
+        let backlinks = HashSet::from([page2_path.clone()]);
+        let new_path = writer
+            .rename_path(&page1_path, "First Chapter", &backlinks)
+            .unwrap();
+
+        assert_eq!(new_path, root.join("First Chapter.md"));
+
+        let page2_content = fs::read_to_string(&page2_path).unwrap();
+        assert!(page2_content.contains("[[First Chapter]]"));
+        assert!(page2_content.contains("{{insert: First Chapter | hidden}}"));
+        assert!(!page2_content.contains("Page One"));
     }
 
     #[test]
