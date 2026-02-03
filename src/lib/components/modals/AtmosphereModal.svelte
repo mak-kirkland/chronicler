@@ -41,8 +41,8 @@
         { key: "typography", label: "Typography" },
         { key: "borders", label: "Borders" },
         { key: "frames", label: "Image Frames" },
-        { key: "cursors", label: "Cursors" },
         { key: "uiElements", label: "UI Elements" },
+        // { key: "cursors", label: "Cursors" },
         // { key: "clickEffects", label: "Click & Type Effects" },
         // { key: "soundscape", label: "Ambience" }, // Uncomment when implemented
     ];
