@@ -43,7 +43,7 @@
 /* DARK MODE: The Eldritch Vault (Etched Stone) */
 .app-shell[data-texture="fantasy-pack"][data-mode="dark"]
     .chronicler-preview::before {
-    background-image: url("./assets/slate.jpg");
+    background-image: url("./assets/slate.webp");
     opacity: var(--texture-opacity, 0.3);
 }
 
