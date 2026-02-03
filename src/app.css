@@ -25,6 +25,7 @@
     --color-text-heading: var(--color-text-secondary);
     --color-border-primary: #d3c7b3;
     --color-accent-primary: var(--color-text-secondary);
+    --color-icons: var(--color-accent-primary);
 
     /* Semantic Colors */
     --color-text-link: #2563eb;

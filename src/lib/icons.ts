@@ -1,11 +1,16 @@
 /**
  * @file Defines the SVG icon packs available in the application.
  * Each pack contains the SVG paths for standard UI elements like folders and files.
+ *
+ * Icon pack types:
+ * - "img": External SVG files loaded via <img> tags with CSS filter for coloring
+ * - "svg": Inline SVG paths rendered directly in the component
+ * - "text": Text/emoji-based icons
  */
 
 export interface IconPack {
     // Helper flag to tell the component how to render
-    type: "svg" | "text";
+    type: "img" | "svg" | "text";
     // The dictionary of icon paths/strings
     icons: {
         // File System
@@ -50,8 +55,52 @@ export interface IconPack {
 
 export type IconType = keyof IconPack["icons"];
 
-// The DEFAULT pack (Text-based)
+// The DEFAULT pack - SVG image files from /static/icons/default/
 export const coreIcons: IconPack = {
+    type: "img",
+    icons: {
+        // File System
+        folder: "/icons/default/Icons_Folder.svg",
+        folderOpen: "/icons/default/Icons_FolderOpen.svg",
+        file: "/icons/default/Icons_File.svg",
+        image: "/icons/default/Icons_Image.svg",
+        map: "/icons/default/Icons_Map.svg",
+        globe: "/icons/default/Icons_Globe.svg",
+
+        // Navigation & Sidebar
+        tags: "/icons/default/Icons_Tags.svg",
+        gallery: "/icons/default/Icons_Gallery.svg",
+        reports: "/icons/default/Icons_Reports.svg",
+        back: "/icons/default/Icons_Back.svg",
+        forward: "/icons/default/Icons_Forward.svg",
+        settings: "/icons/default/Icons_Settings.svg",
+        help: "/icons/default/Icons_Help.svg",
+        info: "/icons/default/Icons_Info.svg",
+
+        // View Actions
+        edit: "/icons/default/Icons_Edit.svg",
+        preview: "/icons/default/Icons_Preview.svg",
+        split: "/icons/default/Icons_Split.svg",
+        contents: "/icons/default/Icons_Contents.svg",
+        backlinks: "/icons/default/Icons_Backlinks.svg",
+
+        // UI Controls
+        close: "/icons/default/Icons_Close.svg",
+        newFile: "/icons/default/Icons_NewFile.svg",
+        newFolder: "/icons/default/Icons_NewFolder.svg",
+
+        // Fallbacks: Use text for items missing from the file list
+        bold: "B",
+        italic: "I",
+        strikethrough: "S",
+        heading1: "H1",
+        heading2: "H2",
+        heading3: "H3",
+    },
+};
+
+// Legacy pack - Text/emoji-based icons (original default)
+export const legacyIcons: IconPack = {
     type: "text",
     icons: {
         folder: "📁",
@@ -353,7 +402,8 @@ export const sciFiIcons: IconPack = {
 // Registry of icon sets
 export const iconPacks: Record<string, IconPack> = {
     core: coreIcons,
-    // "professional-pack": professionalIcons,
+    legacy: legacyIcons,
     "fantasy-pack": fantasyIcons,
+    // "professional-pack": professionalIcons,
     // "scifi-pack": sciFiIcons,
 };

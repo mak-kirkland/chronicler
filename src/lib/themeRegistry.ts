@@ -16,6 +16,7 @@ export const UI_PALETTE_KEYS = [
     "--color-text-secondary",
     "--color-border-primary",
     "--color-accent-primary",
+    "--color-icons",
     "--color-text-link",
     "--color-text-link-broken",
     "--color-text-error",

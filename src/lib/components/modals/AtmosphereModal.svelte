@@ -2,6 +2,7 @@
     import { atmosphere, type AtmosphereSettings } from "$lib/settingsStore";
     import { licenseStore } from "$lib/licenseStore";
     import { atmospheres } from "$lib/atmospheres";
+    import { iconPacks } from "$lib/icons";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { DONATE_URL } from "$lib/config";
     import Modal from "$lib/components/modals/Modal.svelte";
@@ -9,8 +10,22 @@
 
     let { onClose } = $props<{ onClose: () => void }>();
 
-    // Define the available packs based on atmospheres registry
+    // Define the available atmosphere packs
     const packs = Object.values(atmospheres);
+
+    // Define available icon packs (includes free options like "legacy")
+    const availableIconPacks = Object.entries(iconPacks).map(([id, pack]) => ({
+        id,
+        name:
+            id === "core"
+                ? "Standard"
+                : id === "legacy"
+                  ? "Legacy (Emoji)"
+                  : id === "fantasy-pack"
+                    ? "High Fantasy"
+                    : id,
+        pack,
+    }));
 
     // Define a strict module key type that EXCLUDES 'textureOpacity' (which is a number)
     type AtmosphereStringKey = Exclude<
@@ -19,8 +34,8 @@
     >;
 
     // Define the modules we can configure for the fine-tuning section
+    // Icons is handled separately since it has more options
     const modules: { key: AtmosphereStringKey; label: string }[] = [
-        { key: "icons", label: "Icons" },
         { key: "buttons", label: "Buttons" },
         { key: "textures", label: "Textures" },
         { key: "typography", label: "Typography" },
@@ -39,9 +54,24 @@
         );
     }
 
+    // Check if an icon pack is available (free packs like "legacy" are always available)
+    function isIconPackAvailable(packId: string): boolean {
+        // "core" and "legacy" are always free
+        if (packId === "core" || packId === "legacy") {
+            return true;
+        }
+        // Other packs require ownership
+        return ($licenseStore.license?.entitlements || []).includes(packId);
+    }
+
     // Checks if a specific pack is currently fully active across all modules
     function isPackActive(packId: string): boolean {
-        return modules.every((mod) => $atmosphere[mod.key] === packId);
+        // Check icons separately since it can have different values
+        const iconsMatch = $atmosphere.icons === packId;
+        const modulesMatch = modules.every(
+            (mod) => $atmosphere[mod.key] === packId,
+        );
+        return iconsMatch && modulesMatch;
     }
 
     // Quick Apply: Sets ALL modules to a specific pack
@@ -50,11 +80,20 @@
 
         atmosphere.update((current) => {
             const newSettings = { ...current };
+            newSettings.icons = packId;
             for (const mod of modules) {
                 newSettings[mod.key] = packId;
             }
             return newSettings;
         });
+    }
+
+    // Update icons specifically
+    function updateIcons(packId: string) {
+        atmosphere.update((current) => ({
+            ...current,
+            icons: packId,
+        }));
     }
 
     // Granular Update: Sets a single module
@@ -121,6 +160,22 @@
                                 <svg viewBox="0 0 24 24" class="preview-icon">
                                     {@html pack.iconSet.icons.settings}
                                 </svg>
+                            {:else if pack.iconSet.type === "img"}
+                                <span
+                                    class="preview-img-icon"
+                                    style="--icon-url: url('{pack.iconSet.icons
+                                        .folder}')"
+                                ></span>
+                                <span
+                                    class="preview-img-icon"
+                                    style="--icon-url: url('{pack.iconSet.icons
+                                        .file}')"
+                                ></span>
+                                <span
+                                    class="preview-img-icon"
+                                    style="--icon-url: url('{pack.iconSet.icons
+                                        .settings}')"
+                                ></span>
                             {:else}
                                 <span class="preview-text-icon"
                                     >{pack.iconSet.icons.folder}</span
@@ -186,6 +241,32 @@
             </div>
 
             <div class="mixer-grid">
+                <!-- Icons dropdown with all icon packs (including free legacy) -->
+                <div class="mixer-row">
+                    <label for="select-icons">Icons</label>
+                    <div class="select-wrapper">
+                        <select
+                            id="select-icons"
+                            class="dropdown-select"
+                            value={$atmosphere.icons}
+                            onchange={(e) => updateIcons(e.currentTarget.value)}
+                        >
+                            {#each availableIconPacks as iconPack}
+                                <option
+                                    value={iconPack.id}
+                                    disabled={!isIconPackAvailable(iconPack.id)}
+                                >
+                                    {iconPack.name}
+                                    {!isIconPackAvailable(iconPack.id)
+                                        ? " (Locked)"
+                                        : ""}
+                                </option>
+                            {/each}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Other modules use atmosphere packs only -->
                 {#each modules as mod}
                     <div class="mixer-row">
                         <label for="select-{mod.key}">{mod.label}</label>
@@ -322,6 +403,21 @@
         height: 32px;
         fill: currentColor;
         color: var(--color-text-primary);
+    }
+
+    .preview-img-icon {
+        width: 32px;
+        height: 32px;
+        display: inline-block;
+        -webkit-mask-image: var(--icon-url);
+        mask-image: var(--icon-url);
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: var(--color-accent-primary);
     }
 
     .preview-text-icon {
