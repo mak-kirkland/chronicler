@@ -10,6 +10,19 @@
    applying the texture here ensures it scrolls with the content and never cuts off.
 */
 
+/*
+   Use display: flow-root to establish a block formatting context.
+   This ensures the container properly contains floated children (like the infobox)
+   without needing an explicit clearfix or footer element.
+*/
+.app-shell[data-texture="fantasy-pack"] .chronicler-preview {
+    position: relative;
+    min-height: 100%;
+    /* This creates a new block formatting context, making the container
+       expand to fully contain floated elements like the infobox */
+    display: flow-root;
+}
+
 /* Base Texture Application */
 .app-shell[data-texture="fantasy-pack"] .chronicler-preview::before {
     content: "";
@@ -21,10 +34,6 @@
     pointer-events: none;
     z-index: 0; /* Sits below the content */
     border-radius: inherit;
-
-    /* Ensure height explicitly fills the container */
-    height: 100%;
-    width: 100%;
 }
 
 /* Ensure the actual content (Preview component) sits ABOVE the texture */
@@ -424,7 +433,6 @@
 
 /* --- 5. FRAMES --- */
 .app-shell[data-frames="fantasy-pack"] .gallery-item,
-.app-shell[data-frames="fantasy-pack"] .carousel-stack,
 .app-shell[data-frames="fantasy-pack"] .gallery figure,
 .app-shell[data-frames="fantasy-pack"] .gallery .gallery-item-wrapper {
     position: relative;
@@ -437,12 +445,31 @@
     overflow: hidden;
 }
 
+/*
+   Carousel stack needs special handling to preserve its internal layout.
+   Only apply the border/shadow decoration, not padding that would shift content.
+*/
+.app-shell[data-frames="fantasy-pack"] .carousel-stack {
+    position: relative;
+    border: 1px solid var(--color-border-primary);
+    border-radius: 2px;
+    box-shadow:
+        0 4px 6px -1px var(--color-overlay-dark),
+        0 2px 4px -1px var(--color-overlay-subtle);
+    overflow: hidden;
+    /* No padding here - let the carousel handle its own internal spacing */
+}
+
 .app-shell[data-frames="fantasy-pack"] .gallery-item img,
-.app-shell[data-frames="fantasy-pack"] .carousel-stack img,
 .app-shell[data-frames="fantasy-pack"] .gallery figure img,
 .app-shell[data-frames="fantasy-pack"] .gallery .gallery-item-wrapper img {
     border: 1px solid rgba(0, 0, 0, 0.1);
     display: block;
+}
+
+/* Carousel images should not have additional styling that breaks centering */
+.app-shell[data-frames="fantasy-pack"] .carousel-stack img {
+    border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 /* Inner border */
