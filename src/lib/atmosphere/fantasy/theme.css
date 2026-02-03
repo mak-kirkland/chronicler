@@ -284,7 +284,7 @@
 .app-shell[data-ui="fantasy-pack"] .layout-separator {
     border: 0;
     height: 24px;
-    margin: 2rem 0;
+    margin: 1rem 0;
     background-color: var(--color-accent-primary);
     -webkit-mask-image: url("./assets/separator.svg");
     mask-image: url("./assets/separator.svg");
