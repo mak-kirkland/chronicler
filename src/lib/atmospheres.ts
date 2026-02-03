@@ -15,8 +15,8 @@ export interface AtmospherePack {
 
 export const coreAtmosphere: AtmospherePack = {
     id: "core",
-    name: "Basic",
-    description: "The original, lightweight text and emoji interface.",
+    name: "Standard",
+    description: "Clean, modern SVG icons with accent color theming.",
     iconSet: coreIcons,
 };
 
