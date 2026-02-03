@@ -432,3 +432,9 @@
     overflow-y: hidden;
     padding: 0.5em 0;
 }
+
+/* Universal Spoiler Fix: Completely hide links inside hidden spoilers */
+/* visibility: hidden keeps the space but prevents rendering of color, shadows, and borders */
+.chronicler-content span.spoiler:not(.revealed) a {
+    visibility: hidden;
+}
