@@ -2,6 +2,15 @@
 
 ---
 
+## [v0.44.0-alpha] - 2026-02-04
+
+### ✨ Added
+
+- **Explorer**: Added a **"Show/Hide Images"** toggle to the File Explorer context menu. This allows you to declutter your file tree by hiding media assets (like `.png`, `.jpg`, and `.webp`) when you only want to focus on your notes.
+- **Explorer**: Added a **"Collapse All"** action to the folder context menu. This provides a quick way to tidy up a deeply nested file structure by closing all open directories in a single click.
+
+---
+
 ## [v0.43.6-alpha] - 2026-02-02
 
 ### 🔄 Changed
