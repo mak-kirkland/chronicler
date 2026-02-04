@@ -1,14 +1,16 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
+    import type { Snippet } from "svelte";
+    import { modalStackDepth, closeModal, popModal } from "$lib/modalStore";
     import Icon from "$lib/components/ui/Icon.svelte";
 
     let {
         children,
         title = "Modal Title",
-        onClose = () => {},
+        onClose = closeModal,
         showCloseButton = true,
     } = $props<{
-        children: any;
+        children: Snippet;
         title?: string;
         onClose?: () => void;
         showCloseButton?: boolean;
@@ -16,8 +18,17 @@
 
     let modalElement: HTMLDivElement;
 
+    // Show back button if there's more than one modal in the stack
+    const showBackButton = $derived($modalStackDepth > 1);
+
+    function handleBack() {
+        // Pop this modal, revealing the one beneath
+        popModal();
+    }
+
     function handleKeydown(event: KeyboardEvent) {
         if (event.key === "Escape") {
+            // Escape always closes all modals
             onClose();
         }
     }
@@ -46,7 +57,18 @@
         onclick={(event) => event.stopPropagation()}
     >
         <div class="modal-header">
-            <h3>{title}</h3>
+            <div class="header-left">
+                {#if showBackButton}
+                    <button
+                        class="back-btn"
+                        onclick={handleBack}
+                        aria-label="Go back"
+                    >
+                        <Icon type="back" />
+                    </button>
+                {/if}
+                <h3>{title}</h3>
+            </div>
             {#if showCloseButton}
                 <button
                     class="close-btn"
@@ -95,6 +117,11 @@
         padding-bottom: 1rem;
         margin-bottom: 1rem;
     }
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
     .modal-header h3 {
         font-size: 1.5rem;
         margin: 0;
@@ -106,6 +133,25 @@
         color: var(--color-text-secondary);
         cursor: pointer;
         padding: 0;
+    }
+    .back-btn {
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        padding: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition:
+            background-color 0.2s,
+            color 0.2s;
+    }
+    .back-btn:hover {
+        background-color: var(--color-overlay-light);
+        color: var(--color-text-primary);
     }
     .modal-body {
         max-height: 70vh;
