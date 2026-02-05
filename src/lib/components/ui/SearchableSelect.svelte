@@ -1,96 +1,85 @@
 <script lang="ts">
+    /**
+     * SearchableSelect.svelte
+     *
+     * A dropdown with a search/filter input. Shares all core logic with Select.svelte
+     * via SelectController and renders the list with SelectOptions.
+     *
+     * For convenience, options can be plain strings — they'll be
+     * auto-converted to SelectOption objects internally.
+     */
     import { autofocus } from "$lib/domActions";
     import FloatingMenu from "$lib/components/ui/FloatingMenu.svelte";
+    import SelectTrigger from "$lib/components/ui/SelectTrigger.svelte";
+    import SelectOptions from "$lib/components/ui/SelectOptions.svelte";
     import {
-        ListNavigator,
-        handleListNavigation,
-    } from "$lib/ListNavigator.svelte";
+        createSelectContext,
+        type SelectOption,
+    } from "$lib/SelectController.svelte";
 
     let {
-        options,
+        options = [],
         value = $bindable(),
         placeholder = "Search...",
         formatLabel = (s: string) => s,
         onSelect = undefined,
     } = $props<{
-        options: string[];
+        options: string[] | SelectOption<string>[];
         value: string;
         placeholder?: string;
         formatLabel?: (s: string) => string;
         onSelect?: (value: string) => void;
     }>();
 
-    let isOpen = $state(false);
     let searchQuery = $state("");
 
-    let listContainer: HTMLUListElement | undefined = $state();
-    let triggerElement: HTMLButtonElement | undefined = $state();
-
-    const nav = new ListNavigator<string>();
-
-    // Filter options based on the search query
-    const filteredOptions = $derived(
-        options.filter((opt: any) =>
-            formatLabel(opt).toLowerCase().includes(searchQuery.toLowerCase()),
+    // Normalize: accept string[] or SelectOption[]
+    const normalizedOptions: SelectOption<string>[] = $derived(
+        options.map((o: string | SelectOption<string>) =>
+            typeof o === "string" ? { value: o, label: o } : o,
         ),
     );
 
-    $effect(() => {
-        nav.setOptions(filteredOptions);
+    // Filter by search query
+    const filteredOptions: SelectOption<string>[] = $derived(
+        normalizedOptions.filter((opt) =>
+            formatLabel(opt.label)
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase()),
+        ),
+    );
+
+    const ctrl = createSelectContext<string>({
+        onSelect: (val) => {
+            value = val;
+            onSelect?.(val);
+        },
+        onClose: () => {
+            searchQuery = "";
+        },
+        getOptions: () => filteredOptions,
+        getValue: () => value,
     });
 
-    function selectOption(option: string) {
-        value = option;
-        if (onSelect) onSelect(option);
-        closeDropdown();
-    }
+    // Display label for the trigger
+    const displayLabel = $derived.by(() => {
+        if (!value) return placeholder;
+        const match = normalizedOptions.find((o) => o.value === value);
+        return match ? formatLabel(match.label) : formatLabel(value);
+    });
 
-    function closeDropdown() {
-        isOpen = false;
-        searchQuery = "";
-        nav.index = 0;
-    }
-
-    function toggleOpen() {
-        if (isOpen) {
-            closeDropdown();
-        } else {
-            isOpen = true;
-        }
-    }
-
-    function handleKeydown(e: KeyboardEvent) {
-        handleListNavigation(e, {
-            isOpen,
-            nav,
-            listContainer,
-            onSelect: selectOption,
-            onClose: closeDropdown,
-            onOpen: () => (isOpen = true),
-            triggerElement,
-        });
-    }
+    const isPlaceholder = $derived(!value);
 </script>
 
 <div class="searchable-select-wrapper">
-    <button
-        bind:this={triggerElement}
-        class="form-input trigger-btn"
-        onclick={toggleOpen}
-        onkeydown={handleKeydown}
-        type="button"
-    >
-        <span class="label-text {value ? '' : 'placeholder'}">
-            {value ? formatLabel(value) : placeholder}
-        </span>
-        <span class="arrow">▼</span>
-    </button>
+    <SelectTrigger controller={ctrl} label={displayLabel} {isPlaceholder} />
 
     <FloatingMenu
-        {isOpen}
-        anchorEl={triggerElement}
-        onClose={closeDropdown}
+        isOpen={ctrl.isOpen}
+        anchorEl={ctrl.triggerEl}
+        onClose={() => ctrl.close()}
         style="max-height: 250px; display: flex; flex-direction: column; overflow: hidden;"
+        bind:menuEl={ctrl.menuEl}
     >
         <input
             type="text"
@@ -99,25 +88,19 @@
             placeholder="Filter..."
             use:autofocus
             onclick={(e) => e.stopPropagation()}
-            onkeydown={handleKeydown}
+            onkeydown={ctrl.handleKeydown}
         />
-        <ul class="options-list" bind:this={listContainer}>
-            {#each filteredOptions as opt, i}
-                <li>
-                    <button
-                        class:highlighted={i === nav.index}
-                        class:selected={opt === value}
-                        onclick={() => selectOption(opt)}
-                        onmouseenter={() => (nav.index = i)}
-                    >
-                        {formatLabel(opt)}
-                    </button>
-                </li>
-            {/each}
-            {#if filteredOptions.length === 0}
-                <li class="no-results">No results found</li>
-            {/if}
-        </ul>
+
+        {#if filteredOptions.length > 0}
+            <SelectOptions
+                controller={ctrl}
+                options={filteredOptions}
+                {value}
+                {formatLabel}
+            />
+        {:else}
+            <div class="no-results">No results found</div>
+        {/if}
     </FloatingMenu>
 </div>
 
@@ -127,48 +110,18 @@
         width: 100%;
     }
 
-    .trigger-btn {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        text-align: left;
-        cursor: pointer;
-    }
-
-    .label-text {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        flex-grow: 1;
-    }
-    .label-text.placeholder {
-        color: var(--color-text-secondary);
-        font-style: italic;
-    }
-
-    .arrow {
-        font-size: 0.7rem;
-        margin-left: 0.5rem;
-        opacity: 0.7;
-    }
-
     .dropdown-search {
         border-radius: 0;
         border: none;
         border-bottom: 1px solid var(--color-border-primary);
         width: 100%;
+        flex-shrink: 0;
     }
 
     .dropdown-search:focus {
         outline: none;
         box-shadow: none;
         border-bottom-color: var(--color-accent-primary);
-    }
-
-    .options-list {
-        /* List styles handled globally by .dropdown-menu ul in app.css */
-        overflow-y: auto;
-        flex-grow: 1;
     }
 
     .no-results {
