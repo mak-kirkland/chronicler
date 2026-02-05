@@ -3,6 +3,7 @@
     import { confirm } from "@tauri-apps/plugin-dialog";
     import Modal from "$lib/components/modals/Modal.svelte";
     import Button from "$lib/components/ui/Button.svelte";
+    import Select from "$lib/components/ui/Select.svelte";
     import {
         activeTheme,
         userThemes,
@@ -228,30 +229,32 @@
                 <h4>Typography (Optional)</h4>
                 <div class="font-grid">
                     <div class="form-group">
-                        <label for="theme-heading-font">Heading Font</label>
-                        <select
-                            id="theme-heading-font"
-                            class="dropdown-select"
+                        <!-- svelte-ignore a11y_label_has_associated_control -->
+                        <label>Heading Font</label>
+                        <Select
+                            options={[
+                                { value: "", label: "-" },
+                                ...allAvailableFonts.map((f) => ({
+                                    value: f.value,
+                                    label: f.name,
+                                })),
+                            ]}
                             bind:value={currentTheme.headingFont}
-                        >
-                            <option value="">-</option>
-                            {#each allAvailableFonts as font (font.value)}
-                                <option value={font.value}>{font.name}</option>
-                            {/each}
-                        </select>
+                        />
                     </div>
                     <div class="form-group">
-                        <label for="theme-body-font">Body Font</label>
-                        <select
-                            id="theme-body-font"
-                            class="dropdown-select"
+                        <!-- svelte-ignore a11y_label_has_associated_control -->
+                        <label>Body Font</label>
+                        <Select
+                            options={[
+                                { value: "", label: "-" },
+                                ...allAvailableFonts.map((f) => ({
+                                    value: f.value,
+                                    label: f.name,
+                                })),
+                            ]}
                             bind:value={currentTheme.bodyFont}
-                        >
-                            <option value="">-</option>
-                            {#each allAvailableFonts as font (font.value)}
-                                <option value={font.value}>{font.name}</option>
-                            {/each}
-                        </select>
+                        />
                     </div>
                 </div>
 
