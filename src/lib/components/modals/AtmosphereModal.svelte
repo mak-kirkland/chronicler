@@ -7,6 +7,7 @@
     import { DONATE_URL } from "$lib/config";
     import Modal from "$lib/components/modals/Modal.svelte";
     import Button from "$lib/components/ui/Button.svelte";
+    import Select from "$lib/components/ui/Select.svelte";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -243,54 +244,36 @@
             <div class="mixer-grid">
                 <!-- Icons dropdown with all icon packs (including free legacy) -->
                 <div class="mixer-row">
-                    <label for="select-icons">Icons</label>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
+                    <label>Icons</label>
                     <div class="select-wrapper">
-                        <select
-                            id="select-icons"
-                            class="dropdown-select"
+                        <Select
+                            options={availableIconPacks.map((iconPack) => ({
+                                value: iconPack.id,
+                                label: iconPack.name,
+                                disabled: !isIconPackAvailable(iconPack.id),
+                            }))}
                             value={$atmosphere.icons}
-                            onchange={(e) => updateIcons(e.currentTarget.value)}
-                        >
-                            {#each availableIconPacks as iconPack}
-                                <option
-                                    value={iconPack.id}
-                                    disabled={!isIconPackAvailable(iconPack.id)}
-                                >
-                                    {iconPack.name}
-                                    {!isIconPackAvailable(iconPack.id)
-                                        ? " (Locked)"
-                                        : ""}
-                                </option>
-                            {/each}
-                        </select>
+                            onSelect={(val) => updateIcons(val)}
+                        />
                     </div>
                 </div>
 
                 <!-- Other modules use atmosphere packs only -->
                 {#each modules as mod}
                     <div class="mixer-row">
-                        <label for="select-{mod.key}">{mod.label}</label>
+                        <!-- svelte-ignore a11y_label_has_associated_control -->
+                        <label>{mod.label}</label>
                         <div class="select-wrapper">
-                            <select
-                                id="select-{mod.key}"
-                                class="dropdown-select"
+                            <Select
+                                options={packs.map((pack) => ({
+                                    value: pack.id,
+                                    label: pack.name,
+                                    disabled: !isOwned(pack.id),
+                                }))}
                                 value={$atmosphere[mod.key]}
-                                onchange={(e) =>
-                                    updateModule(
-                                        mod.key,
-                                        e.currentTarget.value,
-                                    )}
-                            >
-                                {#each packs as pack}
-                                    <option
-                                        value={pack.id}
-                                        disabled={!isOwned(pack.id)}
-                                    >
-                                        {pack.name}
-                                        {!isOwned(pack.id) ? " (Locked)" : ""}
-                                    </option>
-                                {/each}
-                            </select>
+                                onSelect={(val) => updateModule(mod.key, val)}
+                            />
                         </div>
                     </div>
                 {/each}

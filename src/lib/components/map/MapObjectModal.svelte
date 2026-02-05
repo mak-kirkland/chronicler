@@ -8,6 +8,7 @@
         DEFAULT_PIN_ICON,
     } from "$lib/mapUtils";
     import Button from "$lib/components/ui/Button.svelte";
+    import Select from "$lib/components/ui/Select.svelte";
     import SearchableSelect from "$lib/components/ui/SearchableSelect.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
@@ -58,7 +59,10 @@
     // Layer options
     const layerOptions = $derived([
         { id: "", name: "All Layers (Always Visible)" },
-        ...(mapConfig.layers || []).map((l) => ({ id: l.id, name: l.name })),
+        ...(mapConfig.layers || []).map((l: { id: string; name: string }) => ({
+            id: l.id,
+            name: l.name,
+        })),
     ]);
 
     // Auto-fill label when target is selected, only if adding new object and label is empty
@@ -155,9 +159,9 @@
     >
         <!-- Link to Page -->
         <div class="form-group">
-            <label for="page-select">Link to Page</label>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label>Link to Page</label>
             <SearchableSelect
-                id="page-select"
                 options={pageOptions}
                 placeholder="Search pages..."
                 bind:value={selectedPage}
@@ -166,9 +170,9 @@
 
         <!-- Link to Map -->
         <div class="form-group">
-            <label for="map-select">Link to Map</label>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label>Link to Map</label>
             <SearchableSelect
-                id="map-select"
                 options={mapOptions}
                 placeholder="Search maps..."
                 bind:value={selectedMap}
@@ -177,12 +181,15 @@
 
         <!-- Layer Select -->
         <div class="form-group">
-            <label for="layer-select">Assign to Layer</label>
-            <select id="layer-select" bind:value={selectedLayerId}>
-                {#each layerOptions as option}
-                    <option value={option.id}>{option.name}</option>
-                {/each}
-            </select>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label>Assign to Layer</label>
+            <Select
+                options={layerOptions.map((opt) => ({
+                    value: opt.id,
+                    label: opt.name,
+                }))}
+                bind:value={selectedLayerId}
+            />
             <p class="help-text">
                 Objects assigned to a specific layer will hide if that layer is
                 hidden.
@@ -285,8 +292,7 @@
         color: var(--color-text-secondary);
         font-size: 0.9rem;
     }
-    input[type="text"],
-    select {
+    input[type="text"] {
         width: 100%;
         padding: 0.5rem 0.75rem;
         border-radius: 6px;
@@ -296,8 +302,7 @@
         font-size: 1rem;
         box-sizing: border-box;
     }
-    input[type="text"]:focus,
-    select:focus {
+    input[type="text"]:focus {
         outline: 1px solid var(--color-accent-primary);
         border-color: var(--color-accent-primary);
     }
