@@ -22,6 +22,7 @@
         children,
         className = "",
         style = "",
+        menuEl = $bindable(null),
     } = $props<{
         isOpen: boolean;
         anchorEl?: HTMLElement | null; // If provided, positions relative to this
@@ -32,9 +33,8 @@
         children: any;
         className?: string;
         style?: string;
+        menuEl?: HTMLDivElement | null;
     }>();
-
-    let menuEl = $state<HTMLDivElement | null>(null);
     let calculatedStyle = $state("");
 
     // --- Positioning Logic ---

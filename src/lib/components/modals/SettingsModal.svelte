@@ -18,6 +18,7 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import { licenseStore } from "$lib/licenseStore";
     import Button from "$lib/components/ui/Button.svelte";
+    import Select from "$lib/components/ui/Select.svelte";
     import ChangelogModal from "$lib/components/modals/ChangelogModal.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
     import ThemeEditorModal from "$lib/components/modals/ThemeEditorModal.svelte";
@@ -154,44 +155,57 @@
             <div class="appearance-controls">
                 <!-- Theme (Color Palette) Selector -->
                 <div class="form-group">
-                    <label for="theme-select">Theme</label>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
+                    <label>Theme</label>
                     <div class="theme-controls">
-                        <select
-                            id="theme-select"
-                            class="dropdown-select"
+                        <Select
+                            groups={[
+                                {
+                                    label: "Built-in Themes",
+                                    options: [
+                                        {
+                                            value: "light",
+                                            label: "Parchment & Ink",
+                                        },
+                                        {
+                                            value: "burgundy",
+                                            label: "Parchment & Wine",
+                                        },
+                                        {
+                                            value: "dark",
+                                            label: "Slate & Chalk (Dark)",
+                                        },
+                                        {
+                                            value: "slate-and-gold",
+                                            label: "Slate & Gold (Dark)",
+                                        },
+                                        {
+                                            value: "hologram",
+                                            label: "Sci-Fi Hologram",
+                                        },
+                                        {
+                                            value: "professional",
+                                            label: "Professional",
+                                        },
+                                    ],
+                                },
+                                ...($userThemes.length > 0
+                                    ? [
+                                          {
+                                              label: "Your Themes",
+                                              options: $userThemes.map(
+                                                  (theme) => ({
+                                                      value: theme.name,
+                                                      label: theme.name,
+                                                  }),
+                                              ),
+                                          },
+                                      ]
+                                    : []),
+                            ]}
                             value={$activeTheme}
-                            onchange={(e) =>
-                                setActiveTheme(
-                                    e.currentTarget.value as ThemeName,
-                                )}
-                        >
-                            <optgroup label="Built-in Themes">
-                                <option value="light">Parchment & Ink</option>
-                                <option value="burgundy"
-                                    >Parchment & Wine</option
-                                >
-                                <option value="dark"
-                                    >Slate & Chalk (Dark)</option
-                                >
-                                <option value="slate-and-gold">
-                                    Slate & Gold (Dark)
-                                </option>
-                                <option value="hologram">Sci-Fi Hologram</option
-                                >
-                                <option value="professional"
-                                    >Professional</option
-                                >
-                            </optgroup>
-                            {#if $userThemes.length > 0}
-                                <optgroup label="Your Themes">
-                                    {#each $userThemes as theme (theme.name)}
-                                        <option value={theme.name}>
-                                            {theme.name}
-                                        </option>
-                                    {/each}
-                                </optgroup>
-                            {/if}
-                        </select>
+                            onSelect={(val) => setActiveTheme(val as ThemeName)}
+                        />
                         <Button onclick={openThemeEditor}>Manage Themes</Button>
                     </div>
                 </div>
@@ -210,28 +224,26 @@
                 <!-- Font Selectors -->
                 <div class="font-selectors-grid">
                     <div class="form-group">
-                        <label for="heading-font-select">Heading Font</label>
-                        <select
-                            id="heading-font-select"
-                            class="dropdown-select"
+                        <!-- svelte-ignore a11y_label_has_associated_control -->
+                        <label>Heading Font</label>
+                        <Select
+                            options={allAvailableFonts.map((f) => ({
+                                value: f.value,
+                                label: f.name,
+                            }))}
                             bind:value={$headingFont}
-                        >
-                            {#each allAvailableFonts as font (font.value)}
-                                <option value={font.value}>{font.name}</option>
-                            {/each}
-                        </select>
+                        />
                     </div>
                     <div class="form-group">
-                        <label for="body-font-select">Body Font</label>
-                        <select
-                            id="body-font-select"
-                            class="dropdown-select"
+                        <!-- svelte-ignore a11y_label_has_associated_control -->
+                        <label>Body Font</label>
+                        <Select
+                            options={allAvailableFonts.map((f) => ({
+                                value: f.value,
+                                label: f.name,
+                            }))}
                             bind:value={$bodyFont}
-                        >
-                            {#each allAvailableFonts as font (font.value)}
-                                <option value={font.value}>{font.name}</option>
-                            {/each}
-                        </select>
+                        />
                     </div>
                 </div>
 
