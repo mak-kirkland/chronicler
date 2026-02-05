@@ -87,11 +87,9 @@ fn main() {
             }
 
             // --- ANALYTICS PING ---
-            // We clone the handle to pass into the async task
-            let analytics_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 // We ignore the result so if it fails (offline), the app continues normally.
-                let _ = telemetry::send_analytics_ping(&analytics_handle).await;
+                let _ = telemetry::send_analytics_ping().await;
             });
 
             // The setup was successful.

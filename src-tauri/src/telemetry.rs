@@ -5,7 +5,6 @@
 use crate::error::Result;
 use sha2::{Digest, Sha256};
 use std::env;
-use tauri::AppHandle;
 use tracing::{info, warn};
 
 // Read the salt at compile time from the environment variable provided by build.rs
@@ -19,7 +18,7 @@ const ANALYTICS_ENDPOINT: &str = "https://chronicler.pro/api/chronicler-ping";
 /// This function hashes the machine ID with a secret salt to ensure privacy.
 /// It is designed to be fire-and-forget; it will log errors but not return them
 /// to avoid disrupting the application startup.
-pub async fn send_analytics_ping(_app_handle: &AppHandle) -> Result<()> {
+pub async fn send_analytics_ping() -> Result<()> {
     // 1. Get the raw machine ID using the same method as licensing
     let raw_id = machine_uid::get().unwrap_or_else(|_| "unknown-machine".into());
 
