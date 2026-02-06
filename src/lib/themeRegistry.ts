@@ -65,6 +65,8 @@ export const AVAILABLE_FONTS = [
     { name: "Orbitron", value: `"Orbitron", sans-serif` },
     { name: "Spectral", value: `"Spectral", serif` },
     { name: "Uncial Antiqua", value: `"Uncial Antiqua", cursive` },
+    { name: "Girassol", value: `"Girassol", cursive` },
+    { name: "Nunito", value: `"Nunito", sans-serif` },
 ] as const;
 
 /**
@@ -98,6 +100,10 @@ export const BUILT_IN_THEME_FONTS: Record<
         heading: `"Merriweather", serif`,
         body: `"Open Sans", sans-serif`,
     },
+    paneidos: {
+        heading: `"Girassol", cursive`,
+        body: `"Nunito", sans-serif`,
+    },
 };
 
 /**
@@ -111,4 +117,5 @@ export const BUILT_IN_THEME_MODES: Record<string, "light" | "dark"> = {
     "slate-and-gold": "dark",
     hologram: "dark",
     professional: "light",
+    paneidos: "light",
 };

@@ -187,6 +187,10 @@
                                             value: "professional",
                                             label: "Professional",
                                         },
+                                        {
+                                            value: "paneidos",
+                                            label: "Paneidos",
+                                        },
                                     ],
                                 },
                                 ...($userThemes.length > 0
