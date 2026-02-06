@@ -10,7 +10,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { platform } from "@tauri-apps/plugin-os";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { openModal, closeModal } from "$lib/modalStore";
-import UpdateModal from "$lib/components/UpdateModal.svelte";
+import UpdateModal from "$lib/components/modals/UpdateModal.svelte";
 import { getLinuxInstallType } from "./commands";
 
 /**
