@@ -67,3 +67,8 @@ export const TEMPLATE_FOLDER_PATH = `${SYSTEM_FOLDER_NAME}/${TEMPLATE_FOLDER_NAM
  * The name of the special template used as the default for new pages.
  */
 export const DEFAULT_TEMPLATE_NAME = "_default";
+
+/**
+ * Maximum number of map configs to keep in cache.
+ */
+export const MAX_CACHED_MAPS = 32;
