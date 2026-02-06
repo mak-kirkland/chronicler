@@ -59,7 +59,7 @@
     // Layer options
     const layerOptions = $derived([
         { id: "", name: "All Layers (Always Visible)" },
-        ...(mapConfig.layers || []).map((l: { id: string; name: string }) => ({
+        ...mapConfig.layers.map((l: { id: string; name: string }) => ({
             id: l.id,
             name: l.name,
         })),
@@ -79,8 +79,8 @@
 
         try {
             await updateMapConfig(mapPath, (currentConfig) => {
-                const updatedPins = [...(currentConfig.pins || [])];
-                const updatedShapes = [...(currentConfig.shapes || [])];
+                const updatedPins = [...currentConfig.pins];
+                const updatedShapes = [...currentConfig.shapes];
 
                 const commonData = {
                     targetPage: selectedPage || undefined,

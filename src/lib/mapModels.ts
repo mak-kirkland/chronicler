@@ -132,6 +132,9 @@ export interface MapScale {
 
 /**
  * The root configuration structure stored in a .cmap file.
+ *
+ * Note: `pins` and `shapes` are required arrays (default to `[]`).
+ * All code creating a MapConfig must include both fields.
  */
 export interface MapConfig {
     version: string;
@@ -149,9 +152,15 @@ export interface MapConfig {
     scale?: MapScale;
 
     layers: MapLayer[];
-    pins: MapPin[];
+
     /**
-     * List of vector shapes (polygons, circles) defined on the map.
+     * All interactive pins on the map. Always present; empty array if none.
      */
-    shapes?: MapRegion[];
+    pins: MapPin[];
+
+    /**
+     * All vector shapes (polygons, circles) defined on the map.
+     * Always present; empty array if none.
+     */
+    shapes: MapRegion[];
 }
