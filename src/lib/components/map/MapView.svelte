@@ -36,7 +36,7 @@
 
     let { data } = $props<{ data: PageHeader }>();
 
-    let mapElement: HTMLElement;
+    let mapElement: HTMLElement = $state(null!);
     let map: L.Map | null = null;
 
     // Layer Groups to manage different types of content
@@ -193,7 +193,7 @@
     // Handle pin highlighting from console
     $effect(() => {
         // Subscribe to layerRevision to ensure we run after re-renders
-        const _rev = layerRevision;
+        void layerRevision;
 
         if (highlightedPinId && pinIdToLayer.has(highlightedPinId)) {
             const marker = pinIdToLayer.get(highlightedPinId);
@@ -244,7 +244,7 @@
     // Logic: Invisible by default, Visible if Console Open, Highlighted if Hovered (Map or Console)
     $effect(() => {
         // Subscribe to layerRevision to ensure we run after re-renders
-        const _rev = layerRevision;
+        void layerRevision;
 
         if (mapConfig?.shapes) {
             mapConfig.shapes.forEach((s) => {
@@ -919,7 +919,7 @@
                 });
 
                 // Finisher for polygon (double click)
-                map.on("dblclick", (e: L.LeafletMouseEvent) => {
+                map.on("dblclick", (_e: L.LeafletMouseEvent) => {
                     if (isDrawing && drawMode === "polygon") {
                         // Pass the LATEST config (mapConfig), not the stale 'config' from closure
                         // Since mapConfig is reactive, we can just access it here (it's in the component scope)
@@ -1401,7 +1401,7 @@
                                         label: "Add Pin Here...",
                                         handler: handleAddPin,
                                     },
-                                    { isSeparator: true },
+                                    { isSeparator: true as const },
                                     {
                                         label: "Draw Polygon Region",
                                         handler: () => startDrawing("polygon"),

@@ -117,7 +117,7 @@ export function supportsTransparency(path: string): boolean {
  */
 export async function resolveImageSource(
     path: string,
-    vaultPath: string | null,
+    _vaultPath: string | null,
 ): Promise<string> {
     // We ignore `vaultPath` here because the backend already knows it and manages the logic.
     return await getImageSource(path);
