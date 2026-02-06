@@ -21,9 +21,9 @@ import { manuallyExpandedPaths, showImages } from "$lib/explorerStore";
 import { hasMapsEntitlement } from "$lib/licenseStore";
 
 // Import modal components that can be triggered from the context menu
-import TextInputModal from "./components/TextInputModal.svelte";
-import ConfirmModal from "./components/ConfirmModal.svelte";
-import NewMapModal from "./components/NewMapModal.svelte";
+import TextInputModal from "./components/modals/TextInputModal.svelte";
+import ConfirmModal from "./components/modals/ConfirmModal.svelte";
+import NewMapModal from "./components/map/NewMapModal.svelte";
 
 /**
  * This function dynamically builds the list of actions for the context menu
