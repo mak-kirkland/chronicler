@@ -7,7 +7,7 @@
 
 import { isDragging } from "$lib/dragStore";
 import type { RenderedPage } from "$lib/bindings";
-import Carousel from "$lib/components/Carousel.svelte";
+import Carousel from "$lib/components/ui/Carousel.svelte";
 import { mount, unmount } from "svelte";
 import { supportsTransparency } from "$lib/utils";
 

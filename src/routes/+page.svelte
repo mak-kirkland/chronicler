@@ -3,15 +3,15 @@
     import { currentView, fileViewMode, rightSidebar } from "$lib/viewStores";
 
     // Import all possible main view components
-    import WelcomeView from "$lib/components/WelcomeView.svelte";
-    import TagIndexView from "$lib/components/TagIndexView.svelte";
-    import FileView from "$lib/components/FileView.svelte";
-    import ImageView from "$lib/components/ImageView.svelte";
-    import MapView from "$lib/components/MapView.svelte";
-    import BacklinksPanel from "$lib/components/BacklinksPanel.svelte";
-    import BrokenLinksReportView from "$lib/components/BrokenLinksReportView.svelte";
-    import ParseErrorsReportView from "$lib/components/ParseErrorsReportView.svelte";
-    import BrokenImagesReport from "$lib/components/BrokenImagesReport.svelte";
+    import WelcomeView from "$lib/components/views/WelcomeView.svelte";
+    import TagIndexView from "$lib/components/views/TagIndexView.svelte";
+    import FileView from "$lib/components/views/FileView.svelte";
+    import ImageView from "$lib/components/views/ImageView.svelte";
+    import MapView from "$lib/components/map/MapView.svelte";
+    import BacklinksPanel from "$lib/components/views/BacklinksPanel.svelte";
+    import BrokenLinksReportView from "$lib/components/reports/BrokenLinksReportView.svelte";
+    import ParseErrorsReportView from "$lib/components/reports/ParseErrorsReportView.svelte";
+    import BrokenImagesReport from "$lib/components/reports/BrokenImagesReport.svelte";
 
     // This is the component map. It associates view types with components.
     // The key for reports is namespaced to avoid conflicts (e.g., 'report:broken-links').

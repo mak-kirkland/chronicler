@@ -17,7 +17,7 @@ import { checkForAppUpdates } from "$lib/updater";
 import { licenseStore } from "./licenseStore";
 import { get } from "svelte/store";
 import { openModal } from "./modalStore";
-import NagScreenModal from "./components/NagScreenModal.svelte";
+import NagScreenModal from "./components/modals/NagScreenModal.svelte";
 
 /**
  * Orchestrates the complete vault initialization sequence. This function is the
