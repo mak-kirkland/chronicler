@@ -181,6 +181,9 @@
                                 <option value="professional"
                                     >Professional</option
                                 >
+                                <option value="paneidos"
+                                    >Paneidos (by Mar Qaroll)</option
+                                >
                             </optgroup>
                             {#if $userThemes.length > 0}
                                 <optgroup label="Your Themes">

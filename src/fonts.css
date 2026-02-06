@@ -196,3 +196,50 @@
     font-style: italic;
     font-display: swap;
 }
+
+/* --- Girassol (Heading: Paneidos) --- */
+@font-face {
+    font-family: "Girassol";
+    src: url("/fonts/girassol-v24-latin/girassol-v24-latin-regular.woff2")
+        format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* --- Nunito (Body: Paneidos) --- */
+@font-face {
+    font-display: swap;
+    font-family: "Nunito";
+    font-style: normal;
+    font-weight: 400;
+    src: url("/fonts/nunito-v32-latin/nunito-v32-latin-regular.woff2")
+        format("woff2");
+}
+
+@font-face {
+    font-display: swap;
+    font-family: "Nunito";
+    font-style: italic;
+    font-weight: 400;
+    src: url("/fonts/nunito-v32-latin/nunito-v32-latin-italic.woff2")
+        format("woff2");
+}
+
+@font-face {
+    font-display: swap;
+    font-family: "Nunito";
+    font-style: normal;
+    font-weight: 700;
+    src: url("/fonts/nunito-v32-latin/nunito-v32-latin-700.woff2")
+        format("woff2");
+}
+
+@font-face {
+    font-display: swap;
+    font-family: "Nunito";
+    font-style: italic;
+    font-weight: 700;
+    src: url("/fonts/nunito-v32-latin/nunito-v32-latin-700italic.woff2")
+        format("woff2");
+}

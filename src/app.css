@@ -172,6 +172,23 @@
     --code-string: #50a14f; /* Vivid Green */
 }
 
+[data-theme="paneidos"] {
+    --color-background-primary: #eadcc5;
+    --color-background-secondary: #ede0c6;
+    --color-background-tertiary: #d3bd8c;
+    --color-text-heading: #600000;
+    --color-text-primary: #000000;
+    --color-text-secondary: #3d2424;
+    --color-border-primary: #300000;
+    --color-accent-primary: #320606;
+    --color-text-link: #c31d1d;
+    --color-text-link-broken: #b04a4a;
+    --color-text-error: #ff0000;
+    --code-tag: #b58900;
+    --code-attribute: #268bd2;
+    --code-string: #2aa198;
+}
+
 /* Global Styles */
 
 h1,
