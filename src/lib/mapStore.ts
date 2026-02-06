@@ -10,7 +10,8 @@ import {
     getMapConfig as getMapConfigFromDisk,
     writePageContent,
 } from "$lib/commands";
-import { normalizePath } from "$lib/utils";
+import { normalizePath, LRUCache } from "$lib/utils";
+import { MAX_CACHED_MAPS } from "$lib/config";
 import type { MapConfig } from "$lib/mapModels";
 
 /**
@@ -22,9 +23,23 @@ export interface CachedMap {
     loadedAt: number;
 }
 
-// Internal store to hold loaded map configurations
-// Key: Normalized absolute path
+// Internal LRU cache for map configurations.
+// Svelte store wraps it so components can reactively subscribe.
+const mapCache = new LRUCache<string, CachedMap>(MAX_CACHED_MAPS);
+
+// Reactive store — updated whenever the LRU cache changes so subscribers re-render.
 export const loadedMaps = writable<Map<string, CachedMap>>(new Map());
+
+/**
+ * Syncs the LRU cache contents into the Svelte store for reactivity.
+ */
+function syncStoreFromCache(): void {
+    const snapshot = new Map<string, CachedMap>();
+    for (const [k, v] of mapCache.entries()) {
+        snapshot.set(k, v);
+    }
+    loadedMaps.set(snapshot);
+}
 
 // A map of write queues for each file path.
 // This ensures that save operations for a specific file happen strictly in order.
@@ -39,25 +54,22 @@ export async function loadMapConfig(
     forceReload = false,
 ): Promise<MapConfig | null> {
     const normalizedPath = normalizePath(path);
-    const cache = get(loadedMaps);
 
-    // If cached and not forcing reload, return it
-    if (!forceReload && cache.has(normalizedPath)) {
-        return cache.get(normalizedPath)!.config;
+    // If cached and not forcing reload, return it (also promotes in LRU)
+    if (!forceReload) {
+        const cached = mapCache.get(normalizedPath);
+        if (cached) return cached.config;
     }
 
     try {
         const config = await getMapConfigFromDisk(normalizedPath);
 
-        loadedMaps.update((current) => {
-            const newCache = new Map(current);
-            newCache.set(normalizedPath, {
-                path: normalizedPath,
-                config,
-                loadedAt: Date.now(),
-            });
-            return newCache;
+        mapCache.set(normalizedPath, {
+            path: normalizedPath,
+            config,
+            loadedAt: Date.now(),
         });
+        syncStoreFromCache();
 
         return config;
     } catch (e) {
@@ -74,15 +86,12 @@ export async function loadMapConfig(
 export function registerMap(path: string, config: MapConfig) {
     const normalizedPath = normalizePath(path);
 
-    loadedMaps.update((cache) => {
-        const newCache = new Map(cache);
-        newCache.set(normalizedPath, {
-            path: normalizedPath,
-            config,
-            loadedAt: Date.now(),
-        });
-        return newCache;
+    mapCache.set(normalizedPath, {
+        path: normalizedPath,
+        config,
+        loadedAt: Date.now(),
     });
+    syncStoreFromCache();
 }
 
 /**
@@ -91,18 +100,23 @@ export function registerMap(path: string, config: MapConfig) {
  */
 export function getMapConfig(path: string): MapConfig | null {
     const normalizedPath = normalizePath(path);
-    const cache = get(loadedMaps).get(normalizedPath);
-    return cache ? cache.config : null;
+    const cached = mapCache.get(normalizedPath);
+    return cached ? cached.config : null;
 }
 
 /**
  * Safely updates a map configuration.
  *
- * This function:
- * 1. Retrieves the latest config from the cache (or loads it if missing).
- * 2. Runs the provided `updateFn` to calculate the new state.
- * 3. Optimistically updates the cache immediately (for responsive UI).
- * 4. Queues the disk write to ensure it happens sequentially, preventing race conditions.
+ * This function serializes the entire read → modify → write cycle per file path,
+ * ensuring that concurrent calls to updateMapConfig for the same path don't
+ * interleave their read-modify-update of the in-memory cache.
+ *
+ * Flow:
+ * 1. Waits for any in-flight update for this path to complete.
+ * 2. Retrieves the latest config from the cache (or loads it if missing).
+ * 3. Runs the provided `updateFn` to calculate the new state.
+ * 4. Updates the cache immediately (for responsive UI).
+ * 5. Writes to disk.
  *
  * @param path The absolute path to the map file.
  * @param updateFn A function that receives the current config and returns the updated config.
@@ -113,35 +127,36 @@ export async function updateMapConfig(
 ): Promise<void> {
     const normalizedPath = normalizePath(path);
 
-    // 1. Get latest from cache or load it
-    let currentConfig = getMapConfig(normalizedPath);
-    if (!currentConfig) {
-        currentConfig = await loadMapConfig(normalizedPath);
-    }
-
-    if (!currentConfig) {
-        throw new Error(
-            `Cannot update map: Config not found for ${normalizedPath}`,
-        );
-    }
-
-    // 2. Calculate new state
-    const newConfig = updateFn(currentConfig);
-
-    // 3. Optimistic Update: Update store immediately so UI reflects changes
-    registerMap(normalizedPath, newConfig);
-
-    // 4. Queue the Disk Write
-    // We chain this write onto the existing promise for this file to ensure
-    // writes happen in the order updateMapConfig was called.
+    // Chain onto the existing queue for this path so the entire
+    // read-modify-write cycle is serialized — not just the disk write.
     const previousTask =
         fileWriteQueues.get(normalizedPath) || Promise.resolve();
 
     const newTask = previousTask
         .catch(() => {
-            // Swallow error from previous task to ensure the queue continues
+            // Swallow error from previous task to keep the queue alive
         })
         .then(async () => {
+            // 1. Get latest from cache or load it (inside the serialized block)
+            let currentConfig = getMapConfig(normalizedPath);
+            if (!currentConfig) {
+                currentConfig = await loadMapConfig(normalizedPath);
+            }
+
+            if (!currentConfig) {
+                throw new Error(
+                    `Cannot update map: Config not found for ${normalizedPath}`,
+                );
+            }
+
+            // 2. Calculate new state
+            const newConfig = updateFn(currentConfig);
+
+            // 3. Optimistic Update: Update store immediately so UI reflects changes
+            const previousConfig = currentConfig;
+            registerMap(normalizedPath, newConfig);
+
+            // 4. Write to disk — rollback on failure
             try {
                 await writePageContent(
                     normalizedPath,
@@ -149,10 +164,17 @@ export async function updateMapConfig(
                 );
             } catch (e) {
                 console.error(
-                    `[mapStore] Write failed for ${normalizedPath}`,
+                    `[mapStore] Write failed for ${normalizedPath}, rolling back.`,
                     e,
                 );
+                registerMap(normalizedPath, previousConfig);
                 throw e;
+            }
+        })
+        .finally(() => {
+            // Clean up the queue entry once this task is the tail and has settled
+            if (fileWriteQueues.get(normalizedPath) === newTask) {
+                fileWriteQueues.delete(normalizedPath);
             }
         });
 

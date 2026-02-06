@@ -5,7 +5,7 @@
      * Displays a hovering preview of an interactive map.
      * It shows the base layer image and the map title.
      */
-    import { getMapConfig } from "$lib/commands";
+    import { loadMapConfig } from "$lib/mapStore";
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { imagePathLookup } from "$lib/worldStore";
     import { currentView } from "$lib/viewStores";
@@ -43,8 +43,10 @@
 
         const timer = setTimeout(async () => {
             try {
-                // Read the .cmap file directly
-                const config = await getMapConfig(targetPath);
+                // loadMapConfig returns the cached version if available,
+                // otherwise reads from disk and caches for future use.
+                const config = await loadMapConfig(targetPath);
+                if (!config) return;
 
                 // Find the base layer image
                 // We assume the first visible layer or just the first layer is the base
@@ -81,16 +83,16 @@
                 <img src={mapImageSrc} alt={mapConfig.title} />
             </div>
             <div class="map-meta">
-                {#if mapConfig.pins && mapConfig.pins.length > 0}
+                {#if mapConfig.pins.length > 0}
                     <span
                         >{mapConfig.pins.length}
                         {mapConfig.pins.length === 1 ? "Pin" : "Pins"}</span
                     >
                 {/if}
-                {#if mapConfig.pins && mapConfig.pins.length > 0 && mapConfig.shapes && mapConfig.shapes.length > 0}
+                {#if mapConfig.pins.length > 0 && mapConfig.shapes.length > 0}
                     <span>•</span>
                 {/if}
-                {#if mapConfig.shapes && mapConfig.shapes.length > 0}
+                {#if mapConfig.shapes.length > 0}
                     <span
                         >{mapConfig.shapes.length}
                         {mapConfig.shapes.length === 1

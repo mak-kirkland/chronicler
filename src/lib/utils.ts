@@ -412,6 +412,68 @@ export function calculatePopupPosition(
 }
 
 /**
+ * A simple LRU (Least Recently Used) cache.
+ * Evicts the oldest entry when the cache exceeds `maxSize`.
+ * Accessing or setting a key promotes it to the most-recently-used position.
+ */
+export class LRUCache<K, V> {
+    private cache = new Map<K, V>();
+    private readonly maxSize: number;
+
+    constructor(maxSize: number) {
+        if (maxSize < 1) throw new Error("LRU maxSize must be >= 1");
+        this.maxSize = maxSize;
+    }
+
+    get(key: K): V | undefined {
+        if (!this.cache.has(key)) return undefined;
+        // Promote to most-recently-used by re-inserting
+        const value = this.cache.get(key)!;
+        this.cache.delete(key);
+        this.cache.set(key, value);
+        return value;
+    }
+
+    set(key: K, value: V): void {
+        // If key exists, delete first so re-insert puts it at the end
+        if (this.cache.has(key)) {
+            this.cache.delete(key);
+        } else if (this.cache.size >= this.maxSize) {
+            // Evict oldest (first key in Map iteration order)
+            const oldest = this.cache.keys().next().value;
+            if (oldest !== undefined) this.cache.delete(oldest);
+        }
+        this.cache.set(key, value);
+    }
+
+    has(key: K): boolean {
+        return this.cache.has(key);
+    }
+
+    delete(key: K): boolean {
+        return this.cache.delete(key);
+    }
+
+    get size(): number {
+        return this.cache.size;
+    }
+
+    /** Iterates values in insertion order (oldest first). */
+    values(): IterableIterator<V> {
+        return this.cache.values();
+    }
+
+    /** Iterates entries in insertion order (oldest first). */
+    entries(): IterableIterator<[K, V]> {
+        return this.cache.entries();
+    }
+
+    clear(): void {
+        this.cache.clear();
+    }
+}
+
+/**
  * A simple debounce function to prevent "machine-gun" calls.
  * It ensures the function is only called once after the 'wait' period has elapsed
  * since the last time it was invoked.

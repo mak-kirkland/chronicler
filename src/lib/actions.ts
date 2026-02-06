@@ -10,7 +10,7 @@ import type { PageHeader } from "./bindings";
 // Import all commands under a 'commands' namespace to prevent naming conflicts.
 import * as commands from "./commands";
 import { fileStemString, isImageFile, isMarkdownFile } from "./utils";
-import { world } from "./worldStore";
+import { world, pagePathLookup, mapPathLookup } from "./worldStore";
 import NewPageModal from "./components/modals/NewPageModal.svelte";
 import TextInputModal from "./components/modals/TextInputModal.svelte";
 import { openModal, closeModal } from "./modalStore";
@@ -25,6 +25,42 @@ import { openUrl } from "@tauri-apps/plugin-opener";
  */
 export function navigateToPage(page: PageHeader, sectionId?: string | null) {
     currentView.set({ type: "file", data: page, sectionId });
+}
+
+/**
+ * Resolves a page title to a path and navigates to it.
+ * Alerts the user if the page cannot be found.
+ * @param pageTitle The display title of the page to navigate to.
+ * @returns True if navigation succeeded, false if the page was not found.
+ */
+export function navigateToPageByTitle(pageTitle: string): boolean {
+    const lookup = get(pagePathLookup);
+    const path = lookup.get(pageTitle.toLowerCase());
+    if (path) {
+        navigateToPage({ path, title: pageTitle });
+        return true;
+    }
+    console.warn(`Page not found: ${pageTitle}`);
+    alert(`Linked page "${pageTitle}" not found.`);
+    return false;
+}
+
+/**
+ * Resolves a map title to a path and navigates to it.
+ * Alerts the user if the map cannot be found.
+ * @param mapTitle The display title of the map to navigate to.
+ * @returns True if navigation succeeded, false if the map was not found.
+ */
+export function navigateToMapByTitle(mapTitle: string): boolean {
+    const lookup = get(mapPathLookup);
+    const path = lookup.get(mapTitle.toLowerCase());
+    if (path) {
+        navigateToMap({ path, title: mapTitle });
+        return true;
+    }
+    console.warn(`Map not found: ${mapTitle}`);
+    alert(`Linked map "${mapTitle}" not found.`);
+    return false;
 }
 
 /**

@@ -1,12 +1,13 @@
 <script lang="ts">
-    import { updateMapConfig } from "$lib/mapStore";
-    import type {
-        MapConfig,
-        MapLayer,
-        MapPin,
-        MapRegion,
-    } from "$lib/mapModels";
     import {
+        editPin,
+        deletePin,
+        editRegion,
+        deleteShape,
+    } from "$lib/mapActions";
+    import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
+    import {
+        isLayerVisible,
         DEFAULT_SHAPE_COLOR,
         DEFAULT_PIN_ICON,
         GHOST_ICON,
@@ -14,9 +15,7 @@
         REGION_ICON_POLYGON,
     } from "$lib/mapUtils";
     import { openModal, closeModal } from "$lib/modalStore";
-    import MapObjectModal from "$lib/components/map/MapObjectModal.svelte";
     import MapSettingsModal from "$lib/components/map/MapSettingsModal.svelte";
-    import ConfirmModal from "$lib/components/modals/ConfirmModal.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
     import SearchInput from "$lib/components/ui/SearchInput.svelte";
@@ -41,20 +40,10 @@
 
     let searchTerm = $state("");
 
-    // Helper: Determine if an item should be visible in the console
-    // Returns true if:
-    // 1. The item has no layer assigned (global)
-    // 2. OR the item's assigned layer exists AND is visible
-    function isItemVisible(layerId?: string): boolean {
-        if (!layerId) return true;
-        const layer = mapConfig.layers?.find((l: MapLayer) => l.id === layerId);
-        return layer ? layer.visible : false;
-    }
-
     // Filter pins based on layer visibility and search term
     let pins = $derived(
-        (mapConfig.pins || [])
-            .filter((p: MapPin) => isItemVisible(p.layerId))
+        mapConfig.pins
+            .filter((p: MapPin) => isLayerVisible(p.layerId, mapConfig.layers))
             .filter((p: MapPin) =>
                 (p.label || "")
                     .toLowerCase()
@@ -64,8 +53,10 @@
 
     // Filter regions based on layer visibility and search term
     let regions = $derived(
-        (mapConfig.shapes || [])
-            .filter((s: MapRegion) => isItemVisible(s.layerId))
+        mapConfig.shapes
+            .filter((s: MapRegion) =>
+                isLayerVisible(s.layerId, mapConfig.layers),
+            )
             .filter((s: MapRegion) =>
                 (s.label || "")
                     .toLowerCase()
@@ -74,77 +65,19 @@
     );
 
     function handleEditPin(pin: MapPin) {
-        openModal({
-            component: MapObjectModal,
-            props: {
-                onClose: closeModal,
-                mapPath: mapPath,
-                mapConfig: mapConfig,
-                mode: "pin",
-                initialData: pin,
-            },
-        });
+        editPin(mapPath, mapConfig, pin);
     }
 
     function handleEditRegion(region: MapRegion) {
-        openModal({
-            component: MapObjectModal,
-            props: {
-                onClose: closeModal,
-                mapPath: mapPath,
-                mapConfig: mapConfig,
-                mode: "region",
-                initialData: region,
-            },
-        });
+        editRegion(mapPath, mapConfig, region);
     }
 
     function handleDeletePin(pinId: string) {
-        openModal({
-            component: ConfirmModal,
-            props: {
-                title: "Delete Pin",
-                message: "Are you sure you want to delete this pin?",
-                onClose: closeModal,
-                onConfirm: async () => {
-                    try {
-                        await updateMapConfig(mapPath, (currentConfig) => ({
-                            ...currentConfig,
-                            pins: (currentConfig.pins || []).filter(
-                                (p) => p.id !== pinId,
-                            ),
-                        }));
-                        closeModal();
-                    } catch (e) {
-                        alert("Failed to delete pin.");
-                    }
-                },
-            },
-        });
+        deletePin(mapPath, pinId);
     }
 
     function handleDeleteRegion(regionId: string) {
-        openModal({
-            component: ConfirmModal,
-            props: {
-                title: "Delete Region",
-                message: "Are you sure you want to delete this region?",
-                onClose: closeModal,
-                onConfirm: async () => {
-                    try {
-                        await updateMapConfig(mapPath, (currentConfig) => ({
-                            ...currentConfig,
-                            shapes: (currentConfig.shapes || []).filter(
-                                (s) => s.id !== regionId,
-                            ),
-                        }));
-                        closeModal();
-                    } catch (e) {
-                        alert("Failed to delete region.");
-                    }
-                },
-            },
-        });
+        deleteShape(mapPath, regionId);
     }
 
     function openSettings() {
