@@ -28,13 +28,13 @@
     import { initializeKeybindings } from "$lib/keybindings";
 
     // Import UI Components
-    import VaultSelector from "$lib/components/VaultSelector.svelte";
-    import Sidebar from "$lib/components/Sidebar.svelte";
-    import ModalManager from "$lib/components/ModalManager.svelte";
-    import ErrorBox from "$lib/components/ErrorBox.svelte";
-    import Button from "$lib/components/Button.svelte";
-    import DonationModal from "$lib/components/DonationModal.svelte";
-    import AtmosphereEffects from "$lib/components/AtmosphereEffects.svelte";
+    import VaultSelector from "$lib/components/views/VaultSelector.svelte";
+    import Sidebar from "$lib/components/sidebar/Sidebar.svelte";
+    import ModalManager from "$lib/components/modals/ModalManager.svelte";
+    import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import DonationModal from "$lib/components/modals/DonationModal.svelte";
+    import AtmosphereEffects from "$lib/components/ui/AtmosphereEffects.svelte";
 
     import "../app.css";
     import "../preview.css";
