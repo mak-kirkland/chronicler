@@ -1,6 +1,11 @@
 <script lang="ts">
     import { updateMapConfig } from "$lib/mapStore";
-    import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
+    import type {
+        MapConfig,
+        MapLayer,
+        MapPin,
+        MapRegion,
+    } from "$lib/mapModels";
     import {
         DEFAULT_SHAPE_COLOR,
         DEFAULT_PIN_ICON,
@@ -42,15 +47,15 @@
     // 2. OR the item's assigned layer exists AND is visible
     function isItemVisible(layerId?: string): boolean {
         if (!layerId) return true;
-        const layer = mapConfig.layers?.find((l) => l.id === layerId);
+        const layer = mapConfig.layers?.find((l: MapLayer) => l.id === layerId);
         return layer ? layer.visible : false;
     }
 
     // Filter pins based on layer visibility and search term
     let pins = $derived(
         (mapConfig.pins || [])
-            .filter((p) => isItemVisible(p.layerId))
-            .filter((p) =>
+            .filter((p: MapPin) => isItemVisible(p.layerId))
+            .filter((p: MapPin) =>
                 (p.label || "")
                     .toLowerCase()
                     .includes(searchTerm.toLowerCase()),
@@ -60,8 +65,8 @@
     // Filter regions based on layer visibility and search term
     let regions = $derived(
         (mapConfig.shapes || [])
-            .filter((s) => isItemVisible(s.layerId))
-            .filter((s) =>
+            .filter((s: MapRegion) => isItemVisible(s.layerId))
+            .filter((s: MapRegion) =>
                 (s.label || "")
                     .toLowerCase()
                     .includes(searchTerm.toLowerCase()),
