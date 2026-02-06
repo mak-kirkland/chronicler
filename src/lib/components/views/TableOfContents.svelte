@@ -21,7 +21,7 @@
                 {#each toc as entry (entry.id)}
                     <li class="toc-item" style="--level: {entry.level - 1}">
                         <a href="#{entry.id}">
-                            <span class="toc-number">{entry.number}</span>
+                            <span>{entry.number}</span>
                             <span class="toc-text">{entry.text}</span>
                         </a>
                     </li>
@@ -93,8 +93,5 @@
         background-color: var(--color-background-secondary);
         color: var(--color-text-primary);
         text-decoration: underline;
-    }
-    .toc-number {
-        /* No styles needed, the grid handles it. */
     }
 </style>
