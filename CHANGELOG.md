@@ -2,6 +2,21 @@
 
 ---
 
+## [v0.45.0-alpha] - 2026-02-06
+
+### ✨ Added
+
+- **Infobox Editor**: A comprehensive multi-tabbed visual editor for creating and editing Infoboxes without touching YAML code.
+    - **Content Management**: Dedicated tab for titles, subtitles, tags, and custom data fields.
+    - **Image Carousels**: A visual interface to add, remove, and reorder images for your page slideshows.
+    - **Structure & Layout**: Manage infobox headers, separators, and multi-column groups with drag-and-drop ease.
+    - **Smart Input**: Introduced context-aware text fields within the editor that support inline autocompletion for Wikilinks (`[[`) and image embeds (`![[`).
+    - **Autocomplete**: Added specialized inputs for tags and column keys featuring fixed-position dropdowns and `Shift+Enter` to quickly create new entries.
+    - **Live Previews**: The editor now asynchronously resolves and displays image previews for both local vault assets and external URLs.
+- **Themes**: Added "Paneidos", a new built-in theme created by Mar Qarrol and based on his works of *Paneidoverse*.
+
+---
+
 ## [v0.44.0-alpha] - 2026-02-04
 
 ### ✨ Added
