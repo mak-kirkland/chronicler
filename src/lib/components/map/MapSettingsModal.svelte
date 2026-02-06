@@ -19,7 +19,7 @@
 
     // Deep clone initial layers to local state for editing
     let layers = $state<MapLayer[]>(
-        JSON.parse(JSON.stringify(mapConfig.layers || [])),
+        JSON.parse(JSON.stringify(mapConfig.layers)),
     );
     let isSaving = $state(false);
 
