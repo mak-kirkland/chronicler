@@ -4,7 +4,7 @@
  * and centralized theme assets (icons, colors).
  */
 
-import type { MapConfig, MapRegion } from "./mapModels";
+import type { MapConfig, MapLayer, MapRegion } from "./mapModels";
 import L from "leaflet";
 
 // --- THEME CONSTANTS ---
@@ -102,15 +102,103 @@ export const ICONS = [
     "🔵",
 ];
 
+// --- REGION STYLE PRESETS ---
+
+/**
+ * Centralized style definitions for map regions in different states.
+ * Used by MapView's reactive styling effects.
+ */
+export const REGION_STYLES = {
+    /** High visibility — hovered or highlighted from console */
+    highlighted: {
+        stroke: true,
+        weight: 4,
+        fillOpacity: 0.5,
+        dashArray: undefined,
+    } as L.PathOptions,
+    /** Normal visibility — console/edit mode open */
+    visible: {
+        stroke: true,
+        weight: 2,
+        fillOpacity: 0.2,
+        dashArray: undefined,
+    } as L.PathOptions,
+    /** Invisible but interactive — default viewing mode */
+    hidden: {
+        stroke: false,
+        fillOpacity: 0,
+    } as L.PathOptions,
+} as const;
+
+// --- SVG SANITIZATION ---
+
+/**
+ * Escapes a string for safe embedding in SVG/XML text content.
+ * Prevents injection of markup through pin labels or emoji fields.
+ */
+function escapeSvgText(text: string): string {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+/**
+ * Sanitizes a hex color string. Returns the color if valid, otherwise a fallback.
+ */
+function sanitizeColor(color: string, fallback: string): string {
+    // Allow 3/4/6/8-digit hex colors
+    if (/^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color)) {
+        return color;
+    }
+    return fallback;
+}
+
+// --- LAYER VISIBILITY ---
+
+/**
+ * Returns true if a map object should be visible based on its layer assignment.
+ * An object is visible if it has no assigned layer (global) or its layer exists and is visible.
+ *
+ * @param layerId The layer ID assigned to the object, or undefined for global objects.
+ * @param layers The array of map layers to check against.
+ */
+export function isLayerVisible(
+    layerId: string | undefined,
+    layers: MapLayer[],
+): boolean {
+    if (!layerId) return true;
+    const layer = layers.find((l) => l.id === layerId);
+    return layer ? layer.visible : false;
+}
+
+// --- SET UTILITIES ---
+
+/**
+ * Checks if two sets contain the same elements.
+ */
+export function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
+    if (a.size !== b.size) return false;
+    for (const v of a) {
+        if (!b.has(v)) return false;
+    }
+    return true;
+}
+
 // --- IMAGE & GEOMETRY UTILITIES ---
 
 /**
  * Loads an image to detect its natural dimensions.
  */
-export function detectImageDimensions(src: string): Promise<{ width: number; height: number }> {
+export function detectImageDimensions(
+    src: string,
+): Promise<{ width: number; height: number }> {
     return new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onload = () =>
+            resolve({ width: img.naturalWidth, height: img.naturalHeight });
         img.onerror = (err) => reject(err);
         img.src = src;
     });
@@ -146,7 +234,6 @@ export async function checkLayerImage(
     refHeight: number,
     layerName?: string,
 ): Promise<LayerImageCheck> {
-    const ASPECT_EPSILON = 0.01;
     const SCALE_EPSILON = 0.001;
     const prefix = layerName ? `Layer "${layerName}": ` : "";
 
@@ -162,16 +249,19 @@ export async function checkLayerImage(
         };
     }
 
-    const newRatio = dims.width / dims.height;
-    const refRatio = refWidth / refHeight;
     const scaleFactor = dims.width / refWidth;
 
-    if (Math.abs(newRatio - refRatio) > ASPECT_EPSILON) {
+    // Strict aspect ratio check: the image must be an exact integer scale of the
+    // reference dimensions (i.e. both axes scale by the same factor).
+    const expectedHeight = Math.round(refHeight * scaleFactor);
+    if (dims.height !== expectedHeight) {
+        const newRatio = (dims.width / dims.height).toFixed(4);
+        const refRatio = (refWidth / refHeight).toFixed(4);
         return {
             error:
                 prefix +
-                `Aspect ratio mismatch. Map is ${refWidth}×${refHeight} (${refRatio.toFixed(2)}), ` +
-                `but the image is ${dims.width}×${dims.height} (${newRatio.toFixed(2)}).`,
+                `Aspect ratio mismatch. Map is ${refWidth}×${refHeight} (${refRatio}), ` +
+                `but the image is ${dims.width}×${dims.height} (${newRatio}).`,
             warning: null,
             scaleFactor,
             dimensions: dims,
@@ -180,7 +270,8 @@ export async function checkLayerImage(
 
     const warning =
         Math.abs(scaleFactor - 1) > SCALE_EPSILON
-            ? prefix + `Coordinates will be rescaled by ${(scaleFactor * 100).toFixed(1)}%.`
+            ? prefix +
+              `Coordinates will be rescaled by ${(scaleFactor * 100).toFixed(1)}%.`
             : null;
 
     return {
@@ -197,19 +288,18 @@ export async function checkLayerImage(
 export function generatePinSvg(
     emoji: string,
     color: string = DEFAULT_ICON_COLOR,
-    highlighted: boolean = false
+    highlighted: boolean = false,
 ): string {
     const scale = highlighted ? 1.3 : 1;
+    const safeColor = sanitizeColor(color, DEFAULT_ICON_COLOR);
     const stroke = highlighted ? HIGHLIGHT_STROKE_COLOR : DEFAULT_STROKE_COLOR;
     const strokeWidth = highlighted ? "2" : "1.5";
-
-    // Width: 32 * scale, Height: 48 * scale
-    // Anchor X (center): 16 * scale, Anchor Y (bottom): 48 * scale
+    const safeEmoji = escapeSvgText(emoji);
 
     return `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${32 * scale}" height="${48 * scale}">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12z" fill="${color}" stroke="${stroke}" stroke-width="${strokeWidth}"/>
-            <text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-family="Segoe UI Emoji, Apple Color Emoji, sans-serif" dy="1">${emoji}</text>
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12z" fill="${safeColor}" stroke="${stroke}" stroke-width="${strokeWidth}"/>
+            <text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-family="Segoe UI Emoji, Apple Color Emoji, sans-serif" dy="1">${safeEmoji}</text>
         </svg>
     `;
 }
@@ -243,17 +333,17 @@ export function resizeMapData(
     config: MapConfig,
     scaleFactor: number,
     newWidth: number,
-    newHeight: number
+    newHeight: number,
 ): MapConfig {
     // 1. Scale Pins
-    const updatedPins = (config.pins || []).map((pin) => ({
+    const updatedPins = config.pins.map((pin) => ({
         ...pin,
         x: Math.round(pin.x * scaleFactor),
         y: Math.round(pin.y * scaleFactor),
     }));
 
     // 2. Scale Shapes
-    const updatedShapes = (config.shapes || []).map((shape) => {
+    const updatedShapes = config.shapes.map((shape) => {
         if (shape.type === "circle") {
             return {
                 ...shape,
@@ -273,10 +363,19 @@ export function resizeMapData(
         return shape;
     });
 
+    // 3. Scale the scale bar reference if present
+    const updatedScale = config.scale
+        ? {
+              ...config.scale,
+              pixels: Math.round(config.scale.pixels * scaleFactor),
+          }
+        : undefined;
+
     return {
         ...config,
         width: newWidth,
         height: newHeight,
+        ...(updatedScale !== undefined && { scale: updatedScale }),
         pins: updatedPins,
         shapes: updatedShapes,
     };
@@ -287,7 +386,7 @@ export function resizeMapData(
  */
 export function isPointInPolygon(
     pt: { x: number; y: number },
-    polygon: { x: number; y: number }[]
+    polygon: { x: number; y: number }[],
 ): boolean {
     let inside = false;
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -309,7 +408,7 @@ export function isPointInPolygon(
  */
 export function isPointInCircle(
     pt: { x: number; y: number },
-    circle: { x: number; y: number; radius: number }
+    circle: { x: number; y: number; radius: number },
 ): boolean {
     const dx = pt.x - circle.x;
     const dy = pt.y - circle.y;
@@ -319,13 +418,23 @@ export function isPointInCircle(
 
 /**
  * Returns all regions (shapes) that contain the given point.
+ * Optionally filters by layer visibility when `layers` is provided.
+ *
+ * @param mapX The X coordinate to test.
+ * @param mapY The Y coordinate to test.
+ * @param shapes The array of map regions to test against.
+ * @param layers Optional array of map layers; when provided, only shapes on visible layers are returned.
  */
 export function getShapesAtPoint(
     mapX: number,
     mapY: number,
-    shapes: MapRegion[] = []
+    shapes: MapRegion[],
+    layers?: MapLayer[],
 ): MapRegion[] {
     return shapes.filter((shape) => {
+        // Filter by layer visibility if layers are provided
+        if (layers && !isLayerVisible(shape.layerId, layers)) return false;
+
         if (shape.type === "circle") {
             return isPointInCircle({ x: mapX, y: mapY }, shape);
         } else if (shape.type === "polygon") {

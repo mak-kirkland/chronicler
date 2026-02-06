@@ -91,6 +91,7 @@
                     },
                 ],
                 pins: [],
+                shapes: [],
             };
 
             // 1. Write the file to disk
