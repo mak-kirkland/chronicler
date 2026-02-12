@@ -2,6 +2,19 @@
 
 ---
 
+## [v0.46.0-alpha] - 2026-02-12
+
+### ✨ Added
+
+- **Link Previews**: Hovering over an internal wiki link now displays a "mini-infobox" summary popup of the target page. The preview intelligently positions itself to stay within your screen bounds and only appears if the target page has substantial infobox content (either images or custom fields).
+- **LaTeX Math Support**: You can now render complex mathematical equations using standard LaTeX syntax (e.g., `$E=mc^2$`). This is powered by KaTeX and supports both inline formulas and dedicated display blocks, with full MathML support for accessibility.
+
+### 🐞 Fixed
+
+- **Builds / Linux**: Fixed an issue in the release pipeline that was incorrectly bundling unnecessary media frameworks, resulting in smaller application binaries for Linux AppImages.
+
+---
+
 ## [v0.45.0-alpha] - 2026-02-06
 
 ### ✨ Added
