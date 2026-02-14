@@ -12,7 +12,7 @@
 [![Changelog](https://img.shields.io/badge/Changelog-md-green)](https://github.com/mak-kirkland/chronicler/blob/main/CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-PolyForm_Shield_1.0.0-red)](https://github.com/mak-kirkland/chronicler/blob/main/LICENSE)
 
-**Chronicler** is a free desktop app for note-takers, storytellers, researchers, and creative minds. It saves your notes as plain Markdown files on your computer - your thoughts stay in your hands.
+**Chronicler** is a free, offline worldbuilding tool for writersa and GMs. It saves your notes as plain Markdown files on your computer - your thoughts stay in your hands.
 
 🎉 Download the [Latest Release](https://github.com/mak-kirkland/chronicler/releases/latest)!
 
