@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.46.1-alpha] - 2026-02-15
+
+### 🐞 Fixed
+
+- **Editor**: Fixed a scroll regression where clicking in the editor after scrolling past the halfway point would cause the viewport to "snap" or jump upward. This was resolved by pinning the `@codemirror/view` dependency to a stable version (6.38.8).
+
+---
+
 ## [v0.46.0-alpha] - 2026-02-12
 
 ### ✨ Added
