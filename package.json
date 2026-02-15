@@ -19,7 +19,7 @@
         "@codemirror/lang-yaml": "^6.1.2",
         "@codemirror/language": "^6.12.1",
         "@codemirror/state": "^6.5.4",
-        "@codemirror/view": "^6.39.12",
+        "@codemirror/view": "6.38.8",
         "@lezer/highlight": "^1.2.3",
         "@tauri-apps/api": "^2.10.1",
         "@tauri-apps/plugin-dialog": "~2",
