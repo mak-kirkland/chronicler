@@ -55,6 +55,8 @@ tags: [city, trade, river]
 ---
 ```
 
+> Tip: There's an "Edit Infobox" button in the toolbar at the top of the Editor that lets you build the Infobox in a more graphical way.
+
 ---
 
 ### 🗂️ Organizing with Tags & Folders
