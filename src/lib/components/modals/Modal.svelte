@@ -18,6 +18,22 @@
 
     let modalElement: HTMLDivElement;
 
+    // Track where the click started
+    let mouseDownTarget: EventTarget | null = null;
+
+    function handleBackdropMouseDown(event: MouseEvent) {
+        mouseDownTarget = event.target;
+    }
+
+    function handleBackdropClick(event: MouseEvent) {
+        // Only close if the mousedown happened on the backdrop (event.currentTarget)
+        // This ensures clicks starting inside the content (e.g. text selection) don't close the modal
+        if (mouseDownTarget === event.currentTarget) {
+            onClose();
+        }
+        mouseDownTarget = null;
+    }
+
     // Show back button if there's more than one modal in the stack
     const showBackButton = $derived($modalStackDepth > 1);
 
@@ -47,7 +63,11 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
-<div class="modal-backdrop" onclick={onClose}>
+<div
+    class="modal-backdrop"
+    onmousedown={handleBackdropMouseDown}
+    onclick={handleBackdropClick}
+>
     <div
         bind:this={modalElement}
         class="modal-content"
