@@ -259,7 +259,7 @@
     /* --- Header Styles --- */
     .infobox-header {
         display: flex;
-        justify-content: space-between;
+        position: relative;
         align-items: flex-start;
         gap: var(--space-sm);
         border-bottom: 1px solid var(--color-border-primary);
@@ -268,6 +268,9 @@
     }
 
     .controls-group {
+        position: absolute;
+        top: 0;
+        right: 0;
         display: flex;
         gap: 0.5rem;
     }
