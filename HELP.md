@@ -39,6 +39,7 @@ Here is a simple footnote[^1]. With some additional text after it.
 Use `[[Page Name]]` to link to other pages in your vault.
 
 -   Create an alias with `[[Page Name|link text]]`.
+-   Link directly to a section header with `[[Page Name#Header]]`.
 -   When you rename a page, all links to it are automatically updated.
 
 ---
