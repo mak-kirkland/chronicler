@@ -3,6 +3,7 @@
     import { promptAndCreateItem } from "$lib/actions";
     import { openModal, closeModal } from "$lib/modalStore";
     import { hasMapsEntitlement } from "$lib/licenseStore";
+    import { fontSize } from "$lib/settingsStore";
     import FileExplorer from "$lib/components/sidebar/FileExplorer.svelte";
     import TagList from "$lib/components/sidebar/TagList.svelte";
     import ReportList from "$lib/components/reports/ReportList.svelte";
@@ -15,14 +16,31 @@
     import Icon from "$lib/components/ui/Icon.svelte";
     import NewMapModal from "$lib/components/map/NewMapModal.svelte";
 
-    let { width = $bindable() } = $props();
+    let { width = $bindable(), minWidth = $bindable(200) } = $props();
     let activeTab = $state<"files" | "tags" | "gallery" | "reports">("files");
     let searchTerm = $state("");
+    let titleWidth = $state(0);
 
     // When the value of activeTab changes, clear the search term
     $effect(() => {
         activeTab;
         searchTerm = "";
+    });
+
+    // Dynamically calculate the minimum width based on the title's rendered size and the current font scale
+    $effect(() => {
+        if (titleWidth > 0) {
+            // The sidebar-header has 1rem padding on each side (2rem total).
+            // Calculate real pixels based on the user's root font size scale.
+            const totalPadding = 32 * ($fontSize / 100);
+            const buffer = 16; // extra buffer to guarantee no immediate visual touching
+            minWidth = Math.ceil(titleWidth + totalPadding + buffer);
+
+            // Auto-expand the sidebar if it is currently too small for the new font size
+            if (width < minWidth) {
+                width = minWidth;
+            }
+        }
     });
 
     function showSettings() {
@@ -83,7 +101,14 @@
 
 <aside style="width: {width}px;">
     <div class="sidebar-header">
-        <h1 class="title">Chronicler</h1>
+        <!-- display: inline-block is required so clientWidth measures text, not the container -->
+        <h1
+            class="title"
+            style="display: inline-block;"
+            bind:clientWidth={titleWidth}
+        >
+            Chronicler
+        </h1>
     </div>
 
     <SearchInput
