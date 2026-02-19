@@ -104,7 +104,7 @@
         >
     </div>
 
-    <div class="separator-line"></div>
+    <hr />
 
     <!-- Custom Fields -->
     <div class="custom-fields-header">
@@ -183,11 +183,6 @@
         font-size: 0.9rem;
         color: var(--color-text-secondary);
         margin: 0;
-    }
-    .separator-line {
-        height: 1px;
-        background: var(--color-border-primary);
-        margin: 0.5rem 0;
     }
     .custom-fields-header {
         display: flex;
