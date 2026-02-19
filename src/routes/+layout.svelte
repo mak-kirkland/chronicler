@@ -43,6 +43,9 @@
     let { children } = $props();
     let isResizing = $state(false);
 
+    // Default to the original minimum, but allow the Sidebar to expand it dynamically
+    let dynamicMinWidth = $state(SIDEBAR_MIN_WIDTH);
+
     // --- App Initialization & Global Listeners ---
     $effect(() => {
         // Kick off the main application startup sequence once.
@@ -142,11 +145,13 @@
     function doResize(event: MouseEvent) {
         if (isResizing) {
             const newWidth = event.clientX;
-            if (
-                newWidth >= SIDEBAR_MIN_WIDTH &&
-                newWidth <= SIDEBAR_MAX_WIDTH
-            ) {
+            // Respect the dynamic minimum width supplied by the Sidebar
+            if (newWidth >= dynamicMinWidth && newWidth <= SIDEBAR_MAX_WIDTH) {
                 $sidebarWidth = newWidth;
+            } else if (newWidth < dynamicMinWidth) {
+                $sidebarWidth = dynamicMinWidth;
+            } else if (newWidth > SIDEBAR_MAX_WIDTH) {
+                $sidebarWidth = SIDEBAR_MAX_WIDTH;
             }
         }
     }
@@ -162,7 +167,7 @@
         if (event.key === "ArrowLeft") {
             event.preventDefault();
             const newWidth = Math.max(
-                SIDEBAR_MIN_WIDTH,
+                dynamicMinWidth, // Enforce dynamic min width
                 $sidebarWidth - SIDEBAR_KEYBOARD_RESIZE_STEP,
             );
             $sidebarWidth = newWidth;
@@ -216,7 +221,7 @@
             <Button onclick={handleTryAgain}>Select a Different Folder</Button>
         </div>
     {:else if $appStatus.state === "ready"}
-        <Sidebar bind:width={$sidebarWidth} />
+        <Sidebar bind:width={$sidebarWidth} bind:minWidth={dynamicMinWidth} />
 
         <div
             class="resizer"
@@ -227,7 +232,7 @@
             aria-label="Resize sidebar"
             aria-orientation="vertical"
             aria-valuenow={$sidebarWidth}
-            aria-valuemin={SIDEBAR_MIN_WIDTH}
+            aria-valuemin={dynamicMinWidth}
             aria-valuemax={SIDEBAR_MAX_WIDTH}
             style="left: {$sidebarWidth - 2.5}px;"
         ></div>
