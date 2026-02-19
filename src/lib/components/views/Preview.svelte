@@ -156,6 +156,7 @@
     .preview-container.mode-split .toc-wrapper {
         width: 100%;
         margin-bottom: 2rem;
+        clear: both; /* Forces elements to drop below the floated intro images */
     }
 
     /* --- Responsive Overrides --- */
