@@ -232,7 +232,7 @@
             </div>
         </section>
 
-        <hr class="separator" />
+        <hr />
 
         <!-- Granular Mixer -->
         <section class="mixer-section">
@@ -303,12 +303,6 @@
         margin: 0;
         font-size: 0.9rem;
         color: var(--color-text-secondary);
-    }
-
-    .separator {
-        border: none;
-        border-top: 1px solid var(--color-border-primary);
-        margin: 0;
     }
 
     /* --- Pack Grid Styles --- */
