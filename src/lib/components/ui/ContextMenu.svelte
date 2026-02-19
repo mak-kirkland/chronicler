@@ -36,7 +36,7 @@
 >
     {#each actions as action}
         {#if action.isSeparator}
-            <hr class="separator" />
+            <hr />
         {:else}
             <button
                 class="menu-item"
@@ -78,10 +78,5 @@
     .menu-item:hover {
         background-color: var(--color-background-tertiary);
         color: var(--color-text-primary);
-    }
-    .separator {
-        border: none;
-        border-top: 1px solid var(--color-border-primary);
-        margin: 0.5rem 0;
     }
 </style>
