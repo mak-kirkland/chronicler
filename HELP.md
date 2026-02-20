@@ -524,6 +524,60 @@ This text is normal, but <span style="font-family:'Your Custom Font';">these wor
 
 ---
 
+### 🎨 CSS Variables
+
+To ensure your inline styles blend seamlessly with Chronicler's themes, you can use the built-in CSS variables. Using these variables instead of hardcoded colors or fonts ensures your notes will automatically adapt if you change your theme.
+
+Here are the available variables you can use:
+
+**Typography**
+* `--font-family-body`
+* `--font-family-heading`
+
+**Layout & Spacing**
+* `--space-xs`
+* `--space-sm`
+* `--space-md`
+* `--gallery-height`
+* `--radius-base`
+
+**Colors**
+* `--color-background-primary`
+* `--color-background-secondary`
+* `--color-background-tertiary`
+* `--color-text-primary`
+* `--color-text-secondary`
+* `--color-text-heading`
+* `--color-border-primary`
+* `--color-accent-primary`
+* `--color-text-link`
+* `--color-text-link-broken`
+* `--color-text-error`
+* `--color-background-error`
+* `--color-border-error`
+
+**UI Overlays**
+* `--color-overlay-subtle`
+* `--color-overlay-light`
+* `--color-overlay-medium`
+* `--color-overlay-dark`
+
+**Syntax Highlighting**
+* `--code-tag`
+* `--code-attribute`
+* `--code-string`
+* `--code-background-inline`
+
+You can apply these variables using the `var()` function inside standard HTML `style` attributes. For example, to make a specific piece of text use the accent color and heading font:
+
+```html
+<span style="color: var(--color-accent-primary); font-family: var(--font-family-heading);">
+  This text uses Chronicler's native variables!
+</span>
+```
+
+---
+
 ### 📥 Importing Word Docs
 
 You can import `.docx` files from Microsoft Word directly into your vault.
