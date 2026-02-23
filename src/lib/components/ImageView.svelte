@@ -17,9 +17,19 @@
     let imageUrl = $state("");
     let error = $state<string | null>(null);
 
+    // Normalize path separators to forward slashes for cross-platform comparison.
+    // On Windows, paths from different sources may use different separators
+    // (e.g. backslashes from the filesystem vs forward slashes from the store),
+    // causing the comparison to fail and returning index -1 (displayed as "0").
+    function normalizePath(p: string): string {
+        return p.replace(/\\/g, "/");
+    }
+
     // Calculate current index within the full list of images
     const currentIndex = $derived(
-        $allImages.findIndex((img) => img.path === data.path),
+        $allImages.findIndex(
+            (img) => normalizePath(img.path) === normalizePath(data.path),
+        ),
     );
 
     const prevImage = $derived(
