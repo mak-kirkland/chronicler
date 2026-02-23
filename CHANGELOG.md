@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.46.2-alpha] - 2026-02-23
+
+### 🐞 Fixed
+
+- **Image View / Windows**: Fixed an issue on Windows where the image gallery index would incorrectly display "0 / N" instead of the current image position. The system now correctly normalizes backslash path separators from page metadata to ensure consistent lookup against the image index.
+
+---
+
 ## [v0.46.1-alpha] - 2026-02-15
 
 ### 🐞 Fixed
