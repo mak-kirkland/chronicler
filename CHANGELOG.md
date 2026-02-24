@@ -2,6 +2,19 @@
 
 ---
 
+## [v0.47.0-alpha] - 2026-02-24
+
+### ✨ Added
+
+- **Interactive Maps**: Introduced a comprehensive new Interactive Maps feature! Licensed users can test this while it remains in alpha. You can create, view, and interact with custom maps directly within your vault, fully integrated into the File Explorer and Sidebar context menus.
+  - **Multi-layer Support**: Create maps with stacked image overlays, allowing you to navigate between different floors or elevations using the on-map Layer Control.
+  - **Custom Pins**: Place pins on your maps, customize their colors and emoji icons, and link them directly to your wiki pages or other maps.
+  - **Region Tagging**: Use a dedicated drawing mode to create custom, clickable areas on your maps and link those regions to specific pages or other maps.
+  - **Smart Image Replacement**: You can replace a map's image layers from the Map Settings as long as they are the same aspect ratio. Automatic coordinate scaling ensures all your existing pins and regions maintain their relative positions, even with higher-resolution uploads.
+  - **Map Console Search**: Quickly filter your pins and regions by their labels using the newly added search functionality.
+
+---
+
 ## [v0.46.2-alpha] - 2026-02-23
 
 ### 🐞 Fixed
