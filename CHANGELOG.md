@@ -2,6 +2,18 @@
 
 ---
 
+## [v0.47.1-alpha] - 2026-03-10
+
+### 🐞 Fixed
+
+- **Parser / Windows**: Fixed an issue on Windows where pages synced via tools like Git would cause frontmatter parsing errors due to trailing carriage returns. The app now correctly handles invisible line-endings.
+- **Images**: Fixed a bug that prevented images from loading if they were added to your vault using symlinks.
+- **Preview**: Table column sorting now correctly handles numbers with commas, stripping the commas between digits before comparison.
+- **Infobox**: Fixed a visual issue where long image captions would spill out of the infobox and break the layouts. Captions in the infobox carousel will now neatly truncate if they are too long, while standard image carousels in the main preview remain unaffected.
+- **UI**: Fixed an annoying visual "jitter" in the header of the main document views. Previously, on smaller screens, the whole window could bounce slightly when the save indicator switched between "Unsaved" and the longer "Last saved at..." text. This area is now a fixed size to keep the reading experience more stable.
+
+---
+
 ## [v0.47.0-alpha] - 2026-02-24
 
 ### ✨ Added
