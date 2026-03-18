@@ -441,10 +441,7 @@ For full control over an image's size, alignment, and caption, use HTML tags in 
 
 **Float an image to the right of your text:**
 ```html
-<img
-  src="rivertown-market.png"
-  style="float: right; margin-left: 1em; width: 300px;"
->
+<img src="rivertown-market.png" style="float: right; margin-left: 1em; width: 300px;">
 ```
 
 **Add a caption using `<figure>`:**
