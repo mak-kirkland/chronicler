@@ -2,6 +2,22 @@
 
 ---
 
+## [v0.47.2-alpha] - 2026-03-18
+
+### 🐞 Fixed
+
+- **Navigation**: Fixed an issue where switching between different vaults would leave your old navigation history active. The back and forward buttons now correctly reset when you open a new vault, preventing you from accidentally navigating to files that don't exist in your current workspace.
+- **Internal**: Resolved a memory leak that occurred when switching vaults. The app now properly cleans up internal listeners, ensuring that system resources are freed up when a vault is closed.
+- **Writer**: Fixed a bug where renaming a file would break links pointing to specific header sections. The app now correctly preserves the `#` symbol and section heading when updating your links (e.g., `[[NewPage#Heading]]` instead of `[[NewPageHeading]]`).
+- **File Watcher**: Fixed a bug where deleting a folder was sometimes incorrectly handled as a file deletion, improving the reliability of vault synchronization.
+
+### 🚀 Performance
+
+- **File Events**: Optimized the way the app processes your files. Instead of scanning your entire folder structure six times every time a change is detected, it now does it once and shares that information across the app. This significantly reduces CPU usage and makes the interface feel much snappier in large vaults.
+
+
+---
+
 ## [v0.47.1-alpha] - 2026-03-10
 
 ### 🐞 Fixed
