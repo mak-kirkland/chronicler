@@ -522,10 +522,19 @@ impl World {
         Ok(new_path)
     }
 
-    /// Deletes a file or folder and synchronously updates the index.
+    /// Deletes a file or folder (by moving to OS trash) and synchronously updates the index.
+    ///
+    /// Includes a safety guard that prevents deletion of the vault root or its
+    /// direct children, protecting against catastrophic data loss.
     pub fn delete_path(&self, path: PathBuf) -> Result<()> {
         let writer = self
             .writer
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+
+        let vault_root = self
+            .root_path
             .read()
             .clone()
             .ok_or(ChroniclerError::VaultNotInitialized)?;
@@ -536,7 +545,7 @@ impl World {
             FileEvent::Deleted(path.clone())
         };
 
-        writer.delete_path(&path)?;
+        writer.delete_path(&path, &vault_root)?;
         self.indexer.write().handle_event_and_rebuild(&event);
         Ok(())
     }

@@ -204,14 +204,32 @@ tags: [add, your, tags]
         Ok(path)
     }
 
-    /// Deletes a file or folder from the disk.
+    /// Deletes a file or folder by moving it to the OS trash/recycle bin.
+    ///
+    /// Includes a safety guard that prevents deletion of the vault root itself.
+    ///
+    /// # Arguments
+    /// * `path` - The path to the file or folder to delete.
+    /// * `vault_root` - The root path of the current vault, used for safety validation.
     #[instrument(skip(self))]
-    pub fn delete_path(&self, path: &Path) -> Result<()> {
-        if path.is_dir() {
-            fs::remove_dir_all(path)?;
-        } else {
-            fs::remove_file(path)?;
+    pub fn delete_path(&self, path: &Path, vault_root: &Path) -> Result<()> {
+        // --- Safety Guard: Never delete the vault root itself ---
+        if path == vault_root {
+            return Err(ChroniclerError::DangerousDelete(format!(
+                "Refusing to delete the vault root directory: {}",
+                path.display()
+            )));
         }
+
+        // --- Move to OS trash instead of permanent deletion ---
+        trash::delete(path).map_err(|e| {
+            ChroniclerError::TrashError(format!(
+                "Failed to move '{}' to trash: {}",
+                path.display(),
+                e
+            ))
+        })?;
+
         Ok(())
     }
 
