@@ -86,6 +86,12 @@ pub enum ChroniclerError {
 
     #[error("Circular insert detected: a page is trying to insert itself, creating a loop.")]
     CircularInsert(PathBuf),
+
+    #[error("Dangerous delete blocked: {0}")]
+    DangerousDelete(String),
+
+    #[error("Trash error: {0}")]
+    TrashError(String),
 }
 
 // We need to implement Serialize for the error type to be able to return
