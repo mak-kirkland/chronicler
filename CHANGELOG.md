@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.47.3-alpha] - 2026-03-19
+
+### 🐞 Fixed
+
+- **Writer**: Improved data safety by changing how files and folders are deleted. The application now sends deleted items to your operating system's Recycle Bin (Trash) instead of permanently erasing them from your disk.
+
+---
+
 ## [v0.47.2-alpha] - 2026-03-18
 
 ### 🐞 Fixed
