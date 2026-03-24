@@ -28,6 +28,16 @@ pub fn sanitize_html(dirty_html: &str) -> String {
                 return None;
             }
 
+            // WHITELIST: Only allow safe <input> types (checkbox and radio)
+            // This prevents phishing vectors like type="text" or type="password"
+            if element == "input" && attribute == "type" {
+                let lower = value.to_lowercase();
+                if lower == "checkbox" || lower == "radio" {
+                    return Some(value.into());
+                }
+                return None;
+            }
+
             // Allow other protocols (http, asset, etc.) to pass through
             Some(value.into())
         })
@@ -78,6 +88,26 @@ pub fn sanitize_html(dirty_html: &str) -> String {
             "button",
             "small",
             "meter",
+            "progress", // Progress bar (quest trackers, completion indicators)
+            // --- Interactive Elements (CSS-only tabs, checklists) ---
+            "input",    // Restricted to type="checkbox" and type="radio" via attribute_filter
+            "label",    // Clickable labels for inputs
+            "fieldset", // Visual grouping for radio/checkbox sets
+            "legend",   // Caption for fieldset
+            // --- Inline Semantic Tags ---
+            "mark", // Highlighted text (lore annotations)
+            "ins",  // Inserted text (complement to <del>)
+            "dfn",  // Definition of a term (in-world terminology)
+            "cite", // Citation (in-world references)
+            "time", // Temporal data (worldbuilding timelines)
+            // --- Ruby Annotations (constructed languages, pronunciation) ---
+            "ruby", // Ruby annotation container
+            "rt",   // Ruby text (pronunciation/translation)
+            "rp",   // Ruby fallback parentheses
+            // --- Table Enhancements ---
+            "caption",  // Table caption
+            "colgroup", // Column grouping
+            "col",      // Column styling
             // --- Math Support (MathML tags) ---
             "math",
             "mi",
@@ -96,7 +126,7 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         .add_tag_attributes("span", &["class", "style"])
         .add_tag_attributes("br", &["style", "class", "id"])
         .add_tag_attributes("p", &["style", "id"])
-        .add_tag_attributes("details", &["open"])
+        .add_tag_attributes("details", &["open", "name"])
         .add_tag_attributes("abbr", &["title"]) // Allow title for abbreviations
         .add_tag_attributes("div", &["style", "class", "id"])
         .add_tag_attributes("th", &["style", "align", "valign", "width", "bgcolor"]) // Allow table header alignment
@@ -127,6 +157,17 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         )
         .add_tag_attributes("button", &["class"])
         .add_tag_attributes("meter", &["value", "min", "max"])
+        .add_tag_attributes("progress", &["value", "max"])
+        // --- Interactive Element Attributes ---
+        .add_tag_attributes("input", &["type", "name", "id", "checked", "disabled"])
+        .add_tag_attributes("label", &["for", "class", "style"])
+        .add_tag_attributes("fieldset", &["class", "style"])
+        .add_tag_attributes("legend", &["class", "style"])
+        // --- Inline Semantic Attributes ---
+        .add_tag_attributes("mark", &["class", "style"])
+        .add_tag_attributes("time", &["datetime"])
+        .add_tag_attributes("col", &["span", "style"])
+        .add_tag_attributes("colgroup", &["span"])
         // --- Math Support Attributes ---
         .add_tag_attributes("math", &["xmlns", "display"])
         .add_tag_attributes("annotation", &["encoding"])
