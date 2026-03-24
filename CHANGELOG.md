@@ -2,6 +2,23 @@
 
 ---
 
+## [v0.47.4-alpha] - 2026-03-24
+
+### ✨ Added
+
+- **HTML Support**: Added support for a variety of new HTML tags to give you more control over your page layouts.
+    - **Interactive Elements**: You can now use checkboxes and radio buttons (via `<input>`), labels, and fieldsets. This enables advanced features like custom checklists and pure-CSS tab patterns within your notes.
+    - **Accordion Menus**: Added support for the `name` attribute on `<details>` tags, allowing you to create groups of accordions where only one stays open at a time.
+    - **New Semantic Tags**: Enhance your writing with tags for highlighting text (`<mark>`), inserted text (`<ins>`), definitions (`<dfn>`), citations (`<cite>`), and worldbuilding timelines (`<time>`).
+    - **Language Tools**: Added support for Ruby characters (`<ruby>`, `<rt>`, `<rp>`), which are perfect for providing pronunciation guides for constructed languages.
+    - **Table Improvements**: You can now add captions to your tables and use column groups for more advanced styling.
+
+### 🔄 Changed
+
+- **Automatic Titles**: New pages no longer automatically include a "title" field in their properties (frontmatter). Since the app already uses the filename as the title by default, this change prevents your titles from becoming outdated or "stale" if you rename the file. You can still manually add a custom title if you wish, and the app will respect it.
+
+---
+
 ## [v0.47.3-alpha] - 2026-03-19
 
 ### 🐞 Fixed
