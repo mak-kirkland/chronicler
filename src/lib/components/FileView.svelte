@@ -407,6 +407,7 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        flex-shrink: 0;
     }
     .view-title {
         font-family: var(--font-family-heading);
