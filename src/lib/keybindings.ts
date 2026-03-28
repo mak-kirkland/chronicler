@@ -19,12 +19,20 @@ const actionHandlers: Record<ActionName, () => void> = {
     navigateForward: navigation.forward,
 };
 
+// Detect macOS to use platform-appropriate shortcuts.
+// On macOS, Alt+Arrow is used for word-level cursor movement in text fields,
+// so we use Cmd+[ / Cmd+] instead (the standard browser back/forward shortcut).
+const isMac = navigator.platform.toUpperCase().includes("MAC");
+
 // The default keybinding configuration.
 // In the future, this could be loaded from and merged with user settings.
 const KEYBINDINGS: { keys: string[]; action: ActionName }[] = [
-    { keys: ["Alt+ArrowLeft"], action: "navigateBack" },
     {
-        keys: ["Alt+ArrowRight"],
+        keys: isMac ? ["Meta+["] : ["Alt+ArrowLeft"],
+        action: "navigateBack",
+    },
+    {
+        keys: isMac ? ["Meta+]"] : ["Alt+ArrowRight"],
         action: "navigateForward",
     },
 ];
@@ -35,7 +43,7 @@ const KEYBINDINGS: { keys: string[]; action: ActionName }[] = [
  */
 function handleKeyDown(event: KeyboardEvent) {
     // Construct a simple, consistent representation of the key combination.
-    const keyCombo = `${event.ctrlKey ? "Control+" : ""}${event.altKey ? "Alt+" : ""}${event.key}`;
+    const keyCombo = `${event.ctrlKey ? "Control+" : ""}${event.altKey ? "Alt+" : ""}${event.metaKey ? "Meta+" : ""}${event.key}`;
 
     // Find the action that matches the pressed key combination.
     const binding = KEYBINDINGS.find((b) => b.keys.includes(keyCombo));
