@@ -269,8 +269,9 @@
         display: flex;
         flex-grow: 1;
         height: 100%;
-        margin-left: var(--sidebar-width);
+        padding-left: var(--sidebar-width);
         position: relative;
+        min-width: 0; /* Prevent flex blowout */
     }
 
     .resizer {
