@@ -9,8 +9,8 @@ use crate::wikilink::extract_wikilinks;
 use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
-use std::sync::LazyLock;
 use std::path::Path;
+use std::sync::LazyLock;
 use tracing::instrument;
 
 /// Parses a single Markdown file to extract its metadata (frontmatter, tags, links).
@@ -173,10 +173,7 @@ static INSERT_RE: LazyLock<Regex> = LazyLock::new(|| {
 fn extract_inserts(content: &str) -> Vec<String> {
     INSERT_RE
         .captures_iter(content)
-        .filter_map(|cap| {
-            cap.name("path")
-                .map(|m| m.as_str().trim().to_string())
-        })
+        .filter_map(|cap| cap.name("path").map(|m| m.as_str().trim().to_string()))
         .collect()
 }
 
@@ -194,10 +191,32 @@ fn extract_images_and_clean_links(
 ) -> Vec<String> {
     let mut images = Vec::new();
 
-    // 1. Frontmatter image
-    if let Some(img) = frontmatter.get("image").and_then(|v| v.as_str()) {
-        if !img.trim().is_empty() {
-            images.push(img.to_string());
+    // 1. Frontmatter image field — supports multiple formats:
+    //    - Single string:        image: "cover.jpg"
+    //    - Array of strings:     image: [img1.png, img2.png]
+    //    - Array of [src, cap]:  image: [[img1.png, "Caption"], [img2.png]]
+    if let Some(img_val) = frontmatter.get("image") {
+        if let Some(img) = img_val.as_str() {
+            // Single string
+            if !img.trim().is_empty() {
+                images.push(img.to_string());
+            }
+        } else if let Some(arr) = img_val.as_array() {
+            // Array — each element is either a string or a [src, caption] sub-array
+            for item in arr {
+                if let Some(s) = item.as_str() {
+                    if !s.trim().is_empty() {
+                        images.push(s.to_string());
+                    }
+                } else if let Some(sub_arr) = item.as_array() {
+                    // [src, caption] tuple — extract the first element as the image path
+                    if let Some(src) = sub_arr.first().and_then(|v| v.as_str()) {
+                        if !src.trim().is_empty() {
+                            images.push(src.to_string());
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -444,6 +463,48 @@ Here is a normal link to a page: [[Another Page]]
         // "linked.webp" should be filtered out because of extension
         assert_eq!(page.links.len(), 1);
         assert_eq!(page.links[0].target, "Another Page");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_file_with_image_array() -> Result<()> {
+        let content = r#"---
+image: [img1.png, img2.jpg]
+---
+Body text.
+"#;
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_image_array.md");
+        fs::write(&file_path, content).unwrap();
+
+        let page = parse_file(&file_path).unwrap();
+
+        assert_eq!(page.images.len(), 2);
+        assert!(page.images.contains(&"img1.png".to_string()));
+        assert!(page.images.contains(&"img2.jpg".to_string()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_file_with_image_tuples() -> Result<()> {
+        let content = r#"---
+image:
+  - [portrait.png, "A portrait"]
+  - [landscape.jpg]
+---
+Body text.
+"#;
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_image_tuples.md");
+        fs::write(&file_path, content).unwrap();
+
+        let page = parse_file(&file_path).unwrap();
+
+        assert_eq!(page.images.len(), 2);
+        assert!(page.images.contains(&"portrait.png".to_string()));
+        assert!(page.images.contains(&"landscape.jpg".to_string()));
 
         Ok(())
     }
