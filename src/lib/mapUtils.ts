@@ -4,7 +4,7 @@
  * and centralized theme assets (icons, colors).
  */
 
-import type { MapConfig, MapLayer, MapRegion } from "./mapModels";
+import type { MapConfig, MapLayer, MapPin, MapRegion } from "./mapModels";
 import L from "leaflet";
 
 // --- THEME CONSTANTS ---
@@ -323,7 +323,20 @@ export function generatePinSvg(
 }
 
 /**
+ * LRU-bounded cache for DivIcon instances.
+ * Most maps use only a handful of unique icon combos, so this avoids
+ * regenerating SVG strings and DivIcon objects on every render.
+ */
+const iconCache = new Map<string, L.DivIcon>();
+const ICON_CACHE_MAX = 256;
+
+function iconCacheKey(emoji: string, color: string, highlighted: boolean, invisible: boolean): string {
+    return `${emoji}|${color}|${highlighted ? 1 : 0}|${invisible ? 1 : 0}`;
+}
+
+/**
  * Creates a Leaflet DivIcon for a map pin.
+ * Results are cached by (emoji, color, highlighted, invisible) tuple.
  */
 export function createEmojiIcon(
     emoji: string,
@@ -331,16 +344,29 @@ export function createEmojiIcon(
     highlighted: boolean = false,
     invisible: boolean = false,
 ): L.DivIcon {
+    const key = iconCacheKey(emoji, color, highlighted, invisible);
+    const cached = iconCache.get(key);
+    if (cached) return cached;
+
     const scale = highlighted ? 1.3 : 1;
     const svg = generatePinSvg(emoji, color, highlighted);
 
-    return L.divIcon({
+    const icon = L.divIcon({
         className: `custom-pin-marker ${highlighted ? "highlighted" : ""} ${invisible ? "ghost-pin-marker" : ""}`,
         html: svg,
         iconSize: [32 * scale, 48 * scale],
         iconAnchor: [16 * scale, 48 * scale],
         popupAnchor: [0, -48 * scale],
     });
+
+    // Evict oldest entry if cache is full
+    if (iconCache.size >= ICON_CACHE_MAX) {
+        const firstKey = iconCache.keys().next().value;
+        if (firstKey !== undefined) iconCache.delete(firstKey);
+    }
+    iconCache.set(key, icon);
+
+    return icon;
 }
 
 /**
@@ -460,4 +486,138 @@ export function getShapesAtPoint(
         }
         return false;
     });
+}
+
+// --- SPATIAL INDEX ---
+
+/**
+ * Axis-aligned bounding box for fast broad-phase hit testing.
+ */
+interface AABB {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+}
+
+/**
+ * Computes the AABB for a map region.
+ */
+function computeAABB(shape: MapRegion): AABB {
+    if (shape.type === "circle") {
+        return {
+            minX: shape.x - shape.radius,
+            minY: shape.y - shape.radius,
+            maxX: shape.x + shape.radius,
+            maxY: shape.y + shape.radius,
+        };
+    } else {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const p of shape.points) {
+            if (p.x < minX) minX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y > maxY) maxY = p.y;
+        }
+        return { minX, minY, maxX, maxY };
+    }
+}
+
+/**
+ * Lightweight spatial index using a uniform grid for O(1) broad-phase lookups.
+ * Rebuild when shapes change; query on every mousemove/click.
+ */
+export class ShapeSpatialIndex {
+    private cellSize: number;
+    private grid = new Map<string, MapRegion[]>();
+    private aabbMap = new Map<string, AABB>();
+    private shapes: MapRegion[] = [];
+
+    constructor(shapes: MapRegion[], mapWidth: number, mapHeight: number) {
+        this.shapes = shapes;
+        // Choose cell size so the grid is ~50×50 at most.
+        // Larger cells = fewer cells but more candidates per query.
+        this.cellSize = Math.max(mapWidth, mapHeight, 1) / 50;
+        this.build();
+    }
+
+    private cellKey(cx: number, cy: number): string {
+        return `${cx},${cy}`;
+    }
+
+    private build(): void {
+        for (const shape of this.shapes) {
+            const aabb = computeAABB(shape);
+            this.aabbMap.set(shape.id, aabb);
+
+            const minCX = Math.floor(aabb.minX / this.cellSize);
+            const minCY = Math.floor(aabb.minY / this.cellSize);
+            const maxCX = Math.floor(aabb.maxX / this.cellSize);
+            const maxCY = Math.floor(aabb.maxY / this.cellSize);
+
+            for (let cx = minCX; cx <= maxCX; cx++) {
+                for (let cy = minCY; cy <= maxCY; cy++) {
+                    const key = this.cellKey(cx, cy);
+                    let bucket = this.grid.get(key);
+                    if (!bucket) {
+                        bucket = [];
+                        this.grid.set(key, bucket);
+                    }
+                    bucket.push(shape);
+                }
+            }
+        }
+    }
+
+    /**
+     * Query all shapes containing the given point.
+     * Uses AABB broad-phase, then exact geometry narrow-phase.
+     */
+    query(mapX: number, mapY: number, layers?: MapLayer[]): MapRegion[] {
+        const cx = Math.floor(mapX / this.cellSize);
+        const cy = Math.floor(mapY / this.cellSize);
+        const candidates = this.grid.get(this.cellKey(cx, cy));
+        if (!candidates) return [];
+
+        // Deduplicate: shapes spanning multiple cells may appear multiple times,
+        // but within a single cell bucket there are no duplicates.
+        // Since we query exactly one cell, no dedup needed.
+        const results: MapRegion[] = [];
+        for (const shape of candidates) {
+            if (layers && !isLayerVisible(shape.layerId, layers)) continue;
+
+            // AABB check (fast reject)
+            const aabb = this.aabbMap.get(shape.id)!;
+            if (mapX < aabb.minX || mapX > aabb.maxX || mapY < aabb.minY || mapY > aabb.maxY) continue;
+
+            // Exact geometry check
+            if (shape.type === "circle") {
+                if (isPointInCircle({ x: mapX, y: mapY }, shape)) results.push(shape);
+            } else if (shape.type === "polygon") {
+                if (isPointInPolygon({ x: mapX, y: mapY }, shape.points)) results.push(shape);
+            }
+        }
+        return results;
+    }
+}
+
+/**
+ * Generates a fingerprint string for a MapPin that captures all properties
+ * which affect its Leaflet rendering. Used for diff-based sync.
+ */
+export function pinFingerprint(pin: MapPin): string {
+    return `${pin.x}|${pin.y}|${pin.icon || ""}|${pin.color || ""}|${pin.label || ""}|${pin.targetPage || ""}|${pin.targetMap || ""}|${pin.layerId || ""}|${pin.invisible ? 1 : 0}`;
+}
+
+/**
+ * Generates a fingerprint string for a MapRegion that captures all properties
+ * which affect its Leaflet rendering. Used for diff-based sync.
+ */
+export function shapeFingerprint(shape: MapRegion): string {
+    if (shape.type === "polygon") {
+        const pts = shape.points.map((p) => `${p.x},${p.y}`).join(";");
+        return `poly|${pts}|${shape.color || ""}|${shape.label || ""}|${shape.targetPage || ""}|${shape.targetMap || ""}|${shape.layerId || ""}`;
+    } else {
+        return `circ|${shape.x},${shape.y},${shape.radius}|${shape.color || ""}|${shape.label || ""}|${shape.targetPage || ""}|${shape.targetMap || ""}|${shape.layerId || ""}`;
+    }
 }
