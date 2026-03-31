@@ -19,6 +19,8 @@
         createEmojiIcon,
         isLayerVisible,
         setsEqual,
+        toLeafletLat,
+        toMapY,
         REGION_STYLES,
         DEFAULT_SHAPE_COLOR,
         DEFAULT_ICON_COLOR,
@@ -592,9 +594,7 @@
             console.log(
                 "Map dimensions or base image changed, recreating map...",
             );
-            map.remove();
-            map = null;
-            resetMapLayers();
+            destroyMap();
         }
 
         // Update tracking state
@@ -668,7 +668,7 @@
             if (!mapConfig) return;
 
             const mapX = e.latlng.lng;
-            const mapY = mapHeight - e.latlng.lat; // Convert Leaflet LatLng to Map Coords (Y-flip)
+            const mapY = toMapY(e.latlng.lat, mapHeight); // Convert Leaflet LatLng to Map Coords (Y-flip)
             // Find all shapes under cursor (with layer visibility filtering)
             const shapesAtCursor = getShapesAtPoint(
                 mapX,
@@ -725,8 +725,7 @@
             }
 
             const mapX = e.latlng.lng;
-            const mapY = mapHeight - e.latlng.lat;
-            // Use shared utility with layer visibility filtering
+            const mapY = toMapY(e.latlng.lat, mapHeight);
             const shapes = getShapesAtPoint(
                 mapX,
                 mapY,
@@ -782,7 +781,7 @@
                 // Handle Click Disambiguation for Overlapping Regions
                 // Note: This only runs if the click wasn't stopped by a Pin
                 const mapX = e.latlng.lng;
-                const mapY = mapHeight - e.latlng.lat;
+                const mapY = toMapY(e.latlng.lat, mapHeight);
 
                 // Find shapes with navigation targets (with layer visibility filtering)
                 const shapes = getShapesAtPoint(
@@ -940,7 +939,7 @@
         config.pins.forEach((pin: MapPin) => {
             if (!isLayerVisible(pin.layerId, config.layers)) return;
 
-            const leafletLat = h - pin.y;
+            const leafletLat = toLeafletLat(pin.y, h);
             const leafletLng = pin.x;
             // Default to standard pin if none selected
             const iconChar = pin.icon || DEFAULT_PIN_ICON;
@@ -1026,7 +1025,7 @@
                 // Leaflet Polygon: Array of [Lat, Lng]
                 // We must map each point: [h - p.y, p.x]
                 const latLngs = shape.points.map(
-                    (p) => [h - p.y, p.x] as [number, number],
+                    (p) => [toLeafletLat(p.y, h), p.x] as [number, number],
                 );
                 layer = L.polygon(latLngs, initialStyle);
             } else {
@@ -1082,7 +1081,7 @@
             // Convert LatLngs back to map coordinates (Y flip)
             const points = tempPoints.map((p) => ({
                 x: Math.round(p.lng),
-                y: Math.round(h - p.lat),
+                y: Math.round(toMapY(p.lat, h)),
             }));
             shapeData = { type: "polygon", points };
         }
