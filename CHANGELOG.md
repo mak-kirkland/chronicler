@@ -2,6 +2,17 @@
 
 ---
 
+## [v0.47.5-alpha] - 2026-03-31
+
+### 🐞 Fixed
+
+- **Broken Image Reports**: The parser now correctly identifies images specified in arrays in the YAML frontmatter. This ensures that images used in carousels - including plain lists and captioned pairs - are properly tracked in the broken images report.
+- **Layout**: Fixed a layout bug where the main content could overlap with the sidebar or overflow off-screen on narrow windows. The app now correctly calculates the available space to ensure your notes remain fully visible.
+- **File View**: Action buttons in the page header will no longer disappear or shrink on small screens. If a page title is too long for the window, it will now neatly truncate with an ellipsis to ensure your navigation buttons remain accessible.
+- **macOS Keybindings**: Improved compatibility for Mac users by moving the "Back" and "Forward" navigation shortcuts to `Cmd + [` and `Cmd + ]`. This prevents a conflict where the previous shortcuts interfered with standard macOS text editing behavior. Windows and Linux users will continue to use the standard `Alt + Arrow` shortcuts.
+
+---
+
 ## [v0.47.4-alpha] - 2026-03-24
 
 ### ✨ Added
