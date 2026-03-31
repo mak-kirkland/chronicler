@@ -495,3 +495,34 @@ export function debounce<T extends (...args: any[]) => any>(
         }, wait);
     };
 }
+
+/**
+ * Creates a throttled version of a function that fires at most once per `ms` milliseconds.
+ * Uses trailing-edge invocation so the last call within a window is always executed.
+ *
+ * @param fn The function to throttle.
+ * @param ms The minimum interval between invocations in milliseconds.
+ */
+export function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
+    let lastCall = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const throttled = (...args: any[]) => {
+        const now = Date.now();
+        const remaining = ms - (now - lastCall);
+
+        if (remaining <= 0) {
+            if (timer) { clearTimeout(timer); timer = null; }
+            lastCall = now;
+            fn(...args);
+        } else if (!timer) {
+            timer = setTimeout(() => {
+                lastCall = Date.now();
+                timer = null;
+                fn(...args);
+            }, remaining);
+        }
+    };
+
+    return throttled as unknown as T;
+}

@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
-    import { get } from "svelte/store";
     import L from "leaflet";
     import "leaflet/dist/leaflet.css";
     import { convertFileSrc } from "@tauri-apps/api/core";
@@ -21,6 +20,9 @@
         setsEqual,
         toLeafletLat,
         toMapY,
+        pinFingerprint,
+        shapeFingerprint,
+        ShapeSpatialIndex,
         REGION_STYLES,
         DEFAULT_SHAPE_COLOR,
         DEFAULT_ICON_COLOR,
@@ -32,6 +34,7 @@
         pagePathLookup,
         mapPathLookup,
     } from "$lib/worldStore";
+    import { throttle } from "$lib/utils";
     import type {
         MapConfig,
         MapLayer,
@@ -116,6 +119,24 @@
     let pinIdToLayer = new Map<string, L.Marker>();
     let shapeIdToLayer = new Map<string, L.Path>();
 
+    // --- Performance: Diff-based sync tracking ---
+    // Fingerprints of the last synced pins/shapes for diffing
+    let prevPinFingerprints = new Map<string, string>();
+    let prevShapeFingerprints = new Map<string, string>();
+    // Previous highlight ID for targeted reset (avoids resetting ALL pins)
+    let prevHighlightedPinId: string | null = null;
+
+    // --- Performance: Spatial index for shape hit-testing ---
+    let spatialIndex: ShapeSpatialIndex | null = null;
+
+    // --- Performance: Cached store subscriptions (avoids get() per event) ---
+    let cachedPagePaths: Map<string, string> = new Map();
+    let cachedMapPaths: Map<string, string> = new Map();
+
+    // --- Performance: Previous region style state for targeted updates ---
+    let prevStyledRegionIds = new Set<string>();
+    let prevRegionStyleMode: "hidden" | "visible" = "hidden";
+
     let contextMenu = $state<{
         x: number;
         y: number;
@@ -178,6 +199,15 @@
 
     onDestroy(() => {
         destroyMap();
+    });
+
+    // --- Performance: Subscribe to world store lookups once, cache locally ---
+    // Avoids calling get(store) on every mouseover/click event.
+    $effect(() => {
+        cachedPagePaths = $pagePathLookup;
+    });
+    $effect(() => {
+        cachedMapPaths = $mapPathLookup;
     });
 
     // =========================================================================
@@ -275,17 +305,17 @@
 
     /**
      * Resolves a map object's targetPage/targetMap titles to full file paths
-     * using the world store lookups. Returns null for unresolved targets.
+     * using cached world store lookups. Returns null for unresolved targets.
      */
     function resolveTargetPaths(item: {
         targetPage?: string;
         targetMap?: string;
     }) {
         const pagePath = item.targetPage
-            ? (get(pagePathLookup).get(item.targetPage.toLowerCase()) ?? null)
+            ? (cachedPagePaths.get(item.targetPage.toLowerCase()) ?? null)
             : null;
         const mapTargetPath = item.targetMap
-            ? (get(mapPathLookup).get(item.targetMap.toLowerCase()) ?? null)
+            ? (cachedMapPaths.get(item.targetMap.toLowerCase()) ?? null)
             : null;
         return { pagePath, mapTargetPath };
     }
@@ -370,10 +400,34 @@
     // =========================================================================
 
     // Handle pin highlighting from console
+    // Optimization: Only reset the previously highlighted pin, not all pins.
     $effect(() => {
         // Subscribe to layerRevision to ensure we run after re-renders
         void layerRevision;
 
+        // 1. Reset previous highlight (just one pin, not all)
+        if (prevHighlightedPinId && prevHighlightedPinId !== highlightedPinId) {
+            const prevMarker = pinIdToLayer.get(prevHighlightedPinId);
+            const prevPin = mapConfig?.pins.find(
+                (p) => p.id === prevHighlightedPinId,
+            );
+            if (prevMarker && prevPin) {
+                const iconChar = prevPin.icon || DEFAULT_PIN_ICON;
+                const normalIcon = createEmojiIcon(
+                    iconChar,
+                    prevPin.color || DEFAULT_ICON_COLOR,
+                    false,
+                    !!prevPin.invisible,
+                );
+                prevMarker.setIcon(normalIcon);
+                prevMarker.setZIndexOffset(0);
+                if (prevPin.id !== hoveredPinId) {
+                    prevMarker.closeTooltip();
+                }
+            }
+        }
+
+        // 2. Apply new highlight
         if (highlightedPinId && pinIdToLayer.has(highlightedPinId)) {
             const marker = pinIdToLayer.get(highlightedPinId);
             const pinConfig = mapConfig?.pins.find(
@@ -389,59 +443,78 @@
                     !!pinConfig.invisible, // Pass invisible state
                 );
                 marker.setIcon(highlightedIcon);
-                marker.setZIndexOffset(1000); // Bring to front
-                marker.openTooltip(); // Show tooltip on console hover
-            }
-        } else {
-            // Reset all icons
-            if (mapConfig) {
-                mapConfig.pins.forEach((pin) => {
-                    const marker = pinIdToLayer.get(pin.id);
-                    if (marker) {
-                        const iconChar = pin.icon || DEFAULT_PIN_ICON;
-                        const normalIcon = createEmojiIcon(
-                            iconChar,
-                            pin.color || DEFAULT_ICON_COLOR,
-                            false,
-                            !!pin.invisible, // Pass invisible state
-                        );
-                        marker.setIcon(normalIcon);
-                        marker.setZIndexOffset(0);
-
-                        // Close tooltip only if not hovered by mouse
-                        if (pin.id !== hoveredPinId) {
-                            marker.closeTooltip();
-                        }
-                    }
-                });
+                marker.setZIndexOffset(1000);
+                marker.openTooltip();
             }
         }
+
+        prevHighlightedPinId = highlightedPinId;
     });
 
     // Reactive Effect for Region Visibility & Styling
-    // Logic: Invisible by default, Visible if Console Open, Highlighted if Hovered (Map or Console)
+    // Optimization: Only restyle regions whose state actually changed.
     $effect(() => {
         // Subscribe to layerRevision to ensure we run after re-renders
         void layerRevision;
 
         if (mapConfig) {
-            mapConfig.shapes.forEach((s) => {
-                const layer = shapeIdToLayer.get(s.id);
-                if (layer) {
-                    const isTargeted =
-                        s.id === highlightedRegionId ||
-                        hoveredRegionIds.has(s.id);
+            const currentMode: "hidden" | "visible" = isConsoleOpen
+                ? "visible"
+                : "hidden";
 
-                    if (isTargeted) {
+            // Compute which IDs are currently targeted (highlighted/hovered)
+            const currentTargeted = new Set<string>();
+            if (highlightedRegionId) currentTargeted.add(highlightedRegionId);
+            for (const id of hoveredRegionIds) currentTargeted.add(id);
+
+            // Determine which shapes need restyling:
+            // 1. Shapes that were targeted but no longer are
+            // 2. Shapes that are newly targeted
+            // 3. All shapes if the base mode changed (console open/close) or layers rebuilt
+            const modeChanged = currentMode !== prevRegionStyleMode;
+
+            if (modeChanged) {
+                // Mode changed — restyle everything
+                mapConfig.shapes.forEach((s) => {
+                    const layer = shapeIdToLayer.get(s.id);
+                    if (!layer) return;
+                    if (currentTargeted.has(s.id)) {
                         layer.setStyle(REGION_STYLES.highlighted);
                         layer.bringToFront();
-                    } else if (isConsoleOpen) {
+                    } else if (currentMode === "visible") {
                         layer.setStyle(REGION_STYLES.visible);
                     } else {
                         layer.setStyle(REGION_STYLES.hidden);
                     }
+                });
+            } else {
+                // Mode unchanged — only update shapes entering/leaving targeted state
+                const baseStyle =
+                    currentMode === "visible"
+                        ? REGION_STYLES.visible
+                        : REGION_STYLES.hidden;
+
+                // Shapes leaving targeted state
+                for (const id of prevStyledRegionIds) {
+                    if (!currentTargeted.has(id)) {
+                        const layer = shapeIdToLayer.get(id);
+                        if (layer) layer.setStyle(baseStyle);
+                    }
                 }
-            });
+                // Shapes entering targeted state
+                for (const id of currentTargeted) {
+                    if (!prevStyledRegionIds.has(id)) {
+                        const layer = shapeIdToLayer.get(id);
+                        if (layer) {
+                            layer.setStyle(REGION_STYLES.highlighted);
+                            layer.bringToFront();
+                        }
+                    }
+                }
+            }
+
+            prevStyledRegionIds = currentTargeted;
+            prevRegionStyleMode = currentMode;
         }
 
         // Handle explicit console hover tooltip
@@ -529,6 +602,11 @@
         drawLayerGroup = null;
         pinIdToLayer.clear();
         shapeIdToLayer.clear();
+        prevPinFingerprints.clear();
+        prevShapeFingerprints.clear();
+        prevStyledRegionIds = new Set();
+        prevRegionStyleMode = "hidden";
+        spatialIndex = null;
         removeMultiTooltip();
     }
 
@@ -669,13 +747,15 @@
 
             const mapX = e.latlng.lng;
             const mapY = toMapY(e.latlng.lat, mapHeight); // Convert Leaflet LatLng to Map Coords (Y-flip)
-            // Find all shapes under cursor (with layer visibility filtering)
-            const shapesAtCursor = getShapesAtPoint(
-                mapX,
-                mapY,
-                mapConfig.shapes,
-                mapConfig.layers,
-            );
+            // Find all shapes under cursor using spatial index (fast) or fallback
+            const shapesAtCursor = spatialIndex
+                ? spatialIndex.query(mapX, mapY, mapConfig.layers)
+                : getShapesAtPoint(
+                      mapX,
+                      mapY,
+                      mapConfig.shapes,
+                      mapConfig.layers,
+                  );
 
             // Create edit actions for each shape found
             const editActions = shapesAtCursor.map((shape) => ({
@@ -709,7 +789,8 @@
 
     // Handle Hover for Overlapping Regions (Multi-Tooltip + Highlight Sync)
     function attachMouseMoveHandler(mapHeight: number) {
-        map!.on("mousemove", (e: L.LeafletMouseEvent) => {
+        // Core handler logic — extracted so it can be throttled
+        const handleMouseMove = (e: L.LeafletMouseEvent) => {
             if (isDrawing) return;
             // Prevent showing tooltip if context menu is open
             // We ALLOW it if console is open now, but we will block full previews below
@@ -726,12 +807,15 @@
 
             const mapX = e.latlng.lng;
             const mapY = toMapY(e.latlng.lat, mapHeight);
-            const shapes = getShapesAtPoint(
-                mapX,
-                mapY,
-                mapConfig.shapes,
-                mapConfig.layers,
-            );
+            // Use spatial index for fast lookup, fall back to linear scan
+            const shapes = spatialIndex
+                ? spatialIndex.query(mapX, mapY, mapConfig.layers)
+                : getShapesAtPoint(
+                      mapX,
+                      mapY,
+                      mapConfig.shapes,
+                      mapConfig.layers,
+                  );
 
             // 2. SYNC HOVER HIGHLIGHT STATE
             // Only update state if the set of IDs has actually changed.
@@ -770,7 +854,11 @@
                 // Clear previews
                 clearAllPreviews();
             }
-        });
+        };
+
+        // Throttle to ~30ms to avoid running expensive hit-tests on every pixel
+        const throttledHandler = throttle(handleMouseMove, 30);
+        map!.on("mousemove", throttledHandler);
     }
 
     function attachClickHandler(mapHeight: number) {
@@ -783,13 +871,18 @@
                 const mapX = e.latlng.lng;
                 const mapY = toMapY(e.latlng.lat, mapHeight);
 
-                // Find shapes with navigation targets (with layer visibility filtering)
-                const shapes = getShapesAtPoint(
-                    mapX,
-                    mapY,
-                    mapConfig.shapes,
-                    mapConfig.layers,
-                ).filter((s) => s.targetPage || s.targetMap);
+                // Find shapes with navigation targets using spatial index
+                const allShapes = spatialIndex
+                    ? spatialIndex.query(mapX, mapY, mapConfig.layers)
+                    : getShapesAtPoint(
+                          mapX,
+                          mapY,
+                          mapConfig.shapes,
+                          mapConfig.layers,
+                      );
+                const shapes = allShapes.filter(
+                    (s) => s.targetPage || s.targetMap,
+                );
 
                 if (shapes.length === 0) return;
 
@@ -928,17 +1021,36 @@
     }
 
     // --- Update Pins ---
+    // --- Update Pins (Diff-based) ---
+    // Only adds/removes/updates markers that actually changed.
     function syncPins(config: MapConfig) {
         if (!markerLayerGroup) return;
 
-        markerLayerGroup.clearLayers();
-        pinIdToLayer.clear();
-
         const h = config.height;
+        const newFingerprints = new Map<string, string>();
+        const currentIds = new Set<string>();
 
         config.pins.forEach((pin: MapPin) => {
             if (!isLayerVisible(pin.layerId, config.layers)) return;
 
+            currentIds.add(pin.id);
+            const fp = pinFingerprint(pin);
+            newFingerprints.set(pin.id, fp);
+
+            const prevFp = prevPinFingerprints.get(pin.id);
+            if (prevFp === fp && pinIdToLayer.has(pin.id)) {
+                // Pin unchanged — skip
+                return;
+            }
+
+            // Pin is new or changed — remove old marker if it exists
+            const existingMarker = pinIdToLayer.get(pin.id);
+            if (existingMarker) {
+                markerLayerGroup!.removeLayer(existingMarker);
+                pinIdToLayer.delete(pin.id);
+            }
+
+            // Create new marker
             const leafletLat = toLeafletLat(pin.y, h);
             const leafletLng = pin.x;
             // Default to standard pin if none selected
@@ -995,19 +1107,46 @@
             marker.addTo(markerLayerGroup!);
             pinIdToLayer.set(pin.id, marker);
         });
+
+        // Remove markers for pins that no longer exist
+        for (const [id, marker] of pinIdToLayer) {
+            if (!currentIds.has(id)) {
+                markerLayerGroup!.removeLayer(marker);
+                pinIdToLayer.delete(id);
+            }
+        }
+
+        prevPinFingerprints = newFingerprints;
     }
 
-    // --- Update Regions (Shapes) ---
+    // --- Update Regions (Shapes) — Diff-based ---
+    // Only adds/removes shapes that actually changed. Also rebuilds the spatial index.
     function syncShapes(config: MapConfig) {
         if (!shapeLayerGroup) return;
 
-        shapeLayerGroup.clearLayers();
-        shapeIdToLayer.clear();
-
         const h = config.height;
+        const newFingerprints = new Map<string, string>();
+        const currentIds = new Set<string>();
 
         config.shapes.forEach((shape: MapRegion) => {
             if (!isLayerVisible(shape.layerId, config.layers)) return;
+
+            currentIds.add(shape.id);
+            const fp = shapeFingerprint(shape);
+            newFingerprints.set(shape.id, fp);
+
+            const prevFp = prevShapeFingerprints.get(shape.id);
+            if (prevFp === fp && shapeIdToLayer.has(shape.id)) {
+                // Shape unchanged — skip
+                return;
+            }
+
+            // Shape is new or changed — remove old layer if it exists
+            const existingLayer = shapeIdToLayer.get(shape.id);
+            if (existingLayer) {
+                shapeLayerGroup!.removeLayer(existingLayer);
+                shapeIdToLayer.delete(shape.id);
+            }
 
             let layer: L.Path;
             const color = shape.color || DEFAULT_SHAPE_COLOR;
@@ -1035,6 +1174,23 @@
             layer.addTo(shapeLayerGroup!);
             shapeIdToLayer.set(shape.id, layer);
         });
+
+        // Remove layers for shapes that no longer exist
+        for (const [id, layer] of shapeIdToLayer) {
+            if (!currentIds.has(id)) {
+                shapeLayerGroup!.removeLayer(layer);
+                shapeIdToLayer.delete(id);
+            }
+        }
+
+        prevShapeFingerprints = newFingerprints;
+
+        // Rebuild spatial index for fast point-in-shape queries
+        spatialIndex = new ShapeSpatialIndex(
+            config.shapes,
+            config.width,
+            config.height,
+        );
     }
 
     // =========================================================================
@@ -1335,20 +1491,25 @@
         white-space: nowrap;
     }
 
-    /* Optimized marker style: drop-shadow moved here for better performance */
+    /* Pin marker base style.
+     * drop-shadow and transitions moved to :hover / .highlighted only
+     * to avoid GPU layer promotion for every marker (thousands of composited layers).
+     * will-change removed — it hurts when applied to thousands of elements.
+     */
     :global(.custom-pin-marker) {
         background: transparent;
         border: none;
+    }
+
+    :global(.custom-pin-marker:hover) {
         filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
-        will-change: transform; /* Hint to browser to optimize layering */
-        transition:
-            transform 0.2s,
-            z-index 0.2s;
+        transition: transform 0.2s;
     }
 
     :global(.custom-pin-marker.highlighted) {
         z-index: 1000 !important;
         filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+        transition: transform 0.2s;
     }
 
     /* GHOST PIN STYLES
@@ -1359,11 +1520,8 @@
         background: transparent;
         border: none;
         opacity: 0; /* Totally invisible by default */
-        transition:
-            opacity 0.3s ease,
-            transform 0.2s;
-        /* Ensure it captures clicks even when invisible,
-           though often 'opacity: 0' elements do catch events by default. */
+        transition: opacity 0.3s ease;
+        /* Ensure it captures clicks even when invisible */
         pointer-events: auto;
     }
     /* When .show-ghosts is present on the wrapper (toggled by isConsoleOpen),
