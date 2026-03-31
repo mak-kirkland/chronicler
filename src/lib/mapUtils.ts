@@ -130,6 +130,24 @@ export const REGION_STYLES = {
     } as L.PathOptions,
 } as const;
 
+// --- COORDINATE CONVERSION ---
+
+/**
+ * Convert map pixel Y (top=0, increases downward) to Leaflet lat (bottom=0, increases upward).
+ * Leaflet's CRS.Simple uses a Cartesian system (Y-up) while image pixels use Y-down.
+ */
+export function toLeafletLat(mapY: number, mapHeight: number): number {
+    return mapHeight - mapY;
+}
+
+/**
+ * Convert Leaflet lat (bottom=0, increases upward) to map pixel Y (top=0, increases downward).
+ * This is the inverse of toLeafletLat (the formula is its own inverse).
+ */
+export function toMapY(leafletLat: number, mapHeight: number): number {
+    return mapHeight - leafletLat;
+}
+
 // --- SVG SANITIZATION ---
 
 /**

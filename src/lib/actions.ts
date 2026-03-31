@@ -301,13 +301,25 @@ export async function renamePath(path: string, newName: string) {
 }
 
 /**
- * Deletes a file or folder and then refreshes the world state.
+ * Deletes a file or folder, refreshes the world state, and navigates
+ * away if the deleted item was the active view.
  * @param path The path of the item to delete.
  */
 export async function deletePath(path: string) {
     try {
         await commands.deletePath(path);
         await world.initialize(); // Refresh data
+
+        // If the deleted item was the active view, navigate to the welcome screen.
+        const view = get(currentView);
+        const isActive =
+            (view.type === "file" ||
+                view.type === "image" ||
+                view.type === "map") &&
+            view.data?.path === path;
+        if (isActive) {
+            currentView.set({ type: "welcome" });
+        }
     } catch (e) {
         console.error(`Delete failed for path: ${path}`, e);
         alert(`Error: ${e}`);
