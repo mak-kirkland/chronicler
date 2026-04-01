@@ -12,11 +12,19 @@
         anchorEl = null,
         isVisible = false,
         width = 380,
+        preferredSide = null,
         children,
     } = $props<{
         anchorEl: HTMLElement | null;
         isVisible: boolean;
         width?: number;
+        /**
+         * Optional side preference: "left" or "right".
+         * When set, forces the popup to appear on the specified side of the anchor,
+         * useful when multiple previews share the same anchor element and need
+         * to appear side by side instead of overlapping.
+         */
+        preferredSide?: "left" | "right" | null;
         children?: import("svelte").Snippet;
     }>();
 
@@ -40,11 +48,32 @@
             viewport,
         );
 
+        // If a preferredSide is specified and differs from the natural side,
+        // recalculate the left position to force the popup to the biased side.
+        let finalLeft = calculated.left;
+        let finalSide = calculated.side;
+
+        if (preferredSide && preferredSide !== calculated.side) {
+            const GAP = 8; // px gap between anchor and popup
+            if (preferredSide === "right") {
+                finalLeft = rect.right + GAP;
+            } else {
+                finalLeft = rect.left - width - GAP;
+            }
+            finalSide = preferredSide;
+
+            // Clamp to viewport edges so the popup doesn't go off-screen
+            if (finalLeft < 4) finalLeft = 4;
+            if (finalLeft + width > viewport.w - 4) {
+                finalLeft = viewport.w - width - 4;
+            }
+        }
+
         pos = {
             top: calculated.top,
-            left: calculated.left,
+            left: finalLeft,
             maxHeight: calculated.maxHeight,
-            side: calculated.side as "left" | "right",
+            side: finalSide as "left" | "right",
         };
     });
 </script>
