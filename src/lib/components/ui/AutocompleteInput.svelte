@@ -74,12 +74,14 @@
     }
 
     function handleKeydown(e: KeyboardEvent) {
-        // 1. Shift+Enter: Force Submit/Create (Bypasses list)
+        // 1. Shift+Enter: Force-accept typed text (bypasses suggestion list).
+        //    Always closes the dropdown and keeps the raw value, even if
+        //    a suggestion is highlighted. Calls onEnter if provided.
         if (e.key === "Enter" && e.shiftKey) {
+            e.preventDefault();
+            isOpen = false;
             if (onEnter && value.trim()) {
-                e.preventDefault();
                 onEnter(value);
-                isOpen = false;
             }
             return;
         }
@@ -96,12 +98,12 @@
 
         if (handled) return;
 
-        // 3. Fallback Enter
+        // 3. Fallback Enter (no suggestion highlighted, or dropdown closed)
         if (e.key === "Enter") {
+            isOpen = false;
             if (onEnter && value.trim()) {
                 e.preventDefault();
                 onEnter(value);
-                isOpen = false;
             }
         }
     }
@@ -125,12 +127,12 @@
         isOpen={isOpen && suggestions.length > 0}
         anchorEl={inputEl}
         onClose={() => (isOpen = false)}
-        style="max-height: 200px;"
+        style="max-height: 200px; display: flex; flex-direction: column; overflow: hidden;"
     >
         <ul
             bind:this={listContainer}
             class="suggestions-list"
-            style="list-style: none; padding: 0; margin: 0;"
+            style="list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1;"
         >
             {#each suggestions as suggestion, i}
                 <li>
@@ -143,6 +145,9 @@
                 </li>
             {/each}
         </ul>
+        <div class="autocomplete-hint">
+            Enter to select · Shift+Enter to use typed text
+        </div>
     </FloatingMenu>
 </div>
 
@@ -150,5 +155,15 @@
     .autocomplete-wrapper {
         position: relative;
         width: 100%;
+    }
+
+    .autocomplete-hint {
+        flex-shrink: 0;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.75rem;
+        color: var(--color-text-tertiary);
+        border-top: 1px solid var(--color-border-subtle);
+        text-align: center;
+        user-select: none;
     }
 </style>
