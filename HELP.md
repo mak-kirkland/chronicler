@@ -464,7 +464,7 @@ The Gooblboys invaded the Lynorian Empire <img src="lynorian-flag.png" style="he
 
 ---
 
-## 🗄️ Advanced Tables
+### 🗄️ Advanced Tables
 
 You can control the alignment of content within columns by adding colons (`:`) to the header separator line.
 
