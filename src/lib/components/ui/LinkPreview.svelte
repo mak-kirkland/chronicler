@@ -10,9 +10,14 @@
     import Infobox from "$lib/components/infobox/Infobox.svelte";
     import HoverPreview from "$lib/components/ui/HoverPreview.svelte";
 
-    let { anchorEl = null, targetPath = null } = $props<{
+    let {
+        anchorEl = null,
+        targetPath = null,
+        preferredSide = null,
+    } = $props<{
         anchorEl: HTMLElement | null;
         targetPath: string | null;
+        preferredSide?: "left" | "right" | null;
     }>();
 
     let infoboxData = $state<InfoboxFrontmatter | null>(null);
@@ -52,7 +57,7 @@
     });
 </script>
 
-<HoverPreview {anchorEl} {isVisible} width={380}>
+<HoverPreview {anchorEl} {isVisible} width={380} {preferredSide}>
     {#if infoboxData}
         <div class="infobox-container">
             <Infobox data={infoboxData} onEdit={undefined} />
