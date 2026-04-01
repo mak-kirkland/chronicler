@@ -9,7 +9,7 @@
     } from "$lib/mapUtils";
     import Button from "$lib/components/ui/Button.svelte";
     import Select from "$lib/components/ui/Select.svelte";
-    import SearchableSelect from "$lib/components/ui/SearchableSelect.svelte";
+    import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
 
@@ -159,22 +159,22 @@
     >
         <!-- Link to Page -->
         <div class="form-group">
-            <!-- svelte-ignore a11y_label_has_associated_control -->
-            <label>Link to Page</label>
-            <SearchableSelect
+            <label for="target-page">Link to Page</label>
+            <AutocompleteInput
+                id="target-page"
                 options={pageOptions}
-                placeholder="Search pages..."
+                placeholder="Search or type a page name..."
                 bind:value={selectedPage}
             />
         </div>
 
         <!-- Link to Map -->
         <div class="form-group">
-            <!-- svelte-ignore a11y_label_has_associated_control -->
-            <label>Link to Map</label>
-            <SearchableSelect
+            <label for="target-map">Link to Map</label>
+            <AutocompleteInput
+                id="target-map"
                 options={mapOptions}
-                placeholder="Search maps..."
+                placeholder="Search or type a map name..."
                 bind:value={selectedMap}
             />
         </div>
