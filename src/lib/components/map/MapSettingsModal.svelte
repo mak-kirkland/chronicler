@@ -1,6 +1,10 @@
 <script lang="ts">
     import { allImageFiles, imagePathLookup } from "$lib/worldStore";
     import { updateMapConfig } from "$lib/mapStore";
+    import {
+        areLinkPreviewsEnabled,
+        areMapPreviewsEnabled,
+    } from "$lib/settingsStore";
     import { resizeMapData, checkLayerImage } from "$lib/mapUtils";
     import { convertFileSrc } from "@tauri-apps/api/core";
     import Button from "$lib/components/ui/Button.svelte";
@@ -8,6 +12,7 @@
     import Icon from "$lib/components/ui/Icon.svelte";
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
+    import ToggleSwitch from "$lib/components/ui/ToggleSwitch.svelte";
 
     import type { MapConfig, MapLayer } from "$lib/mapModels";
 
@@ -255,6 +260,23 @@
             </div>
         </div>
 
+        <!-- Hover Preview Settings -->
+        <div class="preview-settings">
+            <h3>Hover Previews</h3>
+            <ToggleSwitch
+                id="link-previews"
+                label="Link Previews"
+                description="Show page infobox when hovering over pins and regions."
+                bind:checked={$areLinkPreviewsEnabled}
+            />
+            <ToggleSwitch
+                id="map-previews"
+                label="Map Previews"
+                description="Show map thumbnail when hovering over map links."
+                bind:checked={$areMapPreviewsEnabled}
+            />
+        </div>
+
         {#if error}
             <ErrorBox>{error}</ErrorBox>
         {/if}
@@ -338,6 +360,14 @@
 
     .image-select-wrapper {
         width: 100%;
+    }
+
+    .preview-settings {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        border-top: 1px solid var(--color-border-primary);
+        padding-top: 1rem;
     }
 
     .warning-box {
