@@ -51,6 +51,10 @@
     import MapConsole from "$lib/components/map/MapConsole.svelte";
     import MapLayerControl from "$lib/components/map/MapLayerControl.svelte";
     import { hasMapsEntitlement } from "$lib/licenseStore";
+    import {
+        areLinkPreviewsEnabled,
+        areMapPreviewsEnabled,
+    } from "$lib/settingsStore";
 
     let { data } = $props<{ data: PageHeader }>();
 
@@ -1313,16 +1317,20 @@
 <!-- TEMPLATE                                                                -->
 <!-- ======================================================================= -->
 
-<LinkPreview
-    anchorEl={hoveredElement}
-    targetPath={hoveredPath}
-    preferredSide={linkPreviewSideBias}
-/>
-<MapPreview
-    anchorEl={hoveredMapElement}
-    targetPath={hoveredMapPath}
-    preferredSide={mapPreviewSideBias}
-/>
+{#if $areLinkPreviewsEnabled}
+    <LinkPreview
+        anchorEl={hoveredElement}
+        targetPath={hoveredPath}
+        preferredSide={linkPreviewSideBias}
+    />
+{/if}
+{#if $areMapPreviewsEnabled}
+    <MapPreview
+        anchorEl={hoveredMapElement}
+        targetPath={hoveredMapPath}
+        preferredSide={mapPreviewSideBias}
+    />
+{/if}
 
 <div class="map-view-container">
     <ViewHeader>
