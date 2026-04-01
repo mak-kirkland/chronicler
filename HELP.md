@@ -4,6 +4,10 @@ Welcome to **Chronicler** — your digital scriptorium for worldbuilding, notes,
 
 This guide is split into three parts. Start with **The Essentials** to learn the basics and get writing in minutes. When you're ready for more power, move on to the **Customization** and **Advanced Guide**.
 
+### 🌐 Community & Inspiration
+
+Looking for inspiration or want to see how others are building their worlds? Check out our [Community Blog](https://chronicler.pro/community)! It's the perfect place to explore user-generated showcases, and download custom templates shared by fellow chroniclers.
+
 ---
 
 ## 🧱 Part 1: The Essentials
@@ -237,6 +241,26 @@ You can embed small images like flags or icons directly into infobox fields. Thi
 
 ```yaml
 allegiance: 'Lynorian Empire ![[lynorian-flag.png]]'
+```
+
+#### 🛠️ HTML & Complex Components in YAML
+
+You aren't limited to just plain text and wikilinks in your infobox fields. By combining the multi-line pipe (`|`) syntax with standard HTML, you can embed Chronicler's advanced components (like image galleries, custom tables, or carousels) directly into your frontmatter!
+
+For example, here is how you can embed a fully functional, tabbed image carousel directly inside a custom infobox field:
+
+```yaml
+architecture: |
+  <div class="carousel tabbed small">
+    <figure>
+      ![[castle-exterior.jpg]]
+      <figcaption>Exterior</figcaption>
+    </figure>
+    <figure>
+      ![[castle-interior.jpg]]
+      <figcaption>Interior</figcaption>
+    </figure>
+  </div>
 ```
 
 #### 🏗️ Infobox Layout
@@ -565,6 +589,28 @@ You can apply these variables using the `var()` function inside standard HTML `s
   This text uses Chronicler's native variables!
 </span>
 ```
+
+---
+
+### 🧮 Math & LaTeX Support
+
+Chronicler supports rendering mathematical equations, scientific formulas, and complex symbols using **KaTeX**.
+
+To add an inline equation alongside your text, wrap your LaTeX code in single dollar signs `$`:
+
+```markdown
+The area of a circle is $\pi r^2$.
+```
+
+For standalone block equations that span their own lines, wrap your code in double dollar signs `$$`:
+
+```latex
+$$
+f(x) = \int_{-\infty}^\infty \hat f(\xi)\,e^{2 \pi i \xi x} \,d\xi
+$$
+```
+
+> Tip: Ensure there are no spaces between the `$` delimiters and the start or end of your formula.
 
 ---
 
