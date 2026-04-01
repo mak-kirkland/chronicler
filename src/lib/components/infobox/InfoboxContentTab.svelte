@@ -99,9 +99,6 @@
                 />
             </div>
         </div>
-        <small class="helper-text"
-            >Enter to select, Shift+Enter to create new.</small
-        >
     </div>
 
     <hr />
@@ -178,11 +175,6 @@
     }
     :global(.tag-input-field-wrapper .form-input:focus) {
         outline: none !important;
-    }
-    .helper-text {
-        font-size: 0.9rem;
-        color: var(--color-text-secondary);
-        margin: 0;
     }
     .custom-fields-header {
         display: flex;
