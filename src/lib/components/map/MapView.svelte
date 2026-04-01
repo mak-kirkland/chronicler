@@ -111,6 +111,23 @@
     let hoveredMapElement = $state<HTMLElement | null>(null);
     let hoveredMapPath = $state<string | null>(null);
 
+    // When both previews are active, display them side by side:
+    // LinkPreview (page infobox) on the left, MapPreview on the right.
+    let bothPreviewsActive = $derived(
+        !!(
+            hoveredPath &&
+            hoveredElement &&
+            hoveredMapPath &&
+            hoveredMapElement
+        ),
+    );
+    let linkPreviewSideBias = $derived<"left" | null>(
+        bothPreviewsActive ? "left" : null,
+    );
+    let mapPreviewSideBias = $derived<"right" | null>(
+        bothPreviewsActive ? "right" : null,
+    );
+
     // --- Tooltip & Lookup State ---
 
     // Tooltip State for multi-region hover
@@ -1296,8 +1313,16 @@
 <!-- TEMPLATE                                                                -->
 <!-- ======================================================================= -->
 
-<LinkPreview anchorEl={hoveredElement} targetPath={hoveredPath} />
-<MapPreview anchorEl={hoveredMapElement} targetPath={hoveredMapPath} />
+<LinkPreview
+    anchorEl={hoveredElement}
+    targetPath={hoveredPath}
+    preferredSide={linkPreviewSideBias}
+/>
+<MapPreview
+    anchorEl={hoveredMapElement}
+    targetPath={hoveredMapPath}
+    preferredSide={mapPreviewSideBias}
+/>
 
 <div class="map-view-container">
     <ViewHeader>

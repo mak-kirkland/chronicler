@@ -13,9 +13,14 @@
     import HoverPreview from "$lib/components/ui/HoverPreview.svelte";
     import type { MapConfig } from "$lib/mapModels";
 
-    let { anchorEl = null, targetPath = null } = $props<{
+    let {
+        anchorEl = null,
+        targetPath = null,
+        preferredSide = null,
+    } = $props<{
         anchorEl: HTMLElement | null;
         targetPath: string | null;
+        preferredSide?: "left" | "right" | null;
     }>();
 
     let mapConfig = $state<MapConfig | null>(null);
@@ -75,7 +80,7 @@
     });
 </script>
 
-<HoverPreview {anchorEl} {isVisible} width={300}>
+<HoverPreview {anchorEl} {isVisible} width={300} {preferredSide}>
     {#if mapConfig && mapImageSrc}
         <div class="map-preview-content">
             <h4 class="map-title">{mapConfig.title}</h4>
