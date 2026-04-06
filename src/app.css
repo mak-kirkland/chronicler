@@ -12,6 +12,7 @@
     --space-xs: 0.25rem; /* 4px */
     --space-sm: 0.5rem; /* 8px */
     --space-md: 1rem; /* 16px */
+    --space-lg: 1.5rem; /* 24px */
 
     /* Global Defaults */
     --gallery-height: 300px;
@@ -41,6 +42,16 @@
     --color-overlay-dark: rgba(0, 0, 0, 0.07);
     --color-overlay-resizer: var(--color-overlay-subtle);
     --color-overlay-resizer-hover: var(--color-overlay-dark);
+
+    /* Floating tooltip / hint colors (used by map tooltips, drawing hint, etc.)
+       These intentionally stay dark across light themes for readability over
+       arbitrary map imagery. Themes with already-dark backgrounds override them. */
+    --color-tooltip-bg: rgba(0, 0, 0, 0.82);
+    --color-tooltip-text: #eeeeee;
+    --color-tooltip-border: rgba(255, 255, 255, 0.18);
+
+    /* Neutral canvas backdrop for large image/map viewports. */
+    --color-canvas-bg: #222222;
 
     /* UI Geometry */
     --radius-base: 4px;
@@ -139,6 +150,11 @@
     --color-overlay-medium: rgba(0, 251, 253, 0.07);
     --color-overlay-dark: rgba(0, 251, 253, 0.1);
 
+    /* Tooltip + canvas: tuned to the hologram palette */
+    --color-tooltip-bg: rgba(2, 10, 31, 0.9);
+    --color-tooltip-text: var(--color-text-primary);
+    --color-tooltip-border: var(--color-border-primary);
+
     /* Syntax Highlighting */
     --code-tag: #d542ff;
     --code-attribute: #ffe600;
@@ -165,6 +181,11 @@
     --color-text-error: #dc3545; /* Standard "danger" red */
     --color-background-error: rgba(220, 53, 69, 0.1);
     --color-border-error: rgba(220, 53, 69, 0.2);
+
+    /* Cleaner neutral canvas for the professional theme */
+    --color-tooltip-bg: rgba(33, 37, 41, 0.92);
+    --color-tooltip-text: #f8f9fa;
+    --color-tooltip-border: rgba(255, 255, 255, 0.15);
 
     /* Syntax Highlighting (Professional) */
     /* Concept: "GitHub Light" style. Clean and familiar. */
@@ -295,6 +316,31 @@ a[href]:hover {
     margin-bottom: 0.25rem;
 }
 
+/* --- Floating Surfaces ---
+   Reusable container styles for any element that floats above content:
+   dropdowns, popovers, status overlays, console panels, etc.
+   Single source of truth so themes affect every floating surface uniformly. */
+
+.floating-panel {
+    background: var(--color-background-secondary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--radius-base);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Floating tooltip / hint pill — used for map tooltips, drawing hints,
+   and any transient on-canvas messaging. Independent of theme background
+   so it stays readable over arbitrary imagery. */
+.tooltip-floating {
+    background-color: var(--color-tooltip-bg);
+    color: var(--color-tooltip-text);
+    border: 1px solid var(--color-tooltip-border);
+    border-radius: var(--radius-base);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    font-size: 0.9rem;
+}
+
 /* --- Shared Form Elements --- */
 
 /* Standard Text Input */
@@ -348,11 +394,16 @@ a[href]:hover {
     border-color: var(--color-accent-primary);
 }
 
-/* Standard Dropdown / Popup Menu Container */
+/* Standard Dropdown / Popup Menu Container.
+   Inherits visual surface from .floating-panel — only layout-specific
+   properties live here. Apply both classes when used:
+       <div class="floating-panel dropdown-menu"> ... </div>
+   The standalone selector below also applies the surface styles directly
+   for legacy callers that only have `.dropdown-menu`. */
 .dropdown-menu {
     background: var(--color-background-secondary);
     border: 1px solid var(--color-border-primary);
-    border-radius: 6px;
+    border-radius: var(--radius-base);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     z-index: 9999;
     overflow-y: auto;

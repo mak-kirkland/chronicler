@@ -516,7 +516,10 @@ mod tests {
     fn test_replace_insert_in_content_basic() {
         let content = "Some text\n{{insert: Old Page}}\nmore text";
         let result = replace_insert_in_content(content, "Old Page", "New Page");
-        assert_eq!(result.unwrap(), "Some text\n{{insert: New Page}}\nmore text");
+        assert_eq!(
+            result.unwrap(),
+            "Some text\n{{insert: New Page}}\nmore text"
+        );
     }
 
     #[test]
