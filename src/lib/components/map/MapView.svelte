@@ -3,8 +3,17 @@
     import L from "leaflet";
     import "leaflet/dist/leaflet.css";
     import { convertFileSrc } from "@tauri-apps/api/core";
+    import { listen } from "@tauri-apps/api/event";
     import { navigateToPageByTitle, navigateToMapByTitle } from "$lib/actions";
-    import { loadedMaps, loadMapConfig, updateMapConfig } from "$lib/mapStore";
+    import {
+        loadedMaps,
+        loadMapConfig,
+        updateMapConfig,
+        getLayerTileInfo,
+        tileInfoStore,
+    } from "$lib/mapStore";
+    import type { TileSetInfo } from "$lib/mapModels";
+    import ProgressBar from "$lib/components/ui/ProgressBar.svelte";
     import {
         addPin,
         editPin,
@@ -64,7 +73,7 @@
     let map: L.Map | null = null;
 
     // Layer Groups to manage different types of content
-    let imageOverlays = new Map<string, L.ImageOverlay>(); // Track image layers by ID
+    let imageOverlays = new Map<string, L.ImageOverlay | L.GridLayer>();
     let markerLayerGroup: L.LayerGroup | null = null;
     let shapeLayerGroup: L.LayerGroup | null = null;
     // Temp layer for drawing in progress
@@ -85,6 +94,12 @@
     // Track state to know when to fully re-init map.
     // We only need to check these 3 properties — much faster than JSON hashing.
     let prevStructure = { w: 0, h: 0, baseImage: "" };
+
+    // --- Tile Progress State ---
+    let tileProgress = $state<
+        Map<string, { current: number; total: number; phase: string }>
+    >(new Map());
+    let tilesLoading = $derived(tileProgress.size > 0);
 
     // --- Drawing State ---
 
@@ -218,8 +233,34 @@
         }
     });
 
+    let unlistenTileProgress: (() => void) | null = null;
+    onMount(async () => {
+        unlistenTileProgress = await listen<{
+            image: string;
+            current: number;
+            total: number;
+            phase: string;
+        }>("tile-progress", (event) => {
+            const { image, current, total, phase } = event.payload;
+            if (current >= total) {
+                tileProgress.delete(image);
+            } else {
+                tileProgress.set(image, { current, total, phase });
+            }
+            tileProgress = new Map(tileProgress);
+        });
+    });
+
     onDestroy(() => {
         destroyMap();
+        unlistenTileProgress?.();
+    });
+
+    $effect(() => {
+        const _tiles = $tileInfoStore;
+        if (map && mapConfig) {
+            syncImageLayers(mapConfig);
+        }
     });
 
     // --- Performance: Subscribe to world store lookups once, cache locally ---
@@ -717,10 +758,43 @@
             [h, w],
         ];
 
+        // The tile pyramid's max zoom level — must match the formula used by
+        // the Rust tiler so the frontend can request the correct tile files.
+        // For an 8640×5400 image: ceil(log2(8640/256)) = 6 zoom levels (0..6).
+        const tileMaxZoom = Math.ceil(Math.log2(Math.max(w, h) / 256));
+
+        // Custom CRS for image tile maps. Two key differences from CRS.Simple:
+        //
+        // 1. Y axis goes DOWN (not up). The transformation's `c` coefficient is
+        //    positive (`+coeff` instead of CRS.Simple's `-1`), so lat=0 is the
+        //    top of the image, lat=height is the bottom — matching image pixel
+        //    coordinates and the tiler's row ordering. This means tile (col, row)
+        //    from the tiler maps directly to Leaflet's (coords.x, coords.y) with
+        //    no Y-flip math required.
+        //
+        // 2. Coefficient = 1/2^maxZoom scales the coordinate space so that at
+        //    Leaflet zoom 0, a single 256×256 tile covers the entire image
+        //    coordinate range (the overview tile). At Leaflet zoom = maxZoom,
+        //    one tile covers exactly 256 coordinate units = 256 image pixels
+        //    (native resolution). This ensures Leaflet's tile coordinate
+        //    requests align perfectly with the tiler's output at every zoom.
+        //
+        // Without these adjustments, CRS.Simple's Y-flip and unit scaling caused
+        // tile grid misalignment for non-power-of-2 images (the image would
+        // shift by a fractional tile per zoom level).
+        const crsCoeff = 1 / Math.pow(2, tileMaxZoom);
+        const ImageCRS = L.extend({}, L.CRS.Simple, {
+            transformation: new L.Transformation(crsCoeff, 0, crsCoeff, 0),
+        });
+
         map = L.map(mapElement!, {
-            crs: L.CRS.Simple,
-            minZoom: -5, // Temporary low min zoom to allow fitting logic to work
-            maxZoom: 3,
+            crs: ImageCRS,
+            // Allow 1 level of over-zoom past native for inspecting fine detail.
+            // (Tiles get upscaled by Leaflet, so this is "free" in terms of disk.)
+            maxZoom: tileMaxZoom + 1,
+            // minZoom is replaced with the computed fitZoom below — we don't
+            // want users to zoom out further than "image fills viewport".
+            minZoom: 0,
             zoomControl: false,
             // Allow fractional zoom levels for perfect fitting (fills screen exactly)
             zoomSnap: 0,
@@ -738,8 +812,9 @@
         shapeLayerGroup = L.layerGroup().addTo(map);
         drawLayerGroup = L.layerGroup().addTo(map);
 
-        // Calculate the optimal zoom to fit the image exactly in the container
-        // This ensures the map always fills the screen on load
+        // fitZoom is the Leaflet zoom level at which the image fills the
+        // viewport. We use this as both the initial view and the minimum zoom
+        // so users can't zoom out into empty space around the image.
         const fitZoom = map.getBoundsZoom(bounds);
 
         // Set the initial view to the calculated fit zoom level
@@ -990,12 +1065,23 @@
     // MAP SYNC (image layers, pins, shapes)
     // =========================================================================
 
-    // --- SYNC IMAGE LAYERS (Updates Dynamic State) ---
+    /**
+     * Syncs Leaflet image layers with the current map config.
+     *
+     * For each layer:
+     *   - If hidden: removes its overlay (if any).
+     *   - If visible and tiles are ready: shows a tiled GridLayer.
+     *   - If visible but tiles aren't ready yet: shows the full image as a
+     *     fallback ImageOverlay and kicks off async tile generation. When the
+     *     tiles finish, the reactive $tileInfoStore triggers a re-sync that
+     *     swaps the fallback for the GridLayer.
+     */
     function syncImageLayers(config: MapConfig) {
         const bounds: L.LatLngBoundsExpression = [
             [0, 0],
             [config.height, config.width],
         ];
+        const tileMap = $tileInfoStore;
         const currentLayerIds = new Set<string>();
 
         config.layers.forEach((layer) => {
@@ -1013,22 +1099,54 @@
             const imagePath = $imagePathLookup.get(layer.image.toLowerCase());
             if (!imagePath) return;
 
-            const assetUrl = convertFileSrc(imagePath);
-            let overlay = imageOverlays.get(layer.id);
+            const tileInfo = tileMap.get(layer.image.toLowerCase());
+            let existing = imageOverlays.get(layer.id);
 
-            if (overlay) {
-                // Update existing overlay properties
-                overlay.setOpacity(layer.opacity);
-                overlay.setZIndex(layer.zIndex);
-                // Leaflet ImageOverlay doesn't strictly support src changes easily
-                // But if the URL somehow changed (rare for this use case), we could handle it here
+            if (tileInfo) {
+                // Tiles are ready — use a tiled GridLayer.
+                // Remove any existing fallback ImageOverlay first.
+                if (existing && existing instanceof L.ImageOverlay) {
+                    existing.remove();
+                    existing = undefined;
+                    imageOverlays.delete(layer.id);
+                }
+
+                if (existing) {
+                    (existing as L.GridLayer).setOpacity(layer.opacity);
+                    (existing as L.GridLayer).setZIndex(layer.zIndex);
+                } else {
+                    const tl = createTileLayer(
+                        tileInfo,
+                        bounds,
+                        layer.opacity,
+                        layer.zIndex,
+                    );
+                    tl.addTo(map!);
+                    imageOverlays.set(layer.id, tl);
+                }
             } else {
-                // Create new overlay
-                overlay = L.imageOverlay(assetUrl, bounds, {
-                    opacity: layer.opacity,
-                    zIndex: layer.zIndex,
-                }).addTo(map!);
-                imageOverlays.set(layer.id, overlay);
+                // Tiles not ready — fall back to a full ImageOverlay and
+                // kick off async tile generation. The $tileInfoStore effect
+                // will re-call this function when tiles arrive.
+                getLayerTileInfo(layer.image);
+
+                if (existing && !(existing instanceof L.ImageOverlay)) {
+                    existing.remove();
+                    existing = undefined;
+                    imageOverlays.delete(layer.id);
+                }
+
+                const assetUrl = convertFileSrc(imagePath);
+                if (existing) {
+                    (existing as L.ImageOverlay).setOpacity(layer.opacity);
+                    (existing as L.ImageOverlay).setZIndex(layer.zIndex);
+                } else {
+                    const overlay = L.imageOverlay(assetUrl, bounds, {
+                        opacity: layer.opacity,
+                        zIndex: layer.zIndex,
+                    }).addTo(map!);
+                    imageOverlays.set(layer.id, overlay);
+                }
             }
         });
 
@@ -1041,7 +1159,56 @@
         }
     }
 
-    // --- Update Pins ---
+    /**
+     * Creates a Leaflet GridLayer that serves tiles from the on-disk pyramid
+     * generated by the Rust tiler.
+     *
+     * Because we use a custom Y-down CRS (see `initializeMap`), Leaflet's tile
+     * coordinates map directly to the tiler's column/row indices — no Y-flip
+     * conversion is needed. `coords.z` is the tile pyramid zoom level, and
+     * `coords.x`/`coords.y` index into the file path `{z}/{x}_{y}.jpg`.
+     */
+    function createTileLayer(
+        tileInfo: TileSetInfo,
+        bounds: L.LatLngBoundsExpression,
+        opacity: number,
+        zIndex: number,
+    ): L.GridLayer {
+        const CustomGridLayer = L.GridLayer.extend({
+            createTile(
+                coords: L.Coords,
+                done: (err: Error | null, tile: HTMLElement) => void,
+            ): HTMLElement {
+                const tile = document.createElement("img");
+                tile.setAttribute("role", "presentation");
+
+                const tilePath = `${tileInfo.tile_dir}/${coords.z}/${coords.x}_${coords.y}.jpg`;
+                tile.src = convertFileSrc(tilePath);
+                tile.onload = () => done(null, tile);
+                tile.onerror = () => {
+                    tile.src = "";
+                    done(null, tile);
+                };
+                return tile;
+            },
+        });
+
+        return new CustomGridLayer({
+            bounds,
+            // Native zoom range = the actual tile files on disk.
+            // Leaflet will request tiles at these zoom levels and scale them
+            // for any over-zoom (between maxNativeZoom and maxZoom).
+            minNativeZoom: 0,
+            maxNativeZoom: tileInfo.max_zoom,
+            minZoom: 0,
+            maxZoom: tileInfo.max_zoom + 1,
+            tileSize: 256,
+            noWrap: true,
+            opacity,
+            zIndex,
+        });
+    }
+
     // --- Update Pins (Diff-based) ---
     // Only adds/removes/updates markers that actually changed.
     function syncPins(config: MapConfig) {
@@ -1408,6 +1575,21 @@
                     {activeRegionIds}
                 />
             {/if}
+
+            {#if tilesLoading}
+                <div class="tile-loading-overlay">
+                    {#each [...tileProgress.entries()] as [image, progress]}
+                        <ProgressBar
+                            value={progress.current}
+                            max={progress.total}
+                            label={progress.phase === "loading"
+                                ? "Decoding image…"
+                                : "Generating tiles…"}
+                            detail="{progress.current}/{progress.total} zoom levels"
+                        />
+                    {/each}
+                </div>
+            {/if}
         </div>
     {/if}
 
@@ -1522,6 +1704,25 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         font-weight: 500;
         white-space: nowrap;
+    }
+
+    .tile-loading-overlay {
+        position: absolute;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: var(--color-background-secondary);
+        border: 1px solid var(--color-border-primary);
+        padding: 0.75rem 1.25rem;
+        border-radius: 6px;
+        z-index: 1000;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        min-width: 220px;
+        max-width: 320px;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-sm);
     }
 
     /* Pin marker base style.

@@ -79,7 +79,7 @@ export interface MapPin {
  */
 export interface MapPolygon {
     id: string;
-    type: 'polygon';
+    type: "polygon";
     /**
      * Array of points {x, y} defining the shape.
      */
@@ -99,7 +99,7 @@ export interface MapPolygon {
  */
 export interface MapCircle {
     id: string;
-    type: 'circle';
+    type: "circle";
     x: number;
     y: number;
     radius: number;
@@ -163,4 +163,23 @@ export interface MapConfig {
      * Always present; empty array if none.
      */
     shapes: MapRegion[];
+}
+
+// ---------------------------------------------------------------------------
+// Tile Pyramid Types
+// ---------------------------------------------------------------------------
+
+/**
+ * Metadata returned by the `ensure_layer_tiles` backend command.
+ * Describes a generated tile pyramid for a single map layer image.
+ */
+export interface TileSetInfo {
+    /** Absolute path to the tile directory on disk (forward-slash normalized). */
+    tile_dir: string;
+    /** The highest zoom level with native-resolution tiles. */
+    max_zoom: number;
+    /** Source image width in pixels. */
+    width: number;
+    /** Source image height in pixels. */
+    height: number;
 }

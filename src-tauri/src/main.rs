@@ -30,6 +30,7 @@ mod parser;
 mod renderer;
 mod sanitizer;
 mod telemetry;
+mod tiler;
 mod utils;
 mod watcher;
 mod wikilink;
@@ -78,12 +79,14 @@ fn main() {
             if let Ok(Some(vault_path_str)) = config::get_vault_path(app.handle()) {
                 let vault_path = Path::new(&vault_path_str);
 
-                // Dynamically allow the asset protocol to access the last-used
-                // vault directory. This grants the frontend permission to load
-                // images and other files from this specific folder via URLs like
-                // `asset://...`
+                // 1. Allow the main vault directory (ignores dot-folders)
                 app.asset_protocol_scope()
-                    .allow_directory(vault_path, true)?; // `true` for recursive access
+                    .allow_directory(vault_path, true)?;
+
+                // 2. Explicitly allow the hidden cache directory so map tiles can load
+                let cache_path = vault_path.join(".chronicler-cache");
+                app.asset_protocol_scope()
+                    .allow_directory(&cache_path, true)?;
             }
 
             // --- ANALYTICS PING ---
@@ -120,6 +123,7 @@ fn main() {
             commands::move_path,
             commands::open_in_explorer,
             commands::get_map_config,
+            commands::ensure_layer_tiles,
             commands::get_all_directory_paths,
             commands::is_pandoc_installed,
             commands::download_pandoc,
