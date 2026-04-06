@@ -81,58 +81,52 @@
             const rawQuery = linkMatch.text.slice(2); // Remove '[['
             const query = rawQuery.toLowerCase();
 
-            // We construct the matches array manually to handle filtering
-            // 1. Filter existing matches first
-            const matches: Completion[] = optionsSource
-                .filter((label) => label.toLowerCase().includes(query))
-                .map((label) => ({
-                    label: label,
-                    type: isImageLink ? "image" : "link",
-                    // We use a custom apply function to gain full control over the completion.
-                    // This allows us to insert the text and manually place the cursor.
-                    apply: (view, completion, from, to) => {
-                        // Dispatch a transaction to the editor.
-                        view.dispatch({
-                            // Insert the selected title plus the closing brackets.
-                            changes: {
-                                from,
-                                to,
-                                insert: `${completion.label}`,
-                            },
-                            // Set the cursor position to be right after the inserted text.
-                            selection: {
-                                anchor: from + completion.label.length + 2,
-                            },
-                        });
+            // Custom apply function shared by all link completions
+            const applyLink = (view, completion, from, to) => {
+                view.dispatch({
+                    changes: {
+                        from,
+                        to,
+                        insert: `${completion.label}`,
                     },
-                }));
-
-            // 2. Only add "Create" if NO other matches were found
-            if (matches.length === 0 && rawQuery.trim().length > 0) {
-                matches.push({
-                    label: rawQuery,
-                    displayLabel: `Create "${rawQuery}"`,
-                    type: "keyword",
-                    // The apply function here is identical, ensuring it inserts the text
-                    apply: (view, completion, from, to) => {
-                        view.dispatch({
-                            changes: {
-                                from,
-                                to,
-                                insert: `${completion.label}`,
-                            },
-                            selection: {
-                                anchor: from + completion.label.length + 2,
-                            },
-                        });
+                    selection: {
+                        anchor: from + completion.label.length + 2,
                     },
                 });
+            };
+
+            // If no option matches the query, show a "Create" fallback instead
+            const hasMatches =
+                !rawQuery.trim() ||
+                optionsSource.some((label) =>
+                    label.toLowerCase().includes(query),
+                );
+
+            if (!hasMatches) {
+                return {
+                    from: linkMatch.from + 2,
+                    options: [
+                        {
+                            label: rawQuery,
+                            displayLabel: `Create "${rawQuery}"`,
+                            type: "keyword",
+                            apply: applyLink,
+                        },
+                    ],
+                    filter: false,
+                };
             }
 
+            // Let CodeMirror's built-in filter handle ranking
+            // (exact > prefix > substring) and fuzzy matching.
             return {
                 from: linkMatch.from + 2,
-                options: matches,
-                filter: false,
+                options: optionsSource.map((label) => ({
+                    label,
+                    type: isImageLink ? "image" : "link",
+                    apply: applyLink,
+                })),
+                filter: true,
             };
         }
 
