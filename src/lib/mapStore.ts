@@ -3,16 +3,24 @@
  *
  * This acts as an on-demand cache for the currently viewed map and provides
  * a transactional-like API for updating map data to prevent race conditions.
+ *
+ * Also manages tile pyramid metadata for map layer images — tiles are
+ * generated lazily on first access and cached per image hash.
+ * Tile readiness is surfaced through a reactive Svelte store so that
+ * components automatically re-render when tiles become available.
  */
 
 import { writable, get } from "svelte/store";
 import {
     getMapConfig as getMapConfigFromDisk,
     writePageContent,
+    ensureLayerTiles,
+    lookupLayerTileInfo,
 } from "$lib/commands";
 import { normalizePath, LRUCache } from "$lib/utils";
 import { MAX_CACHED_MAPS } from "$lib/config";
 import type { MapConfig } from "$lib/mapModels";
+import type { TileSetInfo } from "$lib/mapModels";
 
 /**
  * An item in the map cache.
@@ -183,4 +191,102 @@ export async function updateMapConfig(
 
     // We await the specific task we just created
     await newTask;
+}
+
+// ---------------------------------------------------------------------------
+// Tile Pyramid Cache  (reactive, single source of truth)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reactive store of tile set info, keyed by image filename (lowercase).
+ *
+ * This is the **single source of truth** for tile metadata. Components
+ * subscribe to it for reactive updates; non-reactive code paths use
+ * `get(tileInfoStore)` for synchronous lookups (an O(1) operation).
+ */
+export const tileInfoStore = writable<Map<string, TileSetInfo>>(new Map());
+
+/**
+ * In-flight tile generation promises, keyed by image filename (lowercase).
+ * Prevents duplicate concurrent requests for the same image.
+ */
+const tileInfoPending = new Map<string, Promise<TileSetInfo | null>>();
+
+/**
+ * Returns tile set info for a map layer image, generating tiles if needed.
+ *
+ * - If cached in the store, returns immediately.
+ * - If already being generated, returns the same pending promise (deduplication).
+ * - Otherwise, calls the backend `ensure_layer_tiles` command.
+ *
+ * When tile generation completes, the reactive `tileInfoStore` is updated
+ * so any subscribed component re-renders automatically.
+ *
+ * @param imageFilename The image filename from MapLayer.image
+ * @returns The tile set info, or null if tile generation failed.
+ */
+export async function getLayerTileInfo(
+    imageFilename: string,
+): Promise<TileSetInfo | null> {
+    const key = imageFilename.toLowerCase();
+
+    // 1. Already cached in the store?
+    const cached = get(tileInfoStore).get(key);
+    if (cached) return cached;
+
+    // 2. Already in flight?
+    const pending = tileInfoPending.get(key);
+    if (pending) return pending;
+
+    // 3. Start generation
+    const promise = ensureLayerTiles(imageFilename)
+        .then((info) => {
+            tileInfoStore.update((m) => {
+                const next = new Map(m);
+                next.set(key, info);
+                return next;
+            });
+            return info;
+        })
+        .catch((e) => {
+            console.error(
+                `[mapStore] Tile generation failed for ${imageFilename}:`,
+                e,
+            );
+            return null;
+        })
+        .finally(() => {
+            tileInfoPending.delete(key);
+        });
+
+    tileInfoPending.set(key, promise);
+    return promise;
+}
+
+/**
+ * Read-only cache lookup. Resolves to the cached `TileSetInfo` if the
+ * pyramid is already on disk, or `null` if generation would be required.
+ *
+ * Used by the map view to decide whether to mount the tiled `GridLayer`
+ * directly (cache hit) or briefly fall back to the original image while
+ * generation runs (cache miss). Updates `tileInfoStore` on a hit so the
+ * normal reactive flow takes over from there.
+ */
+export async function lookupTileInfo(
+    imageFilename: string,
+): Promise<TileSetInfo | null> {
+    const key = imageFilename.toLowerCase();
+
+    const cached = get(tileInfoStore).get(key);
+    if (cached) return cached;
+
+    const info = await lookupLayerTileInfo(imageFilename);
+    if (info) {
+        tileInfoStore.update((m) => {
+            const next = new Map(m);
+            next.set(key, info);
+            return next;
+        });
+    }
+    return info;
 }

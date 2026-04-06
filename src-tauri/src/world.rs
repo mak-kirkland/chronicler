@@ -375,6 +375,64 @@ impl World {
         self.indexer.read().get_map_config(path)
     }
 
+    /// Returns cached tile info for a map layer image, or `None` if no
+    /// pyramid is on disk. Pure read — never triggers generation.
+    ///
+    /// The frontend awaits this before mounting a layer so a pre-cached
+    /// pyramid skips the full-resolution image fallback entirely.
+    pub fn lookup_layer_tile_info(
+        &self,
+        image_filename: &str,
+    ) -> Result<Option<crate::tiler::TileSetInfo>> {
+        let root = self
+            .root_path
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+
+        let image_path = {
+            let indexer = self.indexer.read();
+            indexer
+                .media_resolver
+                .get(&image_filename.to_lowercase())
+                .cloned()
+        };
+
+        Ok(image_path.and_then(|p| crate::tiler::lookup_tile_info(&root, &p)))
+    }
+
+    /// Generates (or returns cached) tile pyramid data for a map layer image.
+    ///
+    /// Resolves the image filename to its absolute vault path via the indexer's
+    /// `media_resolver`, then delegates to `tiler::generate_tiles_async` which
+    /// runs the CPU-bound work on a blocking thread so progress events can be
+    /// delivered to the frontend in real-time.
+    pub async fn ensure_layer_tiles(
+        &self,
+        image_filename: &str,
+        app_handle: AppHandle,
+    ) -> Result<crate::tiler::TileSetInfo> {
+        // 1. Get the vault root path.
+        let root = self
+            .root_path
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+
+        // 2. Resolve the image filename → absolute path using the indexer's media resolver.
+        let image_path = {
+            let indexer = self.indexer.read();
+            indexer
+                .media_resolver
+                .get(&image_filename.to_lowercase())
+                .cloned()
+                .ok_or_else(|| ChroniclerError::FileNotFound(PathBuf::from(image_filename)))?
+        };
+
+        // 3. Generate tiles on a blocking thread (or return cached result).
+        crate::tiler::generate_tiles_async(root, image_path, app_handle).await
+    }
+
     /// Returns a list of all broken links in the vault.
     pub fn get_all_broken_links(&self) -> Result<Vec<BrokenLink>> {
         self.indexer.read().get_all_broken_links()

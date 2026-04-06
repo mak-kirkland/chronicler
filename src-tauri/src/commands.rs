@@ -211,6 +211,35 @@ pub fn get_map_config(path: String, world: State<World>) -> Result<serde_json::V
     world.get_map_config(&path)
 }
 
+/// Returns cached tile info for a map layer image, or `None` if no pyramid
+/// is on disk. Pure read — never triggers generation. Frontend awaits this
+/// before mounting a layer to avoid loading the original image when tiles
+/// are already cached.
+#[command]
+#[instrument(skip(world))]
+pub fn lookup_layer_tile_info(
+    image_filename: String,
+    world: State<'_, World>,
+) -> Result<Option<crate::tiler::TileSetInfo>> {
+    world.lookup_layer_tile_info(&image_filename)
+}
+
+/// Generates (or returns cached) tile pyramid data for a map layer image.
+///
+/// Called by the frontend before rendering a map layer. If tiles already exist
+/// and are up-to-date, returns immediately. Otherwise generates the full tile
+/// pyramid on a background thread, emitting `tile-progress` events so the
+/// frontend can display a progress bar.
+#[command]
+#[instrument(skip(world, app_handle))]
+pub async fn ensure_layer_tiles(
+    image_filename: String,
+    world: State<'_, World>,
+    app_handle: AppHandle,
+) -> Result<crate::tiler::TileSetInfo> {
+    world.ensure_layer_tiles(&image_filename, app_handle).await
+}
+
 // --- Importer ---
 
 /// Imports a list of .docx files, converting them to Markdown.

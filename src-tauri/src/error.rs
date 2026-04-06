@@ -92,6 +92,10 @@ pub enum ChroniclerError {
 
     #[error("Trash error: {0}")]
     TrashError(String),
+
+    // Tile Generation Errors
+    #[error("Tile generation failed: {0}")]
+    TileGeneration(String),
 }
 
 // We need to implement Serialize for the error type to be able to return
