@@ -17,7 +17,7 @@ import type {
     ParseError,
     UserFont,
 } from "./bindings";
-import type { MapConfig } from "./mapModels";
+import type { MapConfig, TileSetInfo } from "./mapModels";
 
 // --- Vault Commands ---
 
@@ -221,6 +221,30 @@ export const getImageSource = (path: string) =>
  */
 export const getMapConfig = (path: string) =>
     invoke<MapConfig>("get_map_config", { path });
+
+/**
+ * Returns cached tile info if a complete pyramid is already on disk for
+ * `imageFilename`, otherwise `null`. Pure read — never triggers generation.
+ *
+ * Call this *before* mounting a map layer: a cache hit lets you skip the
+ * full-resolution image fallback entirely and go straight to the tiled
+ * GridLayer. Only fall back + call `ensureLayerTiles` on a miss.
+ */
+export const lookupLayerTileInfo = (imageFilename: string) =>
+    invoke<TileSetInfo | null>("lookup_layer_tile_info", { imageFilename });
+
+/**
+ * Generates (or returns cached) tile pyramid data for a map layer image.
+ *
+ * If tiles already exist and the source image hasn't changed, this returns
+ * immediately with cached metadata. Otherwise it generates the full tile
+ * pyramid on disk (may take a few seconds for very large images).
+ *
+ * @param imageFilename The image filename as stored in the MapLayer.image field.
+ * @returns A promise that resolves to tile set metadata (tile_dir, max_zoom, etc.)
+ */
+export const ensureLayerTiles = (imageFilename: string) =>
+    invoke<TileSetInfo>("ensure_layer_tiles", { imageFilename });
 
 // --- Importer Commands ---
 

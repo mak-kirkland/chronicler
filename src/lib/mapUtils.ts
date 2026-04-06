@@ -132,20 +132,26 @@ export const REGION_STYLES = {
 
 // --- COORDINATE CONVERSION ---
 
-/**
- * Convert map pixel Y (top=0, increases downward) to Leaflet lat (bottom=0, increases upward).
- * Leaflet's CRS.Simple uses a Cartesian system (Y-up) while image pixels use Y-down.
+/*
+ * NOTE: These functions used to convert between image pixel Y (Y-down) and
+ * Leaflet's CRS.Simple lat (Y-up). MapView now uses a custom Y-down CRS, so
+ * Leaflet lat == image Y directly and these functions are identity passes.
+ *
+ * They're kept as a semantic abstraction layer: callers express intent
+ * ("convert image Y to Leaflet lat") instead of using raw values, and if the
+ * coordinate system ever changes again, only these two functions need updating.
+ * The `mapHeight` parameter is unused but kept in the signature for the same
+ * reason — callers don't need to change.
  */
-export function toLeafletLat(mapY: number, mapHeight: number): number {
-    return mapHeight - mapY;
+
+/** Convert image pixel Y (top=0, increases downward) to Leaflet lat. */
+export function toLeafletLat(mapY: number, _mapHeight: number): number {
+    return mapY;
 }
 
-/**
- * Convert Leaflet lat (bottom=0, increases upward) to map pixel Y (top=0, increases downward).
- * This is the inverse of toLeafletLat (the formula is its own inverse).
- */
-export function toMapY(leafletLat: number, mapHeight: number): number {
-    return mapHeight - leafletLat;
+/** Convert Leaflet lat to image pixel Y (top=0, increases downward). */
+export function toMapY(leafletLat: number, _mapHeight: number): number {
+    return leafletLat;
 }
 
 // --- SVG SANITIZATION ---
