@@ -18,11 +18,13 @@
         infoboxData = null,
         mode = "unified",
         onInfoboxEdit,
+        fallbackTitle = "",
     } = $props<{
         renderedData: RenderedPage | null;
         infoboxData?: InfoboxFrontmatter | null;
         mode?: "split" | "unified";
         onInfoboxEdit?: () => void;
+        fallbackTitle?: string;
     }>();
 
     // --- Infobox Visibility Logic ---
@@ -93,7 +95,11 @@
         <!-- Use <aside> for better semantics. It's floated, so order in HTML matters. -->
         <aside class="infobox-wrapper">
             <!-- Pass the edit handler down to the Infobox -->
-            <Infobox data={infoboxData} onEdit={onInfoboxEdit} />
+            <Infobox
+                data={infoboxData}
+                onEdit={onInfoboxEdit}
+                {fallbackTitle}
+            />
         </aside>
     {/if}
 

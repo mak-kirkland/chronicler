@@ -7,6 +7,7 @@
      */
     import { buildPageView } from "$lib/commands";
     import { hasInfoboxContent, type InfoboxFrontmatter } from "$lib/infobox";
+    import { fileStemString } from "$lib/utils";
     import Infobox from "$lib/components/infobox/Infobox.svelte";
     import HoverPreview from "$lib/components/ui/HoverPreview.svelte";
 
@@ -17,6 +18,11 @@
 
     let infoboxData = $state<InfoboxFrontmatter | null>(null);
     let isVisible = $state(false);
+
+    // Derive a human-readable title from the file path (strip directory + extension)
+    const fallbackTitle = $derived(
+        targetPath ? fileStemString(targetPath) || "" : "",
+    );
 
     // --- Data Fetching Effect ---
     $effect(() => {
@@ -55,7 +61,7 @@
 <HoverPreview {anchorEl} {isVisible} width={380}>
     {#if infoboxData}
         <div class="infobox-container">
-            <Infobox data={infoboxData} onEdit={undefined} />
+            <Infobox data={infoboxData} onEdit={undefined} {fallbackTitle} />
         </div>
     {/if}
 </HoverPreview>

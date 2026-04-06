@@ -59,7 +59,7 @@
             id="field-title"
             type="text"
             bind:value={title}
-            placeholder="Page Title"
+            placeholder="Title override (leave blank to use file name)"
             class="form-input"
         />
     </div>
