@@ -10,10 +10,19 @@
     import Icon from "$lib/components/ui/Icon.svelte";
 
     // --- Props ---
-    let { data, onEdit } = $props<{
+    let {
+        data,
+        onEdit,
+        fallbackTitle = "",
+    } = $props<{
         data: InfoboxFrontmatter | null;
         onEdit?: () => void;
+        fallbackTitle?: string;
     }>();
+
+    // The displayed title: explicit YAML `title` takes priority, then the
+    // fallback inferred from the file name by the parent component.
+    const displayTitle = $derived(data?.title || fallbackTitle);
 
     // --- Derived State ---
     /**
@@ -42,7 +51,7 @@
             // Get title or fallback
             const path = data.image_paths?.[index];
             const title =
-                data.title ||
+                displayTitle ||
                 (path ? path.split(/[\\/]/).pop() : "Infobox image");
 
             return {
@@ -98,8 +107,8 @@
 <div class="infobox">
     <div class="infobox-content-wrapper">
         <div class="infobox-header">
-            {#if data?.title}
-                <h3 class="infobox-title">{@html data.title}</h3>
+            {#if displayTitle}
+                <h3 class="infobox-title">{@html displayTitle}</h3>
             {/if}
 
             <div class="controls-group">

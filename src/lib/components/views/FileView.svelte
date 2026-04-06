@@ -355,6 +355,7 @@
                                 .processed_frontmatter}
                             mode="split"
                             onInfoboxEdit={handleInfoboxEdit}
+                            fallbackTitle={file.title}
                         />
                     </div>
                 </div>
@@ -371,6 +372,7 @@
                                 .processed_frontmatter}
                             mode="unified"
                             onInfoboxEdit={handleInfoboxEdit}
+                            fallbackTitle={file.title}
                         />
                     </div>
                 </div>
