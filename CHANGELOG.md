@@ -2,6 +2,22 @@
 
 ---
 
+## [v0.48.0-alpha] - 2026-04-07
+
+### ✨ Added
+
+- **Page Inserts**: Page renames now automatically update `{{insert: ...}}` transclusions. This ensures that when you rename a page, any other pages that have "inserted" its content will stay up to date, just like standard wikilinks.
+
+### 🐞 Fixed
+
+- **Page Inserts**: Fixed a bug where images inside "inserted" page sections would appear as broken links. The app was accidentally double-processing these image paths, but they will now resolve correctly.
+
+### 🔄 Changed
+
+- **Internal**: Performed a major cleanup of the application's internal structure. Over 60 core components were organized into dedicated feature folders (like `sidebar/`, `maps/`, and `modals/`) to make the project easier to maintain and improve.
+
+---
+
 ## [v0.47.5-alpha] - 2026-03-31
 
 ### 🐞 Fixed
