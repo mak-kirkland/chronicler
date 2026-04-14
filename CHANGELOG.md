@@ -2,6 +2,28 @@
 
 ---
 
+## [v0.49.0-alpha] - 2026-04-14
+
+### ✨ Added
+
+- **Icons**: Replaced the default emoji icons with new, external SVG image icons. These new icons automatically adapt to your active theme's colors for a much more cohesive and consistent look. The original emoji icons are still freely available as a "Legacy" pack, and you can easily switch between your available icon sets using the newly added Icons dropdown in the Atmosphere modal.
+
+### 🐞 Fixed
+
+- **Preview**: Fixed an issue where links hidden inside unrevealed spoilers could still be clicked accidentally. The spoiler cover now properly disables pointer events and prevents text styling—like the Fantasy Atmosphere Packs's "Runic Glow" shadow—from bleeding through.
+- **Atmosphere**: Fixed a visual bug in the Fantasy Atmosphere Pack where the background texture would prematurely cut off if your infobox extended further down than the main page content. The container now correctly expands to encompass the entire infobox.
+- **Atmosphere**: Fixed an alignment issue in the Fantasy Atmosphere pack where images inside the infobox carousel appeared slightly off-center due to internal padding conflicts.
+
+### 🔄 Changed
+
+- **Atmosphere**: Decreased the margin surrounding horizontal layout separators in the Fantasy Atmosphere Pack for a tighter, more balanced look.
+- **Atmosphere**: Compressed the Slate background texture within the Fantasy theme to optimize loading times.
+
+### 🗑️ Removed
+- **Atmosphere**: Cleaned up the codebase by removing the unused "cursors" module from the atmospheres system.
+
+---
+
 ## [v0.48.0-alpha] - 2026-04-07
 
 ### ✨ Added
