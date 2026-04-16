@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.49.1-alpha] - 2026-04-17
+
+### 🐞 Fixed
+
+- **Fonts**: Fixed a critical issue that caused the Settings modal to silently crash if your fonts folder contained multiple weights of the same custom font family. The application now correctly gives each font weight a unique identifier to ensure the modal opens reliably, safely deduplicates fonts in the background, and properly formats Windows file paths that contain spaces or special characters.
+
+---
+
 ## [v0.49.0-alpha] - 2026-04-14
 
 ### ✨ Added
