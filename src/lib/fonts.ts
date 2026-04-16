@@ -16,10 +16,40 @@ import type { UserFont } from "$lib/bindings";
 // --- Private Cache ---
 
 /**
- * Tracks which font *family names* we have already injected into the DOM.
+ * Tracks which font names we have already injected into the DOM.
  * This avoids reading from the stylesheet and prevents duplicate injections.
  */
 const injectedFontNames = new Set<string>();
+
+// --- Private Helpers ---
+
+/**
+ * Sanitizes a font name for safe interpolation into a CSS `font-family` string.
+ * Strips characters that could break out of a CSS string context.
+ */
+function sanitizeFontName(name: string): string {
+    return name.replace(/["'\\};{]/g, "");
+}
+
+/**
+ * Deduplicates a list of fonts by name, keeping only the first occurrence.
+ * This is a safety net against the backend returning multiple font files that
+ * share the same name (e.g. same family name for different weights), which
+ * would crash Svelte's keyed {#each} blocks with `each_key_duplicate`.
+ */
+function deduplicateFonts(fonts: UserFont[]): UserFont[] {
+    const seen = new Set<string>();
+    return fonts.filter((font) => {
+        if (seen.has(font.name)) {
+            console.warn(
+                `Duplicate font name "${font.name}" - keeping first occurrence, skipping: ${font.path}`,
+            );
+            return false;
+        }
+        seen.add(font.name);
+        return true;
+    });
+}
 
 // --- Private DOM Functions ---
 
@@ -61,13 +91,21 @@ async function injectFontFaces(fonts: UserFont[]) {
                 return null; // Don't create a rule if font is already injected
             }
 
+            const safeName = sanitizeFontName(font.name);
+            if (!safeName) {
+                console.warn(
+                    `Font name '${font.name}' is invalid after sanitization, skipping.`,
+                );
+                return null;
+            }
+
             const assetUrl = await convertFileSrc(font.path);
             return {
                 name: font.name,
                 rule: `
                     @font-face {
-                        font-family: "${font.name}";
-                        src: url(${assetUrl});
+                        font-family: "${safeName}";
+                        src: url("${assetUrl}");
                     }
                 `,
             };
@@ -82,7 +120,10 @@ async function injectFontFaces(fonts: UserFont[]) {
                 // On success, add it to our Set.
                 injectedFontNames.add(font.name);
             } catch (e) {
-                console.warn(`Failed to inject font rule for '${font.name}':`, e);
+                console.warn(
+                    `Failed to inject font rule for '${font.name}':`,
+                    e,
+                );
             }
         }
     }
@@ -103,8 +144,11 @@ async function getAllUserFonts(force = false): Promise<UserFont[]> {
 
     try {
         const fonts = await getUserFonts();
-        userFonts.set(fonts); // Set the store, which is our cache
-        return fonts;
+        // Deduplicate before caching - prevents Svelte each_key_duplicate crashes
+        // if the backend ever returns multiple files with the same full name.
+        const uniqueFonts = deduplicateFonts(fonts);
+        userFonts.set(uniqueFonts);
+        return uniqueFonts;
     } catch (e) {
         console.error("Failed to get user fonts from backend:", e);
         return []; // Return empty on failure
