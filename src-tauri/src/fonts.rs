@@ -16,7 +16,9 @@ use tracing::warn;
 /// Represents a single user-provided font, prepared for frontend consumption.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserFont {
-    /// The name of the font, derived from its filename (e.g., "FiraCode-Regular").
+    /// The display name of the font, derived from the font's full name metadata
+    /// (e.g., "Burbank Big Regular Bold"). This ensures each weight/style variant
+    /// gets a unique, human-readable name rather than sharing a family name.
     pub name: String,
     /// The absolute path to the font file.
     #[serde(serialize_with = "serialize_pathbuf_as_web_str")]
@@ -59,17 +61,27 @@ pub fn get_user_fonts(app_handle: &AppHandle) -> Result<Vec<UserFont>> {
         }
     }
 
+    // Sort by name for deterministic ordering across platforms.
+    // fs::read_dir does not guarantee order, and NTFS vs ext4 may differ.
+    user_fonts.sort_by(|a, b| a.name.cmp(&b.name));
+
     Ok(user_fonts)
 }
 
 /// Loads a single font file from a given path.
 ///
-/// It reads the file's binary content and extracts a name from the metadata.
+/// Uses the font's **full name** (name ID 4, e.g. "Burbank Big Regular Bold")
+/// rather than the family name (name ID 1, e.g. "Burbank Big Regular") so that
+/// each weight/style variant gets a unique identifier. Using family_name() caused
+/// multiple files to share the same name, which produced duplicate keys in Svelte's
+/// keyed {#each} blocks and duplicate @font-face declarations that confused WebView2.
 fn load_font(path: &Path) -> Option<UserFont> {
     // Load the font from its path. font-kit handles all the complex parsing.
     let font = Handle::from_path(path.to_path_buf(), 0).load().ok()?;
-    // Get the family name. The library finds the best name automatically.
-    let name = font.family_name();
+
+    // Use the full name (nameID 4) for a unique, descriptive identifier.
+    let name = font.full_name();
+
     Some(UserFont {
         name,
         path: path.to_path_buf(),
