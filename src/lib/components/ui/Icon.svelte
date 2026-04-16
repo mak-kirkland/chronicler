@@ -96,6 +96,13 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        /*
+         * Icons inside interactive controls (buttons, links) should never be
+         * hit-test targets. This ensures clicks always reach the parent element.
+         * Prevents edge cases where SVG/mask elements could interfere with
+         * pointer event dispatch on certain browser engines.
+         */
+        pointer-events: none;
     }
 
     .text-icon {
