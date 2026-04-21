@@ -4,11 +4,16 @@
 
 **Chronicler is a free, offline worldbuilding tool and local wiki for writers, game masters, and tabletop RPG creators.** It saves your notes as plain Markdown files on your computer. No sign-up, no subscription, no cloud. Your world stays on your device.
 
+### 📺 Watch the Setup Guide
+
+New to Chronicler? Check out our video tutorial on **[How to Start Worldbuilding with Chronicler (Offline, No Subscriptions)](https://youtube.com/watch?v=7YNI-bY0IxY)** to learn how to install the app, set up your vault, and start creating pages in minutes!
+
 Unlike cloud-based tools like World Anvil, Notion, or Campfire, Chronicler runs 100% offline and stores everything locally. You own your files forever. No internet required, no vendor lock-in, no monthly fees.
 
 > 🔒 *Chronicler is **source-available**, not open-source.* You can **view and audit** the code, but you **cannot modify, redistribute, or reuse** it. See [LICENSE](https://github.com/mak-kirkland/chronicler/blob/main/LICENSE) for details.
 
 [![Website](https://img.shields.io/badge/Website-chronicler.pro-blue?logo=google-chrome&logoColor=white)](https://chronicler.pro)
+[![YouTube](https://img.shields.io/badge/YouTube-Video_Guide-red?logo=youtube)](https://youtube.com/watch?v=7YNI-bY0IxY)
 [![Latest Release](https://img.shields.io/github/v/release/mak-kirkland/chronicler?label=Release)](https://github.com/mak-kirkland/chronicler/releases/latest)
 [![Help](https://img.shields.io/badge/Help-md-blue)](https://github.com/mak-kirkland/chronicler/blob/main/HELP.md)
 [![Changelog](https://img.shields.io/badge/Changelog-md-green)](https://github.com/mak-kirkland/chronicler/blob/main/CHANGELOG.md)
@@ -36,8 +41,8 @@ Unlike cloud-based tools like World Anvil, Notion, or Campfire, Chronicler runs 
 
 | Metric | Value |
 |--------|-------|
-| **Unique Installations** | 1,550+ across Windows, macOS, and Linux |
-| **Discord Members** | 560+ |
+| **Unique Installations** | 7330+ across Windows, macOS, and Linux |
+| **Discord Members** | 1460+ |
 | **Latest Reddit Post** | [32,000+ views](https://www.reddit.com/r/worldbuilding/comments/1r2r140/oc_chroniclers_biggest_update_yet_the_free/), 303 upvotes (98.7% ratio), 298 shares |
 
 > *"I've been using Chronicler for three months, and it's amazing. I tried Obsidian, but Chronicler is what I was looking for to do my worldbuilding. To me it's the perfect mix between simplicity and deep features."*
