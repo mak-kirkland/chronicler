@@ -16,7 +16,7 @@ use tracing::{error, warn};
 
 /// The debounce interval for file changes in milliseconds.
 /// This helps prevent multiple rapid updates from triggering too many re-indexes.
-pub const DEBOUNCE_INTERVAL: Duration = Duration::from_millis(500);
+pub const DEBOUNCE_INTERVAL: Duration = Duration::from_millis(750);
 
 /// Maximum time we wait before forcing a process, to prevent infinite delay
 /// if a process is constantly spamming events.

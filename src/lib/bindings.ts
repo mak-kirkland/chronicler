@@ -170,10 +170,14 @@ export interface UserFont {
 /**
  * Payload received from the backend 'index-updated' event.
  * Mirrors `IndexUpdatePayload` in `src-tauri/src/world.rs`.
+ *
+ * Each flag lets the store skip refetches whose data can't have changed.
  */
 export interface IndexUpdatePayload {
-    /** * Whether the file tree structure (folders/files added/removed) has changed.
-     * If false, the frontend can skip reloading the heavy file tree.
-     */
+    /** File tree structure changed (file/folder added, removed, or renamed). */
     structure_changed: boolean;
+    /** A markdown page was created, modified, or removed. */
+    pages_changed: boolean;
+    /** An image file was added, renamed, or removed (not just content-modified). */
+    media_changed: boolean;
 }
