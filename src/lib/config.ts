@@ -17,7 +17,7 @@ export const AUTOSAVE_DEBOUNCE_MS = 500;
  * This prevents the UI from freezing during high-frequency file system events
  * (like bulk imports or git operations) by grouping them into a single update.
  */
-export const WORLD_UPDATE_DEBOUNCE_MS = 500;
+export const WORLD_UPDATE_DEBOUNCE_MS = 100;
 
 // --- UI Layout ---
 

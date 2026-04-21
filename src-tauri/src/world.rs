@@ -23,6 +23,7 @@ use crate::{
         VaultAsset,
     },
     renderer::Renderer,
+    utils::{is_image_file, is_map_file, is_markdown_file},
     watcher::Watcher,
     writer::Writer,
 };
@@ -38,13 +39,69 @@ use tokio::{sync::broadcast, time::sleep};
 use tracing::{error, info, instrument};
 
 /// Payload sent to the frontend when the index changes.
-/// This struct allows the frontend to know whether a heavy re-fetch of the
-/// file tree is necessary.
-#[derive(Debug, Clone, Serialize)]
+///
+/// Each flag lets the frontend skip an otherwise-expensive refetch when the
+/// underlying data can't have changed.
+#[derive(Debug, Clone, Copy, Default, Serialize)]
 pub struct IndexUpdatePayload {
-    /// Whether the file tree structure (folders/files added/removed) has changed.
-    /// If false, the frontend can skip reloading the heavy file tree.
+    /// File tree structure changed (file/folder added, removed, or renamed).
+    /// Gates `getFileTree`.
     pub structure_changed: bool,
+    /// One or more markdown pages were created, modified, or removed.
+    /// Gates `getAllTags`, `getAllBrokenLinks`, `getAllParseErrors`,
+    /// and `getAllBrokenImages` (page image references may have changed).
+    pub pages_changed: bool,
+    /// One or more image files were created, renamed, or deleted (pure
+    /// content modifications don't count - the filename key is unchanged).
+    /// Gates `getAllBrokenImages`.
+    pub media_changed: bool,
+}
+
+/// Inspects a batch of file events and returns a payload describing which
+/// frontend data needs refreshing. Computed once per batch so `process_file_events`
+/// can emit a single precisely-scoped `index-updated` event.
+fn compute_update_payload(events: &[FileEvent]) -> IndexUpdatePayload {
+    /// Folds a single path into the running payload, given whether the
+    /// path is structurally changing (create/delete/rename) vs. being
+    /// content-modified in place.
+    fn visit(payload: &mut IndexUpdatePayload, path: &Path, is_structural: bool) {
+        if is_markdown_file(path) {
+            payload.pages_changed = true;
+        } else if is_image_file(path) {
+            // Content-only modifications don't change the media_resolver key,
+            // and images never have tags/links, so broken_images can't shift.
+            if is_structural {
+                payload.media_changed = true;
+            }
+        } else if is_map_file(path) {
+            // Map config changes can break pin/shape targets, which feed
+            // broken-link checks via the page graph.
+            payload.pages_changed = true;
+        }
+        if is_structural {
+            payload.structure_changed = true;
+        }
+    }
+
+    let mut payload = IndexUpdatePayload::default();
+    for event in events {
+        match event {
+            FileEvent::Created(p) | FileEvent::Deleted(p) => {
+                visit(&mut payload, p, true);
+            }
+            FileEvent::Modified(p) => {
+                visit(&mut payload, p, false);
+            }
+            FileEvent::FolderCreated(_) | FileEvent::FolderDeleted(_) => {
+                payload.structure_changed = true;
+            }
+            FileEvent::Renamed { from, to } => {
+                visit(&mut payload, from, true);
+                visit(&mut payload, to, true);
+            }
+        }
+    }
+    payload
 }
 
 /// The main `World` struct containing all application subsystems and state.
@@ -281,22 +338,13 @@ impl World {
                     index.handle_event_batch(&events_batch);
                 }
 
-                // --- 5. Determine Update Type ---
-                // Check if any event in the batch requires a structure reload.
-                // Modifications do NOT require a structure reload.
-                let structure_changed = events_batch.iter().any(|e| match e {
-                    FileEvent::Created(_)
-                    | FileEvent::FolderCreated(_)
-                    | FileEvent::Deleted(_)
-                    | FileEvent::FolderDeleted(_)
-                    | FileEvent::Renamed { .. } => true,
-                    FileEvent::Modified(_) => false,
-                });
+                // --- 5. Determine Update Scope ---
+                // Compute a precisely-scoped payload so the frontend only
+                // refetches the views that could have changed.
+                let payload = compute_update_payload(&events_batch);
 
                 // --- 6. Notify Frontend ---
-                if let Err(e) =
-                    app_handle.emit("index-updated", IndexUpdatePayload { structure_changed })
-                {
+                if let Err(e) = app_handle.emit("index-updated", payload) {
                     error!("Failed to emit index-updated event: {}", e);
                 }
             }
@@ -482,10 +530,14 @@ impl World {
 
         let page_header = writer.create_new_file(&parent_dir, &file_name, template_content)?;
 
-        // For UI actions, we call the synchronous indexer method to get immediate feedback.
+        // A brand-new page has no backlinks pointing at it yet and its own
+        // outgoing links (from the template, if any) become visible as soon
+        // as the watcher picks up the create and runs a proper batch rebuild.
+        // We only need the asset registered so the next command (e.g.
+        // `build_page_view`) can find it.
         self.indexer
             .write()
-            .handle_event_and_rebuild(&FileEvent::Created(page_header.path.clone()));
+            .apply_event(&FileEvent::Created(page_header.path.clone()));
 
         Ok(page_header)
     }
@@ -500,9 +552,11 @@ impl World {
 
         let new_path = writer.create_new_folder(&parent_dir, &folder_name)?;
 
+        // Folders don't participate in the relation graph, so registering
+        // the directory asset is sufficient; skip the rebuild.
         self.indexer
             .write()
-            .handle_event_and_rebuild(&FileEvent::FolderCreated(new_path));
+            .apply_event(&FileEvent::FolderCreated(new_path));
 
         Ok(())
     }
@@ -618,10 +672,13 @@ impl World {
 
         let new_page_header = writer.duplicate_page(&PathBuf::from(path))?;
 
-        // After the file is created on disk, notify the indexer.
+        // The duplicate may have outgoing links copied from the source, but
+        // the backlinks on its targets will be refreshed when the watcher
+        // processes the create event. All we need synchronously is for the
+        // new asset to exist in the index.
         self.indexer
             .write()
-            .handle_event_and_rebuild(&FileEvent::Created(new_page_header.path.clone()));
+            .apply_event(&FileEvent::Created(new_page_header.path.clone()));
 
         Ok(new_page_header)
     }

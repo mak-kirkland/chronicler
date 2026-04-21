@@ -63,54 +63,86 @@ const initialState: WorldState = {
  * A factory function to create a managed store for the application's "world" data.
  * This encapsulates asynchronous loading, error handling, and real-time updates.
  */
+/**
+ * Describes which categories of world data need to be refreshed on the next
+ * debounced load. Flags OR together across multiple backend events so nothing
+ * is missed if several arrive inside one debounce window.
+ */
+interface PendingRefresh {
+    tree: boolean;
+    pages: boolean;
+    media: boolean;
+}
+
+const EMPTY_REFRESH: PendingRefresh = {
+    tree: false,
+    pages: false,
+    media: false,
+};
+
 function createWorldStore() {
     const { subscribe, set, update } = writable<WorldState>(initialState);
     let unlisten: (() => void) | null = null;
 
-    // Track if a structure update is pending across multiple debounced calls
-    let pendingStructureUpdate = false;
+    // Accumulates across the debounce window so a single load covers every
+    // payload category seen since the last refresh.
+    let pending: PendingRefresh = { ...EMPTY_REFRESH };
 
     /**
-     * Fetches all necessary data from the backend and updates the store state.
-     * @param fetchTree If true, fetches the file tree structure. If false, skips it.
+     * Fetches only the data categories flagged in `refresh`.
+     *
+     * `initial=true` forces a full load regardless of flags (used for the
+     * first load after `initialize`).
      */
-    const loadData = async (fetchTree: boolean) => {
+    const loadData = async (refresh: PendingRefresh, initial = false) => {
+        const fetchTree = initial || refresh.tree;
+        // Tags live in page frontmatter, so only pages_changed can move them.
+        const fetchTags = initial || refresh.pages;
+        // Parse errors come only from markdown files.
+        const fetchParseErrors = initial || refresh.pages;
+        // A broken link can resolve/break when the target's existence changes
+        // (structure) or when a source page's link set changes (pages).
+        const fetchBrokenLinks = initial || refresh.pages || refresh.tree;
+        // A broken image reference can resolve when an image appears/renames
+        // (media) or when a page adds/removes an image reference (pages).
+        const fetchBrokenImages = initial || refresh.pages || refresh.media;
+
         try {
-            // Always fetch metadata that might have changed with content edits
-            const metadataPromises = [
-                getAllTags(),
-                getVaultPath(),
-                getAllBrokenLinks(),
-                getAllBrokenImages(),
-                getAllParseErrors(),
-            ] as const;
-
-            // Conditionally fetch the heavy file tree
-            const treePromise = fetchTree
-                ? getFileTree()
-                : Promise.resolve(null);
-
             const [
-                [tags, vaultPath, brokenLinks, brokenImages, parseErrors],
+                tags,
+                brokenLinks,
+                brokenImages,
+                parseErrors,
                 files,
-            ] = await Promise.all([Promise.all(metadataPromises), treePromise]);
+                vaultPath,
+            ] = await Promise.all([
+                fetchTags ? getAllTags() : Promise.resolve(null),
+                fetchBrokenLinks ? getAllBrokenLinks() : Promise.resolve(null),
+                fetchBrokenImages
+                    ? getAllBrokenImages()
+                    : Promise.resolve(null),
+                fetchParseErrors
+                    ? getAllParseErrors()
+                    : Promise.resolve(null),
+                fetchTree ? getFileTree() : Promise.resolve(null),
+                // The vault path is fixed for the session, so only fetch it
+                // once on the initial load.
+                initial ? getVaultPath() : Promise.resolve(null),
+            ]);
 
             update((s) => {
                 const newState: WorldState = {
                     ...s,
-                    tags,
-                    vaultPath,
-                    brokenLinks,
-                    brokenImages,
-                    parseErrors,
                     isLoaded: true,
                     error: null,
                 };
 
-                // Only update the files tree if we actually fetched a new one
-                if (files !== null) {
-                    newState.files = files;
-                }
+                if (tags !== null) newState.tags = tags;
+                if (brokenLinks !== null) newState.brokenLinks = brokenLinks;
+                if (brokenImages !== null) newState.brokenImages = brokenImages;
+                if (parseErrors !== null) newState.parseErrors = parseErrors;
+                if (files !== null) newState.files = files;
+                if (vaultPath !== null) newState.vaultPath = vaultPath;
 
                 return newState;
             });
@@ -126,10 +158,9 @@ function createWorldStore() {
 
     // Create a debounced version of loadData.
     const debouncedLoadData = debounce(() => {
-        // Execute the load using the accumulated state
-        loadData(pendingStructureUpdate);
-        // Reset the flag after execution starts
-        pendingStructureUpdate = false;
+        const snapshot = pending;
+        pending = { ...EMPTY_REFRESH };
+        loadData(snapshot);
     }, WORLD_UPDATE_DEBOUNCE_MS);
 
     return {
@@ -145,21 +176,21 @@ function createWorldStore() {
                 unlisten = null;
             }
 
-            // Initial load MUST fetch the tree
-            await loadData(true);
+            // Initial load fetches everything.
+            await loadData(EMPTY_REFRESH, true);
 
             unlisten = await listen<IndexUpdatePayload>(
                 "index-updated",
                 (event) => {
-                    // Accumulate the structure change flag.
-                    // If ANY event in the debounce window has structure_changed=true,
-                    // we must reload the tree.
-                    if (event.payload.structure_changed) {
-                        pendingStructureUpdate = true;
-                    }
+                    // OR the payload flags into our pending refresh so the
+                    // next debounced load covers every category that's been
+                    // touched since the last fetch.
+                    if (event.payload.structure_changed) pending.tree = true;
+                    if (event.payload.pages_changed) pending.pages = true;
+                    if (event.payload.media_changed) pending.media = true;
 
                     console.log(
-                        `Index update received (structure_changed=${event.payload.structure_changed}), scheduling refresh...`,
+                        `Index update received (structure=${event.payload.structure_changed}, pages=${event.payload.pages_changed}, media=${event.payload.media_changed}), scheduling refresh...`,
                     );
                     // When an event comes in, we don't load immediately.
                     // We wait to see if another event comes in right after.
