@@ -63,6 +63,22 @@ struct ScanResult {
     error: Option<String>,
 }
 
+/// Returns `true` if any event in the batch could affect the relation graph
+/// (tags, link graph, backlinks, link/media resolvers, map backlinks).
+///
+/// Image content modifications cannot - the filename stays the same, so
+/// `media_resolver` is unchanged, and images never participate in
+/// tags/links/backlinks. Skipping the rebuild for those batches is a big
+/// steady-state win when tools stream image writes (e.g. PSD exporters).
+fn batch_affects_relations(events: &[FileEvent]) -> bool {
+    events.iter().any(|event| match event {
+        FileEvent::Modified(path) => !is_image_file(path),
+        // Any create/delete/rename changes a resolver key or could add/remove
+        // a page or map, so assume relations need to be rebuilt.
+        _ => true,
+    })
+}
+
 impl Indexer {
     /// Creates a new indexer for the specified root path.
     ///
@@ -263,6 +279,10 @@ impl Indexer {
     /// (where a file is reported as Deleted and then immediately Created/Modified).
     /// By calculating the *net effect* of the batch for each path before processing,
     /// we prevent the indexer from unnecessarily deleting and re-adding files.
+    ///
+    /// Skips the (expensive) relations rebuild when the batch cannot possibly
+    /// affect the link graph, tags, or resolvers - notably when every event is
+    /// an image file modification (e.g. a PSD exporter overwriting PNGs in a loop).
     #[instrument(skip(self, events))]
     pub fn handle_event_batch(&mut self, events: &[FileEvent]) {
         if events.is_empty() {
@@ -301,8 +321,18 @@ impl Indexer {
             }
         }
 
-        // Always rebuild relations after a batch of changes to ensure backlinks are correct
-        self.rebuild_relations();
+        if batch_affects_relations(events) {
+            self.rebuild_relations();
+        }
+    }
+
+    /// Applies a single file event to the in-memory index without rebuilding
+    /// the relation graph. Used by UI-initiated mutations where the watcher
+    /// will follow up with a proper rebuild shortly; the goal here is just
+    /// to get the new/updated asset into `assets` so the next command can
+    /// see it.
+    pub fn apply_event(&mut self, event: &FileEvent) {
+        self.handle_file_event(event);
     }
 
     /// Processes a single UI-initiated event and rebuilds relations immediately.
