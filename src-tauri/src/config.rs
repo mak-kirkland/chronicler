@@ -5,11 +5,14 @@
 //! a JSON file in the app's config directory.
 
 use crate::error::Result;
+use crate::writer::atomic_write;
+use chrono::Local;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
+use tracing::{error, warn};
 
 /// The debounce interval for file changes in milliseconds.
 /// This helps prevent multiple rapid updates from triggering too many re-indexes.
@@ -60,23 +63,74 @@ fn get_config_path(app_handle: &AppHandle) -> Result<PathBuf> {
     Ok(config_dir.join("config.json"))
 }
 
+/// Renames a corrupt config file aside so the app can start fresh. Failure
+/// to quarantine is logged but doesn't block recovery — the default config
+/// is used either way.
+fn quarantine_corrupt_config(path: &std::path::Path) {
+    // Append ".corrupt-<ts>" to the original path rather than using
+    // with_extension, which would replace ".json" instead of appending.
+    let timestamp = Local::now().format("%Y%m%d-%H%M%S");
+    let mut backup = path.as_os_str().to_os_string();
+    backup.push(format!(".corrupt-{}", timestamp));
+    let backup_path = std::path::PathBuf::from(backup);
+
+    match fs::rename(path, &backup_path) {
+        Ok(_) => warn!(
+            "Quarantined corrupt config to {}; using default config.",
+            backup_path.display()
+        ),
+        Err(e) => error!(
+            "Failed to quarantine corrupt config at {}: {}. Using default config.",
+            path.display(),
+            e
+        ),
+    }
+}
+
 /// Loads the application configuration from disk.
 ///
-/// If no configuration file exists, it returns a default configuration.
+/// Deliberately defensive: a corrupt config must never prevent startup,
+/// because the config dir (`%APPDATA%` on Windows) is not cleared on
+/// reinstall. On unreadable or unparseable files, the corrupt file is
+/// quarantined and a default config is returned.
 pub fn load(app_handle: &AppHandle) -> Result<AppConfig> {
     let path = get_config_path(app_handle)?;
     if !path.exists() {
         return Ok(AppConfig::default());
     }
-    let content = fs::read_to_string(path)?;
-    serde_json::from_str(&content).map_err(Into::into)
+
+    let content = match fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(e) => {
+            warn!(
+                "Could not read config file at {}: {}. Using default config.",
+                path.display(),
+                e
+            );
+            return Ok(AppConfig::default());
+        }
+    };
+
+    match serde_json::from_str(&content) {
+        Ok(config) => Ok(config),
+        Err(e) => {
+            warn!(
+                "Config file at {} is corrupt and could not be parsed: {}. \
+                 Quarantining and using default config.",
+                path.display(),
+                e
+            );
+            quarantine_corrupt_config(&path);
+            Ok(AppConfig::default())
+        }
+    }
 }
 
-/// Saves the application configuration to disk.
+/// Saves the application configuration to disk atomically and durably.
 pub fn save(app_handle: &AppHandle, config: &AppConfig) -> Result<()> {
     let path = get_config_path(app_handle)?;
     let content = serde_json::to_string_pretty(config)?;
-    fs::write(path, content).map_err(Into::into)
+    atomic_write(&path, &content)
 }
 
 /// Gets the vault path directly from the config file.

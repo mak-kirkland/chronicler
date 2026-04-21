@@ -3,7 +3,10 @@
 //! This module handles loading, saving, and validating the user's license key.
 //! The license is stored in a `license.json` file in the app's config directory.
 
-use crate::error::{ChroniclerError, Result};
+use crate::{
+    error::{ChroniclerError, Result},
+    writer::atomic_write,
+};
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
@@ -240,8 +243,8 @@ pub fn save_license(app_handle: &AppHandle, license: &License) -> Result<()> {
     };
 
     let license_path = app_handle.path().app_config_dir()?.join(LICENSE_FILE_NAME);
-    let file = std::fs::File::create(license_path)?;
-    serde_json::to_writer_pretty(file, &signed_license)?;
+    let content = serde_json::to_string_pretty(&signed_license)?;
+    atomic_write(&license_path, &content)?;
     info!("License saved and signed successfully.");
     Ok(())
 }
