@@ -33,28 +33,36 @@ struct BacklinkUpdate {
 #[derive(Debug, Clone)]
 pub struct Writer;
 
-/// Writes content to a file atomically using the `tempfile` crate.
+/// Writes `content` to `path` atomically and durably via temp-file + rename
+/// + fsync. Survives both process crashes (readers never see a half-written
+/// file) and power loss (data is flushed to disk before the rename commits).
 ///
-/// This creates a named temporary file in the same directory, writes the content,
-/// and then atomically renames it to the final destination. The `tempfile` crate
-/// ensures the temporary file is automatically cleaned up if an error occurs
-/// before the final `persist` call, preventing stray `.tmp` files.
+/// Not an absolute guarantee: some drives ack FLUSH without honoring it.
+/// This is the strongest primitive portably available from userspace.
 #[instrument(skip(content), fields(path = %path.display()))]
 pub fn atomic_write(path: &Path, content: &str) -> Result<()> {
     let parent_dir = path
         .parent()
         .ok_or_else(|| ChroniclerError::InvalidPath(path.to_path_buf()))?;
 
-    // 1. Create a new temporary file in the same directory as the target.
+    // Temp file in the target's directory (rename is only atomic within a
+    // single filesystem). Write, fsync before rename so the data is durable
+    // before the directory entry points at it, then persist.
     let mut temp_file = NamedTempFile::new_in(parent_dir)?;
-
-    // 2. Write the content to the temporary file.
     temp_file.write_all(content.as_bytes())?;
-
-    // 3. Atomically rename the temporary file to the final path.
-    // The `persist` method handles this and prevents the temp file from being
-    // deleted on drop. The error is converted into our application's error type.
+    temp_file.as_file().sync_all()?;
     temp_file.persist(path).map_err(|e| e.error)?;
+
+    // On POSIX filesystems (ext4/APFS/etc), the directory entry is a
+    // separate piece of state and needs its own fsync for the rename to
+    // be durable. On NTFS this is handled by the file-level sync above
+    // via the MFT journal, and opening a directory as a File isn't
+    // supported anyway — so this step is Unix-only.
+    #[cfg(unix)]
+    {
+        let dir = fs::File::open(parent_dir)?;
+        dir.sync_all()?;
+    }
 
     Ok(())
 }
@@ -149,7 +157,7 @@ impl Writer {
         Self
     }
 
-    /// Writes content to a page on disk using an atomic operation.
+    /// Writes content to a page on disk using an atomic, durable operation.
     #[instrument(skip(self, content))]
     pub fn write_page_content(&self, path: &Path, content: &str) -> Result<()> {
         if let Some(parent) = path.parent() {
@@ -489,6 +497,23 @@ mod tests {
         fs::write(&backlink2_path, "This page also links to [[Page One]].").unwrap();
 
         (dir, page1_path, backlink1_path, backlink2_path)
+    }
+
+    #[test]
+    fn test_atomic_write_produces_correct_content() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("out.txt");
+        atomic_write(&path, "hello world").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_atomic_write_overwrites_existing_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("out.txt");
+        fs::write(&path, "old content that is long").unwrap();
+        atomic_write(&path, "new").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "new");
     }
 
     #[test]
