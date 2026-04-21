@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.49.2-alpha] - 2026-04-21
+
+### ✨ Added
+
+- **Privacy**: Added an opt-in consent process for anonymous usage analytics. The application will now only send a daily connectivity ping if you explicitly enable it. New users will be prompted on their first launch, and you can manage this at any time via a new Privacy toggle in the Settings modal.
+
+---
+
 ## [v0.49.1-alpha] - 2026-04-17
 
 ### 🐞 Fixed
