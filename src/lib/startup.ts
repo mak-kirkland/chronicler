@@ -6,7 +6,11 @@ import { resetAllStores } from "$lib/viewStores";
 import { appStatus } from "$lib/appState";
 import { world } from "$lib/worldStore";
 import { initializeVault } from "$lib/actions";
-import { getVaultPath, getAppUsageDays } from "$lib/commands";
+import {
+    getVaultPath,
+    getAppUsageDays,
+    getTelemetryEnabled,
+} from "$lib/commands";
 import {
     loadGlobalSettings,
     initializeVaultSettings,
@@ -16,8 +20,9 @@ import { loadActiveFonts } from "$lib/fonts";
 import { checkForAppUpdates } from "$lib/updater";
 import { licenseStore } from "./licenseStore";
 import { get } from "svelte/store";
-import { openModal } from "./modalStore";
+import { openModal, closeModal } from "./modalStore";
 import NagScreenModal from "./components/modals/NagScreenModal.svelte";
+import TelemetryModal from "./components/modals/TelemetryModal.svelte";
 
 /**
  * Orchestrates the complete vault initialization sequence. This function is the
@@ -65,6 +70,20 @@ export async function initializeApp() {
         } else {
             appStatus.set({ state: "selecting_vault" });
         }
+
+        // Show the telemetry consent modal on first launch. Checked before the
+        // nag screen so it stacks on top for brand-new users. Null means the
+        // user has never chosen; the backend skips the ping in that case too.
+        getTelemetryEnabled()
+            .then((value) => {
+                if (value === null) {
+                    openModal({
+                        component: TelemetryModal,
+                        props: { onClose: closeModal },
+                    });
+                }
+            })
+            .catch((e) => console.error("Telemetry consent check failed:", e));
 
         // Defer the non-critical "nag screen" check. We wrap it in an async
         // IIFE (Immediately Invoked Function Expression) to "fire-and-forget".

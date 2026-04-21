@@ -301,3 +301,21 @@ export const getAppUsageDays = () => invoke<number>("get_app_usage_days");
  * @returns A promise that resolves to an array of UserFont objects.
  */
 export const getUserFonts = () => invoke<UserFont[]>("get_user_fonts");
+
+// --- Telemetry / Privacy Commands ---
+
+/**
+ * Returns the user's telemetry choice.
+ * - `null`: never chosen (show the consent modal)
+ * - `true`: opted in
+ * - `false`: opted out
+ */
+export const getTelemetryEnabled = () =>
+    invoke<boolean | null>("get_telemetry_enabled");
+
+/**
+ * Persists the user's telemetry choice. Takes effect on next app launch.
+ * @param enabled `true` to opt in, `false` to opt out.
+ */
+export const setTelemetryEnabled = (enabled: boolean) =>
+    invoke<void>("set_telemetry_enabled", { enabled });

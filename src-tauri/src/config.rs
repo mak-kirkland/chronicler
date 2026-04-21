@@ -41,6 +41,11 @@ pub struct AppConfig {
     #[serde(default)]
     pub recent_vaults: Vec<String>,
     pub first_launch_date: Option<String>,
+    /// The user's telemetry choice. `None` means they haven't been asked yet
+    /// (the consent modal is shown in this case, and no ping is sent).
+    /// `Some(true)` means opted in; `Some(false)` means opted out.
+    #[serde(default)]
+    pub telemetry_enabled: Option<bool>,
 }
 
 /// Retrieves the path to the configuration file.
@@ -105,5 +110,12 @@ pub fn set_vault_path(path: String, app_handle: &AppHandle) -> Result<()> {
 pub fn remove_recent_vault(path: String, app_handle: &AppHandle) -> Result<()> {
     let mut config = load(app_handle)?;
     config.recent_vaults.retain(|p| p != &path);
+    save(app_handle, &config)
+}
+
+/// Persists the user's telemetry choice.
+pub fn set_telemetry_enabled(enabled: bool, app_handle: &AppHandle) -> Result<()> {
+    let mut config = load(app_handle)?;
+    config.telemetry_enabled = Some(enabled);
     save(app_handle, &config)
 }

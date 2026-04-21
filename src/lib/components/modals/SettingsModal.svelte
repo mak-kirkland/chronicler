@@ -18,6 +18,7 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import { licenseStore } from "$lib/licenseStore";
     import Button from "$lib/components/ui/Button.svelte";
+    import ToggleSwitch from "$lib/components/ui/ToggleSwitch.svelte";
     import ChangelogModal from "$lib/components/modals/ChangelogModal.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
     import ThemeEditorModal from "$lib/components/modals/ThemeEditorModal.svelte";
@@ -25,7 +26,11 @@
     import AtmosphereModal from "$lib/components/modals/AtmosphereModal.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import ImporterModal from "$lib/components/modals/ImporterModal.svelte";
-    import { openLogDirectory } from "$lib/commands";
+    import {
+        openLogDirectory,
+        getTelemetryEnabled,
+        setTelemetryEnabled,
+    } from "$lib/commands";
     import { DONATE_URL } from "$lib/config";
 
     let { onClose = () => {} } = $props<{
@@ -42,13 +47,36 @@
     let appVersion = $state<string | null>(null);
     let showChangelog = $state(false);
 
-    // This effect lazily-loads the full font list.
+    // Telemetry toggle state. `telemetryLoaded` guards the auto-save effect
+    // so the default `false` doesn't overwrite the real value during mount.
+    let telemetryEnabled = $state(false);
+    let telemetryLoaded = $state(false);
+
     onMount(() => {
         loadAllUserFonts();
     });
 
-    /** A reactive list that combines the built-in fonts with the loaded user fonts.
-     */
+    onMount(async () => {
+        try {
+            const value = await getTelemetryEnabled();
+            telemetryEnabled = value === true;
+        } catch (e) {
+            console.error("Failed to load telemetry setting:", e);
+        } finally {
+            telemetryLoaded = true;
+        }
+    });
+
+    // Persist whenever the toggle changes (but not during initial load).
+    $effect(() => {
+        if (!telemetryLoaded) return;
+        const currentValue = telemetryEnabled;
+        setTelemetryEnabled(currentValue).catch((e) => {
+            console.error("Failed to save telemetry preference:", e);
+        });
+    });
+
+    /** A reactive list that combines the built-in fonts with the loaded user fonts. */
     const allAvailableFonts = $derived([
         ...AVAILABLE_FONTS,
         ...$userFonts.map((f) => ({ name: f.name, value: `"${f.name}"` })),
@@ -274,6 +302,16 @@
             <h4>Import</h4>
             <p>Import .docx files from individual files or an entire folder.</p>
             <Button onclick={openImporter}>Open Importer</Button>
+        </div>
+
+        <div class="setting-item">
+            <h4>Privacy</h4>
+            <ToggleSwitch
+                id="telemetry-toggle"
+                label="Send anonymous usage ping"
+                description="Helps me see how many people use Chronicler. No personal data."
+                bind:checked={telemetryEnabled}
+            />
         </div>
 
         <div class="setting-item">
