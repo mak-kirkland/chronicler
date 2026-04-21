@@ -90,9 +90,16 @@ fn main() {
             }
 
             // --- ANALYTICS PING ---
+            // Only fires if the user has explicitly opted in. `None` (never
+            // chosen) and `Some(false)` (declined) both skip the ping.
+            let app_handle_for_ping = app_handle.clone();
             tauri::async_runtime::spawn(async move {
-                // We ignore the result so if it fails (offline), the app continues normally.
-                let _ = telemetry::send_analytics_ping().await;
+                let opted_in = config::load(&app_handle_for_ping)
+                    .map(|c| c.telemetry_enabled == Some(true))
+                    .unwrap_or(false);
+                if opted_in {
+                    let _ = telemetry::send_analytics_ping().await;
+                }
             });
 
             // The setup was successful.
@@ -144,6 +151,8 @@ fn main() {
             commands::get_all_parse_errors,
             commands::get_user_fonts,
             commands::open_log_directory,
+            commands::get_telemetry_enabled,
+            commands::set_telemetry_enabled,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);

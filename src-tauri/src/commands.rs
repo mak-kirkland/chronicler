@@ -372,3 +372,21 @@ pub fn open_log_directory(app_handle: AppHandle) -> Result<()> {
 pub fn get_user_fonts(app_handle: AppHandle) -> Result<Vec<fonts::UserFont>> {
     fonts::get_user_fonts(&app_handle)
 }
+
+// --- Telemetry / Privacy ---
+
+/// Returns the user's telemetry choice. `None` means they haven't been asked
+/// yet - the frontend uses this to decide whether to show the consent modal.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn get_telemetry_enabled(app_handle: AppHandle) -> Result<Option<bool>> {
+    Ok(config::load(&app_handle)?.telemetry_enabled)
+}
+
+/// Persists the user's telemetry choice. Called from both the consent modal
+/// and the Settings toggle.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn set_telemetry_enabled(enabled: bool, app_handle: AppHandle) -> Result<()> {
+    config::set_telemetry_enabled(enabled, &app_handle)
+}
