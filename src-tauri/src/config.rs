@@ -36,6 +36,12 @@ pub const DEFAULT_EVENT_CHANNEL_CAPACITY: usize = 100;
 /// The name of the directory within the vault where images and other media are stored.
 pub const IMAGES_DIR_NAME: &str = "images";
 
+/// Hidden cache directory inside the vault for derived assets (map tile
+/// pyramids, gallery thumbnails, etc.). Starts with `.` so the vault
+/// indexer skips it during file scanning. Must stay in sync with the
+/// asset-protocol scope registered in `world::configure_vault_scope`.
+pub const VAULT_CACHE_DIR_NAME: &str = ".chronicler-cache";
+
 /// Defines the structure of the application's configuration file.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AppConfig {
