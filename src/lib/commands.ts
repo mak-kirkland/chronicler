@@ -215,6 +215,16 @@ export const getImageSource = (path: string) =>
     invoke<string>("get_image_source", { path });
 
 /**
+ * Returns a source URL for a small cached thumbnail of the given image,
+ * generating the thumbnail on first request. Falls back to the full-size
+ * source if the image can't be decoded.
+ * @param path The absolute path to the image file.
+ * @returns A promise resolving to the thumbnail (or fallback) source string.
+ */
+export const getImageThumbnail = (path: string) =>
+    invoke<string>("get_image_thumbnail", { path });
+
+/**
  * Reads and parses a `.cmap` file from within the vault.
  * @param path The absolute path to the map config file.
  * @returns A promise that resolves to the parsed map configuration.

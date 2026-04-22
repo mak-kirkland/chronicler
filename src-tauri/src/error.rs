@@ -96,6 +96,10 @@ pub enum ChroniclerError {
     // Tile Generation Errors
     #[error("Tile generation failed: {0}")]
     TileGeneration(String),
+
+    // Thumbnail Generation Errors
+    #[error("Thumbnail generation failed: {0}")]
+    ThumbnailGeneration(String),
 }
 
 // We need to implement Serialize for the error type to be able to return

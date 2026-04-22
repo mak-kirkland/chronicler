@@ -30,6 +30,7 @@ mod parser;
 mod renderer;
 mod sanitizer;
 mod telemetry;
+mod thumbnailer;
 mod tiler;
 mod utils;
 mod watcher;
@@ -75,18 +76,13 @@ fn main() {
             setup_tracing(&args, app_handle)?;
 
             // On startup, we read the config file to see if a vault path was
-            // saved from a previous session.
+            // saved from a previous session. `configure_vault_scope` handles
+            // both the vault dir and the hidden cache dir, and pre-creates
+            // the cache dir so `allow_directory` registers it correctly
+            // even on first launch.
             if let Ok(Some(vault_path_str)) = config::get_vault_path(app.handle()) {
                 let vault_path = Path::new(&vault_path_str);
-
-                // 1. Allow the main vault directory (ignores dot-folders)
-                app.asset_protocol_scope()
-                    .allow_directory(vault_path, true)?;
-
-                // 2. Explicitly allow the hidden cache directory so map tiles can load
-                let cache_path = vault_path.join(".chronicler-cache");
-                app.asset_protocol_scope()
-                    .allow_directory(&cache_path, true)?;
+                world::configure_vault_scope(app.handle(), vault_path);
             }
 
             // --- ANALYTICS PING ---
@@ -144,6 +140,7 @@ fn main() {
             commands::verify_and_store_license,
             commands::get_image_as_base64,
             commands::get_image_source,
+            commands::get_image_thumbnail,
             commands::get_app_usage_days,
             commands::duplicate_page,
             commands::get_all_broken_links,

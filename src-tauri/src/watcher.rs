@@ -8,7 +8,7 @@ use crate::{
     config::{DEBOUNCE_INTERVAL, DEFAULT_EVENT_CHANNEL_CAPACITY},
     error::Result,
     events::FileEvent,
-    utils::{is_hidden_path, is_image_file, is_map_file, is_markdown_file},
+    utils::{is_image_file, is_map_file, is_markdown_file, is_under_hidden_subdir},
 };
 use notify_debouncer_full::{
     new_debouncer,
@@ -77,8 +77,10 @@ impl Watcher {
     /// - The root path is invalid or inaccessible
     #[instrument(level = "debug", skip(self))]
     pub fn start(&mut self, root_path: &Path) -> Result<()> {
-        // Clone the sender for use in the callback closure
+        // Captured into the callback so events under hidden subdirs (our
+        // own `.chronicler-cache/`, `.git/`, …) can be filtered out.
         let event_sender = self.event_sender.clone();
+        let root = root_path.to_path_buf();
 
         // Create the debouncer with our event publishing callback
         let mut debouncer = new_debouncer(
@@ -86,7 +88,7 @@ impl Watcher {
             None,
             move |result: DebounceEventResult| match result {
                 Ok(events) => {
-                    handle_debounced_events(&event_sender, events);
+                    handle_debounced_events(&event_sender, &root, events);
                 }
                 Err(errors) => {
                     for error in errors {
@@ -147,9 +149,10 @@ impl Drop for Watcher {
 /// # Arguments
 /// * `event_sender` - The broadcast sender to publish events to
 /// * `events` - Raw debounced events from the filesystem watcher
-#[instrument(level = "debug", skip(event_sender, events))]
+#[instrument(level = "debug", skip(event_sender, vault_root, events))]
 fn handle_debounced_events(
     event_sender: &broadcast::Sender<FileEvent>,
+    vault_root: &Path,
     events: Vec<DebouncedEvent>,
 ) {
     for event in events {
@@ -157,7 +160,7 @@ fn handle_debounced_events(
         let resolve_ambiguous_removal = |paths: &[PathBuf]| {
             paths
                 .iter()
-                .filter(|path| !is_temp_file(path) && !is_hidden_path(path))
+                .filter(|path| !is_temp_file(path) && !is_under_hidden_subdir(path, vault_root))
                 .map(|path| {
                     // This is an educated guess. If a path doesn't have an extension
                     // that we track, we'll assume it was a folder.
@@ -175,35 +178,35 @@ fn handle_debounced_events(
             EventKind::Create(CreateKind::File) => event
                 .paths
                 .iter()
-                .filter(|path| is_valid_file(path))
+                .filter(|path| is_valid_file(path, vault_root))
                 .map(|path| FileEvent::Created(path.clone()))
                 .collect::<Vec<_>>(),
 
             EventKind::Create(CreateKind::Folder) => event
                 .paths
                 .iter()
-                .filter(|path| !is_hidden_path(path))
+                .filter(|path| !is_under_hidden_subdir(path, vault_root))
                 .map(|path| FileEvent::FolderCreated(path.clone()))
                 .collect::<Vec<_>>(),
 
             EventKind::Modify(ModifyKind::Data(_)) | EventKind::Modify(ModifyKind::Any) => event
                 .paths
                 .iter()
-                .filter(|path| is_valid_file(path))
+                .filter(|path| is_valid_file(path, vault_root))
                 .map(|path| FileEvent::Modified(path.clone()))
                 .collect::<Vec<_>>(),
 
             EventKind::Remove(RemoveKind::File) => event
                 .paths
                 .iter()
-                .filter(|path| is_valid_file(path))
+                .filter(|path| is_valid_file(path, vault_root))
                 .map(|path| FileEvent::Deleted(path.clone()))
                 .collect::<Vec<_>>(),
 
             EventKind::Remove(RemoveKind::Folder) => event
                 .paths
                 .iter()
-                .filter(|path| !is_hidden_path(path))
+                .filter(|path| !is_under_hidden_subdir(path, vault_root))
                 .map(|path| FileEvent::FolderDeleted(path.clone()))
                 .collect::<Vec<_>>(),
 
@@ -218,9 +221,9 @@ fn handle_debounced_events(
                         let to = &event.paths[1];
 
                         // Check if this is a valid file or a non-hidden directory
-                        let is_valid = is_valid_file(from)
-                            || is_valid_file(to)
-                            || (to.is_dir() && !is_hidden_path(to));
+                        let is_valid = is_valid_file(from, vault_root)
+                            || is_valid_file(to, vault_root)
+                            || (to.is_dir() && !is_under_hidden_subdir(to, vault_root));
 
                         if is_valid {
                             vec![FileEvent::Renamed {
@@ -263,10 +266,11 @@ fn handle_debounced_events(
 }
 
 /// Checks if a path points to a valid file that should be processed.
-/// This ignores temporary/lock files (like .#file.md) and hidden files.
-fn is_valid_file(path: &Path) -> bool {
+/// Rejects temp/lock files (`.#foo.md`), anything under a hidden subdir
+/// of the vault, and any extension we don't track.
+fn is_valid_file(path: &Path, vault_root: &Path) -> bool {
     !is_temp_file(path)
-        && !is_hidden_path(path)
+        && !is_under_hidden_subdir(path, vault_root)
         && (is_markdown_file(path) || is_image_file(path) || is_map_file(path))
 }
 

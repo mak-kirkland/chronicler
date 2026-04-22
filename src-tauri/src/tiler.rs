@@ -32,14 +32,15 @@
 //!   {z}/{x}_{y}.{ext}    ← one file per tile (ext = "jpg" or "png")
 //! ```
 
+use crate::config::VAULT_CACHE_DIR_NAME;
 use crate::error::{ChroniclerError, Result};
+use crate::utils::compute_cache_key;
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView, ImageReader, Rgb, RgbImage, Rgba, RgbaImage};
 use rayon::prelude::*;
 use std::fs;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
 use tauri::{AppHandle, Emitter};
 use tracing::{info, instrument};
 
@@ -49,11 +50,7 @@ const TILE_SIZE: u32 = 256;
 /// JPEG quality. 85 = good balance. At 256×256 each tile is ~15–30 KB.
 const JPEG_QUALITY: u8 = 85;
 
-/// Hidden cache directory inside the vault.
-/// Starts with `.` so the vault indexer skips it during file scanning.
-const CACHE_DIR_NAME: &str = ".chronicler-cache";
-
-/// Subdirectory for tile pyramids.
+/// Subdirectory for tile pyramids inside the shared vault cache dir.
 const TILES_SUBDIR: &str = "tiles";
 
 /// Tile encoding format. Determined per source from its color type.
@@ -108,58 +105,6 @@ struct TileProgressPayload {
     total: u32,
     /// Human-readable phase: "loading" during decode, "tiling" during slicing.
     phase: &'static str,
-}
-
-// ---------------------------------------------------------------------------
-// Cache key
-// ---------------------------------------------------------------------------
-
-/// Build a stable, human-readable cache directory name for an image.
-///
-/// Format: `{sanitized_filename}-{len}-{mtime_nanos}`
-///
-/// - **Sanitized filename**: lowercased, with anything outside `[a-z0-9._]`
-///   replaced by `_`. Keeps the cache directory listing readable.
-/// - **Length + mtime**: any modification to the source file changes one or
-///   both, which invalidates the cache exactly the way we want.
-///
-/// This is **stable across Rust versions** (unlike `DefaultHasher`, whose
-/// output is explicitly non-portable). Upgrading the toolchain will not
-/// orphan existing tile pyramids on disk.
-///
-/// Collisions on filename are fine - `len` and `mtime` disambiguate, and the
-/// only consequence of a hypothetical collision would be one extra rebuild.
-fn compute_cache_key(path: &Path) -> String {
-    let stem = path
-        .file_name()
-        .map(|n| n.to_string_lossy().to_lowercase())
-        .unwrap_or_else(|| "unknown".to_string());
-
-    let sanitized: String = stem
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect();
-
-    let (len, mtime_nanos) = fs::metadata(path)
-        .ok()
-        .map(|m| {
-            let mtime = m
-                .modified()
-                .ok()
-                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-                .map(|d| d.as_nanos())
-                .unwrap_or(0);
-            (m.len(), mtime)
-        })
-        .unwrap_or((0, 0));
-
-    format!("{sanitized}-{len}-{mtime_nanos}")
 }
 
 // ---------------------------------------------------------------------------
@@ -232,7 +177,7 @@ pub fn generate_tiles(
 ) -> Result<TileSetInfo> {
     let cache_key = compute_cache_key(image_path);
     let tile_dir = vault_path
-        .join(CACHE_DIR_NAME)
+        .join(VAULT_CACHE_DIR_NAME)
         .join(TILES_SUBDIR)
         .join(&cache_key);
     let marker = tile_dir.join(".complete");
@@ -572,27 +517,5 @@ mod tests {
         assert_eq!(tiles_for_axis(6000, 4, 5), 12);
         assert_eq!(tiles_for_axis(8192, 0, 5), 1);
         assert_eq!(tiles_for_axis(6000, 0, 5), 1);
-    }
-
-    #[test]
-    fn test_cache_key_stable_for_same_path() {
-        let p = Path::new("/some/test/image.png");
-        // Same path → same key (mtime/len both 0 since file doesn't exist)
-        assert_eq!(compute_cache_key(p), compute_cache_key(p));
-    }
-
-    #[test]
-    fn test_cache_key_sanitizes_filename() {
-        let p = Path::new("/some/test/My Map (Final)!.PNG");
-        let key = compute_cache_key(p);
-        // Sanitized: lowercased, only [a-z0-9._-] preserved
-        assert!(key.starts_with("my_map__final__.png-"));
-    }
-
-    #[test]
-    fn test_cache_key_preserves_extension_dots() {
-        let p = Path::new("/x/world.map.png");
-        let key = compute_cache_key(p);
-        assert!(key.starts_with("world.map.png-"));
     }
 }

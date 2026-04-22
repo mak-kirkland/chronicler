@@ -1,9 +1,9 @@
 <script lang="ts">
-    import { allImages, vaultPath } from "$lib/worldStore";
+    import { allImages } from "$lib/worldStore";
     import { currentView } from "$lib/viewStores";
     import { navigateToImage } from "$lib/actions";
     import { infiniteScroll } from "$lib/domActions";
-    import { resolveImageSource } from "$lib/utils";
+    import { getImageThumbnail } from "$lib/commands";
     import { tick } from "svelte";
 
     let { searchTerm = "" } = $props<{ searchTerm?: string }>();
@@ -78,7 +78,7 @@
                     onclick={() => navigateToImage(image)}
                     title={image.title}
                 >
-                    {#await resolveImageSource(image.path, $vaultPath)}
+                    {#await getImageThumbnail(image.path)}
                         <div class="placeholder">...</div>
                     {:then src}
                         <img {src} alt={image.title} loading="lazy" />

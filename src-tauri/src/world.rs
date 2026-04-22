@@ -12,7 +12,7 @@
 //! - Providing a unified API for Tauri commands to interact with the backend.
 
 use crate::{
-    config::{self, DEBOUNCE_INTERVAL, MAX_DEBOUNCE_DELAY},
+    config::{self, DEBOUNCE_INTERVAL, MAX_DEBOUNCE_DELAY, VAULT_CACHE_DIR_NAME},
     error::{ChroniclerError, Result},
     events::FileEvent,
     importer,
@@ -36,7 +36,41 @@ use std::{
 };
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::{sync::broadcast, time::sleep};
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
+
+/// Registers `vault_path` and its vault cache subdirectory with Tauri's
+/// asset-protocol scope, so generated tiles and thumbnails inside the
+/// cache can load via `asset://` URLs.
+///
+/// The cache directory is **created first**, since `allow_directory`
+/// does not retroactively pick up later-created paths.
+pub fn configure_vault_scope(app_handle: &AppHandle, vault_path: &Path) {
+    let cache_path = vault_path.join(VAULT_CACHE_DIR_NAME);
+    if let Err(e) = fs::create_dir_all(&cache_path) {
+        warn!(
+            "Could not pre-create cache dir {}: {}. Tiles and thumbnails \
+             may be forbidden by the asset protocol until restart.",
+            cache_path.display(),
+            e
+        );
+    }
+
+    let scope = app_handle.asset_protocol_scope();
+    if let Err(e) = scope.allow_directory(vault_path, true) {
+        error!(
+            "Failed to register vault scope for {}: {}",
+            vault_path.display(),
+            e
+        );
+    }
+    if let Err(e) = scope.allow_directory(&cache_path, true) {
+        error!(
+            "Failed to register cache scope for {}: {}",
+            cache_path.display(),
+            e
+        );
+    }
+}
 
 /// Payload sent to the frontend when the index changes.
 ///
@@ -151,15 +185,9 @@ impl World {
         info!(path = %root_path.display(), "Initializing or changing vault.");
 
         // --- 1. Explicitly update the asset protocol scope ---
-        if let Err(e) = app_handle
-            .asset_protocol_scope()
-            .allow_directory(root_path, true)
-        {
-            // Log the error but don't hard-fail; the implicit
-            // behavior (from the tauri-plugin-dialog) might still
-            // work.
-            tracing::error!("Failed to update asset protocol scope: {}", e);
-        }
+        // Covers both the vault and the hidden cache dir so generated
+        // tiles/thumbnails load without requiring an app restart.
+        configure_vault_scope(&app_handle, root_path);
 
         // --- 2. Perform Initial Scan on a new Indexer instance ---
         // This is done outside of any locks to avoid blocking other operations during the scan.
@@ -415,6 +443,24 @@ impl World {
             Ok(renderer.get_image_source(path))
         } else {
             Err(ChroniclerError::VaultNotInitialized)
+        }
+    }
+
+    /// Returns a URL for a cached thumbnail of the given image, generating
+    /// it on first request. On any generation failure (unsupported format,
+    /// decode error, missing file), falls back to the full-size source so
+    /// the gallery tile still displays something.
+    pub async fn get_image_thumbnail(&self, path: &str) -> Result<String> {
+        let root = self
+            .root_path
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
+        let image_path = PathBuf::from(path);
+
+        match crate::thumbnailer::get_image_thumbnail_async(root, image_path).await {
+            Ok(thumb_path) => self.get_image_source(&thumb_path.to_string_lossy()),
+            Err(_) => self.get_image_source(path),
         }
     }
 
