@@ -15,10 +15,12 @@
         anchorEl = null,
         targetPath = null,
         preferredSide = null,
+        positionToken = 0,
     } = $props<{
         anchorEl: HTMLElement | null;
         targetPath: string | null;
         preferredSide?: "left" | "right" | null;
+        positionToken?: number;
     }>();
 
     let infoboxData = $state<InfoboxFrontmatter | null>(null);
@@ -63,7 +65,7 @@
     });
 </script>
 
-<HoverPreview {anchorEl} {isVisible} width={380} {preferredSide}>
+<HoverPreview {anchorEl} {isVisible} width={380} {preferredSide} {positionToken}>
     {#if infoboxData}
         <div class="infobox-container">
             <Infobox data={infoboxData} onEdit={undefined} {fallbackTitle} />

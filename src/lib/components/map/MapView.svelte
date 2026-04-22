@@ -134,6 +134,10 @@
     let shapeLayerGroup: L.LayerGroup | null = null;
     // Temp layer for drawing in progress
     let drawLayerGroup: L.LayerGroup | null = null;
+    // Single canvas renderer shared across every shape on the map. Drops
+    // shape rendering from one SVG node per polygon to a single <canvas>
+    // batch, which is 10–50× faster on dense maps.
+    let shapeRenderer: L.Canvas | null = null;
 
     // --- Map Data ---
 
@@ -206,6 +210,19 @@
         bothPreviewsActive ? "right" : null,
     );
 
+    // 1×1 hidden anchor used as `hoveredElement` for canvas-rendered
+    // shapes. The link/map preview popups position themselves relative
+    // to a DOM element via `getBoundingClientRect()`, but `L.Path`'s
+    // `getElement()` returns nothing under the canvas renderer — there's
+    // no per-shape DOM node anymore. This single anchor is moved to the
+    // hovered shape's screen-space center instead.
+    let previewAnchor = $state<HTMLElement | null>(null);
+    // Bumped each time `previewAnchor` is repositioned so HoverPreview
+    // recomputes its layout — without this, switching from one shape to
+    // another doesn't change `hoveredElement`'s reference and the popup
+    // would stay parked at the previous coords.
+    let previewAnchorVersion = $state(0);
+
     // --- Tooltip & Lookup State ---
 
     // Tooltip State for multi-region hover
@@ -223,6 +240,20 @@
 
     // --- Performance: Spatial index for shape hit-testing ---
     let spatialIndex: ShapeSpatialIndex | null = null;
+    // Tracks which shapes array the index was built from, so syncShapes
+    // can skip the O(N) rebuild on viewport-only updates.
+    let spatialIndexShapes: MapRegion[] | null = null;
+
+    // --- Performance: Viewport culling ---
+    // Image-pixel rectangle of what's currently on screen (with overdraw padding).
+    // syncPins/syncShapes use this to skip mounting items outside the viewport.
+    // null means "render everything" (used while bounds are not yet known).
+    let visibleBounds: {
+        minX: number;
+        maxX: number;
+        minY: number;
+        maxY: number;
+    } | null = null;
 
     // --- Performance: Cached store subscriptions (avoids get() per event) ---
     let cachedPagePaths: Map<string, string> = new Map();
@@ -474,6 +505,33 @@
         hoveredMapElement = null;
     }
 
+    /**
+     * Position the shared preview anchor at a container-pixel point and
+     * point the link/map preview state at it. Bumps `previewAnchorVersion`
+     * so HoverPreview re-runs its positioning effect even when
+     * `hoveredElement` keeps the same DOM reference. Pass null for either
+     * path to clear that preview without touching the other.
+     */
+    function placePreviewAt(
+        containerX: number,
+        containerY: number,
+        pagePath: string | null,
+        mapTargetPath: string | null,
+    ) {
+        if (!previewAnchor) return;
+        previewAnchor.style.left = `${containerX}px`;
+        previewAnchor.style.top = `${containerY}px`;
+        hoveredPath = pagePath;
+        hoveredElement = pagePath ? previewAnchor : null;
+        hoveredMapPath = mapTargetPath;
+        hoveredMapElement = mapTargetPath ? previewAnchor : null;
+        // Write-only update: a `++` would *read* `previewAnchorVersion`,
+        // and effects that call this helper would then track that read
+        // and re-fire on the write — infinite loop. `performance.now()`
+        // gives a fresh value every call without reading the prior one.
+        previewAnchorVersion = performance.now();
+    }
+
     function removeMultiTooltip() {
         if (multiTooltip) {
             multiTooltip.remove();
@@ -496,32 +554,26 @@
     /**
      * Show preview popups for a single shape's targets.
      * Returns true if a preview was shown.
+     *
+     * Shapes are drawn via the shared `L.canvas()` renderer, so they
+     * have no individual DOM node — `layer.getElement()` returns the
+     * shared canvas (or undefined) rather than a per-shape element. We
+     * route the preview through `placePreviewAt`, anchoring at the
+     * shape's bounds-center in container coords.
      */
     function showShapePreview(shape: MapRegion): boolean {
-        if (isConsoleOpen) return false;
+        if (isConsoleOpen || !map) return false;
 
         const { pagePath, mapTargetPath } = resolveTargetPaths(shape);
+        if (!pagePath && !mapTargetPath) return false;
+
         const layer = shapeIdToLayer.get(shape.id);
-        const element =
-            layer && (layer as any).getElement
-                ? (layer as any).getElement()
-                : null;
+        const center = (layer as any)?.getBounds?.()?.getCenter?.();
+        if (!center) return false;
 
-        let foundPreview = false;
-
-        if (pagePath && element) {
-            hoveredPath = pagePath;
-            hoveredElement = element;
-            foundPreview = true;
-        }
-
-        if (mapTargetPath && element) {
-            hoveredMapPath = mapTargetPath;
-            hoveredMapElement = element;
-            foundPreview = true;
-        }
-
-        return foundPreview;
+        const cp = map.latLngToContainerPoint(center);
+        placePreviewAt(cp.x, cp.y, pagePath, mapTargetPath);
+        return true;
     }
 
     // =========================================================================
@@ -749,6 +801,7 @@
         markerLayerGroup = null;
         shapeLayerGroup = null;
         drawLayerGroup = null;
+        shapeRenderer = null;
         pinIdToLayer.clear();
         shapeIdToLayer.clear();
         prevPinFingerprints.clear();
@@ -756,6 +809,8 @@
         prevStyledRegionIds = new Set();
         prevRegionStyleMode = "hidden";
         spatialIndex = null;
+        spatialIndexShapes = null;
+        visibleBounds = null;
         removeMultiTooltip();
     }
 
@@ -897,6 +952,9 @@
         markerLayerGroup = L.layerGroup().addTo(map);
         shapeLayerGroup = L.layerGroup().addTo(map);
         drawLayerGroup = L.layerGroup().addTo(map);
+        // padding > 0 keeps shapes painted slightly past the viewport edge
+        // so they don't pop in/out at the boundary during pan.
+        shapeRenderer = L.canvas({ padding: 0.5 });
 
         // fitZoom is the Leaflet zoom level at which the image fills the
         // viewport. We use this as both the initial view and the minimum zoom
@@ -910,12 +968,46 @@
         // This prevents the user from zooming out further than the image boundaries
         map.setMinZoom(fitZoom);
 
+        // Seed viewport bounds before the first sync so the initial render
+        // is also culled (otherwise we'd mount everything once, then cull on
+        // the first user pan).
+        recomputeVisibleBounds();
+
         // --- Attach Global Event Listeners ---
         attachContextMenuHandler(h);
         attachMouseMoveHandler(h);
         attachClickHandler(h);
         attachDrawingHandler();
         attachCleanupHandlers();
+        attachViewportCullHandler();
+    }
+
+    /**
+     * Recompute the visible image-pixel rectangle from the current map view.
+     * The custom Y-down CRS makes lat == image Y (see initializeMap), so the
+     * Leaflet bounds map directly to image coords. We pad by a tile width so
+     * pins/shapes at the edge don't pop in/out during pan.
+     */
+    function recomputeVisibleBounds() {
+        if (!map) return;
+        const b = map.getBounds();
+        const pad = 256;
+        visibleBounds = {
+            minX: b.getWest() - pad,
+            maxX: b.getEast() + pad,
+            minY: b.getSouth() - pad,
+            maxY: b.getNorth() + pad,
+        };
+    }
+
+    function attachViewportCullHandler() {
+        const onViewChange = throttle(() => {
+            if (!map || !mapConfig) return;
+            recomputeVisibleBounds();
+            syncPins(mapConfig);
+            syncShapes(mapConfig);
+        }, 100);
+        map!.on("moveend zoomend", onViewChange);
     }
 
     // =========================================================================
@@ -1289,9 +1381,24 @@
         const h = config.height;
         const newFingerprints = new Map<string, string>();
         const currentIds = new Set<string>();
+        const vb = visibleBounds;
 
         config.pins.forEach((pin: MapPin) => {
             if (!isLayerVisible(pin.layerId, config.layers)) return;
+
+            // Viewport cull: pin off-screen → don't mount. We deliberately
+            // skip adding it to currentIds so the trailing cleanup loop
+            // unmounts any existing marker, and we leave it out of
+            // newFingerprints so re-entering the viewport rebuilds fresh.
+            if (
+                vb &&
+                (pin.x < vb.minX ||
+                    pin.x > vb.maxX ||
+                    pin.y < vb.minY ||
+                    pin.y > vb.maxY)
+            ) {
+                return;
+            }
 
             currentIds.add(pin.id);
             const fp = pinFingerprint(pin);
@@ -1380,15 +1487,36 @@
     }
 
     // --- Update Regions (Shapes) — Diff-based ---
-    // Only adds/removes shapes that actually changed. Also rebuilds the spatial index.
+    // Only adds/removes shapes that actually changed. Iterates only the
+    // shapes inside the current viewport (via the spatial index).
     function syncShapes(config: MapConfig) {
         if (!shapeLayerGroup) return;
+
+        // Rebuild the spatial index only when the underlying shapes array
+        // identity changes (config edit). Pan/zoom calls reuse the existing
+        // index — building it is O(N) and we don't want to pay that on every
+        // mouse drag.
+        if (!spatialIndex || spatialIndexShapes !== config.shapes) {
+            spatialIndex = new ShapeSpatialIndex(
+                config.shapes,
+                config.width,
+                config.height,
+            );
+            spatialIndexShapes = config.shapes;
+        }
 
         const h = config.height;
         const newFingerprints = new Map<string, string>();
         const currentIds = new Set<string>();
 
-        config.shapes.forEach((shape: MapRegion) => {
+        // Cull to viewport using the spatial index. If we don't have bounds
+        // yet (first sync before initializeMap seeds them) fall back to all.
+        const vb = visibleBounds;
+        const candidateShapes = vb
+            ? spatialIndex.queryBounds(vb.minX, vb.minY, vb.maxX, vb.maxY)
+            : config.shapes;
+
+        candidateShapes.forEach((shape: MapRegion) => {
             if (!isLayerVisible(shape.layerId, config.layers)) return;
 
             currentIds.add(shape.id);
@@ -1414,10 +1542,11 @@
             // Initial style setup - invisible by default
             // Note: We create them invisibly, allowing the reactive effect
             // or map interaction logic to reveal them.
-            const initialStyle = {
+            const initialStyle: L.PathOptions = {
                 color: color,
                 fillColor: color,
                 ...REGION_STYLES.hidden,
+                renderer: shapeRenderer ?? undefined,
             };
 
             if (shape.type === "polygon") {
@@ -1444,13 +1573,6 @@
         }
 
         prevShapeFingerprints = newFingerprints;
-
-        // Rebuild spatial index for fast point-in-shape queries
-        spatialIndex = new ShapeSpatialIndex(
-            config.shapes,
-            config.width,
-            config.height,
-        );
     }
 
     // =========================================================================
@@ -1561,6 +1683,7 @@
         anchorEl={hoveredElement}
         targetPath={hoveredPath}
         preferredSide={linkPreviewSideBias}
+        positionToken={previewAnchorVersion}
     />
 {/if}
 {#if $areMapPreviewsEnabled}
@@ -1568,6 +1691,7 @@
         anchorEl={hoveredMapElement}
         targetPath={hoveredMapPath}
         preferredSide={mapPreviewSideBias}
+        positionToken={previewAnchorVersion}
     />
 {/if}
 
@@ -1618,6 +1742,19 @@
             class:show-ghosts={isConsoleOpen}
         >
             <div bind:this={mapElement} class="leaflet-container"></div>
+            <!--
+              Invisible 1×1 anchor positioned over the currently-hovered
+              canvas-rendered shape. Hover-driven previews (LinkPreview,
+              MapPreview) read its bounding rect to position themselves
+              alongside the target — replacing the old per-shape
+              `getElement()` anchor that the canvas renderer doesn't
+              provide.
+            -->
+            <div
+                bind:this={previewAnchor}
+                class="preview-anchor"
+                aria-hidden="true"
+            ></div>
 
             {#if isDrawing}
                 <div class="map-drawing-hint tooltip-floating">
@@ -1756,6 +1893,18 @@
         width: 100%;
         height: 100%;
         background: transparent;
+    }
+
+    /* 1×1 anchor moved by the hover effects — invisible and click-through,
+       but its bounding rect is what LinkPreview / MapPreview position
+       against when a canvas-rendered shape is hovered. */
+    .preview-anchor {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        pointer-events: none;
+        opacity: 0;
+        z-index: 1;
     }
 
     /* Floating Hint Overlay

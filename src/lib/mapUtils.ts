@@ -576,6 +576,45 @@ export class ShapeSpatialIndex {
     }
 
     /**
+     * Query all shapes whose AABB intersects the given rectangle.
+     * Used for viewport culling — fast broad-phase only, no narrow-phase.
+     */
+    queryBounds(
+        minX: number,
+        minY: number,
+        maxX: number,
+        maxY: number,
+    ): MapRegion[] {
+        const minCX = Math.floor(minX / this.cellSize);
+        const minCY = Math.floor(minY / this.cellSize);
+        const maxCX = Math.floor(maxX / this.cellSize);
+        const maxCY = Math.floor(maxY / this.cellSize);
+
+        const seen = new Set<string>();
+        const results: MapRegion[] = [];
+        for (let cx = minCX; cx <= maxCX; cx++) {
+            for (let cy = minCY; cy <= maxCY; cy++) {
+                const bucket = this.grid.get(this.cellKey(cx, cy));
+                if (!bucket) continue;
+                for (const shape of bucket) {
+                    if (seen.has(shape.id)) continue;
+                    const aabb = this.aabbMap.get(shape.id)!;
+                    if (
+                        aabb.maxX < minX ||
+                        aabb.minX > maxX ||
+                        aabb.maxY < minY ||
+                        aabb.minY > maxY
+                    )
+                        continue;
+                    seen.add(shape.id);
+                    results.push(shape);
+                }
+            }
+        }
+        return results;
+    }
+
+    /**
      * Query all shapes containing the given point.
      * Uses AABB broad-phase, then exact geometry narrow-phase.
      */

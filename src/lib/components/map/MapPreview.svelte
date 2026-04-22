@@ -17,13 +17,17 @@
         anchorEl = null,
         targetPath = null,
         preferredSide = null,
+        positionToken = 0,
     } = $props<{
         anchorEl: HTMLElement | null;
         targetPath: string | null;
         preferredSide?: "left" | "right" | null;
+        positionToken?: number;
     }>();
 
-    let mapConfig = $state<MapConfig | null>(null);
+    // $state.raw — see MapView.svelte for why deep proxying a MapConfig
+    // hangs the main thread on real-world maps.
+    let mapConfig = $state.raw<MapConfig | null>(null);
     let mapImageSrc = $state<string | null>(null);
     let isVisible = $state(false);
 
@@ -80,7 +84,7 @@
     });
 </script>
 
-<HoverPreview {anchorEl} {isVisible} width={300} {preferredSide}>
+<HoverPreview {anchorEl} {isVisible} width={300} {preferredSide} {positionToken}>
     {#if mapConfig && mapImageSrc}
         <div class="map-preview-content">
             <h4 class="map-title">{mapConfig.title}</h4>
