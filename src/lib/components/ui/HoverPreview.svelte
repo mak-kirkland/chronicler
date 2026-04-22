@@ -13,6 +13,7 @@
         isVisible = false,
         width = 380,
         preferredSide = null,
+        positionToken = 0,
         children,
     } = $props<{
         anchorEl: HTMLElement | null;
@@ -25,6 +26,14 @@
          * to appear side by side instead of overlapping.
          */
         preferredSide?: "left" | "right" | null;
+        /**
+         * Bumped by the parent each time `anchorEl`'s on-screen position
+         * changes without the element reference itself changing — e.g. a
+         * single shared anchor moved between hover targets via direct
+         * `style.left/top` mutation. The positioning effect tracks this so
+         * we re-read `getBoundingClientRect()` on each move.
+         */
+        positionToken?: number;
         children?: import("svelte").Snippet;
     }>();
 
@@ -35,6 +44,9 @@
 
     // --- Positioning Effect ---
     $effect(() => {
+        // Track positionToken so callers can force a reposition when the
+        // anchor's coords change but its element reference doesn't.
+        void positionToken;
         if (!isVisible || !anchorEl) return;
 
         const rect = anchorEl.getBoundingClientRect();
