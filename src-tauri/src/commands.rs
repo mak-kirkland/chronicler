@@ -136,6 +136,15 @@ pub fn get_image_source(path: String, world: State<World>) -> Result<String> {
     world.get_image_source(&path)
 }
 
+/// Returns a source URL for a small cached thumbnail of the given image,
+/// generating the thumbnail on first request. Falls back to the full-size
+/// source if the image can't be decoded.
+#[command]
+#[instrument(skip(world), level = "debug")]
+pub async fn get_image_thumbnail(path: String, world: State<'_, World>) -> Result<String> {
+    world.get_image_thumbnail(&path).await
+}
+
 // --- File and Folder Operations ---
 
 /// Writes content to a page on disk. The file watcher will pick up the change.

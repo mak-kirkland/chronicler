@@ -37,10 +37,13 @@ pub struct Writer;
 /// + fsync. Survives both process crashes (readers never see a half-written
 /// file) and power loss (data is flushed to disk before the rename commits).
 ///
+/// Accepts anything byte-shaped (`&str`, `&[u8]`, `Vec<u8>`, `String`), so
+/// the same primitive serves both text writers and binary cache writers.
+///
 /// Not an absolute guarantee: some drives ack FLUSH without honoring it.
 /// This is the strongest primitive portably available from userspace.
 #[instrument(skip(content), fields(path = %path.display()))]
-pub fn atomic_write(path: &Path, content: &str) -> Result<()> {
+pub fn atomic_write(path: &Path, content: impl AsRef<[u8]>) -> Result<()> {
     let parent_dir = path
         .parent()
         .ok_or_else(|| ChroniclerError::InvalidPath(path.to_path_buf()))?;
@@ -49,7 +52,7 @@ pub fn atomic_write(path: &Path, content: &str) -> Result<()> {
     // single filesystem). Write, fsync before rename so the data is durable
     // before the directory entry points at it, then persist.
     let mut temp_file = NamedTempFile::new_in(parent_dir)?;
-    temp_file.write_all(content.as_bytes())?;
+    temp_file.write_all(content.as_ref())?;
     temp_file.as_file().sync_all()?;
     temp_file.persist(path).map_err(|e| e.error)?;
 
