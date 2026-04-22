@@ -142,9 +142,16 @@
     // --- Map Data ---
 
     let error = $state<string | null>(null);
-    // Fetch the map config on mount or when path changes
-    // This replaces the derived store logic
-    let mapConfig = $state<MapConfig | null>(null);
+    // Fetch the map config on mount or when path changes.
+    //
+    // Critical: use $state.raw, NOT $state. The default $state recursively
+    // wraps every nested object/array in a Proxy. A real-world map can hold
+    // hundreds of thousands of point objects (one per polygon vertex), and
+    // proxying all of them on assignment hangs the main thread for minutes.
+    // Reassignment still triggers reactivity — we just don't pay for deep
+    // observation we never use. Safe because updateMapConfig always produces
+    // a brand-new MapConfig object rather than mutating in place.
+    let mapConfig = $state.raw<MapConfig | null>(null);
     let currentMapPath: string | null = null;
     // Track previous config reference to skip no-op updates.
     // Since updateMapConfig/registerMap always produce new objects,
