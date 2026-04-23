@@ -226,11 +226,19 @@ export const getImageThumbnail = (path: string) =>
 
 /**
  * Reads and parses a `.cmap` file from within the vault.
+ *
+ * The backend returns the raw JSON string and we `JSON.parse` it here.
+ * Routing the parsed object through Tauri's IPC would force two extra
+ * full passes (re-serialize on the way out, re-parse on the way in)
+ * which is significant for large maps (tens of MB).
+ *
  * @param path The absolute path to the map config file.
  * @returns A promise that resolves to the parsed map configuration.
  */
-export const getMapConfig = (path: string) =>
-    invoke<MapConfig>("get_map_config", { path });
+export const getMapConfig = async (path: string): Promise<MapConfig> => {
+    const json = await invoke<string>("get_map_config", { path });
+    return JSON.parse(json) as MapConfig;
+};
 
 /**
  * Returns cached tile info if a complete pyramid is already on disk for

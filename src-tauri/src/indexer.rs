@@ -857,11 +857,14 @@ impl Indexer {
         Ok(result)
     }
 
-    /// Reads and parses a `.cmap` file from the vault.
+    /// Reads a `.cmap` file from the vault and returns its raw JSON content.
     ///
-    /// Validates that the path exists in the file index before reading,
-    /// ensuring we only serve known, valid vault assets.
-    pub fn get_map_config(&self, path: &str) -> Result<serde_json::Value> {
+    /// We deliberately don't parse here. The frontend parses once; routing
+    /// through `serde_json::Value` and back through Tauri's IPC serializer
+    /// would parse a 20MB map three times for no reason. The indexer still
+    /// keeps a typed `MapConfig` per file for backlink tracking — that's
+    /// the `scan_path` path, separate from this read.
+    pub fn get_map_config(&self, path: &str) -> Result<String> {
         let path_buf = PathBuf::from(path);
 
         // Security & Validity Check:
@@ -870,9 +873,7 @@ impl Indexer {
         }
 
         // It is safe to read because the index only contains files within the vault root.
-        let content = fs::read_to_string(&path_buf)?;
-        let config: serde_json::Value = serde_json::from_str(&content)?;
-        Ok(config)
+        Ok(fs::read_to_string(&path_buf)?)
     }
 }
 

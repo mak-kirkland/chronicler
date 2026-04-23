@@ -213,10 +213,11 @@ pub fn open_in_explorer(app_handle: AppHandle, path: String) -> Result<()> {
     Ok(())
 }
 
-/// Reads and parses a `.cmap` file from within the vault.
+/// Reads a `.cmap` file from within the vault and returns its raw JSON.
+/// Frontend parses once — see `Indexer::get_map_config` for the rationale.
 #[command]
 #[instrument(skip(world))]
-pub fn get_map_config(path: String, world: State<World>) -> Result<serde_json::Value> {
+pub fn get_map_config(path: String, world: State<World>) -> Result<String> {
     world.get_map_config(&path)
 }
 
