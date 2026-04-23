@@ -2,8 +2,13 @@
 //!
 //! Full-resolution map images (8K+, 20+ MB) lag Leaflet because the browser
 //! holds the whole decoded texture in GPU memory and re-composites every
-//! frame. Instead we pre-slice each source into 256×256 tiles at multiple
+//! frame. Instead we pre-slice each source into 512×512 tiles at multiple
 //! zoom levels - Leaflet only loads what's in the viewport.
+//!
+//! 512px (rather than the older 256px web-map default) is a deliberate
+//! choice: on Tauri/Linux every tile is one asset-protocol IPC round-trip,
+//! and 512px tiles cut request count 4× for the same viewport coverage.
+//! Mapbox/ESRI ship 512px by default for the same reason.
 //!
 //! `max_zoom = ceil(log2(max(width, height) / 256))`; lower zooms are
 //! proportionally-resized copies sliced the same way. Edge tiles are
@@ -44,10 +49,12 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter};
 use tracing::{info, instrument};
 
-/// Each tile is 256×256 pixels (the standard used by Leaflet, Google Maps, etc.)
-const TILE_SIZE: u32 = 256;
+/// Each tile is 512×512 pixels. **Must stay in sync with `TILE_SIZE` in
+/// `MapView.svelte`** — the frontend hardcodes the same value when computing
+/// max zoom and configuring `L.GridLayer`'s `tileSize` option.
+const TILE_SIZE: u32 = 512;
 
-/// JPEG quality. 85 = good balance. At 256×256 each tile is ~15–30 KB.
+/// JPEG quality. 85 = good balance. At 512×512 each tile is ~50–100 KB.
 const JPEG_QUALITY: u8 = 85;
 
 /// Subdirectory for tile pyramids inside the shared vault cache dir.
@@ -111,9 +118,9 @@ struct TileProgressPayload {
 // Zoom math
 // ---------------------------------------------------------------------------
 
-/// Max zoom level: the smallest `z` where each tile covers ≤256 source pixels.
+/// Max zoom level: the smallest `z` where each tile covers ≤TILE_SIZE source pixels.
 ///
-/// For 8192×6000: ceil(log2(8192 / 256)) = ceil(5.0) = 5.
+/// For 8192×6000 with TILE_SIZE=512: ceil(log2(8192 / 512)) = ceil(4.0) = 4.
 fn calculate_max_zoom(width: u32, height: u32) -> u32 {
     let max_dim = width.max(height) as f64;
     (max_dim / TILE_SIZE as f64).log2().ceil() as u32
@@ -121,9 +128,9 @@ fn calculate_max_zoom(width: u32, height: u32) -> u32 {
 
 /// How many tiles along one axis at zoom `z`.
 ///
-/// At max zoom each tile = 256px. At lower zooms each tile covers more pixels.
-/// Example (8192px wide, max_zoom=5):
-///   zoom 5 → 8192/256 = 32,  zoom 4 → 8192/512 = 16,  zoom 0 → 1
+/// At max zoom each tile = TILE_SIZE px. At lower zooms each tile covers more pixels.
+/// Example (8192px wide, TILE_SIZE=512, max_zoom=4):
+///   zoom 4 → 8192/512 = 16,  zoom 3 → 8192/1024 = 8,  zoom 0 → 1
 pub fn tiles_for_axis(axis_pixels: u32, z: u32, max_zoom: u32) -> u32 {
     let px_per_tile = TILE_SIZE as f64 * 2f64.powi((max_zoom as i32) - (z as i32));
     (axis_pixels as f64 / px_per_tile).ceil() as u32
@@ -502,20 +509,22 @@ mod tests {
 
     #[test]
     fn test_calculate_max_zoom() {
-        assert_eq!(calculate_max_zoom(256, 256), 0);
-        assert_eq!(calculate_max_zoom(512, 512), 1);
-        assert_eq!(calculate_max_zoom(1024, 1024), 2);
-        assert_eq!(calculate_max_zoom(8192, 6000), 5);
-        assert_eq!(calculate_max_zoom(4096, 256), 4);
+        // With TILE_SIZE=512:
+        assert_eq!(calculate_max_zoom(512, 512), 0);
+        assert_eq!(calculate_max_zoom(1024, 1024), 1);
+        assert_eq!(calculate_max_zoom(2048, 2048), 2);
+        assert_eq!(calculate_max_zoom(8192, 6000), 4);
+        assert_eq!(calculate_max_zoom(4096, 512), 3);
     }
 
     #[test]
     fn test_tiles_for_axis() {
-        assert_eq!(tiles_for_axis(8192, 5, 5), 32);
-        assert_eq!(tiles_for_axis(6000, 5, 5), 24);
-        assert_eq!(tiles_for_axis(8192, 4, 5), 16);
-        assert_eq!(tiles_for_axis(6000, 4, 5), 12);
-        assert_eq!(tiles_for_axis(8192, 0, 5), 1);
-        assert_eq!(tiles_for_axis(6000, 0, 5), 1);
+        // With TILE_SIZE=512:
+        assert_eq!(tiles_for_axis(8192, 4, 4), 16);
+        assert_eq!(tiles_for_axis(6000, 4, 4), 12);
+        assert_eq!(tiles_for_axis(8192, 3, 4), 8);
+        assert_eq!(tiles_for_axis(6000, 3, 4), 6);
+        assert_eq!(tiles_for_axis(8192, 0, 4), 1);
+        assert_eq!(tiles_for_axis(6000, 0, 4), 1);
     }
 }

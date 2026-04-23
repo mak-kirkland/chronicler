@@ -186,8 +186,9 @@ function sanitizeColor(color: string, fallback: string): string {
  * Returns true if a map object should be visible based on its layer assignment.
  * An object is visible if it has no assigned layer (global) or its layer exists and is visible.
  *
- * @param layerId The layer ID assigned to the object, or undefined for global objects.
- * @param layers The array of map layers to check against.
+ * For hot loops (per-pin / per-shape inside a sync pass) prefer
+ * {@link buildLayerVisibilityLookup} + {@link isLayerIdVisible}: the array
+ * scan here is O(layers) per call and adds up fast on dense maps.
  */
 export function isLayerVisible(
     layerId: string | undefined,
@@ -196,6 +197,30 @@ export function isLayerVisible(
     if (!layerId) return true;
     const layer = layers.find((l) => l.id === layerId);
     return layer ? layer.visible : false;
+}
+
+/**
+ * Precomputed `layerId → visible` lookup. Build once at the top of a sync
+ * pass with {@link buildLayerVisibilityLookup}, then call this per item — O(1)
+ * instead of the O(layers) array scan {@link isLayerVisible} does.
+ */
+export type LayerVisibilityLookup = Map<string, boolean>;
+
+export function buildLayerVisibilityLookup(
+    layers: MapLayer[],
+): LayerVisibilityLookup {
+    const lookup = new Map<string, boolean>();
+    for (const layer of layers) lookup.set(layer.id, layer.visible);
+    return lookup;
+}
+
+export function isLayerIdVisible(
+    lookup: LayerVisibilityLookup,
+    layerId: string | undefined,
+): boolean {
+    if (!layerId) return true;
+    // Mirror isLayerVisible: unknown layer = treat as hidden.
+    return lookup.get(layerId) ?? false;
 }
 
 // --- SET UTILITIES ---
@@ -618,18 +643,32 @@ export class ShapeSpatialIndex {
      * Query all shapes containing the given point.
      * Uses AABB broad-phase, then exact geometry narrow-phase.
      */
-    query(mapX: number, mapY: number, layers?: MapLayer[]): MapRegion[] {
+    query(
+        mapX: number,
+        mapY: number,
+        layers?: MapLayer[] | LayerVisibilityLookup,
+    ): MapRegion[] {
         const cx = Math.floor(mapX / this.cellSize);
         const cy = Math.floor(mapY / this.cellSize);
         const candidates = this.grid.get(this.cellKey(cx, cy));
         if (!candidates) return [];
+
+        // Hot path: this runs on every throttled mousemove. Resolve the
+        // visibility check once outside the loop instead of paying an
+        // `instanceof Map` per shape.
+        const lookup =
+            layers instanceof Map
+                ? layers
+                : layers
+                  ? buildLayerVisibilityLookup(layers)
+                  : null;
 
         // Deduplicate: shapes spanning multiple cells may appear multiple times,
         // but within a single cell bucket there are no duplicates.
         // Since we query exactly one cell, no dedup needed.
         const results: MapRegion[] = [];
         for (const shape of candidates) {
-            if (layers && !isLayerVisible(shape.layerId, layers)) continue;
+            if (lookup && !isLayerIdVisible(lookup, shape.layerId)) continue;
 
             // AABB check (fast reject)
             const aabb = this.aabbMap.get(shape.id)!;

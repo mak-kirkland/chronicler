@@ -26,7 +26,8 @@
     import {
         getShapesAtPoint,
         createEmojiIcon,
-        isLayerVisible,
+        buildLayerVisibilityLookup,
+        isLayerIdVisible,
         setsEqual,
         toLeafletLat,
         toMapY,
@@ -103,6 +104,14 @@
     });
 
     /**
+     * Tile pixel size. **MUST match `TILE_SIZE` in `src-tauri/src/tiler.rs`**
+     * — used in the max-zoom formula and as the `tileSize` option on every
+     * `L.GridLayer` we mount. A mismatch makes Leaflet request tiles that
+     * don't exist (or misalign existing ones).
+     */
+    const TILE_SIZE = 512;
+
+    /**
      * Compute the max zoom level of the tile pyramid for an image of the
      * given dimensions.
      *
@@ -110,10 +119,10 @@
      * `src-tauri/src/tiler.rs`.** Both must produce the same number for the
      * same image dimensions, or Leaflet will request tiles that don't exist.
      *
-     * For an 8640×5400 image: ceil(log2(8640/256)) = 6, giving zoom levels 0..6.
+     * For an 8640×5400 image with TILE_SIZE=512: ceil(log2(8640/512)) = 5.
      */
     function tileMaxZoomFor(width: number, height: number): number {
-        return Math.ceil(Math.log2(Math.max(width, height) / 256));
+        return Math.ceil(Math.log2(Math.max(width, height) / TILE_SIZE));
     }
 
     // --- Core Leaflet State ---
@@ -152,6 +161,13 @@
     // observation we never use. Safe because updateMapConfig always produces
     // a brand-new MapConfig object rather than mutating in place.
     let mapConfig = $state.raw<MapConfig | null>(null);
+    // Cached layer-visibility Map. Rebuilds only when mapConfig is reassigned
+    // (the only way it can change given $state.raw). Hot loops — spatial
+    // queries on every mousemove, syncPins/syncShapes — read from this
+    // instead of doing an O(layers) array scan per item.
+    let layerVisibilityLookup = $derived(
+        mapConfig ? buildLayerVisibilityLookup(mapConfig.layers) : null,
+    );
     let currentMapPath: string | null = null;
     // Track previous config reference to skip no-op updates.
     // Since updateMapConfig/registerMap always produce new objects,
@@ -1030,7 +1046,11 @@
             const mapY = toMapY(e.latlng.lat, mapHeight); // Convert Leaflet LatLng to Map Coords (Y-flip)
             // Find all shapes under cursor using spatial index (fast) or fallback
             const shapesAtCursor = spatialIndex
-                ? spatialIndex.query(mapX, mapY, mapConfig.layers)
+                ? spatialIndex.query(
+                      mapX,
+                      mapY,
+                      layerVisibilityLookup ?? mapConfig.layers,
+                  )
                 : getShapesAtPoint(
                       mapX,
                       mapY,
@@ -1090,7 +1110,11 @@
             const mapY = toMapY(e.latlng.lat, mapHeight);
             // Use spatial index for fast lookup, fall back to linear scan
             const shapes = spatialIndex
-                ? spatialIndex.query(mapX, mapY, mapConfig.layers)
+                ? spatialIndex.query(
+                      mapX,
+                      mapY,
+                      layerVisibilityLookup ?? mapConfig.layers,
+                  )
                 : getShapesAtPoint(
                       mapX,
                       mapY,
@@ -1154,7 +1178,11 @@
 
                 // Find shapes with navigation targets using spatial index
                 const allShapes = spatialIndex
-                    ? spatialIndex.query(mapX, mapY, mapConfig.layers)
+                    ? spatialIndex.query(
+                      mapX,
+                      mapY,
+                      layerVisibilityLookup ?? mapConfig.layers,
+                  )
                     : getShapesAtPoint(
                           mapX,
                           mapY,
@@ -1373,7 +1401,7 @@
             maxNativeZoom: tileInfo.max_zoom,
             minZoom: 0,
             maxZoom: tileInfo.max_zoom + 1,
-            tileSize: 256,
+            tileSize: TILE_SIZE,
             noWrap: true,
             opacity,
             zIndex,
@@ -1383,15 +1411,18 @@
     // --- Update Pins (Diff-based) ---
     // Only adds/removes/updates markers that actually changed.
     function syncPins(config: MapConfig) {
-        if (!markerLayerGroup) return;
+        if (!markerLayerGroup || !map) return;
 
         const h = config.height;
         const newFingerprints = new Map<string, string>();
         const currentIds = new Set<string>();
         const vb = visibleBounds;
+        // Build the visibility lookup once instead of paying an O(layers)
+        // array scan per pin (matters when there are thousands of pins).
+        const layerLookup = buildLayerVisibilityLookup(config.layers);
 
         config.pins.forEach((pin: MapPin) => {
-            if (!isLayerVisible(pin.layerId, config.layers)) return;
+            if (!isLayerIdVisible(layerLookup, pin.layerId)) return;
 
             // Viewport cull: pin off-screen → don't mount. We deliberately
             // skip adding it to currentIds so the trailing cleanup loop
@@ -1520,11 +1551,15 @@
             spatialIndexShapes = config.shapes;
         }
 
+        // Build the visibility lookup once and reuse for both the early-out
+        // scan and the per-candidate filter below.
+        const layerLookup = buildLayerVisibilityLookup(config.layers);
+
         // Early-out: no shape sits on a visible layer. Common when the user
         // hasn't enabled region layers yet — saves the queryBounds pass and
         // all the per-shape work below.
         const anyVisibleShape = config.shapes.some((s) =>
-            isLayerVisible(s.layerId, config.layers),
+            isLayerIdVisible(layerLookup, s.layerId),
         );
         if (!anyVisibleShape) {
             for (const [, layer] of shapeIdToLayer) {
@@ -1547,7 +1582,7 @@
             : null;
 
         candidateShapes.forEach((shape: MapRegion) => {
-            if (!isLayerVisible(shape.layerId, config.layers)) return;
+            if (!isLayerIdVisible(layerLookup, shape.layerId)) return;
 
             currentIds.add(shape.id);
 
