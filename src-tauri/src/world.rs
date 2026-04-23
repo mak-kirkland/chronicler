@@ -464,8 +464,8 @@ impl World {
         }
     }
 
-    /// Reads and parses a `.cmap` file from the vault.
-    pub fn get_map_config(&self, path: &str) -> Result<serde_json::Value> {
+    /// Reads a `.cmap` file from the vault and returns its raw JSON content.
+    pub fn get_map_config(&self, path: &str) -> Result<String> {
         self.indexer.read().get_map_config(path)
     }
 

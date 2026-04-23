@@ -1494,16 +1494,24 @@
     }
 
     // --- Update Regions (Shapes) — Diff-based ---
-    // Only adds/removes shapes that actually changed. Iterates only the
-    // shapes inside the current viewport (via the spatial index).
+    //
+    // Two distinct call paths:
+    //   1. Data update (config edit): config.shapes is a fresh array. Per-shape
+    //      fingerprint diff so we only rebuild Leaflet layers whose data
+    //      actually changed.
+    //   2. Viewport update (pan/zoom): config.shapes is identical. Skip the
+    //      fingerprint pass entirely — diff by membership only and just mount
+    //      newly-in-view shapes / unmount outgoing ones. Big win for region-
+    //      heavy maps where stringifying every polygon's points costs more
+    //      than the rest of the pan combined.
     function syncShapes(config: MapConfig) {
         if (!shapeLayerGroup) return;
 
-        // Rebuild the spatial index only when the underlying shapes array
-        // identity changes (config edit). Pan/zoom calls reuse the existing
-        // index — building it is O(N) and we don't want to pay that on every
-        // mouse drag.
-        if (!spatialIndex || spatialIndexShapes !== config.shapes) {
+        const shapesChanged = spatialIndexShapes !== config.shapes;
+
+        // Rebuild the spatial index only when the shapes array identity
+        // changes. Pan/zoom reuses the existing index.
+        if (!spatialIndex || shapesChanged) {
             spatialIndex = new ShapeSpatialIndex(
                 config.shapes,
                 config.width,
@@ -1512,43 +1520,56 @@
             spatialIndexShapes = config.shapes;
         }
 
-        const h = config.height;
-        const newFingerprints = new Map<string, string>();
-        const currentIds = new Set<string>();
+        // Early-out: no shape sits on a visible layer. Common when the user
+        // hasn't enabled region layers yet — saves the queryBounds pass and
+        // all the per-shape work below.
+        const anyVisibleShape = config.shapes.some((s) =>
+            isLayerVisible(s.layerId, config.layers),
+        );
+        if (!anyVisibleShape) {
+            for (const [, layer] of shapeIdToLayer) {
+                shapeLayerGroup.removeLayer(layer);
+            }
+            shapeIdToLayer.clear();
+            prevShapeFingerprints.clear();
+            return;
+        }
 
-        // Cull to viewport using the spatial index. If we don't have bounds
-        // yet (first sync before initializeMap seeds them) fall back to all.
+        const h = config.height;
         const vb = visibleBounds;
         const candidateShapes = vb
             ? spatialIndex.queryBounds(vb.minX, vb.minY, vb.maxX, vb.maxY)
             : config.shapes;
 
+        const currentIds = new Set<string>();
+        const newFingerprints = shapesChanged
+            ? new Map<string, string>()
+            : null;
+
         candidateShapes.forEach((shape: MapRegion) => {
             if (!isLayerVisible(shape.layerId, config.layers)) return;
 
             currentIds.add(shape.id);
-            const fp = shapeFingerprint(shape);
-            newFingerprints.set(shape.id, fp);
 
-            const prevFp = prevShapeFingerprints.get(shape.id);
-            if (prevFp === fp && shapeIdToLayer.has(shape.id)) {
-                // Shape unchanged — skip
-                return;
+            if (newFingerprints) {
+                // Data-update path — fingerprint diff
+                const fp = shapeFingerprint(shape);
+                newFingerprints.set(shape.id, fp);
+                const prevFp = prevShapeFingerprints.get(shape.id);
+                if (prevFp === fp && shapeIdToLayer.has(shape.id)) return;
+            } else {
+                // Viewport-only path — membership diff. Already mounted = done.
+                if (shapeIdToLayer.has(shape.id)) return;
             }
 
-            // Shape is new or changed — remove old layer if it exists
+            // Need to (re)create. Remove any stale layer first.
             const existingLayer = shapeIdToLayer.get(shape.id);
             if (existingLayer) {
                 shapeLayerGroup!.removeLayer(existingLayer);
                 shapeIdToLayer.delete(shape.id);
             }
 
-            let layer: L.Path;
             const color = shape.color || DEFAULT_SHAPE_COLOR;
-
-            // Initial style setup - invisible by default
-            // Note: We create them invisibly, allowing the reactive effect
-            // or map interaction logic to reveal them.
             const initialStyle: L.PathOptions = {
                 color: color,
                 fillColor: color,
@@ -1556,9 +1577,8 @@
                 renderer: shapeRenderer ?? undefined,
             };
 
+            let layer: L.Path;
             if (shape.type === "polygon") {
-                // Leaflet Polygon: Array of [Lat, Lng]
-                // We must map each point: [h - p.y, p.x]
                 const latLngs = shape.points.map(
                     (p) => [toLeafletLat(p.y, h), p.x] as [number, number],
                 );
@@ -1571,7 +1591,7 @@
             shapeIdToLayer.set(shape.id, layer);
         });
 
-        // Remove layers for shapes that no longer exist
+        // Unmount shapes no longer in the visible set (off-screen or removed).
         for (const [id, layer] of shapeIdToLayer) {
             if (!currentIds.has(id)) {
                 shapeLayerGroup!.removeLayer(layer);
@@ -1579,7 +1599,9 @@
             }
         }
 
-        prevShapeFingerprints = newFingerprints;
+        if (newFingerprints) {
+            prevShapeFingerprints = newFingerprints;
+        }
     }
 
     // =========================================================================
