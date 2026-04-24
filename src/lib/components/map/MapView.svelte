@@ -2,6 +2,10 @@
     import { onMount, onDestroy } from "svelte";
     import L from "leaflet";
     import "leaflet/dist/leaflet.css";
+    import {
+        CanvasPinLayer,
+        type CanvasPin,
+    } from "$lib/components/map/canvasPinLayer";
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { listen } from "@tauri-apps/api/event";
     import { navigateToPageByTitle, navigateToMapByTitle } from "$lib/actions";
@@ -25,13 +29,10 @@
     } from "$lib/mapActions";
     import {
         getShapesAtPoint,
-        createEmojiIcon,
         buildLayerVisibilityLookup,
         isLayerIdVisible,
         setsEqual,
-        toLeafletLat,
         toMapY,
-        pinFingerprint,
         shapeFingerprint,
         ShapeSpatialIndex,
         REGION_STYLES,
@@ -46,12 +47,7 @@
         mapPathLookup,
     } from "$lib/worldStore";
     import { throttle } from "$lib/utils";
-    import type {
-        MapConfig,
-        MapLayer,
-        MapPin,
-        MapRegion,
-    } from "$lib/mapModels";
+    import type { MapConfig, MapLayer, MapRegion } from "$lib/mapModels";
     import type { PageHeader } from "$lib/bindings";
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
@@ -139,7 +135,10 @@
     // sync effect re-runs when a lookup confirms a miss.
     let cacheMisses = $state(new Set<string>());
     const lookupsInFlight = new Set<string>();
-    let markerLayerGroup: L.LayerGroup | null = null;
+    // Canvas-based pin renderer — one shared <canvas> for all pins so
+    // pin count stops driving DOM/SVG layout cost during pan/zoom (see
+    // canvasPinLayer.ts).
+    let pinLayer: CanvasPinLayer | null = null;
     let shapeLayerGroup: L.LayerGroup | null = null;
     // Temp layer for drawing in progress
     let drawLayerGroup: L.LayerGroup | null = null;
@@ -250,16 +249,20 @@
 
     // Tooltip State for multi-region hover
     let multiTooltip: L.Tooltip | null = null;
-    // Lookup for layers to support console highlighting
-    let pinIdToLayer = new Map<string, L.Marker>();
+    // Tooltip used while hovering a canvas-rendered pin. Separate from
+    // multiTooltip so the two never collide (a pin tooltip never shows
+    // while a region tooltip is up; pin priority is enforced in
+    // attachMouseMoveHandler).
+    let pinTooltip: L.Tooltip | null = null;
+    // Lookup for layers to support console highlighting (shapes only —
+    // pins are now driven by `pinLayer.setHighlight`).
     let shapeIdToLayer = new Map<string, L.Path>();
 
     // --- Performance: Diff-based sync tracking ---
-    // Fingerprints of the last synced pins/shapes for diffing
-    let prevPinFingerprints = new Map<string, string>();
+    // Fingerprints of the last synced shapes for diffing. (Pin diffing is
+    // gone — the canvas layer just receives the full pin set on each sync
+    // and redraws, which is cheaper than the per-pin DOM diff was.)
     let prevShapeFingerprints = new Map<string, string>();
-    // Previous highlight ID for targeted reset (avoids resetting ALL pins)
-    let prevHighlightedPinId: string | null = null;
 
     // --- Performance: Spatial index for shape hit-testing ---
     let spatialIndex: ShapeSpatialIndex | null = null;
@@ -452,53 +455,10 @@
     // LEAFLET INTERACTION BEHAVIOR (attached to markers/shapes)
     // =========================================================================
 
-    function attachClickBehavior(
-        layer: L.Layer,
-        item: { targetPage?: string; targetMap?: string },
-    ) {
-        layer.on("click", (e: L.LeafletMouseEvent) => {
-            if (isDrawing) return; // Ignore interactions while drawing
-            navigateToTarget(
-                item,
-                e.originalEvent.clientX,
-                e.originalEvent.clientY,
-            );
-        });
-    }
-
-    function attachHoverBehavior(
-        layer: L.Layer,
-        item: { targetPage?: string; targetMap?: string },
-    ) {
-        layer.on("mouseover", (e: L.LeafletMouseEvent) => {
-            if (isDrawing) return;
-            // Prevent preview if context menu or console is open
-            if (contextMenu?.show || isConsoleOpen) return;
-
-            const targetLayer = e.target as any;
-            const element = targetLayer.getElement
-                ? targetLayer.getElement()
-                : null;
-
-            if (!element) return;
-
-            const { pagePath, mapTargetPath } = resolveTargetPaths(item);
-
-            if (pagePath) {
-                hoveredPath = pagePath;
-                hoveredElement = element;
-            }
-            if (mapTargetPath) {
-                hoveredMapPath = mapTargetPath;
-                hoveredMapElement = element;
-            }
-        });
-
-        layer.on("mouseout", () => {
-            // Clear both
-            clearAllPreviews();
-        });
-    }
+    // (attachClickBehavior / attachHoverBehavior used to live here for
+    // per-marker pin interaction. Pins are now rendered to a single canvas
+    // and routed through the existing map mousemove/click handlers; the
+    // hovered-pin effect drives the preview anchor and tooltip.)
 
     // =========================================================================
     // PREVIEW / TOOLTIP MANAGEMENT
@@ -562,6 +522,13 @@
         }
     }
 
+    function removePinTooltip() {
+        if (pinTooltip) {
+            pinTooltip.remove();
+            pinTooltip = null;
+        }
+    }
+
     function getOrCreateMultiTooltip(): L.Tooltip {
         if (!multiTooltip) {
             multiTooltip = L.tooltip({
@@ -621,56 +588,12 @@
     // REACTIVE EFFECTS (hover highlights, styling, cleanup)
     // =========================================================================
 
-    // Handle pin highlighting from console
-    // Optimization: Only reset the previously highlighted pin, not all pins.
+    // Drive the canvas pin layer's highlight state from the console-hover
+    // selection. The layer redraws itself when this changes; we don't need
+    // a separate "reset previous" pass.
     $effect(() => {
-        // Subscribe to layerRevision to ensure we run after re-renders
         void layerRevision;
-
-        // 1. Reset previous highlight (just one pin, not all)
-        if (prevHighlightedPinId && prevHighlightedPinId !== highlightedPinId) {
-            const prevMarker = pinIdToLayer.get(prevHighlightedPinId);
-            const prevPin = mapConfig?.pins.find(
-                (p) => p.id === prevHighlightedPinId,
-            );
-            if (prevMarker && prevPin) {
-                const iconChar = prevPin.icon || DEFAULT_PIN_ICON;
-                const normalIcon = createEmojiIcon(
-                    iconChar,
-                    prevPin.color || DEFAULT_ICON_COLOR,
-                    false,
-                    !!prevPin.invisible,
-                );
-                prevMarker.setIcon(normalIcon);
-                prevMarker.setZIndexOffset(0);
-                if (prevPin.id !== hoveredPinId) {
-                    prevMarker.closeTooltip();
-                }
-            }
-        }
-
-        // 2. Apply new highlight
-        if (highlightedPinId && pinIdToLayer.has(highlightedPinId)) {
-            const marker = pinIdToLayer.get(highlightedPinId);
-            const pinConfig = mapConfig?.pins.find(
-                (p) => p.id === highlightedPinId,
-            );
-            if (marker && pinConfig) {
-                // Temporarily update icon to highlighted state
-                const iconChar = pinConfig.icon || DEFAULT_PIN_ICON;
-                const highlightedIcon = createEmojiIcon(
-                    iconChar,
-                    pinConfig.color || DEFAULT_ICON_COLOR,
-                    true,
-                    !!pinConfig.invisible, // Pass invisible state
-                );
-                marker.setIcon(highlightedIcon);
-                marker.setZIndexOffset(1000);
-                marker.openTooltip();
-            }
-        }
-
-        prevHighlightedPinId = highlightedPinId;
+        pinLayer?.setHighlight(highlightedPinId);
     });
 
     // Reactive Effect for Region Visibility & Styling
@@ -809,6 +732,57 @@
         }
     });
 
+    // Drive the pin tooltip + preview anchor from the hovered-pin state.
+    // Replaces the per-marker `bindTooltip` + DOM-element-based preview
+    // anchoring that L.Marker gave us for free; canvas pins have no DOM
+    // node of their own, so we mount a single L.Tooltip and route the
+    // link/map previews through the shared `previewAnchor` div.
+    $effect(() => {
+        // Read tracked state up front. `map` and `pinLayer` are plain
+        // `let`s (not $state), so they don't register as deps; if we
+        // short-circuited on `!map` before touching `hoveredPinId`/
+        // `mapConfig`, those reactive reads would never be tracked and
+        // the effect would sit dormant when they later change.
+        const pinId = hoveredPinId;
+        const cfg = mapConfig;
+        const ctxOpen = !!contextMenu?.show;
+        const consoleOpen = isConsoleOpen;
+        if (!map || !cfg) return;
+        if (!pinId) {
+            removePinTooltip();
+            // Don't clear preview state on hover-out — the mousemove
+            // handler clears it via clearAllPreviews when no shape is
+            // under the cursor.
+            return;
+        }
+        const pin = cfg.pins.find((p) => p.id === pinId);
+        if (!pin || !pinLayer) return;
+
+        // Tooltip text mirrors the old bindTooltip logic.
+        let text = pin.label || "Pin";
+        if (!pin.label) {
+            if (pin.targetPage) text = pin.targetPage;
+            else if (pin.targetMap) text = pin.targetMap;
+        }
+        const coords = pinLayer.getPinContainerCoords(pinId);
+        if (!coords) return;
+        const latlng = map.containerPointToLatLng([coords.x, coords.y]);
+
+        if (!pinTooltip) {
+            pinTooltip = L.tooltip({
+                direction: "top",
+                offset: [0, -28],
+                className: "multi-region-tooltip",
+                opacity: 0.9,
+            });
+        }
+        pinTooltip.setLatLng(latlng).setContent(text).addTo(map);
+
+        if (ctxOpen || consoleOpen) return;
+        const { pagePath, mapTargetPath } = resolveTargetPaths(pin);
+        placePreviewAt(coords.x, coords.y, pagePath, mapTargetPath);
+    });
+
     // =========================================================================
     // MAP LIFECYCLE (create, update, destroy)
     // =========================================================================
@@ -821,13 +795,11 @@
         imageOverlays.clear();
         cacheMisses = new Set();
         lookupsInFlight.clear();
-        markerLayerGroup = null;
+        pinLayer = null;
         shapeLayerGroup = null;
         drawLayerGroup = null;
         shapeRenderer = null;
-        pinIdToLayer.clear();
         shapeIdToLayer.clear();
-        prevPinFingerprints.clear();
         prevShapeFingerprints.clear();
         prevStyledRegionIds = new Set();
         prevRegionStyleMode = "hidden";
@@ -835,6 +807,7 @@
         spatialIndexShapes = null;
         visibleBounds = null;
         removeMultiTooltip();
+        removePinTooltip();
     }
 
     function destroyMap() {
@@ -971,8 +944,23 @@
         map.attributionControl.setPrefix("");
         L.control.zoom({ position: "topright" }).addTo(map);
 
-        // Initialize Groups
-        markerLayerGroup = L.layerGroup().addTo(map);
+        // Initialize layers.
+        //
+        // pinLayer is our custom canvas-based pin renderer (see
+        // canvasPinLayer.ts). One <canvas> for all pins regardless of
+        // count, with simple grid clustering at low zoom.
+        //
+        // We construct the layer eagerly but don't `addTo(map)` until at
+        // least one pin layer is visible (see `syncPins`). When no pins
+        // are mounted there's no need to keep the canvas DOM node around
+        // or to subscribe to map move/zoom events.
+        pinLayer = new CanvasPinLayer({
+            // ~100px cluster cells keep pins collapsed at low/mid zoom so
+            // dense maps don't render as a wall of overlapping teardrops;
+            // clustering disengages once we hit native tile resolution.
+            clusterRadius: 100,
+            disableClusteringAtZoom: tileMaxZoom,
+        });
         shapeLayerGroup = L.layerGroup().addTo(map);
         drawLayerGroup = L.layerGroup().addTo(map);
         // padding > 0 keeps shapes painted slightly past the viewport edge
@@ -1027,7 +1015,9 @@
         const onViewChange = throttle(() => {
             if (!map || !mapConfig) return;
             recomputeVisibleBounds();
-            syncPins(mapConfig);
+            // Pins redraw themselves on every map move/zoom via the
+            // CanvasPinLayer's own listeners. Shapes still need culling
+            // here so the Canvas batch only handles polygons on screen.
             syncShapes(mapConfig);
         }, 100);
         map!.on("moveend zoomend", onViewChange);
@@ -1041,6 +1031,23 @@
         map!.on("contextmenu", (e: L.LeafletMouseEvent) => {
             if (isDrawing) return; // Don't show context menu while drawing
             if (!mapConfig) return;
+
+            // Pin right-click: show the pin context menu (edit/delete) and
+            // skip the region disambiguation menu.
+            const cp = e.containerPoint;
+            const pinHit =
+                pinLayer && map?.hasLayer(pinLayer)
+                    ? pinLayer.hitTestAt(cp.x, cp.y)
+                    : null;
+            if (pinHit && pinHit.type === "pin") {
+                contextMenu = {
+                    x: e.originalEvent.clientX,
+                    y: e.originalEvent.clientY,
+                    show: true,
+                    pinId: pinHit.pinId,
+                };
+                return;
+            }
 
             const mapX = e.latlng.lng;
             const mapY = toMapY(e.latlng.lat, mapHeight); // Convert Leaflet LatLng to Map Coords (Y-flip)
@@ -1097,6 +1104,23 @@
             // We ALLOW it if console is open now, but we will block full previews below
             if (contextMenu?.show) return;
             if (!mapConfig) return;
+
+            // 0. CANVAS PIN HIT TEST. Pins are rendered to a single canvas
+            //    rather than as individual L.Markers, so Leaflet's marker
+            //    `mouseover` event no longer fires for them. We piggy-back
+            //    on the same map mousemove that already drives shape
+            //    hover, querying the pin layer ourselves.
+            const cp = e.containerPoint;
+            const pinHit =
+                pinLayer && map?.hasLayer(pinLayer)
+                    ? pinLayer.hitTestAt(cp.x, cp.y)
+                    : null;
+            const newHoveredPin =
+                pinHit && pinHit.type === "pin" ? pinHit.pinId : null;
+            if (hoveredPinId !== newHoveredPin) {
+                hoveredPinId = newHoveredPin;
+                pinLayer?.setHover(newHoveredPin);
+            }
 
             // 1. PIN PRIORITY: If hovering a pin, hide region tooltips and return
             if (hoveredPinId) {
@@ -1171,8 +1195,41 @@
             if (!isDrawing) {
                 if (!mapConfig) return;
 
+                // Pin hit-test first: a click on a canvas pin should
+                // navigate, not fall through to shape disambiguation.
+                const cp = e.containerPoint;
+                const pinHit =
+                    pinLayer && map?.hasLayer(pinLayer)
+                        ? pinLayer.hitTestAt(cp.x, cp.y)
+                        : null;
+                if (pinHit) {
+                    if (pinHit.type === "cluster") {
+                        // Zoom in toward the cluster to expand it.
+                        const ll = map!.containerPointToLatLng([
+                            pinHit.cx,
+                            pinHit.cy,
+                        ]);
+                        map!.setView(
+                            ll,
+                            Math.min(map!.getMaxZoom(), map!.getZoom() + 2),
+                        );
+                        return;
+                    }
+                    const pin = mapConfig.pins.find(
+                        (p) => p.id === pinHit.pinId,
+                    );
+                    if (pin) {
+                        navigateToTarget(
+                            pin,
+                            e.originalEvent.clientX,
+                            e.originalEvent.clientY,
+                        );
+                    }
+                    return;
+                }
+
                 // Handle Click Disambiguation for Overlapping Regions
-                // Note: This only runs if the click wasn't stopped by a Pin
+                // (only runs if no pin was clicked)
                 const mapX = e.latlng.lng;
                 const mapY = toMapY(e.latlng.lat, mapHeight);
 
@@ -1408,120 +1465,39 @@
         });
     }
 
-    // --- Update Pins (Diff-based) ---
-    // Only adds/removes/updates markers that actually changed.
+    // --- Update Pins (Canvas-rendered) ---
+    //
+    // Filters by layer visibility, then hands the resulting pin set to the
+    // canvas layer in one call. The layer redraws — no per-pin DOM work,
+    // no fingerprint diff, no marker churn. Hover/click/context-menu are
+    // routed through the existing map mouse handlers via `pinLayer.hitTestAt`.
     function syncPins(config: MapConfig) {
-        if (!markerLayerGroup || !map) return;
+        if (!pinLayer || !map) return;
 
-        const h = config.height;
-        const newFingerprints = new Map<string, string>();
-        const currentIds = new Set<string>();
-        const vb = visibleBounds;
-        // Build the visibility lookup once instead of paying an O(layers)
-        // array scan per pin (matters when there are thousands of pins).
         const layerLookup = buildLayerVisibilityLookup(config.layers);
-
-        config.pins.forEach((pin: MapPin) => {
-            if (!isLayerIdVisible(layerLookup, pin.layerId)) return;
-
-            // Viewport cull: pin off-screen → don't mount. We deliberately
-            // skip adding it to currentIds so the trailing cleanup loop
-            // unmounts any existing marker, and we leave it out of
-            // newFingerprints so re-entering the viewport rebuilds fresh.
-            if (
-                vb &&
-                (pin.x < vb.minX ||
-                    pin.x > vb.maxX ||
-                    pin.y < vb.minY ||
-                    pin.y > vb.maxY)
-            ) {
-                return;
-            }
-
-            currentIds.add(pin.id);
-            const fp = pinFingerprint(pin);
-            newFingerprints.set(pin.id, fp);
-
-            const prevFp = prevPinFingerprints.get(pin.id);
-            if (prevFp === fp && pinIdToLayer.has(pin.id)) {
-                // Pin unchanged — skip
-                return;
-            }
-
-            // Pin is new or changed — remove old marker if it exists
-            const existingMarker = pinIdToLayer.get(pin.id);
-            if (existingMarker) {
-                markerLayerGroup!.removeLayer(existingMarker);
-                pinIdToLayer.delete(pin.id);
-            }
-
-            // Create new marker
-            const leafletLat = toLeafletLat(pin.y, h);
-            const leafletLng = pin.x;
-            // Default to standard pin if none selected
-            const iconChar = pin.icon || DEFAULT_PIN_ICON;
-
-            const iconToUse = createEmojiIcon(
-                iconChar,
-                pin.color || DEFAULT_ICON_COLOR,
-                false,
-                !!pin.invisible, // Pass invisible state
-            );
-
-            const marker = L.marker([leafletLat, leafletLng], {
-                icon: iconToUse,
-                // Use Leaflet's native property to stop map events
-                // This replaces e.originalEvent.stopPropagation() usage
-                bubblingMouseEvents: false,
+        const visiblePins: CanvasPin[] = [];
+        for (const pin of config.pins) {
+            if (!isLayerIdVisible(layerLookup, pin.layerId)) continue;
+            visiblePins.push({
+                id: pin.id,
+                x: pin.x,
+                y: pin.y,
+                color: pin.color || DEFAULT_ICON_COLOR,
+                icon: pin.icon || DEFAULT_PIN_ICON,
+                invisible: !!pin.invisible,
             });
-
-            let tooltipText = pin.label || "Pin";
-            if (!pin.label) {
-                if (pin.targetPage) tooltipText = pin.targetPage;
-                else if (pin.targetMap) tooltipText = pin.targetMap;
-            }
-
-            // Apply the same styling class to pins as regions for consistency
-            marker.bindTooltip(tooltipText, {
-                direction: "top",
-                offset: [0, -40],
-                className: "multi-region-tooltip",
-            });
-
-            // Set listeners for Pin Priority
-            marker.on("mouseover", () => {
-                if (contextMenu?.show) return; // Only guard Context Menu
-                hoveredPinId = pin.id;
-            });
-            marker.on("mouseout", () => {
-                hoveredPinId = null;
-            });
-
-            attachClickBehavior(marker, pin);
-            attachHoverBehavior(marker, pin);
-
-            marker.on("contextmenu", (e: L.LeafletMouseEvent) => {
-                contextMenu = {
-                    x: e.originalEvent.clientX,
-                    y: e.originalEvent.clientY,
-                    show: true,
-                    pinId: pin.id,
-                };
-            });
-
-            marker.addTo(markerLayerGroup!);
-            pinIdToLayer.set(pin.id, marker);
-        });
-
-        // Remove markers for pins that no longer exist
-        for (const [id, marker] of pinIdToLayer) {
-            if (!currentIds.has(id)) {
-                markerLayerGroup!.removeLayer(marker);
-                pinIdToLayer.delete(id);
-            }
         }
 
-        prevPinFingerprints = newFingerprints;
+        // Lazy mount: keep the canvas off the map entirely when no pins are
+        // visible. Avoids the layer's `move`/`zoom` listeners doing nothing
+        // useful for overlay-only maps.
+        const isAttached = map.hasLayer(pinLayer);
+        if (visiblePins.length === 0) {
+            if (isAttached) pinLayer.removeFrom(map);
+            return;
+        }
+        if (!isAttached) pinLayer.addTo(map);
+        pinLayer.setPins(visiblePins);
     }
 
     // --- Update Regions (Shapes) — Diff-based ---
@@ -1570,7 +1546,6 @@
             return;
         }
 
-        const h = config.height;
         const vb = visibleBounds;
         const candidateShapes = vb
             ? spatialIndex.queryBounds(vb.minX, vb.minY, vb.maxX, vb.maxY)
@@ -1614,8 +1589,9 @@
 
             let layer: L.Path;
             if (shape.type === "polygon") {
+                // Custom Y-down CRS makes lat == image Y directly.
                 const latLngs = shape.points.map(
-                    (p) => [toLeafletLat(p.y, h), p.x] as [number, number],
+                    (p) => [p.y, p.x] as [number, number],
                 );
                 layer = L.polygon(latLngs, initialStyle);
             } else {
@@ -1796,23 +1772,16 @@
     {:else if !mapConfig}
         <div class="status-container"><p>Loading Map Configuration...</p></div>
     {:else}
-        <!--
-            Added 'show-ghosts' class conditional on isConsoleOpen
-            to reveal invisible pins.
-        -->
-        <div
-            class="map-wrapper"
-            class:drawing={isDrawing}
-            class:show-ghosts={isConsoleOpen}
-        >
+        <div class="map-wrapper" class:drawing={isDrawing}>
             <div bind:this={mapElement} class="leaflet-container"></div>
             <!--
               Invisible 1×1 anchor positioned over the currently-hovered
-              canvas-rendered shape. Hover-driven previews (LinkPreview,
-              MapPreview) read its bounding rect to position themselves
-              alongside the target — replacing the old per-shape
-              `getElement()` anchor that the canvas renderer doesn't
-              provide.
+              canvas-rendered pin or shape. Hover-driven previews
+              (LinkPreview, MapPreview) read its bounding rect to position
+              themselves alongside the target — same model the old per-pin
+              L.Marker DOM nodes provided via `marker.getElement()` and the
+              substitute for the per-shape `getElement()` the canvas
+              renderer doesn't provide.
             -->
             <div
                 bind:this={previewAnchor}
@@ -1961,7 +1930,7 @@
 
     /* 1×1 anchor moved by the hover effects — invisible and click-through,
        but its bounding rect is what LinkPreview / MapPreview position
-       against when a canvas-rendered shape is hovered. */
+       against when a canvas pin or shape is hovered. */
     .preview-anchor {
         position: absolute;
         width: 1px;
@@ -2003,52 +1972,6 @@
         display: flex;
         flex-direction: column;
         gap: var(--space-sm);
-    }
-
-    /* Pin marker base style.
-     * drop-shadow and transitions moved to :hover / .highlighted only
-     * to avoid GPU layer promotion for every marker (thousands of composited layers).
-     * will-change removed — it hurts when applied to thousands of elements.
-     */
-    :global(.custom-pin-marker) {
-        background: transparent;
-        border: none;
-    }
-
-    :global(.custom-pin-marker:hover) {
-        filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
-        transition: transform 0.2s;
-    }
-
-    :global(.custom-pin-marker.highlighted) {
-        z-index: 1000 !important;
-        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
-        transition: transform 0.2s;
-    }
-
-    /* GHOST PIN STYLES
-       Default: Opacity 0 (Invisible but clickable)
-       Console Open: Opacity 0.6 (Visible "Ghost")
-    */
-    :global(.ghost-pin-marker) {
-        background: transparent;
-        border: none;
-        opacity: 0; /* Totally invisible by default */
-        transition: opacity 0.3s ease;
-        /* Ensure it captures clicks even when invisible */
-        pointer-events: auto;
-    }
-    /* When .show-ghosts is present on the wrapper (toggled by isConsoleOpen),
-       increase the opacity so the user can see them to edit/delete.
-    */
-    .map-wrapper.show-ghosts :global(.ghost-pin-marker) {
-        opacity: 0.6;
-    }
-
-    :global(.ghost-pin-marker.highlighted) {
-        /* When hovering from console, ensure it's fully visible */
-        opacity: 1 !important;
-        z-index: 1000 !important;
     }
 
     /* Multi-region tooltip — Leaflet creates this DOM, so we can't apply

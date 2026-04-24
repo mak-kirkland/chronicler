@@ -4,7 +4,7 @@
  * and centralized theme assets (icons, colors).
  */
 
-import type { MapConfig, MapLayer, MapPin, MapRegion } from "./mapModels";
+import type { MapConfig, MapLayer, MapRegion } from "./mapModels";
 import L from "leaflet";
 
 // --- THEME CONSTANTS ---
@@ -12,8 +12,6 @@ import L from "leaflet";
 export const DEFAULT_SHAPE_COLOR = "#3498db";
 export const DEFAULT_PIN_ICON = "📍";
 export const DEFAULT_ICON_COLOR = "#ffffff";
-export const DEFAULT_STROKE_COLOR = "#444444";
-export const HIGHLIGHT_STROKE_COLOR = "#ffffff";
 export const DRAWING_COLOR = "#e74c3c"; // Red
 
 // UI Icons (Chars)
@@ -132,52 +130,17 @@ export const REGION_STYLES = {
 
 // --- COORDINATE CONVERSION ---
 
-/*
- * NOTE: These functions used to convert between image pixel Y (Y-down) and
- * Leaflet's CRS.Simple lat (Y-up). MapView now uses a custom Y-down CRS, so
- * Leaflet lat == image Y directly and these functions are identity passes.
+/**
+ * Convert Leaflet lat to image pixel Y (top=0, increases downward).
  *
- * They're kept as a semantic abstraction layer: callers express intent
- * ("convert image Y to Leaflet lat") instead of using raw values, and if the
- * coordinate system ever changes again, only these two functions need updating.
- * The `mapHeight` parameter is unused but kept in the signature for the same
- * reason — callers don't need to change.
+ * MapView uses a custom Y-down CRS, so Leaflet lat == image Y directly —
+ * this is an identity pass. Kept as a semantic indirection so callers
+ * express intent and so the coordinate system can change again with a
+ * single edit. The `mapHeight` parameter is unused but kept in the
+ * signature for the same reason.
  */
-
-/** Convert image pixel Y (top=0, increases downward) to Leaflet lat. */
-export function toLeafletLat(mapY: number, _mapHeight: number): number {
-    return mapY;
-}
-
-/** Convert Leaflet lat to image pixel Y (top=0, increases downward). */
 export function toMapY(leafletLat: number, _mapHeight: number): number {
     return leafletLat;
-}
-
-// --- SVG SANITIZATION ---
-
-/**
- * Escapes a string for safe embedding in SVG/XML text content.
- * Prevents injection of markup through pin labels or emoji fields.
- */
-function escapeSvgText(text: string): string {
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-}
-
-/**
- * Sanitizes a hex color string. Returns the color if valid, otherwise a fallback.
- */
-function sanitizeColor(color: string, fallback: string): string {
-    // Allow 3/4/6/8-digit hex colors
-    if (/^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color)) {
-        return color;
-    }
-    return fallback;
 }
 
 // --- LAYER VISIBILITY ---
@@ -329,75 +292,6 @@ export async function checkLayerImage(
         scaleFactor,
         dimensions: dims,
     };
-}
-
-/**
- * Generates the SVG string for a map pin.
- */
-export function generatePinSvg(
-    emoji: string,
-    color: string = DEFAULT_ICON_COLOR,
-    highlighted: boolean = false,
-): string {
-    const scale = highlighted ? 1.3 : 1;
-    const safeColor = sanitizeColor(color, DEFAULT_ICON_COLOR);
-    const stroke = highlighted ? HIGHLIGHT_STROKE_COLOR : DEFAULT_STROKE_COLOR;
-    const strokeWidth = highlighted ? "2" : "1.5";
-    const safeEmoji = escapeSvgText(emoji);
-
-    return `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${32 * scale}" height="${48 * scale}">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24c0-6.63-5.37-12-12-12z" fill="${safeColor}" stroke="${stroke}" stroke-width="${strokeWidth}"/>
-            <text x="12" y="12" text-anchor="middle" dominant-baseline="central" font-size="14" font-family="Segoe UI Emoji, Apple Color Emoji, sans-serif" dy="1">${safeEmoji}</text>
-        </svg>
-    `;
-}
-
-/**
- * LRU-bounded cache for DivIcon instances.
- * Most maps use only a handful of unique icon combos, so this avoids
- * regenerating SVG strings and DivIcon objects on every render.
- */
-const iconCache = new Map<string, L.DivIcon>();
-const ICON_CACHE_MAX = 256;
-
-function iconCacheKey(emoji: string, color: string, highlighted: boolean, invisible: boolean): string {
-    return `${emoji}|${color}|${highlighted ? 1 : 0}|${invisible ? 1 : 0}`;
-}
-
-/**
- * Creates a Leaflet DivIcon for a map pin.
- * Results are cached by (emoji, color, highlighted, invisible) tuple.
- */
-export function createEmojiIcon(
-    emoji: string,
-    color: string = DEFAULT_ICON_COLOR,
-    highlighted: boolean = false,
-    invisible: boolean = false,
-): L.DivIcon {
-    const key = iconCacheKey(emoji, color, highlighted, invisible);
-    const cached = iconCache.get(key);
-    if (cached) return cached;
-
-    const scale = highlighted ? 1.3 : 1;
-    const svg = generatePinSvg(emoji, color, highlighted);
-
-    const icon = L.divIcon({
-        className: `custom-pin-marker ${highlighted ? "highlighted" : ""} ${invisible ? "ghost-pin-marker" : ""}`,
-        html: svg,
-        iconSize: [32 * scale, 48 * scale],
-        iconAnchor: [16 * scale, 48 * scale],
-        popupAnchor: [0, -48 * scale],
-    });
-
-    // Evict oldest entry if cache is full
-    if (iconCache.size >= ICON_CACHE_MAX) {
-        const firstKey = iconCache.keys().next().value;
-        if (firstKey !== undefined) iconCache.delete(firstKey);
-    }
-    iconCache.set(key, icon);
-
-    return icon;
 }
 
 /**
@@ -683,14 +577,6 @@ export class ShapeSpatialIndex {
         }
         return results;
     }
-}
-
-/**
- * Generates a fingerprint string for a MapPin that captures all properties
- * which affect its Leaflet rendering. Used for diff-based sync.
- */
-export function pinFingerprint(pin: MapPin): string {
-    return `${pin.x}|${pin.y}|${pin.icon || ""}|${pin.color || ""}|${pin.label || ""}|${pin.targetPage || ""}|${pin.targetMap || ""}|${pin.layerId || ""}|${pin.invisible ? 1 : 0}`;
 }
 
 /**
