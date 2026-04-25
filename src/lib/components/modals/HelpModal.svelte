@@ -8,6 +8,7 @@
     import type { RenderedPage } from "$lib/bindings";
     import Button from "$lib/components/ui/Button.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
+    import { handleContentClick } from "$lib/actions";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -39,6 +40,8 @@
             onclick={() => openUrl("https://chronicler.pro/getting-started")}
             >Open in Browser</Button
         >
-        <Preview {renderedData} />
+        <div onclick={handleContentClick} onkeydown={handleContentClick}>
+            <Preview {renderedData} />
+        </div>
     {/if}
 </Modal>
