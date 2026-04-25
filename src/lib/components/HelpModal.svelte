@@ -6,6 +6,7 @@
     import Preview from "./Preview.svelte";
     import ErrorBox from "./ErrorBox.svelte";
     import type { RenderedPage } from "$lib/bindings";
+    import { handleContentClick } from "$lib/actions";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -33,6 +34,8 @@
     {:else if error}
         <ErrorBox>{error}</ErrorBox>
     {:else if renderedData}
-        <Preview {renderedData} />
+        <div onclick={handleContentClick} onkeydown={handleContentClick}>
+            <Preview {renderedData} />
+        </div>
     {/if}
 </Modal>
