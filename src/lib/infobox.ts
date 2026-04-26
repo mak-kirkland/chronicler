@@ -329,8 +329,9 @@ export function parseInfoboxContent(yamlContent: string): InfoboxState {
     let data: any = {};
 
     try {
-        // If the content is full file content with delimiters, extract them
-        const match = yamlContent.match(/^---\n([\s\S]*?)\n---/);
+        // If the content is full file content with delimiters, extract them.
+        // Tolerate both LF and CRLF line endings (Rust parser does the same).
+        const match = yamlContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
         const frontmatter = match ? match[1] : yamlContent;
 
         // Parse into a JS object for the Editor to consume
@@ -499,7 +500,8 @@ export function applyInfoboxStateToContent(
     originalContent: string,
     state: InfoboxState,
 ): string {
-    const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+    // Tolerate both LF and CRLF line endings (Rust parser does the same).
+    const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---/;
     const match = originalContent.match(frontmatterRegex);
 
     let doc: Document;
