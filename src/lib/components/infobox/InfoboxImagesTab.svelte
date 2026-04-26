@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { ImageEntry } from "$lib/infobox";
+    import { reorderArrayItem, type ImageEntry } from "$lib/infobox";
     import InfoboxImageRow from "$lib/components/infobox/InfoboxImageRow.svelte";
     import Button from "$lib/components/ui/Button.svelte";
 
@@ -18,11 +18,7 @@
     }
 
     function handleMove(index: number, direction: number) {
-        const targetIndex = index + direction;
-        if (targetIndex < 0 || targetIndex >= images.length) return;
-        images = images
-            .with(index, images[targetIndex])
-            .with(targetIndex, images[index]);
+        images = reorderArrayItem(images, index, direction as -1 | 1);
     }
 </script>
 

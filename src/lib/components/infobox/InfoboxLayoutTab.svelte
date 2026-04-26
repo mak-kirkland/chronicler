@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { EditorLayoutRule, EditorField } from "$lib/infobox";
+    import { reorderArrayItem, type EditorLayoutRule, type EditorField } from "$lib/infobox";
     import Button from "$lib/components/ui/Button.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
     import SearchableSelect from "$lib/components/ui/SearchableSelect.svelte";
@@ -20,11 +20,7 @@
     }
 
     function handleMove(index: number, direction: number) {
-        const targetIndex = index + direction;
-        if (targetIndex < 0 || targetIndex >= layoutRules.length) return;
-        layoutRules = layoutRules
-            .with(index, layoutRules[targetIndex])
-            .with(targetIndex, layoutRules[index]);
+        layoutRules = reorderArrayItem(layoutRules, index, direction as -1 | 1);
     }
 </script>
 
