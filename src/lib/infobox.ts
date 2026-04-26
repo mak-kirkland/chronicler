@@ -17,7 +17,7 @@ import {
     type Node,
 } from "yaml";
 import { TEMPLATE_FOLDER_PATH } from "$lib/config";
-import { normalizePath, findNodeByPath, fileStemString } from "$lib/utils";
+import { normalizePath, findNodeByPath, fileStemString, uuid } from "$lib/utils";
 import type { FileNode } from "./bindings";
 
 // --- Constants ---
@@ -360,7 +360,7 @@ export function parseInfoboxContent(yamlContent: string): InfoboxState {
         layoutRules.push({
             ...rule,
             type,
-            id: crypto.randomUUID(),
+            id: uuid(),
             // Ensure fields exist for binding.
             // Preserve array-valued above/below (used by separators).
             above: rule.above || (type === "separator" ? [] : ""),
@@ -375,13 +375,13 @@ export function parseInfoboxContent(yamlContent: string): InfoboxState {
         rawImgs.forEach((item: any) => {
             if (Array.isArray(item)) {
                 images.push({
-                    id: crypto.randomUUID(),
+                    id: uuid(),
                     src: item[0],
                     caption: item[1] || "",
                 });
             } else {
                 images.push({
-                    id: crypto.randomUUID(),
+                    id: uuid(),
                     src: item,
                     caption: "",
                 });
@@ -420,7 +420,7 @@ export function parseInfoboxContent(yamlContent: string): InfoboxState {
             }
 
             customFields.push({
-                id: crypto.randomUUID(),
+                id: uuid(),
                 key,
                 value: val,
                 type,
@@ -776,7 +776,7 @@ export function getAvailableTemplates(
 
 export function createField(): EditorField {
     return {
-        id: crypto.randomUUID(),
+        id: uuid(),
         key: "New Field",
         value: "",
         type: "text",
@@ -785,7 +785,7 @@ export function createField(): EditorField {
 
 export function createImage(): ImageEntry {
     return {
-        id: crypto.randomUUID(),
+        id: uuid(),
         src: "",
         caption: "",
     };
@@ -795,7 +795,7 @@ export function createLayoutRule(
     type: "header" | "separator" | "columns" | "alias",
 ): EditorLayoutRule {
     return {
-        id: crypto.randomUUID(),
+        id: uuid(),
         type,
         text: type === "header" || type === "alias" ? "" : undefined,
         above: type === "separator" ? [] : "",

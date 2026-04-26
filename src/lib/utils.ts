@@ -9,6 +9,21 @@ import { resolveResource } from "@tauri-apps/api/path";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { getImageSource } from "./commands";
 
+/**
+ * Generates a unique ID for use as a UI list key (drag-drop, keyed each blocks).
+ *
+ * Why not call `crypto.randomUUID()` directly: on older WKWebView (e.g. macOS
+ * Big Sur) the Tauri custom URL scheme is not treated as a secure context, so
+ * `crypto.randomUUID` is undefined and calling it throws — silently breaking
+ * any handler that constructs editor rows.
+ */
+export function uuid(): string {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+    }
+    return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 /** A list of common image file extensions. */
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 
