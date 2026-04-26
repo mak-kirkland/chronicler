@@ -11,6 +11,7 @@
     import Select from "$lib/components/ui/Select.svelte";
     import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
+    import { uuid } from "$lib/utils";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
 
     let { onClose, mapPath, mapConfig, mode, initialData } = $props<{
@@ -92,7 +93,7 @@
 
                 if (mode === "pin") {
                     const pinData: MapPin = {
-                        id: initialData.id || crypto.randomUUID(),
+                        id: initialData.id || uuid(),
                         x: initialData.x!, // x/y are required for pins
                         y: initialData.y!,
                         ...commonData,
@@ -124,7 +125,7 @@
                         if (index !== -1) updatedShapes[index] = regionData;
                     } else {
                         regionData = {
-                            id: crypto.randomUUID(),
+                            id: uuid(),
                             ...initialData.shapeData,
                             ...commonData,
                         };

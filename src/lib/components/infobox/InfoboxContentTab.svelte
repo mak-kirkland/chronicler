@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { EditorField } from "$lib/infobox";
+    import { reorderArrayItem, type EditorField } from "$lib/infobox";
     import InfoboxFieldRow from "$lib/components/infobox/InfoboxFieldRow.svelte";
     import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
     import Button from "$lib/components/ui/Button.svelte";
@@ -44,11 +44,7 @@
     }
 
     function handleMove(index: number, direction: number) {
-        const targetIndex = index + direction;
-        if (targetIndex < 0 || targetIndex >= customFields.length) return;
-        customFields = customFields
-            .with(index, customFields[targetIndex])
-            .with(targetIndex, customFields[index]);
+        customFields = reorderArrayItem(customFields, index, direction as -1 | 1);
     }
 </script>
 
