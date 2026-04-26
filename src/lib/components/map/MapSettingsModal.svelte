@@ -13,6 +13,7 @@
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
     import ToggleSwitch from "$lib/components/ui/ToggleSwitch.svelte";
+    import { uuid } from "$lib/utils";
 
     import type { MapConfig, MapLayer } from "$lib/mapModels";
 
@@ -109,7 +110,7 @@
     // --- Layer Management ---
 
     function addLayer() {
-        const id = crypto.randomUUID();
+        const id = uuid();
         layers = [
             {
                 id,
