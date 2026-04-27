@@ -79,6 +79,43 @@ fn batch_affects_relations(events: &[FileEvent]) -> bool {
     })
 }
 
+/// Returns `true` if `image_ref` points to a resource outside the vault's
+/// media index — a URL, a data/asset/file URI, or an absolute filesystem path.
+/// These are passed through by the renderer and should not be reported as
+/// broken vault references.
+fn is_external_image_ref(image_ref: &str) -> bool {
+    let trimmed = image_ref.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    // URL-style schemes the renderer leaves untouched.
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("http://")
+        || lower.starts_with("https://")
+        || lower.starts_with("data:")
+        || lower.starts_with("file://")
+        || lower.starts_with("asset://")
+    {
+        return true;
+    }
+
+    // Absolute filesystem paths (POSIX `/foo` and Windows `C:\foo` / `C:/foo`).
+    if Path::new(trimmed).is_absolute() {
+        return true;
+    }
+    let bytes = trimmed.as_bytes();
+    if bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'/' || bytes[2] == b'\\')
+    {
+        return true;
+    }
+
+    false
+}
+
 impl Indexer {
     /// Creates a new indexer for the specified root path.
     ///
@@ -799,6 +836,13 @@ impl Indexer {
         for (source_path, asset) in &self.assets {
             if let VaultAsset::Page(page) = asset {
                 for image_ref in &page.images {
+                    // Skip external references the renderer would pass through unchanged:
+                    // URL schemes (http/https/data/file/asset) and absolute filesystem paths
+                    // both target resources outside the vault's media index.
+                    if is_external_image_ref(image_ref) {
+                        continue;
+                    }
+
                     // Normalize the image reference:
                     // 1. Convert to lowercase for case-insensitive lookup
                     // 2. Extract just the filename if it's a path (e.g. "assets/img.png" -> "img.png")
@@ -1107,5 +1151,48 @@ Now I link to [[Page Two]]!
             .unwrap();
         assert_eq!(missing_page.sources.len(), 1);
         assert_eq!(missing_page.sources[0].path, page1_path);
+    }
+
+    #[test]
+    fn test_external_image_refs_are_not_broken() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+
+        let page_path = root.join("Page.md");
+        fs::write(
+            &page_path,
+            concat!(
+                "![remote](https://example.com/cover.png)\n",
+                "![inline](data:image/png;base64,AAA)\n",
+                "![local](/Users/me/Pictures/img.png)\n",
+                "![win](C:\\Users\\me\\img.png)\n",
+                "![missing](actually-missing.png)\n",
+            ),
+        )
+        .unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        let broken = indexer.get_all_broken_images().unwrap();
+
+        // Only the truly missing vault-relative reference should be reported.
+        assert_eq!(broken.len(), 1, "got: {:?}", broken);
+        assert_eq!(broken[0].target, "actually-missing.png");
+    }
+
+    #[test]
+    fn test_is_external_image_ref() {
+        assert!(is_external_image_ref("https://example.com/x.png"));
+        assert!(is_external_image_ref("HTTP://example.com/x.png"));
+        assert!(is_external_image_ref("data:image/png;base64,AAA"));
+        assert!(is_external_image_ref("file:///tmp/x.png"));
+        assert!(is_external_image_ref("/abs/path/x.png"));
+        assert!(is_external_image_ref("C:\\Users\\me\\x.png"));
+        assert!(is_external_image_ref("D:/photos/x.png"));
+
+        assert!(!is_external_image_ref("x.png"));
+        assert!(!is_external_image_ref("assets/x.png"));
+        assert!(!is_external_image_ref(""));
     }
 }
