@@ -94,6 +94,9 @@ pub fn sanitize_html(dirty_html: &str) -> String {
             "label",    // Clickable labels for inputs
             "fieldset", // Visual grouping for radio/checkbox sets
             "legend",   // Caption for fieldset
+            "select",   // Dropdown menus
+            "optgroup", // Option group for dropdowns
+            "option",   // Dropdown options
             // --- Inline Semantic Tags ---
             "mark", // Highlighted text (lore annotations)
             "ins",  // Inserted text (complement to <del>)
@@ -163,6 +166,14 @@ pub fn sanitize_html(dirty_html: &str) -> String {
         .add_tag_attributes("label", &["for", "class", "style"])
         .add_tag_attributes("fieldset", &["class", "style"])
         .add_tag_attributes("legend", &["class", "style"])
+        .add_tag_attributes(
+            "select",
+            &[
+                "name", "id", "disabled", "multiple", "required", "class", "style",
+            ],
+        )
+        .add_tag_attributes("optgroup", &["label", "disabled"])
+        .add_tag_attributes("option", &["value", "selected", "disabled", "label"])
         // --- Inline Semantic Attributes ---
         .add_tag_attributes("mark", &["class", "style"])
         .add_tag_attributes("time", &["datetime"])
