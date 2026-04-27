@@ -161,7 +161,9 @@ export interface ParseError {
  * This mirrors the `UserFont` struct in `src-tauri/src/fonts.rs`.
  */
 export interface UserFont {
-    /** The name of the font, derived from its filename (e.g., "FiraCode-Regular"). */
+    /** The font's display name, read from the OpenType `name` table when
+     * possible (e.g. "Fira Code Regular") and falling back to the file stem
+     * for unparseable formats like WOFF2. */
     name: string;
     /** The absolute path to the font file. */
     path: string;
