@@ -26,9 +26,14 @@ const injectedFontNames = new Set<string>();
 /**
  * Sanitizes a font name for safe interpolation into a CSS `font-family` string.
  * Strips characters that could break out of a CSS string context.
+ *
+ * Applied once on load so the same canonical name flows into both the dropdown
+ * `value` (as the CSS `font-family`) and the injected `@font-face` declaration —
+ * a previous bug had these diverging, which silently broke selection for any
+ * font whose name happened to contain a stripped character.
  */
 function sanitizeFontName(name: string): string {
-    return name.replace(/["'\\};{]/g, "");
+    return name.replace(/["'\\};{]/g, "").trim();
 }
 
 /**
@@ -85,18 +90,12 @@ async function injectFontFaces(fonts: UserFont[]) {
     if (!sheet) return;
 
     // Use Promise.all to convert all asset URLs in parallel first.
+    // Names are pre-sanitized in getAllUserFonts, so font.name is the same
+    // canonical string used as the CSS font-family value in the dropdown.
     const fontRules = await Promise.all(
         fonts.map(async (font) => {
             if (injectedFontNames.has(font.name)) {
                 return null; // Don't create a rule if font is already injected
-            }
-
-            const safeName = sanitizeFontName(font.name);
-            if (!safeName) {
-                console.warn(
-                    `Font name '${font.name}' is invalid after sanitization, skipping.`,
-                );
-                return null;
             }
 
             const assetUrl = await convertFileSrc(font.path);
@@ -104,7 +103,7 @@ async function injectFontFaces(fonts: UserFont[]) {
                 name: font.name,
                 rule: `
                     @font-face {
-                        font-family: "${safeName}";
+                        font-family: "${font.name}";
                         src: url("${assetUrl}");
                     }
                 `,
@@ -144,9 +143,14 @@ async function getAllUserFonts(force = false): Promise<UserFont[]> {
 
     try {
         const fonts = await getUserFonts();
-        // Deduplicate before caching - prevents Svelte each_key_duplicate crashes
-        // if the backend ever returns multiple files with the same full name.
-        const uniqueFonts = deduplicateFonts(fonts);
+        // Pre-sanitize so the same canonical name is used everywhere
+        // downstream (dropdown CSS value + @font-face family).
+        const sanitized = fonts
+            .map((f) => ({ ...f, name: sanitizeFontName(f.name) }))
+            .filter((f) => f.name.length > 0);
+        // Defensive dedup — file stems are unique per directory entry, but a
+        // user could still drop both Foo.ttf and Foo.otf into the folder.
+        const uniqueFonts = deduplicateFonts(sanitized);
         userFonts.set(uniqueFonts);
         return uniqueFonts;
     } catch (e) {
