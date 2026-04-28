@@ -53,6 +53,12 @@ struct Args {
 /// and configures and runs the Tauri application, setting up the
 /// necessary state and command handlers.
 fn main() {
+    // Apply Linux WebKitGTK / NVIDIA compatibility env vars *before* anything
+    // else. GTK and WebKit read these during their own initialisation, which
+    // happens inside `tauri::Builder::default().run()`, so we only have until
+    // then to influence them.
+    apply_linux_compat_env();
+
     let args = Args::parse();
 
     // Load environment variables from .env file in debug builds
@@ -155,6 +161,70 @@ fn main() {
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);
 }
+
+/// Applies environment-variable workarounds for the WebKitGTK rendering
+/// failures Linux users routinely report — white window on launch, "EGL bad
+/// parameter" in the log, or a hung first frame on NVIDIA + Wayland.
+///
+/// Two vars cover the common cases:
+///   * `WEBKIT_DISABLE_DMABUF_RENDERER=1` — WebKitGTK 2.42+'s DMA-BUF path
+///     can't import buffers produced by the NVIDIA proprietary driver, which
+///     surfaces as a blank WebView. Disabling it falls back to the GL-texture
+///     upload path that works.
+///   * `__NV_DISABLE_EXPLICIT_SYNC=1` — NVIDIA driver 555+ on Wayland has an
+///     explicit-sync handshake with the compositor that frequently stalls the
+///     first frame from WebKit. Forcing implicit sync avoids it.
+///
+/// Both are only set when the matching driver/session is detected and only
+/// when the user hasn't already set them, so a future driver fix or a manual
+/// override (e.g. `WEBKIT_DISABLE_DMABUF_RENDERER=0`) wins. The remaining
+/// `LD_PRELOAD=/usr/lib/libwayland-client.so` workaround can't be applied
+/// from here — `LD_PRELOAD` is read by the dynamic linker before `main`, so
+/// it has to stay a documented FAQ entry.
+#[cfg(target_os = "linux")]
+fn apply_linux_compat_env() {
+    use std::env;
+    use std::path::Path;
+
+    let is_nvidia = Path::new("/proc/driver/nvidia/version").exists()
+        || Path::new("/sys/module/nvidia").exists();
+
+    let is_wayland = env::var("XDG_SESSION_TYPE")
+        .map(|v| v.eq_ignore_ascii_case("wayland"))
+        .unwrap_or(false)
+        || env::var_os("WAYLAND_DISPLAY").is_some();
+
+    let mut applied: Vec<&'static str> = Vec::new();
+
+    // SAFETY: this runs at the top of `main()` before any threads are
+    // spawned, so the (non-thread-safe) POSIX setenv/getenv pair can't be
+    // observed in a torn state by another thread.
+    if is_nvidia {
+        if env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            unsafe { env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+            applied.push("WEBKIT_DISABLE_DMABUF_RENDERER=1");
+        }
+
+        if is_wayland && env::var_os("__NV_DISABLE_EXPLICIT_SYNC").is_none() {
+            unsafe { env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1") };
+            applied.push("__NV_DISABLE_EXPLICIT_SYNC=1");
+        }
+    }
+
+    if !applied.is_empty() {
+        // Tracing isn't initialised yet (it's set up inside `.setup()`), so
+        // emit to stderr. Users debugging white-screen tickets are typically
+        // told to launch from a terminal anyway.
+        eprintln!(
+            "Chronicler: detected NVIDIA={is_nvidia}, Wayland={is_wayland}; \
+             applied compat workarounds: {}",
+            applied.join(" ")
+        );
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn apply_linux_compat_env() {}
 
 /// Sets up the tracing subscriber for logging to both console and a rotating file.
 fn setup_tracing(args: &Args, app_handle: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
