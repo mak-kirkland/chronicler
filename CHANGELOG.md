@@ -2,6 +2,26 @@
 
 ---
 
+## [v0.50.0-alpha] - 2026-04-28
+
+### ✨ Added
+
+- **Modals**: Implemented a "modal stack" system, allowing for backward navigation within menus. If you open a new window from within a modal, a back button will now appear to let you return to the previous screen.
+- **Sanitizer**: The HTML sanitizer now allows the "select" tag to create custom dropdown menus.
+
+### 🐞 Fixed
+
+- **Help**: Links in the Help Modal now correctly open in your system's external web browser instead of trying to load inside the application window.
+- **Modals**: Fixed an issue where the application would accidentally close a modal if you started a text selection inside the window but released the mouse button on the backdrop.
+- **Infoboxes**: Improved the layout of infobox headers so that titles now center perfectly. Control buttons are now positioned independently so they no longer push the title off-center.
+
+### 🔄 Changed
+
+- **UI Components**: Replaced all standard browser dropdown menus with custom-designed "Themed Select" components. These new menus fully support keyboard navigation, offer smoother mouse interactions, and perfectly match the application's visual style.
+- **Maps**: Performed a major architectural overhaul of the map system to improve performance, caching, and overall stability.
+
+---
+
 ## [v0.49.2-alpha] - 2026-04-21
 
 ### ✨ Added
