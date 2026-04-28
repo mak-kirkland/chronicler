@@ -389,6 +389,13 @@ pub fn get_user_fonts(app_handle: AppHandle) -> Result<Vec<fonts::UserFont>> {
     fonts::get_user_fonts(&app_handle)
 }
 
+/// Copies a user-picked font file into the app's managed fonts directory.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn install_user_font(app_handle: AppHandle, source: String) -> Result<fonts::UserFont> {
+    fonts::install_user_font(&app_handle, std::path::Path::new(&source))
+}
+
 // --- Telemetry / Privacy ---
 
 /// Returns the user's telemetry choice. `None` means they haven't been asked

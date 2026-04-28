@@ -174,6 +174,7 @@ fn main() {
             commands::get_all_broken_images,
             commands::get_all_parse_errors,
             commands::get_user_fonts,
+            commands::install_user_font,
             commands::open_log_directory,
             commands::get_telemetry_enabled,
             commands::set_telemetry_enabled,

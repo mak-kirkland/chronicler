@@ -15,6 +15,8 @@
     } from "$lib/settingsStore";
     import { AVAILABLE_FONTS } from "$lib/themeRegistry";
     import { loadAllUserFonts } from "$lib/fonts";
+    import { open } from "@tauri-apps/plugin-dialog";
+    import { installUserFont } from "$lib/commands";
     import { openModal, closeModal } from "$lib/modalStore";
     import { licenseStore } from "$lib/licenseStore";
     import Button from "$lib/components/ui/Button.svelte";
@@ -47,6 +49,10 @@
     // App Info State
     let appVersion = $state<string | null>(null);
     let showChangelog = $state(false);
+
+    // "Add Font…" status
+    let isInstallingFont = $state(false);
+    let fontInstallMessage = $state<string | null>(null);
 
     // Telemetry toggle state. `telemetryLoaded` guards the auto-save effect
     // so the default `false` doesn't overwrite the real value during mount.
@@ -158,6 +164,55 @@
                 onClose: closeModal,
             },
         });
+    }
+
+    /**
+     * Opens an OS file picker, copies the selected font file(s) into the
+     * managed fonts directory, and refreshes the dropdown.
+     */
+    async function handleAddFont() {
+        if (isInstallingFont) return;
+        try {
+            const selected = await open({
+                multiple: true,
+                filters: [
+                    {
+                        name: "Font",
+                        extensions: ["ttf", "otf", "woff2"],
+                    },
+                ],
+            });
+            if (!selected) return;
+            const paths = Array.isArray(selected) ? selected : [selected];
+            if (paths.length === 0) return;
+
+            isInstallingFont = true;
+            fontInstallMessage = null;
+
+            const failures: string[] = [];
+            for (const path of paths) {
+                try {
+                    await installUserFont(path);
+                } catch (e) {
+                    console.error(`Failed to install font '${path}':`, e);
+                    failures.push(path);
+                }
+            }
+
+            await loadAllUserFonts(true);
+
+            const installed = paths.length - failures.length;
+            if (failures.length === 0) {
+                fontInstallMessage = `Added ${installed} font${installed === 1 ? "" : "s"}.`;
+            } else {
+                fontInstallMessage = `Added ${installed} of ${paths.length} fonts. ${failures.length} could not be read.`;
+            }
+        } catch (e) {
+            console.error("Add font failed:", e);
+            fontInstallMessage = "Failed to add font.";
+        } finally {
+            isInstallingFont = false;
+        }
     }
 
     /**
@@ -277,6 +332,25 @@
                             bind:value={$bodyFont}
                         />
                     </div>
+                </div>
+
+                <!-- Custom Fonts -->
+                <div class="form-group">
+                    <div class="custom-font-row">
+                        <Button
+                            onclick={handleAddFont}
+                            disabled={isInstallingFont}
+                        >
+                            {isInstallingFont ? "Adding…" : "Add Font…"}
+                        </Button>
+                        <span class="setting-description">
+                            Pick a `.ttf`, `.otf`, or `.woff2` file to add it
+                            to the dropdowns above.
+                        </span>
+                    </div>
+                    {#if fontInstallMessage}
+                        <p class="import-message">{fontInstallMessage}</p>
+                    {/if}
                 </div>
 
                 <!-- Font Size Slider -->
@@ -538,5 +612,11 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1rem;
+    }
+    .custom-font-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
     }
 </style>
