@@ -15,7 +15,7 @@
 //! sanitizer, silently breaking selection. `ttf-parser` is pure Rust with no
 //! platform dispatch, so the parsed name is identical on every OS.
 
-use crate::error::Result;
+use crate::error::{ChroniclerError, Result};
 use crate::utils::serialize_pathbuf_as_web_str;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -84,6 +84,47 @@ pub fn get_user_fonts(app_handle: &AppHandle) -> Result<Vec<UserFont>> {
     user_fonts.sort_by(|a, b| a.name.cmp(&b.name));
 
     Ok(user_fonts)
+}
+
+/// Copies a font file picked by the user into the managed `fonts/` directory
+/// and returns the resulting `UserFont`. The caller is responsible for
+/// triggering a frontend refresh after a successful install.
+///
+/// If the destination filename already exists, this overwrites it — the user
+/// explicitly chose this file, and `get_user_fonts` already dedupes by display
+/// name so a duplicate copy would just silently disappear from the dropdown.
+pub fn install_user_font(app_handle: &AppHandle, source: &Path) -> Result<UserFont> {
+    if !source.is_file() {
+        return Err(ChroniclerError::FileNotFound(source.to_path_buf()));
+    }
+
+    let ext_ok = source
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|e| VALID_EXTENSIONS.contains(&e.to_lowercase().as_str()))
+        .unwrap_or(false);
+    if !ext_ok {
+        return Err(ChroniclerError::InvalidPath(source.to_path_buf()));
+    }
+
+    let file_name = source
+        .file_name()
+        .ok_or_else(|| ChroniclerError::InvalidPath(source.to_path_buf()))?;
+
+    let fonts_dir = app_handle.path().app_config_dir()?.join("fonts");
+    fs::create_dir_all(&fonts_dir)?;
+
+    let dest = fonts_dir.join(file_name);
+
+    // Avoid copying a file onto itself if the user re-picks an already-installed font.
+    if source != dest {
+        fs::copy(source, &dest)?;
+    }
+
+    let name =
+        resolve_font_name(&dest).ok_or_else(|| ChroniclerError::InvalidPath(dest.clone()))?;
+
+    Ok(UserFont { name, path: dest })
 }
 
 /// Resolves the display name for a font file, trying the parsed OpenType

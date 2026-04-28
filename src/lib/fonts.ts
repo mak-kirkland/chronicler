@@ -191,11 +191,13 @@ export async function loadActiveFonts() {
 /**
  * Fetches the *full list* of user fonts and populates the store
  * for the settings modal dropdown.
+ *
+ * Pass `force=true` after installing a new font so the cache is bypassed and
+ * the new file is picked up.
  */
-export async function loadAllUserFonts() {
+export async function loadAllUserFonts(force = false) {
     try {
-        // Get all fonts (populates store/cache if empty)
-        const fonts = await getAllUserFonts();
+        const fonts = await getAllUserFonts(force);
         // We also inject them all here, so they are available for theme previews.
         await injectFontFaces(fonts);
     } catch (e) {

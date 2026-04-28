@@ -344,6 +344,13 @@ export const getAppUsageDays = () => invoke<number>("get_app_usage_days");
  */
 export const getUserFonts = () => invoke<UserFont[]>("get_user_fonts");
 
+/**
+ * Copies a user-picked font file into the app's managed fonts directory.
+ * @param source The absolute path of the font file to install.
+ */
+export const installUserFont = (source: string) =>
+    invoke<UserFont>("install_user_font", { source });
+
 // --- Telemetry / Privacy Commands ---
 
 /**
