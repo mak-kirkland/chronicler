@@ -152,8 +152,7 @@ You can also set a custom title for the header, start the insert hidden, or remo
 
 Use templates to create new pages with a pre-defined structure, saving you time and ensuring consistency across your vault. For example, you could have templates for characters, locations, or session notes, each with pre-defined YAML frontmatter and section headings.
 
-- **Manage Templates**: Go to **Settings → Manage Templates** to create and edit them.
-- **Automatic Title**: Use the `{{title}}` placeholder in a template. It will be automatically replaced with the new page's name.
+Go to **Settings → Manage Templates** to create and edit them.
 
 ---
 
