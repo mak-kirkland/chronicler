@@ -72,5 +72,12 @@ dunce = "1.0.5"
 rayon = "1.11.0"
 trash = "5.2.5"
 image = "0.25.10"
+# Used by `migration.rs` to resolve legacy bundle paths under the previous
+# identifier. Tauri's own path resolver always uses the *current* bundle ID,
+# so to find the old install's data we mirror Tauri 2's resolution by joining
+# the platform base dirs (`dirs::config_dir`/`dirs::data_dir`) with the old
+# identifier ourselves. Pinned to match the version Tauri already pulls in
+# transitively.
+dirs = "6"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
