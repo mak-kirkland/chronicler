@@ -8,6 +8,7 @@
 )]
 
 use clap::Parser;
+use std::env;
 use std::path::Path;
 use tauri::{AppHandle, Manager}; // Required for the app handle and runtime scope management.
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
@@ -51,6 +52,15 @@ struct Args {
 /// and configures and runs the Tauri application, setting up the
 /// necessary state and command handlers.
 fn main() {
+    // Workaround for the Webkit bug on Nvidia Wayland based systems:
+    // Error 71 (Protocol error) dispatching to Wayland display.
+    match env::var("XDG_SESSION_TYPE") {
+        Ok(val) if val.to_lowercase() == "wayland".to_string() => unsafe {
+            env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1")
+        },
+        _ => (),
+    }
+
     let args = Args::parse();
 
     // Load environment variables from .env file in debug builds
