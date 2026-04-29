@@ -163,9 +163,9 @@ This section covers customization for your workflow and the appearance of your p
 ### ⚙️ Application Settings Directory
 Chronicler stores global settings, themes and fonts in a dedicated folder on your computer. You can find it here:
 
-- **Windows**: `%AppData%\io.github.mak-kirkland.chronicler\`
-- **Linux**: `~/.local/share/io.github.mak-kirkland.chronicler/`
-- **macOS**: `~/Library/Application Support/io.github.mak-kirkland.chronicler/`
+- **Windows**: `%AppData%\pro.chronicler\`
+- **Linux**: `~/.local/share/pro.chronicler/`
+- **macOS**: `~/Library/Application Support/pro.chronicler/`
 
 ---
 

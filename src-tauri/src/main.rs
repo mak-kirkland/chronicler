@@ -25,6 +25,7 @@ mod importer;
 mod indexer;
 mod licensing;
 mod mediawiki_importer;
+mod migration;
 mod models;
 mod parser;
 mod renderer;
@@ -78,6 +79,16 @@ fn main() {
             // --- Set up tracing (logging) ---
             // This is done inside setup to get access to the app's log directory.
             setup_tracing(&args, app_handle)?;
+
+            // --- Legacy-identifier migration ---
+            // Must run *before* any code reads from `app_config_dir` /
+            // `app_data_dir`, so the rest of startup sees the migrated
+            // config rather than a fresh one. Failures are non-fatal:
+            // the legacy directories are left untouched, so the user can
+            // always relaunch the previous build to recover.
+            if let Err(e) = migration::run(app_handle) {
+                tracing::warn!("Legacy-identifier migration could not run: {e}");
+            }
 
             // On startup, we read the config file to see if a vault path was
             // saved from a previous session.

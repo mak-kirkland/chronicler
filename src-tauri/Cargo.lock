@@ -569,6 +569,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "clap",
+ "dirs",
  "dotenvy",
  "dunce",
  "ed25519-dalek",
