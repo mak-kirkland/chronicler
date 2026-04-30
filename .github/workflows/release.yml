@@ -101,6 +101,12 @@ jobs:
                   # Keygen licensing
                   KEYGEN_PRODUCT_TOKEN: ${{ secrets.KEYGEN_PRODUCT_TOKEN }}
                   LICENSE_SECRET: ${{ secrets.LICENSE_SECRET }}
+                  # Emit line-table debug info on Windows only so a sidecar
+                  # `chronicler.pdb` is generated alongside the .exe (uploaded
+                  # below). Linux/macOS skip this to avoid bloating the
+                  # bundled binary - those platforms don't have an automatic
+                  # crash-offset capture mechanism we can symbolise anyway.
+                  RUSTFLAGS: ${{ matrix.platform == 'windows-latest' && '-C debuginfo=line-tables-only' || '' }}
               with:
                   # Pass the target triple to the build command
                   args: --target ${{ matrix.target }}
@@ -114,7 +120,22 @@ jobs:
                   releaseBody: ${{ steps.read_full_changelog.outputs.changes }}
                   releaseDraft: true # It's safest to create a draft first
 
-            # Step 8.5: Create a file with the installation notes to avoid shell parsing errors.
+            # Step 8.5: Upload the Windows PDB (debug symbols) to the draft release.
+            # Allows us to resolve fault offsets in user-reported Windows crashes.
+            - name: Upload Windows PDB to release
+              if: matrix.platform == 'windows-latest'
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              shell: bash
+              run: |
+                  pdb="src-tauri/target/${{ matrix.target }}/release/chronicler.pdb"
+                  if [ ! -f "$pdb" ]; then
+                    echo "Expected PDB at $pdb but it was not generated." >&2
+                    exit 1
+                  fi
+                  gh release upload "${{ github.ref_name }}" "$pdb" --clobber
+
+            # Step 8.6: Create a file with the installation notes to avoid shell parsing errors.
             - name: Create installation notes file
               shell: bash
               run: |

@@ -237,7 +237,10 @@ fn apply_linux_compat_env() {
 #[cfg(not(target_os = "linux"))]
 fn apply_linux_compat_env() {}
 
-/// Sets up the tracing subscriber for logging to both console and a rotating file.
+/// Sets up the tracing subscriber for logging to both console and a rotating
+/// file, and installs a panic hook that funnels Rust panics into the same
+/// log so they survive in user bug reports (the default hook only prints to
+/// stderr, which is invisible for users launching the bundled app).
 fn setup_tracing(args: &Args, app_handle: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let log_level = if args.debug { "debug" } else { "info" };
     let filter = EnvFilter::try_from_default_env()
@@ -270,6 +273,12 @@ fn setup_tracing(args: &Args, app_handle: &AppHandle) -> Result<(), Box<dyn std:
         .with(console_layer)
         .with(file_layer)
         .init();
+
+    // Capture Rust panics into the rolling log.
+    std::panic::set_hook(Box::new(|info| {
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        tracing::error!("PANIC: {info}\nBacktrace:\n{backtrace}");
+    }));
 
     Ok(())
 }
