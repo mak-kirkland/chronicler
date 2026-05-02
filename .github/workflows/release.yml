@@ -100,7 +100,7 @@ jobs:
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
                   # Keygen licensing
                   KEYGEN_PRODUCT_TOKEN: ${{ secrets.KEYGEN_PRODUCT_TOKEN }}
-                  LICENSE_SECRET: ${{ secrets.LICENSE_SECRET }}
+                  KEYGEN_PUBLIC_KEY: ${{ secrets.KEYGEN_PUBLIC_KEY }}
                   # Emit line-table debug info on Windows only so a sidecar
                   # `chronicler.pdb` is generated alongside the .exe (uploaded
                   # below). Linux/macOS skip this to avoid bloating the

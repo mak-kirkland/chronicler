@@ -705,7 +705,6 @@ dependencies = [
  "flate2",
  "glob",
  "hex",
- "hmac",
  "html-escape",
  "image",
  "machine-uid",
