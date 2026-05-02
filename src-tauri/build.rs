@@ -12,11 +12,21 @@ fn main() {
         println!("cargo:warning=❌ KEYGEN_PRODUCT_TOKEN was not set in the build environment.");
     }
 
-    // --- Handle LICENSE_SECRET ---
-    if let Ok(secret) = std::env::var("LICENSE_SECRET") {
-        println!("cargo:rustc-env=LICENSE_SECRET={}", secret);
+    // --- Handle KEYGEN_PUBLIC_KEY ---
+    // This is the *public* verification key for the Keygen account that
+    // signs license certificates. It is NOT a secret - it can only verify
+    // signatures, not produce them.
+    if let Ok(pk) = std::env::var("KEYGEN_PUBLIC_KEY") {
+        println!("cargo:rustc-env=KEYGEN_PUBLIC_KEY={}", pk);
     } else {
-        println!("cargo:warning=❌ LICENSE_SECRET was not set in the build environment.");
+        println!(
+            "cargo:warning=⚠️ KEYGEN_PUBLIC_KEY not set; license verification will fail at runtime."
+        );
+        // Compile-time placeholder so dev builds without licensing still
+        // compile. Verification will reject every certificate against this.
+        println!(
+            "cargo:rustc-env=KEYGEN_PUBLIC_KEY=0000000000000000000000000000000000000000000000000000000000000000"
+        );
     }
 
     // --- Handle CHRONICLER_ANALYTICS_SALT ---

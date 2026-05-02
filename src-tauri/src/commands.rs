@@ -276,9 +276,9 @@ pub async fn verify_and_store_license(
     app_handle: AppHandle,
     license_key: String,
 ) -> Result<License> {
-    let license = licensing::validate_license(&license_key).await?;
-    licensing::save_license(&app_handle, &license)?;
-    Ok(license)
+    let validated = licensing::validate_license(&license_key).await?;
+    licensing::save_license(&app_handle, &validated)?;
+    Ok(validated.license)
 }
 
 // --- System ---
