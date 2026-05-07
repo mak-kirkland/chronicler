@@ -2,6 +2,25 @@
 
 ---
 
+## [v0.51.0-alpha] - 2026-05-05
+
+### ✨ Added
+
+- **Internal**: Implemented new crash-debugging infrastructure to better capture and diagnose native application crashes, including automatic panic logging and support for generating crash dumps on Windows.
+
+### 🐞 Fixed
+
+- **Internal**: Hardened the configuration system to prevent file corruption during sudden power loss or system freezes. The application can now also automatically detect and recover from damaged settings files.
+- **Linux**: Added automatic detection and compatibility fixes for NVIDIA drivers on Linux to prevent "white-screen" rendering issues.
+- **Infoboxes**: Restored the ability for infoboxes to automatically use the file name as a title when an explicit title has not been specified in the page settings.
+
+### 🔄 Changed
+
+- **(BREAKING) Licensing**: Upgraded the license verification system to use a more secure, modern signature format. **Note: This is a breaking change and requires you to re-validate your license on first launch.**
+- **(BREAKING) Internal**: Updated the application's internal data storage paths to use `pro.chronicler` instead of the old `io.github.mak-kirkland.chronicler`. Your configuration, fonts, and logs will be automatically migrated to the new location on first launch. **Note: This is a breaking change for anyone running scripts or syncs relying on the previous location.**
+
+---
+
 ## [v0.50.0-alpha] - 2026-04-28
 
 ### ✨ Added
