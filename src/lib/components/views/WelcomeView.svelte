@@ -75,9 +75,10 @@
                 > to ask questions and share your work.
             </p>
             <p>
-                🐞 Found a bug? Have a feature request? Please <a
-                    href="https://github.com/mak-kirkland/chronicler/issues"
-                    onclick={handleContentClick}>open an issue on GitHub.</a
+                🐞 Found a bug? Have a feature request? Please create a thread
+                in the relevant forum on<a
+                    href="https://discord.gg/cXJwcbe2b7"
+                    onclick={handleContentClick}>Discord.</a
                 >
             </p>
         </div>
