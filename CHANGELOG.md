@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.51.1-alpha] - 2026-05-8
+
+### ✨ Added
+
+- **Linux**: Introduced support for Flatpak distribution! Linux users can now install Chronicler through a self-hosted repository, providing improved stability and compatibility across different systems.
+
+---
+
 ## [v0.51.0-alpha] - 2026-05-05
 
 ### ✨ Added
