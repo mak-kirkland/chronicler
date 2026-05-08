@@ -2,6 +2,6 @@
 Title=Chronicler
 Name=pro.chronicler.Chronicler
 Branch=stable
-Url=https://mak-kirkland.github.io/chronicler/repo/
+Url=https://flatpak.chronicler.pro/repo/
 RuntimeRepo=https://flathub.org/repo/flathub.flatpakrepo
 IsRuntime=false
