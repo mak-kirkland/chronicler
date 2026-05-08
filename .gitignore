@@ -9,3 +9,10 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 *~
+
+# Flatpak build artifacts
+/flatpak/chronicler.deb
+/.flatpak-builder/
+/build-dir/
+/site/
+*.flatpak

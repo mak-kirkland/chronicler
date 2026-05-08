@@ -14,11 +14,20 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Preview from "$lib/components/views/Preview.svelte";
 
-    let { update, manualUpdateRequired, onClose } = $props<{
+    let { update, installType, onClose } = $props<{
         update: Update;
-        manualUpdateRequired: boolean;
+        // null on macOS/Windows; "appimage" | "flatpak" | "other" on Linux.
+        installType: string | null;
         onClose: () => void;
     }>();
+
+    // Flatpak and system-package installs (.deb/.rpm/AUR) must update via
+    // their respective package managers — the in-app updater would either
+    // fail (Flatpak's /app is read-only) or step on the system package
+    // database (.deb/.rpm).
+    const manualUpdateRequired = $derived(
+        installType === "other" || installType === "flatpak",
+    );
 
     let isUpdating = $state(false);
     let installError = $state<string | null>(null);
@@ -72,14 +81,30 @@
     {#if manualUpdateRequired}
         <div class="manual-update-notice">
             <p><strong>Manual Update Required</strong></p>
-            <p class="text-sm">
-                Since you installed via a system package manager (.deb or .rpm),
-                please download the latest version from our releases page.
-            </p>
+            {#if installType === "flatpak"}
+                <p class="text-sm">
+                    You're running the Flatpak version of Chronicler. To
+                    update, run this in a terminal:
+                </p>
+                <pre
+                    class="update-command"><code>flatpak update pro.chronicler.Chronicler</code></pre>
+                <p class="text-sm">
+                    Or open your software center (GNOME Software, KDE
+                    Discover) — it will show the update once it refreshes the
+                    Chronicler remote.
+                </p>
+            {:else}
+                <p class="text-sm">
+                    Since you installed via a system package manager (.deb or .rpm),
+                    please download the latest version from our releases page.
+                </p>
+            {/if}
         </div>
         <div class="button-group">
             <Button onclick={onClose}>Later</Button>
-            <Button onclick={openReleasePage}>Go to Downloads</Button>
+            {#if installType !== "flatpak"}
+                <Button onclick={openReleasePage}>Go to Downloads</Button>
+            {/if}
         </div>
     {:else}
         {#if installError}
@@ -141,6 +166,17 @@
     .manual-update-notice .text-sm {
         font-size: 0.9rem;
         opacity: 0.9;
+    }
+    .update-command {
+        background-color: var(--color-background-primary);
+        border: 1px solid var(--color-border-primary);
+        border-radius: 4px;
+        padding: 0.5rem 0.75rem;
+        margin: 0.5rem 0;
+        font-family: monospace;
+        font-size: 0.85rem;
+        overflow-x: auto;
+        user-select: text;
     }
     .button-group {
         display: flex;

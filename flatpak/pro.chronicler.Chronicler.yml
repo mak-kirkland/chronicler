@@ -1,0 +1,79 @@
+# Flatpak manifest for Chronicler.
+#
+# Strategy: take the Linux .deb that the Tauri release pipeline
+# produces and repackage it as a Flatpak. We don't build from source
+# because we self-host (no Flathub submission), and the real win of
+# Flatpak for us isn't sandboxing — it's running the same binary
+# against the coherent org.gnome.Platform runtime so the
+# libwayland/webkit2gtk/Mesa version-skew that causes white-screens in
+# AppImage builds on rolling distros goes away.
+#
+# To build locally:
+#   1. cp src-tauri/target/.../bundle/deb/Chronicler_*.deb flatpak/chronicler.deb
+#   2. flatpak-builder --user --install --force-clean build-dir \
+#        flatpak/pro.chronicler.Chronicler.yml
+#
+# Runtime constraint: the runtime version below must ship
+# `libwebkit2gtk-4.1.so.0` because Tauri 2 links against it. If a
+# future bump drops webkit2gtk-4.1, add it as a separate module here
+# rather than falling back to an EOL runtime.
+
+app-id: pro.chronicler.Chronicler
+runtime: org.gnome.Platform
+runtime-version: "49"
+sdk: org.gnome.Sdk
+command: chronicler
+
+finish-args:
+    - --socket=wayland
+    - --socket=fallback-x11
+    - --share=ipc
+    - --device=dri
+    - --share=network
+    # --filesystem=host is intentional: vaults are arbitrary user folders
+    # and frequently live on external drives or non-home mounts. Tightening
+    # to --filesystem=home would break those users.
+    - --filesystem=host
+
+modules:
+    - name: chronicler
+      buildsystem: simple
+      sources:
+          # Local .deb staged by the release workflow. Path is relative
+          # to this manifest file (i.e. resolves to flatpak/chronicler.deb).
+          - type: file
+            path: chronicler.deb
+
+          - type: file
+            path: pro.chronicler.Chronicler.metainfo.xml
+
+      build-commands:
+          - ar x chronicler.deb
+          - mkdir -p extract
+          - tar -xf data.tar.* -C extract
+
+          - install -Dm755 extract/usr/bin/chronicler /app/bin/chronicler
+
+          # Rename icons to the Flatpak App ID (required for the desktop
+          # file's Icon= entry to resolve), then copy them in. The mkdir is
+          # load-bearing: with /app/share absent, `cp -r src/icons /app/share/`
+          # creates /app/share AS a copy of icons/ (so /app/share/hicolor/...
+          # instead of /app/share/icons/hicolor/...). Pre-creating the parent
+          # forces cp's "copy into existing dir" semantics.
+          - |
+              find extract/usr/share/icons -name 'chronicler.png' \
+                -execdir mv chronicler.png "${FLATPAK_ID}.png" \;
+              mkdir -p /app/share
+              cp -r extract/usr/share/icons /app/share/
+
+          - |
+              sed -e "s/^Icon=.*/Icon=${FLATPAK_ID}/" \
+                  -e "s/^Exec=.*/Exec=chronicler %U/" \
+                  extract/usr/share/applications/Chronicler.desktop \
+                  > "${FLATPAK_ID}.desktop"
+              install -Dm644 "${FLATPAK_ID}.desktop" \
+                "/app/share/applications/${FLATPAK_ID}.desktop"
+
+          - |
+              install -Dm644 pro.chronicler.Chronicler.metainfo.xml \
+                "/app/share/metainfo/${FLATPAK_ID}.metainfo.xml"

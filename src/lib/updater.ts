@@ -25,21 +25,15 @@ export async function checkForAppUpdates() {
 
         if (update) {
             const platformName = platform();
-            let manualUpdateRequired = false;
-
-            if (platformName === "linux") {
-                const installType = await getLinuxInstallType();
-                if (installType !== "appimage") {
-                    manualUpdateRequired = true;
-                }
-            }
+            const installType =
+                platformName === "linux" ? await getLinuxInstallType() : null;
 
             console.log(`Update found: ${update.version}`);
             openModal({
                 component: UpdateModal,
                 props: {
                     update,
-                    manualUpdateRequired,
+                    installType,
                     onClose: closeModal,
                 },
             });
