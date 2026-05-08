@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream MetaInfo for Chronicler. Schema:
+  https://www.freedesktop.org/software/appstream/docs/
+
+  Notes:
+    * project_license uses a LicenseRef custom URL because PolyForm Shield
+      1.0.0 has no SPDX identifier. AppStream allows this form.
+    * The <releases> block is a bootstrap placeholder; the release workflow
+      stamps the current tag/date over it on every build. We don't ship
+      per-version release notes here because GNOME Software is the only
+      consumer, and users get them from the in-app updater and GitHub.
+-->
+<component type="desktop-application">
+  <id>pro.chronicler.Chronicler</id>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary=https://polyformproject.org/licenses/shield/1.0.0/</project_license>
+
+  <name>Chronicler</name>
+  <summary>The free, offline worldbuilding tool for writers and GMs.</summary>
+
+  <description>
+    <p>
+      Chronicler is a private, offline worldbuilding tool for Windows,
+      macOS, and Linux built for writers, novelists, and tabletop RPG
+      game masters.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Markdown renderer.</li>
+      <li>Wiki-style links between pages, with backlinks and a knowledge graph.</li>
+      <li>Transclusion (insert one page into another) for reusable lore blocks.</li>
+      <li>Infoboxes - structured metadata cards rendered from frontmatter fields.</li>
+      <li>Custom themes and fonts.</li>
+      <li>Importers for .docx files and MediaWiki XML dumps.</li>
+      <li>Works completely offline. Your vault is just a folder of .md files you can back up, sync, or version-control however you like.</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">pro.chronicler.Chronicler.desktop</launchable>
+
+  <url type="homepage">https://chronicler.pro</url>
+  <url type="bugtracker">https://github.com/mak-kirkland/chronicler/issues</url>
+  <url type="vcs-browser">https://github.com/mak-kirkland/chronicler</url>
+  <url type="help">https://github.com/mak-kirkland/chronicler/blob/main/HELP.md</url>
+  <url type="donation">https://chronicler.pro/#support</url>
+
+  <developer id="pro.chronicler">
+    <name>Michael Kirkland</name>
+  </developer>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Castor - Character page</caption>
+      <image>https://chronicler.pro/images/Castor.webp</image>
+    </screenshot>
+    <screenshot>
+      <caption>Bridgetown - Location page</caption>
+      <image>https://chronicler.pro/images/Bridgetown.webp</image>
+    </screenshot>
+  </screenshots>
+
+  <categories>
+    <category>Office</category>
+    <category>WordProcessor</category>
+    <category>Utility</category>
+  </categories>
+
+  <keywords>
+    <keyword>markdown</keyword>
+    <keyword>notes</keyword>
+    <keyword>wiki</keyword>
+    <keyword>worldbuilding</keyword>
+    <keyword>writing</keyword>
+    <keyword>dnd</keyword>
+  </keywords>
+
+  <provides>
+    <binary>chronicler</binary>
+  </provides>
+
+  <!-- A worldbuilding/notes app has no rated content of its own. -->
+  <content_rating type="oars-1.1" />
+
+  <branding>
+    <color type="primary" scheme_preference="light">#f5e6c8</color>
+    <color type="primary" scheme_preference="dark">#2b2520</color>
+  </branding>
+
+  <!--
+    Bootstrap placeholder. The release workflow overwrites the entire
+    <releases> block on every tag push (see .github/workflows/release.yml).
+    Keep this single self-closing <release/> shape — the stamping step
+    rewrites the whole block, so any per-version <description> added here
+    will be discarded on the next release.
+  -->
+  <releases>
+    <release version="0.50.0" date="2026-04-29" />
+  </releases>
+</component>

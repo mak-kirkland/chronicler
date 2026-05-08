@@ -16,6 +16,16 @@ on:
     # Allows you to run this workflow manually from the Actions tab
     workflow_dispatch:
 
+env:
+    # Public URL of the self-hosted Flatpak repo. Used by both
+    # release-tauri (to embed install instructions in release notes) and
+    # release-flatpak (to template the .flatpakref / index.html).
+    #
+    # This URL is baked permanently into every installed user's OSTree
+    # remote config, so changing it breaks `flatpak update` for existing
+    # users until they remove + re-add the remote. Treat it as load-bearing.
+    PAGES_URL: https://flatpak.chronicler.pro
+
 jobs:
     # The main job that builds and releases the application for multiple platforms
     release-tauri:
@@ -42,7 +52,9 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
 
-            # Step 2: Install Linux-specific dependencies (only on Linux runners)
+            # Step 2: Install Linux-specific dependencies (only on Linux runners).
+            # Flatpak tooling is NOT installed here; it lives in the dedicated
+            # `release-flatpak` job which runs in a Flathub-published container.
             - name: Install dependencies (Linux)
               if: matrix.platform == 'ubuntu-22.04'
               run: |
@@ -135,17 +147,34 @@ jobs:
                   fi
                   gh release upload "${{ github.ref_name }}" "$pdb" --clobber
 
-            # Step 8.6: Create a file with the installation notes to avoid shell parsing errors.
-            - name: Create installation notes file
+            # Step 8.6: Replace the auto-generated release notes with the
+            # latest changelog entry plus static installation instructions.
+            # Linux-only — runs once per release.
+            - name: Update release notes
+              if: matrix.platform == 'ubuntu-22.04'
               shell: bash
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  LATEST_CHANGES: ${{ steps.read_latest_changelog.outputs.changes }}
               run: |
-                  cat > INSTALL_NOTES.md <<'EOF'
+                  echo "$LATEST_CHANGES" > FINAL_RELEASE_NOTES.md
+                  cat >> FINAL_RELEASE_NOTES.md <<EOF
 
                   ## Installation & Notes
 
-                  - **💻 Windows**: Download the `.msi` file to install.
-                  - **🐧 Linux**: Download the `.AppImage` (for most distributions) or the `.deb` / `.rpm` file for your package manager.
-                  - **🍎 macOS**: Download the `aarch64.dmg` (Apple Silicon) or `x64.dmg` (Intel) file.
+                  - **💻 Windows**: Download the \`.msi\` file to install.
+                  - **🐧 Linux**: Download the \`.AppImage\` (for most distributions) or the \`.deb\` / \`.rpm\` file for your package manager. For Flatpak, see below.
+                  - **🍎 macOS**: Download the \`aarch64.dmg\` (Apple Silicon) or \`x64.dmg\` (Intel) file.
+
+                  ### 📦 Flatpak (recommended on rolling distros)
+                  Adds Chronicler as a Flatpak remote so future updates flow through \`flatpak update\`:
+                  \`\`\`sh
+                  flatpak install --user --from ${PAGES_URL}/chronicler.flatpakref
+                  \`\`\`
+                  Or one-shot install the bundle from this release:
+                  \`\`\`sh
+                  flatpak install --user Chronicler.flatpak
+                  \`\`\`
 
                   ---
 
@@ -157,32 +186,141 @@ jobs:
                   ### 🍎 A Note for macOS Users
                   Chronicler for macOS is currently **unsigned**. The first time you open it, you will need to run a command in the Terminal.
 
-                  1.  **Download** the `.dmg` file and move the app to your **Applications** folder.
+                  1.  **Download** the \`.dmg\` file and move the app to your **Applications** folder.
                   2.  **Open the Terminal** app.
                   3.  **Run this command**:
-                      ```sh
+                      \`\`\`sh
                       sudo xattr -rd com.apple.quarantine /Applications/chronicler.app
-                      ```
+                      \`\`\`
                   4.  The app will now open correctly.
 
                   ### 🛡️ Security & Trust
                   While the initial installer is unsigned, all in-app updates are cryptographically signed by me. This is handled by [Tauri's built-in updater](https://tauri.app/plugin/updater), which verifies the update signature before installing it. This ensures that all future updates are authentic and have not been tampered with.
                   EOF
-
-            # Step 9: Update the public GitHub Release notes using a notes file
-            - name: Update release notes for clarity
-              if: matrix.platform == 'ubuntu-22.04' # Run this step only once
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  LATEST_CHANGES: ${{ steps.read_latest_changelog.outputs.changes }}
-              shell: bash
-              run: |
-                  # Write the content from the environment variable to the final notes file.
-                  # Using an env var is safer for multi-line content.
-                  echo "$LATEST_CHANGES" > FINAL_RELEASE_NOTES.md
-
-                  # Append the static installation notes.
-                  cat INSTALL_NOTES.md >> FINAL_RELEASE_NOTES.md
-
-                  # Use the --notes-file flag to pass the content safely, avoiding shell parsing errors.
                   gh release edit ${{ github.ref_name }} --notes-file FINAL_RELEASE_NOTES.md
+
+            # Hand the freshly-built .deb off to the `release-flatpak` job.
+            # That job runs in a Flathub-maintained container that has
+            # flatpak-builder + the GNOME 49 SDK pre-installed, so it can't
+            # rebuild the Tauri app itself — it only needs the .deb to repack.
+            - name: Upload .deb for Flatpak job
+              if: matrix.platform == 'ubuntu-22.04'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: chronicler-deb
+                  path: src-tauri/target/${{ matrix.target }}/release/bundle/deb/Chronicler_*_amd64.deb
+                  if-no-files-found: error
+                  retention-days: 1
+
+    # Flatpak build & publish. Doesn't rebuild from source — repacks the .deb
+    # produced above against the GNOME 49 runtime (cures rolling-distro
+    # white-screens). The container ships flatpak-builder + the GNOME 49
+    # SDK, so we don't need any host-side apt installs or runtime caching.
+    release-flatpak:
+        needs: release-tauri
+        runs-on: ubuntu-22.04
+        permissions:
+            contents: write
+        container:
+            image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-49
+            options: --privileged
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Download .deb artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: chronicler-deb
+                  path: flatpak/
+
+            # The manifest expects the .deb at flatpak/chronicler.deb regardless
+            # of version, so rename whatever versioned file we got.
+            - name: Stage .deb at expected name
+              run: mv flatpak/Chronicler_*_amd64.deb flatpak/chronicler.deb
+
+            # Pull the existing gh-pages contents into ./site so flatpak-builder
+            # writes new OSTree commits *into* the existing repo (preserving
+            # static deltas for older versions). On the very first run the
+            # branch may not exist yet — that's fine.
+            - name: Restore prior gh-pages contents
+              run: |
+                  mkdir -p site
+                  if git ls-remote --exit-code "https://github.com/${{ github.repository }}.git" refs/heads/gh-pages >/dev/null 2>&1; then
+                    git clone --depth=1 --branch=gh-pages "https://github.com/${{ github.repository }}.git" tmp-pages
+                    cp -a tmp-pages/. site/
+                    rm -rf tmp-pages site/.git
+                  fi
+
+            # AppStream requires a <releases> element for desktop-application
+            # components, but GNOME Software's "what's new" panel is the only
+            # consumer that benefits from rich per-version notes -- and our
+            # users get those from the in-app updater and the GitHub release
+            # page. So we replace the entire <releases> block with a single
+            # self-closing <release/> for the current tag and call it done.
+            - name: Stamp version into metainfo
+              env:
+                  VERSION: ${{ github.ref_name }}
+              run: |
+                  version="${VERSION#v}"
+                  date="$(date -u +%Y-%m-%d)"
+                  # Use sed -z (GNU) to match the whole <releases> block across
+                  # newlines, while requiring the actual self-closing <release/>
+                  # shape so the regex doesn't accidentally consume any prose
+                  # that mentions <releases> in surrounding comments.
+                  sed -i -zE \
+                    "s|<releases>[[:space:]]*<release[[:space:]][^/]*/>[[:space:]]*</releases>|<releases>\n    <release version=\"${version}\" date=\"${date}\" />\n  </releases>|" \
+                    flatpak/pro.chronicler.Chronicler.metainfo.xml
+                  appstreamcli validate \
+                    --no-net \
+                    flatpak/pro.chronicler.Chronicler.metainfo.xml
+
+            - name: Build Flatpak
+              uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+              with:
+                  bundle: Chronicler.flatpak
+                  manifest-path: flatpak/pro.chronicler.Chronicler.yml
+                  repo-dir: site/repo
+                  branch: stable
+
+            # The action exports to the repo but doesn't generate static deltas,
+            # which `flatpak update` uses for incremental downloads.
+            #
+            # mkdir -p refs/remotes is a workaround for an OSTree repo
+            # restored from gh-pages: git doesn't preserve empty directories,
+            # so the empty refs/remotes/ that `ostree init` creates gets
+            # dropped on the round-trip, and `build-update-repo
+            # --generate-static-deltas` then dies enumerating it. Recreating
+            # is a no-op on the first run (the dir exists) and a fix on
+            # every subsequent run.
+            - name: Generate OSTree static deltas
+              run: |
+                  mkdir -p site/repo/refs/remotes
+                  flatpak build-update-repo --generate-static-deltas --prune site/repo
+
+            - name: Render gh-pages templates
+              run: |
+                  for f in chronicler.flatpakref index.html; do
+                    sed "s|\$PAGES_URL|${PAGES_URL}|g" \
+                        "flatpak/web/${f}" > "site/${f}"
+                  done
+
+            # JS-based action so we don't depend on `gh` being present in the
+            # container image. Finds the existing draft release by tag and
+            # appends Chronicler.flatpak to its assets.
+            - name: Upload Flatpak bundle to release
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ github.ref_name }}
+                  files: Chronicler.flatpak
+
+            - name: Deploy to GitHub Pages
+              uses: peaceiris/actions-gh-pages@v4
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  publish_dir: ./site
+                  publish_branch: gh-pages
+                  user_name: github-actions[bot]
+                  user_email: 41898282+github-actions[bot]@users.noreply.github.com
+                  commit_message: "chore(flatpak): publish ${{ github.ref_name }}"

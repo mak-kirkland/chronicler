@@ -283,18 +283,25 @@ pub async fn verify_and_store_license(
 
 // --- System ---
 
-/// Checks for the "APPIMAGE" environment variable to determine if the
-/// application is running as an AppImage on Linux.
+/// Detects how the running binary was installed on Linux. Used by the
+/// updater to decide whether the in-app installer is allowed (AppImage) or
+/// whether the user has to update via their package manager / `flatpak update`.
+///
+/// Returns one of: "appimage", "flatpak", or "other" (.deb, .rpm, AUR, etc.).
 #[command]
 #[instrument]
 pub fn get_linux_install_type() -> String {
+    // /.flatpak-info is created inside every Flatpak sandbox and is the
+    // canonical signal.
+    if std::path::Path::new("/.flatpak-info").exists() {
+        return "flatpak".to_string();
+    }
     // The APPIMAGE env var is set by the AppImage runtime.
     if std::env::var("APPIMAGE").is_ok() {
-        "appimage".to_string()
-    } else {
-        // This indicates it's likely a .deb, .rpm, or other system-managed package.
-        "other".to_string()
+        return "appimage".to_string();
     }
+    // .deb, .rpm, AUR, or anything else system-managed.
+    "other".to_string()
 }
 
 /// Checks the number of days the application has been in use.

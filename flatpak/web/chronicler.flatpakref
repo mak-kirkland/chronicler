@@ -1,0 +1,7 @@
+[Flatpak Ref]
+Title=Chronicler
+Name=pro.chronicler.Chronicler
+Branch=stable
+Url=$PAGES_URL/repo/
+RuntimeRepo=https://flathub.org/repo/flathub.flatpakrepo
+IsRuntime=false
