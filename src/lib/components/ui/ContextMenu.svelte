@@ -40,12 +40,18 @@
         {:else}
             <button
                 class="menu-item"
+                class:toggleable={action.checked !== undefined}
                 onclick={() => {
                     action.handler();
                     onClose();
                 }}
             >
-                {action.label}
+                {#if action.checked !== undefined}
+                    <span class="check" aria-hidden="true">
+                        {action.checked ? "✓" : ""}
+                    </span>
+                {/if}
+                <span class="label">{action.label}</span>
             </button>
         {/if}
     {/each}
@@ -74,6 +80,18 @@
         color: var(--color-text-primary);
         font-size: 0.8rem; /* Reduced from 1rem to match standard dropdowns */
         line-height: normal; /* Removed 1.5 line-height to reduce vertical bulk */
+    }
+    .menu-item.toggleable {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .check {
+        /* Reserve a fixed-width column so toggleable items stay aligned
+           whether the checkmark is visible or not. */
+        width: 0.9rem;
+        flex-shrink: 0;
+        text-align: center;
     }
     .menu-item:hover {
         background-color: var(--color-background-tertiary);
