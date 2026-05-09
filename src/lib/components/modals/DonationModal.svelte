@@ -4,6 +4,9 @@
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { exit } from "@tauri-apps/plugin-process";
     import { DONATE_URL } from "$lib/config";
+    import { closeModal } from "$lib/modalStore";
+
+    let { onDismiss = closeModal } = $props<{ onDismiss?: () => void }>();
 
     async function handleDonate() {
         await openUrl(DONATE_URL);
@@ -15,7 +18,11 @@
     }
 </script>
 
-<Modal title="Enjoying Chronicler?" showCloseButton={false}>
+<Modal
+    title="Enjoying Chronicler?"
+    showCloseButton={false}
+    onClose={onDismiss}
+>
     <div class="donation-content">
         <p>Thank you for using Chronicler!</p>
         <p>

@@ -23,7 +23,7 @@
     } from "$lib/settingsStore";
     import { THEME_PALETTE_KEYS } from "$lib/themeRegistry";
     import { licenseStore } from "$lib/licenseStore";
-    import { openModal } from "$lib/modalStore";
+    import { openModal, closeModal } from "$lib/modalStore";
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { initializeKeybindings } from "$lib/keybindings";
 
@@ -76,7 +76,18 @@
             if (hasFiredOnce) return;
             event.preventDefault();
             hasFiredOnce = true;
-            openModal({ component: DonationModal, props: {} });
+            openModal({
+                component: DonationModal,
+                props: {
+                    onDismiss: () => {
+                        // Reset so a subsequent close attempt re-shows the
+                        // modal — otherwise the app becomes unquittable after
+                        // the user dismisses via Escape or backdrop click.
+                        hasFiredOnce = false;
+                        closeModal();
+                    },
+                },
+            });
         });
 
         // The effect's cleanup function will run when the component is destroyed.
