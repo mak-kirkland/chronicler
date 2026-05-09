@@ -632,8 +632,7 @@ You can import `.docx` files from Microsoft Word directly into your vault.
 
 ### ❓ Need Help?
 
-- [Join the Discord community!](https://discord.gg/cXJwcbe2b7)
-- [GitHub Issues](https://github.com/mak-kirkland/chronicler/issues) for bugs or feature requests
+- [Join the Discord community!](https://discord.gg/cXJwcbe2b7) to ask for help, report bugs, or request new features.
 
 ---
 

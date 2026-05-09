@@ -198,7 +198,7 @@ Chronicler is built on three principles:
 
 ## 📫 Get in Touch
 
-- Bugs & Feature Requests: [GitHub Issues](https://github.com/mak-kirkland/chronicler/issues)
+- Bugs & Feature Requests: [Discord](https://discord.gg/cXJwcbe2b7)
 - Email: [mak.kirkland@proton.me](mailto:mak.kirkland@proton.me)
 - Discord: [Join here!](https://discord.gg/cXJwcbe2b7)
 - YouTube: [@chroniclerpro](https://www.youtube.com/@chroniclerpro)
