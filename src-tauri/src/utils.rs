@@ -10,6 +10,10 @@ use std::time::UNIX_EPOCH;
 /// A list of common image file extensions.
 const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "svg"];
 
+/// File extensions that Chronicler shows in the explorer but does not index.
+/// Clicking one opens the file in the OS default application.
+const EXTERNAL_EXTENSIONS: &[&str] = &["pdf", "xlsx", "xls"];
+
 /// A custom serialization function for `PathBuf` that guarantees forward slashes.
 ///
 /// This function ensures that when a `PathBuf` is sent to the frontend, it's
@@ -39,6 +43,15 @@ pub fn is_image_file(path: &Path) -> bool {
     path.extension()
         .and_then(|s| s.to_str())
         .map(|ext| IMAGE_EXTENSIONS.contains(&ext.to_lowercase().as_str()))
+        .unwrap_or(false)
+}
+
+/// Checks if a path points to a supported "external" file — one we surface in
+/// the file tree but hand off to the OS default application on click.
+pub fn is_external_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|s| s.to_str())
+        .map(|ext| EXTERNAL_EXTENSIONS.contains(&ext.to_lowercase().as_str()))
         .unwrap_or(false)
 }
 
@@ -173,6 +186,21 @@ mod tests {
             Path::new("/vault/images/cover.jpg"),
             root,
         ));
+    }
+
+    #[test]
+    fn external_file_recognises_supported_extensions() {
+        assert!(is_external_file(Path::new("/v/Report.pdf")));
+        assert!(is_external_file(Path::new("/v/Sheet.XLSX")));
+        assert!(is_external_file(Path::new("/v/Legacy.xls")));
+    }
+
+    #[test]
+    fn external_file_rejects_unsupported_extensions() {
+        assert!(!is_external_file(Path::new("/v/note.md")));
+        assert!(!is_external_file(Path::new("/v/cover.png")));
+        assert!(!is_external_file(Path::new("/v/notes.txt")));
+        assert!(!is_external_file(Path::new("/v/no_extension")));
     }
 
     #[test]

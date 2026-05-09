@@ -10,7 +10,7 @@
  * A specific type for the file node category. This improves type safety
  * over using a generic string. It mirrors the `FileType` enum in Rust.
  */
-export type FileType = "Directory" | "Markdown" | "Image" | "Map";
+export type FileType = "Directory" | "Markdown" | "Image" | "Map" | "External";
 
 /**
  * A lightweight representation of a page, containing only the data needed

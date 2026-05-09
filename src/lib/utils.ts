@@ -67,6 +67,16 @@ export function isMap(node: FileNode): boolean {
 }
 
 /**
+ * A helper function to check if a FileNode is an external file
+ * (e.g. PDF, spreadsheet) that should be opened in the OS default app.
+ * @param node The FileNode to check.
+ * @returns True if the node's file_type is 'External'
+ */
+export function isExternal(node: FileNode): boolean {
+    return node.file_type === "External";
+}
+
+/**
  * Returns the formatted display name for a file node.
  * This handles stripping specific extensions (like .cmap) for UI presentation.
  * @param node The FileNode to process.
@@ -227,12 +237,14 @@ export function findNodeByPath(
  * @param node The root FileNode to start filtering from.
  * @param term The search term to filter by.
  * @param showImages Whether to include image files in the result.
+ * @param showExternalFiles Whether to include external files (PDF, spreadsheets) in the result.
  * @returns A new FileNode representing the filtered tree, or null if no matches are found.
  */
 export function filterFileTree(
     node: FileNode | null,
     term: string,
     showImages: boolean = true,
+    showExternalFiles: boolean = false,
 ): FileNode | null {
     if (!node) return null;
 
@@ -240,16 +252,19 @@ export function filterFileTree(
     if (!showImages && isImage(node)) {
         return null;
     }
+    // Filter out external files if the setting is disabled
+    if (!showExternalFiles && isExternal(node)) {
+        return null;
+    }
 
-    // If no search term and images are allowed (or handled above),
+    // If no search term and images/externals are allowed (or handled above),
     // return the original node reference to avoid re-renders.
     // However, if we need to filter *children* (recursion), we must proceed.
-    // For a file, if we are here, it's either not an image or showImages is true.
     if (!term && !isDirectory(node)) {
         return node;
     }
     // If it's a directory and there is no search term, we still need to recurse
-    // because some children might be images that need hiding.
+    // because some children might be hidden by visibility toggles.
 
     const lowerCaseTerm = term.toLowerCase();
 
@@ -257,7 +272,9 @@ export function filterFileTree(
         // It's a directory. Filter its children.
         // node.children will be an array (possibly empty)
         const filteredChildren = (node.children || [])
-            .map((child) => filterFileTree(child, term, showImages))
+            .map((child) =>
+                filterFileTree(child, term, showImages, showExternalFiles),
+            )
             .filter((child): child is FileNode => child !== null);
 
         // Keep the directory if:
@@ -281,7 +298,7 @@ export function filterFileTree(
             return { ...node, children: filteredChildren };
         }
     } else {
-        // It's a file. We already checked !showImages above.
+        // It's a file. Visibility toggles already handled above.
         // Now check if its name matches the search term.
         if (node.name.toLowerCase().includes(lowerCaseTerm)) {
             return node;

@@ -59,3 +59,10 @@ export const manuallyExpandedPaths = createExpandedPathsStore();
  * Default is true (images are shown).
  */
 export const showImages = writable(true);
+
+/**
+ * Store to control the visibility of external files (PDF, spreadsheets)
+ * in the file explorer. Default is false — opt-in via the explorer
+ * context menu so existing markdown-only vaults stay unchanged.
+ */
+export const showExternalFiles = writable(false);

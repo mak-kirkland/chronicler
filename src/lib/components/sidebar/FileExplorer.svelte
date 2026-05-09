@@ -6,7 +6,7 @@
     import { movePath } from "$lib/actions";
     import { droppable, autoscrollOnDrag } from "$lib/domActions";
     import { isDragging } from "$lib/dragStore";
-    import { showImages } from "$lib/explorerStore";
+    import { showImages, showExternalFiles } from "$lib/explorerStore";
 
     // Import components needed for the view
     import FileTree from "$lib/components/sidebar/FileTree.svelte";
@@ -20,9 +20,9 @@
     let contextMenu = $state<ContextMenuState | null>(null);
 
     // Create a derived value for the filtered file tree.
-    // This will automatically re-calculate whenever the fileTree store, searchTerm, OR showImages changes.
+    // Re-calculates whenever the file tree, searchTerm, or any visibility toggle changes.
     const filteredNode = $derived(
-        filterFileTree($files, searchTerm, $showImages),
+        filterFileTree($files, searchTerm, $showImages, $showExternalFiles),
     );
 
     function showContextMenu(event: MouseEvent, node: FileNode) {
