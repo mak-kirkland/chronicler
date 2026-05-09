@@ -2,7 +2,16 @@
 
 ---
 
-## [v0.51.1-alpha] - 2026-05-8
+## [v0.51.2-alpha] - 2026-05-09
+
+### 🔄 Changed
+
+- **Linux**: Restyled the Flatpak distribution page to match the application's branding and added "copy-to-clipboard" buttons for easier installation commands.
+- **Welcome**: Updated the community links in the Welcome view to direct bug reports and feature requests to the Discord server.
+
+---
+
+## [v0.51.1-alpha] - 2026-05-08
 
 ### ✨ Added
 
