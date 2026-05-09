@@ -54,9 +54,13 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 /**
- * Handles the global pointerup event to detect back/forward mouse button clicks.
+ * Handles the global mouseup event to detect back/forward mouse button clicks.
+ *
+ * We listen to `mouseup` rather than `pointerup` because WebKitGTK (the webview
+ * used by Tauri on Linux) does not reliably emit pointer events for the 4th and
+ * 5th mouse buttons.
  */
-function handlePointerUp(event: PointerEvent) {
+function handleMouseUp(event: MouseEvent) {
     // On mice with back/forward buttons, these typically correspond to
     // button codes 3 (back) and 4 (forward).
     if (event.button === 3) {
@@ -78,11 +82,11 @@ function handlePointerUp(event: PointerEvent) {
  */
 export function initializeKeybindings(): () => void {
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("mouseup", handleMouseUp);
 
     // Return a cleanup function that can be called by a Svelte $effect.
     return () => {
         window.removeEventListener("keydown", handleKeyDown);
-        window.removeEventListener("pointerup", handlePointerUp);
+        window.removeEventListener("mouseup", handleMouseUp);
     };
 }
