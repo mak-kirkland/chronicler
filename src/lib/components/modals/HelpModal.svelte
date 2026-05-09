@@ -9,6 +9,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { handleContentClick } from "$lib/actions";
+    import { log } from "$lib/logger";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -22,7 +23,7 @@
             const markdownContent = await readBundledResource("HELP.md");
             renderedData = await renderMarkdown(markdownContent);
         } catch (e: any) {
-            console.error("Failed to load help content:", e);
+            log.error("Failed to load help content", e, "HelpModal");
             error = `Could not load help file: ${e.message}`;
         } finally {
             isLoading = false;

@@ -4,6 +4,7 @@
     import { openUrl } from "@tauri-apps/plugin-opener";
     import Modal from "$lib/components/modals/Modal.svelte";
     import Button from "$lib/components/ui/Button.svelte";
+    import { log } from "$lib/logger";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -13,7 +14,7 @@
         try {
             appVersion = await getVersion();
         } catch (e) {
-            console.error("Failed to get app version:", e);
+            log.error("Failed to get app version", e, "AboutModal");
         }
     });
 </script>

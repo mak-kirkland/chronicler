@@ -370,6 +370,26 @@ pub fn get_app_usage_days(app_handle: AppHandle) -> Result<i64> {
     }
 }
 
+/// Records a log line emitted by the frontend into the same rolling log file
+/// the backend writes to, so user bug reports contain a single unified log.
+///
+/// `level` is matched against `tracing` levels; unknown values fall through as
+/// `info` with the original level preserved in the message. The
+/// `chronicler::frontend` target nests under the existing crate-level
+/// `EnvFilter` (so `chronicler=info` already includes these) while still
+/// being trivially greppable.
+#[command]
+pub fn log_from_frontend(level: String, message: String, context: Option<String>) {
+    let ctx = context.as_deref().unwrap_or("-");
+    match level.as_str() {
+        "error" => tracing::error!(target: "chronicler::frontend", "[{ctx}] {message}"),
+        "warn" => tracing::warn!(target: "chronicler::frontend", "[{ctx}] {message}"),
+        "info" => tracing::info!(target: "chronicler::frontend", "[{ctx}] {message}"),
+        "debug" => tracing::debug!(target: "chronicler::frontend", "[{ctx}] {message}"),
+        _ => tracing::info!(target: "chronicler::frontend", "[{ctx}] [{level}] {message}"),
+    }
+}
+
 /// Opens the application's log directory in the default file explorer.
 #[command]
 #[instrument(skip(app_handle))]

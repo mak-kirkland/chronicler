@@ -7,6 +7,7 @@
     import { droppable, autoscrollOnDrag } from "$lib/domActions";
     import { isDragging } from "$lib/dragStore";
     import { showImages, showExternalFiles } from "$lib/explorerStore";
+    import { log } from "$lib/logger";
 
     // Import components needed for the view
     import FileTree from "$lib/components/sidebar/FileTree.svelte";
@@ -54,20 +55,20 @@
         const destinationDir = $vaultPath;
 
         if (!sourcePath || !destinationDir) {
-            console.error("Drop failed: Missing source or destination path.");
+            log.error("Drop failed: Missing source or destination path.", undefined, "FileExplorer");
             return;
         }
 
         const parentDir = sourcePath.substring(0, sourcePath.lastIndexOf("/"));
         if (parentDir === destinationDir) {
-            console.warn("Item is already in the root directory.");
+            log.warn("Item is already in the root directory.", "FileExplorer");
             return;
         }
 
         try {
             await movePath(sourcePath, destinationDir);
         } catch (err) {
-            console.error("The root drop operation failed in the UI.", err);
+            log.error("The root drop operation failed in the UI.", err, "FileExplorer");
         }
     }
 </script>

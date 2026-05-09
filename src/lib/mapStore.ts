@@ -19,6 +19,7 @@ import {
 } from "$lib/commands";
 import { normalizePath, LRUCache } from "$lib/utils";
 import { MAX_CACHED_MAPS } from "$lib/config";
+import { log } from "$lib/logger";
 import type { MapConfig } from "$lib/mapModels";
 import type { TileSetInfo } from "$lib/mapModels";
 
@@ -81,7 +82,7 @@ export async function loadMapConfig(
 
         return config;
     } catch (e) {
-        console.error(`[mapStore] Failed to load map at ${normalizedPath}:`, e);
+        log.error(`Failed to load map at ${normalizedPath}`, e, "mapStore");
         return null;
     }
 }
@@ -171,9 +172,10 @@ export async function updateMapConfig(
                     JSON.stringify(newConfig, null, 2),
                 );
             } catch (e) {
-                console.error(
-                    `[mapStore] Write failed for ${normalizedPath}, rolling back.`,
+                log.error(
+                    `Write failed for ${normalizedPath}, rolling back.`,
                     e,
+                    "mapStore",
                 );
                 registerMap(normalizedPath, previousConfig);
                 throw e;
@@ -249,9 +251,10 @@ export async function getLayerTileInfo(
             return info;
         })
         .catch((e) => {
-            console.error(
-                `[mapStore] Tile generation failed for ${imageFilename}:`,
+            log.error(
+                `Tile generation failed for ${imageFilename}`,
                 e,
+                "mapStore",
             );
             return null;
         })

@@ -14,6 +14,7 @@
     import Modal from "$lib/components/modals/Modal.svelte";
     import ToggleSwitch from "$lib/components/ui/ToggleSwitch.svelte";
     import { uuid } from "$lib/utils";
+    import { log } from "$lib/logger";
 
     import type { MapConfig, MapLayer } from "$lib/mapModels";
 
@@ -193,7 +194,7 @@
             });
             onClose();
         } catch (e) {
-            console.error(e);
+            log.error("Failed to save map settings", e, "MapSettingsModal");
             alert("Failed to save map settings.");
         } finally {
             isSaving = false;

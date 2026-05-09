@@ -10,6 +10,7 @@
 import { get } from "svelte/store";
 import { headingFont, bodyFont, userFonts } from "$lib/settingsStore";
 import { getUserFonts } from "$lib/commands";
+import { log } from "$lib/logger";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { UserFont } from "$lib/bindings";
 
@@ -46,8 +47,9 @@ function deduplicateFonts(fonts: UserFont[]): UserFont[] {
     const seen = new Set<string>();
     return fonts.filter((font) => {
         if (seen.has(font.name)) {
-            console.warn(
+            log.warn(
                 `Duplicate font name "${font.name}" - keeping first occurrence, skipping: ${font.path}`,
+                "fonts",
             );
             return false;
         }
@@ -74,7 +76,7 @@ function getFontStylesheet(): CSSStyleSheet | null {
 
     const sheet = styleElement.sheet;
     if (!sheet) {
-        console.error("Could not access style sheet to inject fonts.");
+        log.error("Could not access style sheet to inject fonts.", undefined, "fonts");
         return null;
     }
     return sheet;
@@ -119,9 +121,9 @@ async function injectFontFaces(fonts: UserFont[]) {
                 // On success, add it to our Set.
                 injectedFontNames.add(font.name);
             } catch (e) {
-                console.warn(
-                    `Failed to inject font rule for '${font.name}':`,
-                    e,
+                log.warn(
+                    `Failed to inject font rule for '${font.name}': ${e}`,
+                    "fonts",
                 );
             }
         }
@@ -154,7 +156,7 @@ async function getAllUserFonts(force = false): Promise<UserFont[]> {
         userFonts.set(uniqueFonts);
         return uniqueFonts;
     } catch (e) {
-        console.error("Failed to get user fonts from backend:", e);
+        log.error("Failed to get user fonts from backend", e, "fonts");
         return []; // Return empty on failure
     }
 }
@@ -184,7 +186,7 @@ export async function loadActiveFonts() {
             await injectFontFaces(activeFonts);
         }
     } catch (e) {
-        console.error("Failed to load active user fonts:", e);
+        log.error("Failed to load active user fonts", e, "fonts");
     }
 }
 
@@ -201,6 +203,6 @@ export async function loadAllUserFonts(force = false) {
         // We also inject them all here, so they are available for theme previews.
         await injectFontFaces(fonts);
     } catch (e) {
-        console.error("Failed to load all user fonts:", e);
+        log.error("Failed to load all user fonts", e, "fonts");
     }
 }

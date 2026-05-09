@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import { renderMarkdown } from "$lib/commands";
     import { readBundledResource } from "$lib/utils";
+    import { log } from "$lib/logger";
     import Modal from "$lib/components/modals/Modal.svelte";
     import Preview from "$lib/components/views/Preview.svelte";
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
@@ -19,7 +20,7 @@
             const markdownContent = await readBundledResource("CHANGELOG.md");
             renderedData = await renderMarkdown(markdownContent);
         } catch (e: any) {
-            console.error("Failed to load changelog content:", e);
+            log.error("Failed to load changelog content", e, "ChangelogModal");
             error = `Could not load changelog file: ${e.message}`;
         } finally {
             isLoading = false;
