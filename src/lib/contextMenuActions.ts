@@ -17,7 +17,11 @@ import {
 } from "$lib/actions";
 import { isDirectory, isMarkdown, fileStemString } from "$lib/utils";
 import { openInExplorer } from "$lib/commands";
-import { manuallyExpandedPaths, showImages } from "$lib/explorerStore";
+import {
+    manuallyExpandedPaths,
+    showImages,
+    showExternalFiles,
+} from "$lib/explorerStore";
 import { hasMapsEntitlement } from "$lib/licenseStore";
 
 // Import modal components that can be triggered from the context menu
@@ -149,6 +153,14 @@ export function getContextMenuActions(
     actions.push({
         label: imagesVisible ? "Hide Images" : "Show Images",
         handler: () => showImages.update((v) => !v),
+    });
+
+    const externalsVisible = get(showExternalFiles);
+    actions.push({
+        label: externalsVisible
+            ? "Hide External Files"
+            : "Show External Files",
+        handler: () => showExternalFiles.update((v) => !v),
     });
 
     return actions;

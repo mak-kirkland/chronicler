@@ -11,7 +11,10 @@ use crate::{
         VaultAsset,
     },
     parser,
-    utils::{file_stem_string, is_hidden_path, is_image_file, is_map_file, is_markdown_file},
+    utils::{
+        file_stem_string, is_external_file, is_hidden_path, is_image_file, is_map_file,
+        is_markdown_file,
+    },
 };
 use natord::compare_ignore_case as nat_compare;
 use path_clean::PathClean;
@@ -195,6 +198,12 @@ impl Indexer {
                     error: Some(format!("Could not read map file: {}", e)),
                 },
             }
+        } else if is_external_file(&canonical_path) {
+            ScanResult {
+                path: canonical_path,
+                asset: Some(VaultAsset::External),
+                error: None,
+            }
         } else {
             // Ignore other file types
             ScanResult {
@@ -279,14 +288,15 @@ impl Indexer {
         // Second pass: Build relationships between pages now that all assets are indexed.
         self.rebuild_relations();
 
-        let (page_count, image_count, map_count, dir_count) =
+        let (page_count, image_count, map_count, dir_count, external_count) =
             self.assets
                 .values()
-                .fold((0, 0, 0, 0), |(p, i, m, d), asset| match asset {
-                    VaultAsset::Page(_) => (p + 1, i, m, d),
-                    VaultAsset::Image => (p, i + 1, m, d),
-                    VaultAsset::Map(_) => (p, i, m + 1, d),
-                    VaultAsset::Directory => (p, i, m, d + 1),
+                .fold((0, 0, 0, 0, 0), |(p, i, m, d, x), asset| match asset {
+                    VaultAsset::Page(_) => (p + 1, i, m, d, x),
+                    VaultAsset::Image => (p, i + 1, m, d, x),
+                    VaultAsset::Map(_) => (p, i, m + 1, d, x),
+                    VaultAsset::Directory => (p, i, m, d + 1, x),
+                    VaultAsset::External => (p, i, m, d, x + 1),
                 });
 
         let links_found = self
@@ -301,6 +311,7 @@ impl Indexer {
             images_indexed = image_count,
             maps_indexed = map_count,
             directories_indexed = dir_count,
+            external_indexed = external_count,
             tags_found = self.tags.len(),
             links_found,
             duration_ms = start_time.elapsed().as_millis(),
@@ -703,6 +714,7 @@ impl Indexer {
             Some(VaultAsset::Page(_)) => FileType::Markdown,
             Some(VaultAsset::Image) => FileType::Image,
             Some(VaultAsset::Map(_)) => FileType::Map,
+            Some(VaultAsset::External) => FileType::External,
             None => {
                 // This is the root directory case (root itself isn't in assets with this key)
                 // or a path that should be a directory

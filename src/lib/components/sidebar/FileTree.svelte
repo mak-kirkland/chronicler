@@ -11,11 +11,13 @@
         navigateToMap,
     } from "$lib/actions";
     import { draggable, droppable } from "$lib/domActions";
+    import { openPath } from "@tauri-apps/plugin-opener";
     import FileTree from "$lib/components/sidebar/FileTree.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
     import {
         isDirectory,
+        isExternal,
         isImage,
         isMarkdown,
         isMap,
@@ -51,6 +53,14 @@
             navigateToMap({
                 title: node.name,
                 path: node.path,
+            });
+        } else if (isExternal(node)) {
+            // Hand off to the OS default application (PDF viewer, Excel, etc.)
+            openPath(node.path).catch((err) => {
+                console.error(
+                    `Failed to open external file ${node.path}:`,
+                    err,
+                );
             });
         }
     }

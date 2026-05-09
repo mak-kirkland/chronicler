@@ -52,6 +52,9 @@ pub enum VaultAsset {
     /// An interactive map configuration file (.cmap).
     /// Stores the parsed config to allow backlink calculations.
     Map(Box<MapConfig>),
+    /// A non-indexed file (e.g. PDF, spreadsheet) shown in the explorer
+    /// but opened in the OS default application on click.
+    External,
 }
 
 /// Represents the location of a link within a source file.
@@ -123,6 +126,8 @@ pub enum FileType {
     Image,
     /// An interactive map configuration (`.cmap`).
     Map,
+    /// A non-indexed file opened in the OS default application (e.g., `.pdf`, `.xlsx`).
+    External,
 }
 
 /// Implements partial ordering for `FileType`.

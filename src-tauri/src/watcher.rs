@@ -8,7 +8,9 @@ use crate::{
     config::{DEBOUNCE_INTERVAL, DEFAULT_EVENT_CHANNEL_CAPACITY},
     error::Result,
     events::FileEvent,
-    utils::{is_image_file, is_map_file, is_markdown_file, is_under_hidden_subdir},
+    utils::{
+        is_external_file, is_image_file, is_map_file, is_markdown_file, is_under_hidden_subdir,
+    },
 };
 use notify_debouncer_full::{
     new_debouncer,
@@ -224,7 +226,7 @@ fn is_ignored(path: &Path, vault_root: &Path) -> bool {
 }
 
 fn has_tracked_extension(path: &Path) -> bool {
-    is_markdown_file(path) || is_image_file(path) || is_map_file(path)
+    is_markdown_file(path) || is_image_file(path) || is_map_file(path) || is_external_file(path)
 }
 
 /// Checks if a path points to a temporary/lock file (like .#file.md).
