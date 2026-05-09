@@ -23,6 +23,7 @@ import { get } from "svelte/store";
 import { openModal, closeModal } from "./modalStore";
 import NagScreenModal from "./components/modals/NagScreenModal.svelte";
 import TelemetryModal from "./components/modals/TelemetryModal.svelte";
+import { log } from "./logger";
 
 /**
  * Orchestrates the complete vault initialization sequence. This function is the
@@ -83,7 +84,7 @@ export async function initializeApp() {
                     });
                 }
             })
-            .catch((e) => console.error("Telemetry consent check failed:", e));
+            .catch((e) => log.error("Telemetry consent check failed", e, "startup"));
 
         // Defer the non-critical "nag screen" check. We wrap it in an async
         // IIFE (Immediately Invoked Function Expression) to "fire-and-forget".
@@ -100,7 +101,7 @@ export async function initializeApp() {
             }
         })();
     } catch (e: any) {
-        console.error("Failed during startup initialization:", e);
+        log.error("Failed during startup initialization", e, "startup");
         const errorMessage = e.message || `Failed to read configuration: ${e}`;
         appStatus.set({ state: "error", message: errorMessage });
     }

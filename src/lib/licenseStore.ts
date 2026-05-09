@@ -8,6 +8,7 @@
 
 import { writable, derived } from "svelte/store";
 import { getLicenseStatus, verifyAndStoreLicense } from "./commands";
+import { log } from "./logger";
 import type { License } from "./bindings";
 
 /** The possible states of the license. */
@@ -50,7 +51,7 @@ async function attemptLicenseVerification(
         set({ status: "licensed", license: validatedLicense });
         return true;
     } catch (e: any) {
-        console.error("License verification failed:", e);
+        log.error("License verification failed", e, "licenseStore");
         // Keep the old license if the new one is invalid
         update((s) => ({
             ...s,
@@ -75,7 +76,7 @@ async function initializeLicense() {
             set({ status: "unlicensed", license: null });
         }
     } catch (e: any) {
-        console.error("Failed to get license status:", e);
+        log.error("Failed to get license status", e, "licenseStore");
         set({ status: "invalid", license: null, error: e });
     }
 }

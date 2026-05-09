@@ -8,6 +8,7 @@
         isPandocInstalled,
     } from "$lib/commands";
     import { world } from "$lib/worldStore";
+    import { log } from "$lib/logger";
     import Button from "$lib/components/ui/Button.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
 
@@ -26,7 +27,7 @@
                 pandocInstalled = installed;
             })
             .catch((err) => {
-                console.error("Failed to check pandoc status:", err);
+                log.error("Failed to check pandoc status", err, "ImporterModal");
                 pandocInstalled = false;
             });
     });
@@ -51,7 +52,7 @@
             importMessage =
                 "Pandoc installed successfully! You can now import files.";
         } catch (e) {
-            console.error("Pandoc installation failed:", e);
+            log.error("Pandoc installation failed", e, "ImporterModal");
             importMessage = `Failed to install Pandoc: ${e}`;
         } finally {
             isProcessing = false;
@@ -97,7 +98,7 @@
             alert(`${importedPaths.length} file(s) imported successfully!`);
             onClose(); // Close the modal on success
         } catch (e) {
-            console.error("Import failed:", e);
+            log.error("Import failed", e, "ImporterModal");
             alert(`Import failed: ${e}`);
             importMessage = `Import failed: ${e}`;
         } finally {
@@ -122,7 +123,7 @@
                 await handleDocxImport(selected);
             }
         } catch (e) {
-            console.error("File selection failed:", e);
+            log.error("DOCX file selection failed", e, "ImporterModal");
         }
     }
 
@@ -144,7 +145,7 @@
                 await handleDocxImport(selected);
             }
         } catch (e) {
-            console.error("Folder selection failed:", e);
+            log.error("Folder selection failed", e, "ImporterModal");
         }
     }
 
@@ -170,7 +171,7 @@
             alert(`${importedPaths.length} page(s) imported successfully!`);
             onClose();
         } catch (e) {
-            console.error("MediaWiki import failed:", e);
+            log.error("MediaWiki import failed", e, "ImporterModal");
             alert(`MediaWiki import failed: ${e}`);
             importMessage = `MediaWiki import failed: ${e}`;
         } finally {
@@ -191,7 +192,7 @@
                 await handleMediawikiImport(selected);
             }
         } catch (e) {
-            console.error("File selection failed:", e);
+            log.error("MediaWiki file selection failed", e, "ImporterModal");
         }
     }
 </script>

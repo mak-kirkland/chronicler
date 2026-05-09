@@ -23,6 +23,7 @@
         isMap,
         getDisplayName,
     } from "$lib/utils";
+    import { log } from "$lib/logger";
 
     let {
         node,
@@ -57,9 +58,10 @@
         } else if (isExternal(node)) {
             // Hand off to the OS default application (PDF viewer, Excel, etc.)
             openPath(node.path).catch((err) => {
-                console.error(
-                    `Failed to open external file ${node.path}:`,
+                log.error(
+                    `Failed to open external file ${node.path}`,
                     err,
+                    "FileTree",
                 );
             });
         }

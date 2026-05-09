@@ -8,6 +8,7 @@ import type { FileNode } from "./bindings";
 import { resolveResource } from "@tauri-apps/api/path";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { getImageSource } from "./commands";
+import { log } from "./logger";
 
 /**
  * Generates a unique ID for use as a UI list key (drag-drop, keyed each blocks).
@@ -322,7 +323,7 @@ export async function readBundledResource(filename: string): Promise<string> {
         }
         return await readTextFile(resourcePath);
     } catch (e) {
-        console.error("Error in readBundledResource:", e);
+        log.error("Error in readBundledResource", e, "utils");
         throw new Error(`Failed to read resource '${filename}': ${e}`);
     }
 }

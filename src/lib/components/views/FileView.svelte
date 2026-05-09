@@ -17,6 +17,7 @@
     import type { PageHeader, FullPageData } from "$lib/bindings";
     import { findFileInTree } from "$lib/utils";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
+    import { log } from "$lib/logger";
     import Icon from "$lib/components/ui/Icon.svelte";
     import { openModal, closeModal } from "$lib/modalStore";
     import InfoboxEditorModal from "$lib/components/infobox/InfoboxEditorModal.svelte";
@@ -76,7 +77,7 @@
             })
 
             .catch((e) => {
-                console.error("Failed to get page data:", e);
+                log.error("Failed to get page data", e, "FileView");
                 error = `Could not load file: ${e}`;
             })
             .finally(() => {
@@ -123,7 +124,7 @@
                     if (pageData) pageData.rendered_page = newlyRenderedData;
                 })
                 .catch((e) => {
-                    console.error("Failed to save or re-render content:", e);
+                    log.error("Failed to save or re-render content", e, "FileView");
                     saveStatus = "error";
                 });
         }, AUTOSAVE_DEBOUNCE_MS);

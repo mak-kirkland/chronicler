@@ -17,6 +17,7 @@ import { openModal, closeModal } from "./modalStore";
 import { dirname } from "@tauri-apps/api/path";
 import { get } from "svelte/store";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { log } from "./logger";
 
 /**
  * Navigates the main view to display a specific file.
@@ -40,7 +41,7 @@ export function navigateToPageByTitle(pageTitle: string): boolean {
         navigateToPage({ path, title: pageTitle });
         return true;
     }
-    console.warn(`Page not found: ${pageTitle}`);
+    log.warn(`Page not found: ${pageTitle}`, "actions");
     alert(`Linked page "${pageTitle}" not found.`);
     return false;
 }
@@ -58,7 +59,7 @@ export function navigateToMapByTitle(mapTitle: string): boolean {
         navigateToMap({ path, title: mapTitle });
         return true;
     }
-    console.warn(`Map not found: ${mapTitle}`);
+    log.warn(`Map not found: ${mapTitle}`, "actions");
     alert(`Linked map "${mapTitle}" not found.`);
     return false;
 }
@@ -160,8 +161,9 @@ export function handleContentClick(event: Event) {
         // We check if the href starts with '#' to allow TOC and same-page links to pass through.
         if (href && !href.startsWith("#")) {
             event.preventDefault(); // Prevent default for this case
-            console.warn(
+            log.warn(
                 `Blocked navigation for unsupported link href: ${href}`,
+                "actions",
             );
         }
 
@@ -240,7 +242,7 @@ export async function initializeVault(path: string) {
     try {
         await commands.initializeVault(path);
     } catch (e) {
-        console.error(`Failed to initialize vault at ${path}:`, e);
+        log.error(`Failed to initialize vault at ${path}`, e, "actions");
         // Re-throw the error so the calling component can handle it
         throw new Error(
             `Could not open vault at "${path}". Please ensure it is a valid directory. Error: ${e}`,
@@ -273,7 +275,7 @@ export async function createFile(
         fileViewMode.set("split");
         return newPage;
     } catch (e) {
-        console.error("Failed to create file:", e);
+        log.error("Failed to create file", e, "actions");
         alert(`Error: ${e}`);
         throw e;
     }
@@ -294,7 +296,7 @@ export async function renamePath(path: string, newName: string) {
         // If the file was open, navigate the view to its new path.
         navigateToUpdatedPath(path, newPath);
     } catch (e) {
-        console.error(`Rename failed for path: ${path}`, e);
+        log.error(`Rename failed for path: ${path}`, e, "actions");
         alert(`Error: ${e}`);
         throw e;
     }
@@ -321,7 +323,7 @@ export async function deletePath(path: string) {
             currentView.set({ type: "welcome" });
         }
     } catch (e) {
-        console.error(`Delete failed for path: ${path}`, e);
+        log.error(`Delete failed for path: ${path}`, e, "actions");
         alert(`Error: ${e}`);
         throw e;
     }
@@ -337,7 +339,7 @@ export async function createFolder(parentDir: string, name: string) {
         await commands.createNewFolder(parentDir, name);
         await world.initialize(); // Refresh data
     } catch (e) {
-        console.error(`Failed to create folder in: ${parentDir}`, e);
+        log.error(`Failed to create folder in: ${parentDir}`, e, "actions");
         alert(`Error: ${e}`);
         throw e;
     }
@@ -406,9 +408,10 @@ export async function movePath(sourcePath: string, destinationDir: string) {
         // If the file was open, navigate the view to its new path.
         navigateToUpdatedPath(sourcePath, newPath);
     } catch (e) {
-        console.error(
+        log.error(
             `Move failed for source '${sourcePath}' to '${destinationDir}'`,
             e,
+            "actions",
         );
         alert(`Error: ${e}`);
         throw e;
@@ -425,7 +428,7 @@ export async function duplicatePage(path: string) {
         await world.initialize(); // Refresh data
         navigateToPage(newPage); // Navigate to the new duplicate
     } catch (e) {
-        console.error(`Duplicate failed for path: ${path}`, e);
+        log.error(`Duplicate failed for path: ${path}`, e, "actions");
         alert(`Error: ${e}`);
         throw e;
     }

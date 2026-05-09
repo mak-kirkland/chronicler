@@ -4,6 +4,7 @@
     import Icon from "$lib/components/ui/Icon.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
     import { getRecentVaults, removeRecentVault } from "$lib/commands";
+    import { log } from "$lib/logger";
 
     let { onVaultSelected = (_path: string) => {} } = $props<{
         onVaultSelected?: (path: string) => void;
@@ -15,7 +16,7 @@
         try {
             recentVaults = await getRecentVaults();
         } catch (e) {
-            console.error("Failed to load recent vaults:", e);
+            log.error("Failed to load recent vaults", e, "VaultSelector");
         }
     }
 
@@ -34,7 +35,7 @@
                 onVaultSelected(selected);
             }
         } catch (e) {
-            console.error("Error opening folder dialog:", e);
+            log.error("Error opening folder dialog", e, "VaultSelector");
         }
     }
 
@@ -56,7 +57,7 @@
             await removeRecentVault(path);
             await refreshRecentVaults();
         } catch (err) {
-            console.error("Failed to remove recent vault:", err);
+            log.error("Failed to remove recent vault", err, "VaultSelector");
         }
     }
 

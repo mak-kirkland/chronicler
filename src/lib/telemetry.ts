@@ -16,6 +16,7 @@
 import { getTelemetryEnabled } from "$lib/commands";
 import { openModal, closeModal } from "$lib/modalStore";
 import TelemetryConsentModal from "$lib/components/modals/TelemetryModal.svelte";
+import { log } from "$lib/logger";
 
 /**
  * Checks whether the telemetry consent modal should be shown, and opens it
@@ -47,6 +48,6 @@ export async function checkTelemetryConsent(): Promise<void> {
         // etc.), we log and skip the prompt. The default is "no ping", so
         // this is safe — the user simply won't be asked until the issue is
         // resolved on a future launch.
-        console.error("Failed to check telemetry consent state:", e);
+        log.error("Failed to check telemetry consent state", e, "telemetry");
     }
 }

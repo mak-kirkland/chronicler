@@ -5,7 +5,8 @@
  * backend communication.
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+import { log } from "./logger";
 import type {
     FileNode,
     FullPageData,
@@ -18,6 +19,18 @@ import type {
     UserFont,
 } from "./bindings";
 import type { MapConfig, TileSetInfo } from "./mapModels";
+
+/**
+ * Thin wrapper around Tauri's `invoke` that funnels every backend call
+ * failure into the unified frontend log. Re-throws so existing callers see
+ * identical behavior.
+ */
+function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+    return tauriInvoke<T>(cmd, args).catch((err) => {
+        log.error(`invoke(${cmd}) failed`, err, "invoke");
+        throw err;
+    });
+}
 
 // --- Vault Commands ---
 

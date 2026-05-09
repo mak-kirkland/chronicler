@@ -12,6 +12,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { openModal, closeModal } from "$lib/modalStore";
 import UpdateModal from "$lib/components/modals/UpdateModal.svelte";
 import { getLinuxInstallType } from "./commands";
+import { log } from "./logger";
 
 /**
  * Checks for application updates using Tauri v2 plugins.
@@ -41,7 +42,7 @@ export async function checkForAppUpdates() {
             console.log("No update available.");
         }
     } catch (error) {
-        console.error("Update check failed:", error);
+        log.error("Update check failed", error, "updater");
     }
 }
 

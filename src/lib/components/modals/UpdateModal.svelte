@@ -13,6 +13,7 @@
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Preview from "$lib/components/views/Preview.svelte";
+    import { log } from "$lib/logger";
 
     let { update, installType, onClose } = $props<{
         update: Update;
@@ -45,7 +46,7 @@
                 renderedChangelog = await renderMarkdown(markdownContent);
             }
         } catch (e) {
-            console.error("Failed to get app version or render changelog:", e);
+            log.error("Failed to get app version or render changelog", e, "UpdateModal");
         }
     });
 
@@ -56,7 +57,7 @@
             await installUpdate(update);
             // On success, the app will relaunch, so no need to set isUpdating = false.
         } catch (error) {
-            console.error("Failed to install update:", error);
+            log.error("Failed to install update", error, "UpdateModal");
             installError =
                 "Update failed. Please try again or visit the downloads page to update manually.";
             isUpdating = false; // Only reset on error

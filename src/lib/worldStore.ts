@@ -24,6 +24,7 @@ import {
 } from "./commands";
 import { isMarkdown, isImage, debounce } from "./utils";
 import { WORLD_UPDATE_DEBOUNCE_MS } from "./config";
+import { log } from "./logger";
 import type {
     FileNode,
     TagMap,
@@ -147,7 +148,7 @@ function createWorldStore() {
                 return newState;
             });
         } catch (e: any) {
-            console.error("Failed to load world data:", e);
+            log.error("Failed to load world data", e, "worldStore");
             update((s) => ({
                 ...s,
                 isLoaded: false,

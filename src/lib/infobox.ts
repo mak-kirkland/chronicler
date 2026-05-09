@@ -18,6 +18,7 @@ import {
 } from "yaml";
 import { TEMPLATE_FOLDER_PATH } from "$lib/config";
 import { normalizePath, findNodeByPath, fileStemString, uuid } from "$lib/utils";
+import { log } from "$lib/logger";
 import type { FileNode } from "./bindings";
 
 // --- Constants ---
@@ -338,7 +339,7 @@ export function parseInfoboxContent(yamlContent: string): InfoboxState {
         const doc = parseDocument(frontmatter);
         data = doc.toJSON() || {};
     } catch (e) {
-        console.warn("Failed to parse YAML for editor:", e);
+        log.error("Failed to parse YAML for editor", e, "infobox");
         // Fallback to empty
         data = {};
     }

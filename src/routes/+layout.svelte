@@ -26,6 +26,7 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { initializeKeybindings } from "$lib/keybindings";
+    import { log } from "$lib/logger";
 
     // Import UI Components
     import VaultSelector from "$lib/components/views/VaultSelector.svelte";
@@ -54,9 +55,30 @@
         // Initialize global keybindings and get the cleanup function.
         const destroyKeybindings = initializeKeybindings();
 
+        // Funnel anything that escapes a try/catch into the unified log file
+        // so user-submitted bug reports include the failure.
+        const onError = (e: ErrorEvent) => {
+            log.error(
+                `Uncaught: ${e.message} @ ${e.filename}:${e.lineno}:${e.colno}`,
+                e.error,
+                "window.onerror",
+            );
+        };
+        const onRejection = (e: PromiseRejectionEvent) => {
+            log.error(
+                "Unhandled promise rejection",
+                e.reason,
+                "unhandledrejection",
+            );
+        };
+        window.addEventListener("error", onError);
+        window.addEventListener("unhandledrejection", onRejection);
+
         // The effect's cleanup function will run when the component is destroyed.
         return () => {
             destroyKeybindings();
+            window.removeEventListener("error", onError);
+            window.removeEventListener("unhandledrejection", onRejection);
         };
     });
 

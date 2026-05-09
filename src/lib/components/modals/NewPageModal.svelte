@@ -10,6 +10,7 @@
     import SearchableSelect from "$lib/components/ui/SearchableSelect.svelte";
     import { vaultPath, files } from "$lib/worldStore";
     import { normalizePath, isMarkdown } from "$lib/utils";
+    import { log } from "$lib/logger";
     import {
         SYSTEM_FOLDER_NAME,
         TEMPLATE_FOLDER_NAME,
@@ -78,7 +79,7 @@
             allDirs = (await getAllDirectoryPaths()).map(normalizePath);
         } catch (e: any) {
             // We can still function if this fails, the dropdown will just be less populated.
-            console.error("Failed to load directories:", e);
+            log.error("Failed to load directories", e, "NewPageModal");
             // Ensure the current directory is at least in the list.
             if (!allDirs.includes(selectedParentDir)) {
                 allDirs = [selectedParentDir, ...allDirs];

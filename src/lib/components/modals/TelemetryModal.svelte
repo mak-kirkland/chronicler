@@ -9,6 +9,7 @@
     import Modal from "$lib/components/modals/Modal.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import { setTelemetryEnabled } from "$lib/commands";
+    import { log } from "$lib/logger";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -18,7 +19,7 @@
         } catch (e) {
             // A persistence failure shouldn't block the user. The default
             // stays "no ping", and they can try again via Settings.
-            console.error("Failed to save telemetry preference:", e);
+            log.error("Failed to save telemetry preference", e, "TelemetryModal");
         }
         onClose();
     }
