@@ -1,13 +1,15 @@
 <script lang="ts">
     import { licenseStore } from "$lib/licenseStore";
     import { handleContentClick } from "$lib/actions";
+    import { log } from "$lib/logger";
 
     let videoReady = false;
     let videoError = false;
 
     function handleVideoError() {
-        console.warn(
+        log.warn(
             "Video background failed to load, falling back to static image.",
+            "WelcomeView",
         );
         videoError = true;
     }

@@ -12,6 +12,7 @@
     import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
     import { uuid } from "$lib/utils";
+    import { log } from "$lib/logger";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
 
     let { onClose, mapPath, mapConfig, mode, initialData } = $props<{
@@ -142,7 +143,7 @@
 
             onClose();
         } catch (e) {
-            console.error(e);
+            log.error("Failed to save map object", e, "MapObjectModal");
             alert("Failed to save map object.");
         } finally {
             isSaving = false;

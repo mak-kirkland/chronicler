@@ -3,6 +3,7 @@
     import { vaultPath, allImages } from "$lib/worldStore";
     import { navigateToImage } from "$lib/actions";
     import { resolveImageSource } from "$lib/utils";
+    import { log } from "$lib/logger";
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
@@ -83,7 +84,7 @@
                     imageUrl = url;
                 }
             } catch (e) {
-                console.error("Failed to load image:", e);
+                log.error("Failed to load image", e, "ImageView");
                 if (!isCancelled) {
                     error = `Could not load image: ${e}`;
                 }

@@ -22,6 +22,7 @@
         type InfoboxState,
     } from "$lib/infobox";
     import { buildPageView } from "$lib/commands";
+    import { log } from "$lib/logger";
 
     let { onClose, initialContent, onSave } = $props<{
         onClose: () => void;
@@ -82,7 +83,7 @@
             const state = parseInfoboxContent(initialContent);
             initializeForm(state);
         } catch (e) {
-            console.error("Failed to parse infobox data", e);
+            log.error("Failed to parse infobox data", e, "InfoboxEditorModal");
             initializeForm(parseInfoboxContent(""));
         } finally {
             isLoading = false;
@@ -186,7 +187,7 @@
             initializeForm(merged);
             activeTab = "content"; // Switch back to see changes
         } catch (e) {
-            console.error(e);
+            log.error("Failed to load template", e, "InfoboxEditorModal");
             alert("Failed to load template.");
         }
     }
@@ -222,7 +223,7 @@
 
             if (shouldClose) onClose();
         } catch (e) {
-            console.error(e);
+            log.error("Failed to save infobox", e, "InfoboxEditorModal");
             alert(`Failed to save: ${e}`);
         } finally {
             isSaving = false;

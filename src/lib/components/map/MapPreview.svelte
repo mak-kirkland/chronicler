@@ -11,6 +11,7 @@
     import { currentView } from "$lib/viewStores";
     import { get } from "svelte/store";
     import HoverPreview from "$lib/components/ui/HoverPreview.svelte";
+    import { log } from "$lib/logger";
     import type { MapConfig } from "$lib/mapModels";
 
     let {
@@ -71,7 +72,7 @@
                     }
                 }
             } catch (e) {
-                console.error("Failed to load map preview:", e);
+                log.error("Failed to load map preview", e, "MapPreview");
                 isVisible = false;
             }
         }, 300);

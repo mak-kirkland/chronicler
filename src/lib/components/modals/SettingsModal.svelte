@@ -35,6 +35,7 @@
         setTelemetryEnabled,
     } from "$lib/commands";
     import { DONATE_URL } from "$lib/config";
+    import { log } from "$lib/logger";
 
     let { onClose = () => {} } = $props<{
         onClose?: () => void;
@@ -68,7 +69,7 @@
             const value = await getTelemetryEnabled();
             telemetryEnabled = value === true;
         } catch (e) {
-            console.error("Failed to load telemetry setting:", e);
+            log.error("Failed to load telemetry setting", e, "SettingsModal");
         } finally {
             telemetryLoaded = true;
         }
@@ -79,7 +80,7 @@
         if (!telemetryLoaded) return;
         const currentValue = telemetryEnabled;
         setTelemetryEnabled(currentValue).catch((e) => {
-            console.error("Failed to save telemetry preference:", e);
+            log.error("Failed to save telemetry preference", e, "SettingsModal");
         });
     });
 
@@ -96,7 +97,7 @@
                 appVersion = version;
             })
             .catch((err) => {
-                console.error("Failed to get app version:", err);
+                log.error("Failed to get app version", err, "SettingsModal");
             });
     });
 
@@ -132,7 +133,7 @@
                 licenseMessage = `License is invalid. Please check the key and try again.`;
             }
         } catch (e: any) {
-            console.error("License verification failed:", e);
+            log.error("License verification failed", e, "SettingsModal");
             licenseMessage = `Failed to verify license: ${e.message || e}`;
         } finally {
             isVerifyingLicense = false;
@@ -194,7 +195,7 @@
                 try {
                     await installUserFont(path);
                 } catch (e) {
-                    console.error(`Failed to install font '${path}':`, e);
+                    log.error(`Failed to install font '${path}'`, e, "SettingsModal");
                     failures.push(path);
                 }
             }
@@ -208,7 +209,7 @@
                 fontInstallMessage = `Added ${installed} of ${paths.length} fonts. ${failures.length} could not be read.`;
             }
         } catch (e) {
-            console.error("Add font failed:", e);
+            log.error("Add font failed", e, "SettingsModal");
             fontInstallMessage = "Failed to add font.";
         } finally {
             isInstallingFont = false;

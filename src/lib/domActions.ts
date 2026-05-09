@@ -11,6 +11,7 @@ import Carousel from "$lib/components/ui/Carousel.svelte";
 import { mount, unmount } from "svelte";
 import type { ActionReturn } from "svelte/action";
 import { supportsTransparency } from "$lib/utils";
+import { log } from "$lib/logger";
 
 // Import Katex for math rendering
 import katex from "katex";
@@ -561,7 +562,7 @@ export function renderMath(node: HTMLElement, data: any) {
                 // Mark as processed so we don't double-render
                 el.setAttribute("data-processed", "true");
             } catch (e) {
-                console.error("Katex rendering error", e);
+                log.error("Katex rendering error", e, "domActions");
             }
         });
     };

@@ -16,6 +16,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import SearchableSelect from "$lib/components/ui/SearchableSelect.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
+    import { log } from "$lib/logger";
     import type { MapConfig } from "$lib/mapModels";
 
     let { onClose } = $props<{ onClose: () => void }>();
@@ -49,7 +50,7 @@
                     mapHeight = dims.height;
                 })
                 .catch((err) => {
-                    console.warn(`[CreateMapModal] Failed to load image:`, err);
+                    log.warn(`Failed to load image: ${err}`, "NewMapModal");
                     mapWidth = 0;
                     mapHeight = 0;
                 });
@@ -117,7 +118,7 @@
                 },
             });
         } catch (e) {
-            console.error("Failed to create map:", e);
+            log.error("Failed to create map", e, "NewMapModal");
             alert("Failed to create map.");
         } finally {
             isCreating = false;

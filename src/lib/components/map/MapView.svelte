@@ -61,6 +61,7 @@
     import MapConsole from "$lib/components/map/MapConsole.svelte";
     import MapLayerControl from "$lib/components/map/MapLayerControl.svelte";
     import { hasMapsEntitlement } from "$lib/licenseStore";
+    import { log } from "$lib/logger";
     import {
         areLinkPreviewsEnabled,
         areMapPreviewsEnabled,
@@ -279,7 +280,7 @@
                 }
             })
             .catch((e) => {
-                console.error(e);
+                log.error("Error loading map config", e, "MapView");
                 error = "Error loading map.";
             });
     });
@@ -545,7 +546,7 @@
                 ),
             }));
         } catch (e) {
-            console.error("Failed to update layer", e);
+            log.error("Failed to update layer", e, "MapView");
         }
     }
 
@@ -800,7 +801,7 @@
             // Signal styling effects that layers are rebuilt
             layerRevision += 1;
         } catch (e: any) {
-            console.error("Map Error:", e);
+            log.error("Map Error", e, "MapView");
             error = `Map Error: ${e.message}`;
         }
     }
@@ -1493,7 +1494,7 @@
         // The modal's save handler uses updateMapConfig which reads from the
         // store's own serialized queue, so there is no stale-data risk.
         if (!mapConfig) {
-            console.error("Cannot finish drawing: Map config not found.");
+            log.error("Cannot finish drawing: Map config not found.", undefined, "MapView");
             return;
         }
 

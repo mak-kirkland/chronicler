@@ -176,6 +176,7 @@ fn main() {
             commands::get_user_fonts,
             commands::install_user_font,
             commands::open_log_directory,
+            commands::log_from_frontend,
             commands::get_telemetry_enabled,
             commands::set_telemetry_enabled,
         ])
