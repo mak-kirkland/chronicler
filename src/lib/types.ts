@@ -15,6 +15,12 @@ import type { FileNode } from "./bindings";
 export type MenuAction = {
     label: string;
     handler: () => void;
+    /**
+     * If defined, the item represents a toggleable setting and a checkmark
+     * is shown on the left when `true`. Items without `checked` render as
+     * plain action rows (no leading column).
+     */
+    checked?: boolean;
     isSeparator?: undefined;
 };
 
