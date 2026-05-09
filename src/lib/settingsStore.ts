@@ -13,6 +13,7 @@ import { join } from "@tauri-apps/api/path";
 import type { UserFont } from "$lib/bindings";
 import { isColorDark, debounce } from "$lib/utils";
 import { SIDEBAR_INITIAL_WIDTH } from "$lib/config";
+import { showImages, showExternalFiles } from "$lib/explorerStore";
 import {
     BUILT_IN_THEME_FONTS,
     BUILT_IN_THEME_MODES,
@@ -64,6 +65,8 @@ interface VaultSettings {
     areFooterTagsVisible: boolean;
     areLinkPreviewsEnabled: boolean;
     areMapPreviewsEnabled: boolean;
+    showImages: boolean;
+    showExternalFiles: boolean;
 }
 
 export type ThemeName = string;
@@ -216,6 +219,8 @@ async function saveVaultSettings() {
         areFooterTagsVisible: get(areFooterTagsVisible),
         areLinkPreviewsEnabled: get(areLinkPreviewsEnabled),
         areMapPreviewsEnabled: get(areMapPreviewsEnabled),
+        showImages: get(showImages),
+        showExternalFiles: get(showExternalFiles),
     };
     await vaultSettingsFile.set("vaultSettings", settings);
     await vaultSettingsFile.save();
@@ -292,6 +297,8 @@ export async function initializeVaultSettings(vaultPath: string) {
         areFooterTagsVisible.set(settings.areFooterTagsVisible ?? true);
         areLinkPreviewsEnabled.set(settings.areLinkPreviewsEnabled ?? true);
         areMapPreviewsEnabled.set(settings.areMapPreviewsEnabled ?? true);
+        showImages.set(settings.showImages ?? true);
+        showExternalFiles.set(settings.showExternalFiles ?? false);
     } else {
         // If the vault has no settings file, it should adopt the current theme.
         // We immediately save the current settings to create the vault file,
@@ -312,6 +319,8 @@ export async function initializeVaultSettings(vaultPath: string) {
         areFooterTagsVisible.subscribe(debouncedVaultSave),
         areLinkPreviewsEnabled.subscribe(debouncedVaultSave),
         areMapPreviewsEnabled.subscribe(debouncedVaultSave),
+        showImages.subscribe(debouncedVaultSave),
+        showExternalFiles.subscribe(debouncedVaultSave),
     ];
 }
 
@@ -335,6 +344,8 @@ export function destroyVaultSettings() {
     areFooterTagsVisible.set(true);
     areLinkPreviewsEnabled.set(true);
     areMapPreviewsEnabled.set(true);
+    showImages.set(true);
+    showExternalFiles.set(false);
 
     // Reset atmosphere to defaults so next vault starts fresh if unconfigured
     atmosphere.set(defaultAtmosphere);
