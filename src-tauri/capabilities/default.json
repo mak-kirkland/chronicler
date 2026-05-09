@@ -7,6 +7,10 @@
         "core:default",
         "dialog:default",
         "opener:default",
+        {
+            "identifier": "opener:allow-open-path",
+            "allow": [{ "path": "**" }]
+        },
         "updater:default",
         "updater:allow-check",
         "updater:allow-download-and-install",
