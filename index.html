@@ -4,24 +4,165 @@
   <meta charset="utf-8">
   <title>Chronicler — Flatpak repository</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="https://chronicler.pro/images/icon.svg" type="image/svg+xml">
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 38rem; margin: 3rem auto; padding: 0 1rem; line-height: 1.5; color: #2b2520; background: #f5e6c8; }
-    code, pre { background: #2b2520; color: #f5e6c8; border-radius: 4px; }
-    code { padding: 0.1em 0.3em; }
-    pre { padding: 1rem; overflow-x: auto; }
-    a { color: #8b5a2b; }
+    :root {
+      --paper: #fdf6e3;
+      --paper-dark: #f9f2e8;
+      --ink: #4c3b30;
+      --primary: #8b4513;
+      --accent: #a58a5c;
+      --border: #eae0c8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+      line-height: 1.6;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    header a {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    header img { width: 2.25rem; height: 2.25rem; }
+    header span {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 0 0 0.5rem;
+    }
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 2.25rem 0 0.75rem;
+    }
+    p { margin: 0.75rem 0; }
+    a { color: var(--primary); text-decoration: underline; text-decoration-color: var(--accent); }
+    a:hover { color: var(--accent); }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    code {
+      background: var(--border);
+      color: #333;
+      padding: 0.1em 0.4em;
+      border-radius: 0.25rem;
+      font-size: 0.92em;
+    }
+    .command {
+      position: relative;
+      background: var(--paper-dark);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.9rem 1rem;
+      margin: 0.75rem 0 1.25rem;
+      box-shadow: 0 1px 2px rgba(76, 59, 48, 0.04);
+    }
+    .command pre {
+      margin: 0;
+      padding-right: 4.5rem;
+      font-size: 0.92rem;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: var(--accent);
+      color: #fff;
+      border: 0;
+      border-radius: 0.3rem;
+      padding: 0.25rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .copy-btn:hover { background: var(--primary); }
+    .copy-btn.copied { background: var(--primary); }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--ink);
+      opacity: 0.85;
+    }
   </style>
 </head>
 <body>
-  <h1>Chronicler — Linux (Flatpak)</h1>
+  <header>
+    <a href="https://chronicler.pro">
+      <img src="https://chronicler.pro/images/icon.svg" alt="Chronicler logo" width="36" height="36">
+      <span>Chronicler</span>
+    </a>
+  </header>
+
+  <h1>Linux (Flatpak)</h1>
   <p>One-time setup. Adds Chronicler as a Flatpak remote so future updates flow through <code>flatpak update</code>:</p>
-  <pre>flatpak install --user --from https://flatpak.chronicler.pro/chronicler.flatpakref</pre>
+  <div class="command">
+    <pre id="cmd-install">flatpak install --user --from https://flatpak.chronicler.pro/chronicler.flatpakref</pre>
+    <button class="copy-btn" data-target="cmd-install" aria-label="Copy install command">Copy</button>
+  </div>
   <p>Or, in GNOME Software / KDE Discover, open the <a href="chronicler.flatpakref">.flatpakref</a> file directly.</p>
+
   <h2>Updating</h2>
-  <pre>flatpak update pro.chronicler.Chronicler</pre>
+  <div class="command">
+    <pre id="cmd-update">flatpak update pro.chronicler.Chronicler</pre>
+    <button class="copy-btn" data-target="cmd-update" aria-label="Copy update command">Copy</button>
+  </div>
+
   <h2>One-shot install (no auto-updates)</h2>
   <p>Download the latest <code>Chronicler.flatpak</code> from <a href="https://github.com/mak-kirkland/chronicler/releases/latest">GitHub Releases</a> and run:</p>
-  <pre>flatpak install --user Chronicler.flatpak</pre>
-  <p>Back to the <a href="https://chronicler.pro">main site</a>.</p>
+  <div class="command">
+    <pre id="cmd-oneshot">flatpak install --user Chronicler.flatpak</pre>
+    <button class="copy-btn" data-target="cmd-oneshot" aria-label="Copy one-shot install command">Copy</button>
+  </div>
+
+  <footer>
+    Back to the <a href="https://chronicler.pro">main site</a>.
+  </footer>
+
+  <script>
+    document.querySelectorAll('.copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var target = document.getElementById(btn.dataset.target);
+        if (!target) return;
+        navigator.clipboard.writeText(target.textContent.trim()).then(function () {
+          var original = btn.textContent;
+          btn.textContent = 'Copied';
+          btn.classList.add('copied');
+          setTimeout(function () {
+            btn.textContent = original;
+            btn.classList.remove('copied');
+          }, 1500);
+        });
+      });
+    });
+  </script>
 </body>
 </html>
