@@ -9,6 +9,7 @@ import { isDragging } from "$lib/dragStore";
 import type { RenderedPage } from "$lib/bindings";
 import Carousel from "$lib/components/ui/Carousel.svelte";
 import { mount, unmount } from "svelte";
+import type { ActionReturn } from "svelte/action";
 import { supportsTransparency } from "$lib/utils";
 
 // Import Katex for math rendering
@@ -132,7 +133,14 @@ export function draggable(node: HTMLElement, path: string) {
  * Action to make an element a drop zone.
  * @param node The HTML element that will become a drop zone.
  */
-export function droppable(node: HTMLElement) {
+export function droppable(
+    node: HTMLElement,
+): ActionReturn<
+    undefined,
+    {
+        onfilesdropped?: (e: CustomEvent<{ sourcePath: string }>) => void;
+    }
+> {
     const dropClass = "drop-target";
     let dragCounter = 0;
 
