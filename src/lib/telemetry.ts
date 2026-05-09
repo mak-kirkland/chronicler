@@ -13,7 +13,7 @@
  *
  */
 
-import { getTelemetrySettings } from "$lib/commands";
+import { getTelemetryEnabled } from "$lib/commands";
 import { openModal, closeModal } from "$lib/modalStore";
 import TelemetryConsentModal from "$lib/components/modals/TelemetryModal.svelte";
 
@@ -31,12 +31,12 @@ import TelemetryConsentModal from "$lib/components/modals/TelemetryModal.svelte"
  */
 export async function checkTelemetryConsent(): Promise<void> {
     try {
-        const settings = await getTelemetrySettings();
+        const choice = await getTelemetryEnabled();
 
-        // Only show the prompt if the user has never seen it before.
-        // Once `consentShown` is true, we respect their previous choice
-        // and they can still change it via Settings → Privacy.
-        if (!settings.consentShown) {
+        // `null` means the user has never been asked. Once they've made a
+        // choice (true or false), we respect it and don't show the modal
+        // again — they can still change it via Settings → Privacy.
+        if (choice === null) {
             openModal({
                 component: TelemetryConsentModal,
                 props: { onClose: closeModal },
