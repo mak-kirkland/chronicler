@@ -49,6 +49,7 @@ pub fn sanitize_html(dirty_html: &str) -> String {
             "b",
             "em",
             "i",
+            "u",
             "p",
             "br",
             "h1",
