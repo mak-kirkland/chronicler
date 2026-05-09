@@ -76,7 +76,7 @@
             </p>
             <p>
                 🐞 Found a bug? Have a feature request? Please create a thread
-                in the relevant forum on<a
+                in the relevant forum on <a
                     href="https://discord.gg/cXJwcbe2b7"
                     onclick={handleContentClick}>Discord.</a
                 >
