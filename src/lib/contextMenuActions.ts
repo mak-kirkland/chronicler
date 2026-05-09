@@ -149,17 +149,15 @@ export function getContextMenuActions(
         handler: () => manuallyExpandedPaths.collapseAll(),
     });
 
-    const imagesVisible = get(showImages);
     actions.push({
-        label: imagesVisible ? "Hide Images" : "Show Images",
+        label: "Show Images",
+        checked: get(showImages),
         handler: () => showImages.update((v) => !v),
     });
 
-    const externalsVisible = get(showExternalFiles);
     actions.push({
-        label: externalsVisible
-            ? "Hide External Files"
-            : "Show External Files",
+        label: "Show External Files",
+        checked: get(showExternalFiles),
         handler: () => showExternalFiles.update((v) => !v),
     });
 
