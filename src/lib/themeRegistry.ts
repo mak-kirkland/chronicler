@@ -60,6 +60,7 @@ export const AVAILABLE_FONTS = [
     { name: "Cinzel", value: `"Cinzel", serif` },
     { name: "IBM Plex Mono", value: `"IBM Plex Mono", monospace` },
     { name: "IM Fell English", value: `"IM Fell English", serif` },
+    { name: "Junicode", value: `"Junicode", serif` },
     { name: "Merriweather", value: `"Merriweather", serif` },
     { name: "Open Sans", value: `"Open Sans", sans-serif` },
     { name: "Orbitron", value: `"Orbitron", sans-serif` },
@@ -77,15 +78,15 @@ export const BUILT_IN_THEME_FONTS: Record<
     { heading: string; body: string }
 > = {
     light: {
-        heading: `"Uncial Antiqua", cursive`,
-        body: `"IM Fell English", serif`,
+        heading: `"Cinzel", serif`,
+        body: `"Junicode", serif`,
     },
     burgundy: {
         heading: `"Cinzel", serif`,
-        body: `"IM Fell English", serif`,
+        body: `"Junicode", serif`,
     },
     dark: {
-        heading: `"Uncial Antiqua", cursive`,
+        heading: `"Cinzel", serif`,
         body: `"Spectral", serif`,
     },
     "slate-and-gold": {

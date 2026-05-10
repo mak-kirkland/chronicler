@@ -1,4 +1,20 @@
-/* --- IM Fell English (Body: Light/Classic) --- */
+/* --- Junicode (Body: Light/Classic) --- */
+@font-face {
+    font-family: "Junicode";
+    src: url("/fonts/Junicode/JunicodeVF-Roman.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Junicode";
+    src: url("/fonts/Junicode/JunicodeVF-Italic.woff2") format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* --- IM Fell English (Legacy Body: Light/Classic) --- */
 @font-face {
     font-family: "IM Fell English";
     src: url("/fonts/im-fell-english-v14-latin/im-fell-english-v14-latin-regular.woff2")

@@ -116,8 +116,8 @@ const defaultAtmosphere: AtmosphereSettings = {
 
 export const atmosphere = writable<AtmosphereSettings>(defaultAtmosphere);
 
-export const headingFont = writable<string>(`"Uncial Antiqua", cursive`);
-export const bodyFont = writable<string>(`"IM Fell English", serif`);
+export const headingFont = writable<string>(`"Cinzel", cursive`);
+export const bodyFont = writable<string>(`"Junicode", serif`);
 export const fontSize = writable<number>(100);
 export const sidebarWidth = writable<number>(SIDEBAR_INITIAL_WIDTH);
 export const isTocVisible = writable<boolean>(true); // Default to visible
