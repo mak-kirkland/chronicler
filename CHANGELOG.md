@@ -2,6 +2,20 @@
 
 ---
 
+## [v0.51.3-alpha] - 2026-05-10
+
+### 🐞 Fixed
+
+- **Sidebar**: The sidebar’s minimum width is now dynamic. It automatically calculates the required space based on the application header and your current font size settings, ensuring that text is never clipped and resizing behavior remains consistent.
+- **Preview**: Fixed a layout bug in split mode where the Table of Contents could visually overlap with floated images in the page text.
+
+### 🔄 Changed
+
+- **Themes**: Refined theme colors for better contrast and updated the default typography to use "Cinzel" and "Junicode" for improved legibility.
+- **Internal**: Standardized the appearance of horizontal separators across the entire application for a more consistent look while simplifying the underlying code.
+
+---
+
 ## [v0.51.2-alpha] - 2026-05-09
 
 ### 🔄 Changed
