@@ -127,6 +127,9 @@
     --color-text-secondary: #00a8aa;
     --color-border-primary: #1a568c;
     --color-accent-primary: var(--color-text-secondary);
+    --color-text-heading: var(
+        --color-text-primary
+    ); /* Cyan headings match body */
 
     --color-text-link: #39ff14; /* Neon green */
     --color-text-link-broken: #fffb00; /* Deep amber */
