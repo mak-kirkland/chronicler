@@ -2,6 +2,18 @@
 
 ---
 
+## [v0.51.4-alpha] - 2026-05-10
+
+### 🐞 Fixed
+
+- **Themes**: Fixed an issue in the "Hologram" theme where heading colors were not displaying correctly.
+
+### 🔄 Changed
+
+- **Documentation**: Updated the links for bug reports and feature requests to direct users to the Discord server.
+
+---
+
 ## [v0.51.3-alpha] - 2026-05-10
 
 ### 🐞 Fixed
