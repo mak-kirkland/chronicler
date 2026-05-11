@@ -12,11 +12,13 @@ use crate::{
 };
 use regex::{Captures, Regex};
 use std::sync::LazyLock;
+use std::time::Duration;
 use std::{
     collections::HashSet,
-    fs,
+    fs, io,
     io::Write,
     path::{Path, PathBuf},
+    thread,
 };
 use tempfile::NamedTempFile;
 use tracing::{error, instrument, warn};
@@ -32,6 +34,24 @@ struct BacklinkUpdate {
 /// write operations within the vault.
 #[derive(Debug, Clone)]
 pub struct Writer;
+
+/// Four attempts with 25/50/100ms backoffs buys ~175ms total — enough to ride
+/// out a cloud-sync agent or AV scanner holding the target file briefly open,
+/// without making genuine permission errors painfully slow.
+const MAX_PERSIST_ATTEMPTS: u32 = 4;
+const INITIAL_BACKOFF_MS: u64 = 25;
+const MAX_BACKOFF_MS: u64 = 100;
+
+/// I/O error kinds that typically clear within a few hundred ms. Cloud-sync
+/// agents (Dropbox / OneDrive / iCloud) and AV scanners briefly open files
+/// in the vault.
+fn is_transient_persist_error(e: &io::Error) -> bool {
+    if e.kind() == io::ErrorKind::PermissionDenied {
+        return true;
+    }
+    // 32 = ERROR_SHARING_VIOLATION, 33 = ERROR_LOCK_VIOLATION (Win), 16 = EBUSY (Unix)
+    matches!(e.raw_os_error(), Some(32 | 33 | 16))
+}
 
 /// Writes `content` to `path` atomically and durably via temp-file + rename
 /// + fsync. Survives both process crashes (readers never see a half-written
@@ -54,7 +74,38 @@ pub fn atomic_write(path: &Path, content: impl AsRef<[u8]>) -> Result<()> {
     let mut temp_file = NamedTempFile::new_in(parent_dir)?;
     temp_file.write_all(content.as_ref())?;
     temp_file.as_file().sync_all()?;
-    temp_file.persist(path).map_err(|e| e.error)?;
+
+    // `persist` is the contention point with cloud-sync agents — retry on
+    // transient errors with short exponential backoff. `PersistError` hands
+    // the temp file back so we can reuse the already-written data.
+    for attempt in 1..=MAX_PERSIST_ATTEMPTS {
+        match temp_file.persist(path) {
+            Ok(_) => break,
+            Err(persist_err) => {
+                let io_err = persist_err.error;
+                if attempt >= MAX_PERSIST_ATTEMPTS || !is_transient_persist_error(&io_err) {
+                    error!(
+                        attempt,
+                        kind = ?io_err.kind(),
+                        os_error = ?io_err.raw_os_error(),
+                        "atomic_write persist failed: {}",
+                        io_err
+                    );
+                    return Err(io_err.into());
+                }
+                let backoff_ms = (INITIAL_BACKOFF_MS << (attempt - 1)).min(MAX_BACKOFF_MS);
+                warn!(
+                    attempt,
+                    kind = ?io_err.kind(),
+                    os_error = ?io_err.raw_os_error(),
+                    backoff_ms,
+                    "atomic_write persist hit transient error (cloud sync/AV?); retrying"
+                );
+                temp_file = persist_err.file;
+                thread::sleep(Duration::from_millis(backoff_ms));
+            }
+        }
+    }
 
     // On POSIX filesystems (ext4/APFS/etc), the directory entry is a
     // separate piece of state and needs its own fsync for the rename to
