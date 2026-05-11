@@ -23,14 +23,14 @@ use tracing::instrument;
 
 /// Retrieves the stored vault path from the configuration file.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn get_vault_path(app_handle: AppHandle) -> Result<Option<String>> {
     config::get_vault_path(&app_handle)
 }
 
 /// Retrieves the list of recently opened vaults.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn get_recent_vaults(app_handle: AppHandle) -> Result<Vec<String>> {
     let config = config::load(&app_handle)?;
     Ok(config.recent_vaults)
@@ -38,7 +38,7 @@ pub fn get_recent_vaults(app_handle: AppHandle) -> Result<Vec<String>> {
 
 /// Removes a vault from the recent vaults history.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn remove_recent_vault(path: String, app_handle: AppHandle) -> Result<()> {
     config::remove_recent_vault(path, &app_handle)
 }
@@ -46,7 +46,7 @@ pub fn remove_recent_vault(path: String, app_handle: AppHandle) -> Result<()> {
 /// Sets the vault path, saves it to config, and initializes the world state.
 /// This uses fine-grained locking internally instead of a single write lock on the world.
 #[command]
-#[instrument(skip(world, app_handle))]
+#[instrument(skip(world, app_handle), err(Debug))]
 pub fn initialize_vault(path: String, world: State<World>, app_handle: AppHandle) -> Result<()> {
     world.change_vault(path, app_handle)
 }
@@ -55,42 +55,42 @@ pub fn initialize_vault(path: String, world: State<World>, app_handle: AppHandle
 
 /// Returns the tag index, mapping tags to lists of pages that contain them.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn get_all_tags(world: State<World>) -> Result<Vec<(String, Vec<PageHeader>)>> {
     world.get_all_tags()
 }
 
 /// Returns the hierarchical file tree structure of the vault.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn get_file_tree(world: State<World>) -> Result<FileNode> {
     world.get_file_tree()
 }
 
 /// Returns a list of all directory paths in the vault.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn get_all_directory_paths(world: State<World>) -> Result<Vec<PathBuf>> {
     world.get_all_directory_paths()
 }
 
 /// Returns a list of all broken links in the vault.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn get_all_broken_links(world: State<World>) -> Result<Vec<BrokenLink>> {
     world.get_all_broken_links()
 }
 
 /// Returns a list of all broken image references in the vault.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn get_all_broken_images(world: State<World>) -> Result<Vec<BrokenImage>> {
     world.get_all_broken_images()
 }
 
 /// Returns a list of all pages with YAML parsing errors.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn get_all_parse_errors(world: State<World>) -> Result<Vec<ParseError>> {
     world.get_all_parse_errors()
 }
@@ -100,7 +100,7 @@ pub fn get_all_parse_errors(world: State<World>) -> Result<Vec<ParseError>> {
 /// Processes raw markdown content, renders it to HTML with wikilinks resolved,
 /// and returns a structured object for the frontend preview.
 #[command]
-#[instrument(skip(content, world))]
+#[instrument(skip(content, world), err(Debug))]
 pub fn render_page_preview(content: String, world: State<World>) -> Result<RenderedPage> {
     world.render_page_preview(&content)
 }
@@ -108,7 +108,7 @@ pub fn render_page_preview(content: String, world: State<World>) -> Result<Rende
 /// Parses the file on disk, renders the markdown to HTML, and returns a composed
 /// object containing the raw content, and the rendered preview.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn build_page_view(path: String, world: State<World>) -> Result<FullPageData> {
     world.build_page_view(&path)
 }
@@ -116,14 +116,14 @@ pub fn build_page_view(path: String, world: State<World>) -> Result<FullPageData
 /// Renders a string of pure Markdown to a `RenderedPage` object containing only HTML.
 /// This command does not process wikilinks or frontmatter.
 #[command]
-#[instrument(skip(content, world))]
+#[instrument(skip(content, world), err(Debug))]
 pub fn render_markdown(content: String, world: State<World>) -> Result<RenderedPage> {
     world.render_markdown(&content)
 }
 
 /// Converts a relative or absolute image path to a Base64 Data URL string.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn get_image_as_base64(path: String, world: State<World>) -> Result<String> {
     world.get_image_as_base64(&path)
 }
@@ -131,7 +131,7 @@ pub fn get_image_as_base64(path: String, world: State<World>) -> Result<String> 
 /// Returns the best source string (Asset URL or Base64) for a given image path.
 /// Handles symlinks by checking if they are safe for the Asset Protocol.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn get_image_source(path: String, world: State<World>) -> Result<String> {
     world.get_image_source(&path)
 }
@@ -140,7 +140,7 @@ pub fn get_image_source(path: String, world: State<World>) -> Result<String> {
 /// generating the thumbnail on first request. Falls back to the full-size
 /// source if the image can't be decoded.
 #[command]
-#[instrument(skip(world), level = "debug")]
+#[instrument(skip(world), level = "debug", err(Debug))]
 pub async fn get_image_thumbnail(path: String, world: State<'_, World>) -> Result<String> {
     world.get_image_thumbnail(&path).await
 }
@@ -149,14 +149,14 @@ pub async fn get_image_thumbnail(path: String, world: State<'_, World>) -> Resul
 
 /// Writes content to a page on disk. The file watcher will pick up the change.
 #[command]
-#[instrument(skip(world, content))]
+#[instrument(skip(world, content), err(Debug))]
 pub fn write_page_content(world: State<World>, path: String, content: String) -> Result<()> {
     world.write_page_content(&path, &content)
 }
 
 /// Creates a new, empty markdown file and synchronously updates the index.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn create_new_file(
     world: State<World>,
     parent_dir: String,
@@ -168,7 +168,7 @@ pub fn create_new_file(
 
 /// Creates a new, empty folder.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn create_new_folder(
     world: State<World>,
     parent_dir: String,
@@ -179,35 +179,35 @@ pub fn create_new_folder(
 
 /// Renames a file or folder on disk, updates backlinks, and returns the new path.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn rename_path(world: State<World>, path: String, new_name: String) -> Result<PathBuf> {
     world.rename_path(PathBuf::from(path), new_name)
 }
 
 /// Deletes a file or folder from disk and updates the index.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn delete_path(world: State<World>, path: String) -> Result<()> {
     world.delete_path(PathBuf::from(path))
 }
 
 /// Moves a file or folder to a new directory, updates backlinks, and returns the new path.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn move_path(world: State<World>, source_path: String, dest_dir: String) -> Result<PathBuf> {
     world.move_path(PathBuf::from(source_path), PathBuf::from(dest_dir))
 }
 
 /// Duplicates a page, creating a new file with a numerical suffix.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn duplicate_page(path: String, world: State<World>) -> Result<PageHeader> {
     world.duplicate_page(path)
 }
 
 /// Opens the specified path in the OS's default file explorer.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn open_in_explorer(app_handle: AppHandle, path: String) -> Result<()> {
     app_handle.opener().open_path(path, None::<&str>)?;
     Ok(())
@@ -216,7 +216,7 @@ pub fn open_in_explorer(app_handle: AppHandle, path: String) -> Result<()> {
 /// Reads a `.cmap` file from within the vault and returns its raw JSON.
 /// Frontend parses once — see `Indexer::get_map_config` for the rationale.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn get_map_config(path: String, world: State<World>) -> Result<String> {
     world.get_map_config(&path)
 }
@@ -226,7 +226,7 @@ pub fn get_map_config(path: String, world: State<World>) -> Result<String> {
 /// before mounting a layer to avoid loading the original image when tiles
 /// are already cached.
 #[command]
-#[instrument(skip(world))]
+#[instrument(skip(world), err(Debug))]
 pub fn lookup_layer_tile_info(
     image_filename: String,
     world: State<'_, World>,
@@ -241,7 +241,7 @@ pub fn lookup_layer_tile_info(
 /// pyramid on a background thread, emitting `tile-progress` events so the
 /// frontend can display a progress bar.
 #[command]
-#[instrument(skip(world, app_handle))]
+#[instrument(skip(world, app_handle), err(Debug))]
 pub async fn ensure_layer_tiles(
     image_filename: String,
     world: State<'_, World>,
@@ -254,7 +254,7 @@ pub async fn ensure_layer_tiles(
 
 /// Imports a list of .docx files, converting them to Markdown.
 #[command]
-#[instrument(skip(world, app_handle))]
+#[instrument(skip(world, app_handle), err(Debug))]
 pub fn import_docx_files(
     world: State<World>,
     app_handle: AppHandle,
@@ -265,7 +265,7 @@ pub fn import_docx_files(
 
 /// Scans a directory for .docx files and imports them.
 #[command]
-#[instrument(skip(world, app_handle))]
+#[instrument(skip(world, app_handle), err(Debug))]
 pub fn import_docx_from_folder(
     world: State<World>,
     app_handle: AppHandle,
@@ -276,7 +276,7 @@ pub fn import_docx_from_folder(
 
 /// Imports a MediaWiki XML dump file.
 #[command]
-#[instrument(skip(world, app_handle))]
+#[instrument(skip(world, app_handle), err(Debug))]
 pub async fn import_mediawiki_dump(
     world: State<'_, World>,
     app_handle: AppHandle,
@@ -287,14 +287,14 @@ pub async fn import_mediawiki_dump(
 
 /// Checks if Pandoc is installed in the application's config directory.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn is_pandoc_installed(app_handle: AppHandle) -> Result<bool> {
     importer::is_pandoc_installed(&app_handle)
 }
 
 /// Downloads and extracts Pandoc to the application's config directory.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
     importer::download_pandoc(app_handle).await
 }
@@ -303,14 +303,14 @@ pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
 
 /// Retrieves the current license status from the stored license file.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn get_license_status(app_handle: AppHandle) -> Result<Option<License>> {
     licensing::load_and_verify_license(&app_handle)
 }
 
 /// Verifies a license key, and if valid, saves it to the config directory.
 #[command]
-#[instrument(skip(app_handle, license_key))]
+#[instrument(skip(app_handle, license_key), err(Debug))]
 pub async fn verify_and_store_license(
     app_handle: AppHandle,
     license_key: String,
@@ -346,7 +346,7 @@ pub fn get_linux_install_type() -> String {
 /// Checks the number of days the application has been in use.
 /// If it's the first time this check is run, it records the current date.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn get_app_usage_days(app_handle: AppHandle) -> Result<i64> {
     let mut config = config::load(&app_handle)?;
 
@@ -392,7 +392,7 @@ pub fn log_from_frontend(level: String, message: String, context: Option<String>
 
 /// Opens the application's log directory in the default file explorer.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn open_log_directory(app_handle: AppHandle) -> Result<()> {
     let log_dir = app_handle.path().app_log_dir()?;
     app_handle
@@ -405,14 +405,14 @@ pub fn open_log_directory(app_handle: AppHandle) -> Result<()> {
 
 /// Scans the application's config directory for user-provided font files.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn get_user_fonts(app_handle: AppHandle) -> Result<Vec<fonts::UserFont>> {
     fonts::get_user_fonts(&app_handle)
 }
 
 /// Copies a user-picked font file into the app's managed fonts directory.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn install_user_font(app_handle: AppHandle, source: String) -> Result<fonts::UserFont> {
     fonts::install_user_font(&app_handle, std::path::Path::new(&source))
 }
@@ -422,7 +422,7 @@ pub fn install_user_font(app_handle: AppHandle, source: String) -> Result<fonts:
 /// Returns the user's telemetry choice. `None` means they haven't been asked
 /// yet - the frontend uses this to decide whether to show the consent modal.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn get_telemetry_enabled(app_handle: AppHandle) -> Result<Option<bool>> {
     Ok(config::load(&app_handle)?.telemetry_enabled)
 }
@@ -430,7 +430,7 @@ pub fn get_telemetry_enabled(app_handle: AppHandle) -> Result<Option<bool>> {
 /// Persists the user's telemetry choice. Called from both the consent modal
 /// and the Settings toggle.
 #[command]
-#[instrument(skip(app_handle))]
+#[instrument(skip(app_handle), err(Debug))]
 pub fn set_telemetry_enabled(enabled: bool, app_handle: AppHandle) -> Result<()> {
     config::set_telemetry_enabled(enabled, &app_handle)
 }
