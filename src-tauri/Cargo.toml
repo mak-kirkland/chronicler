@@ -6,6 +6,11 @@ authors = ["Michael Kirkland"]
 edition = "2021"
 license = "PolyForm Shield License 1.0.0"
 
+[lints.clippy]
+# Keep positional `format!("{}", x)` arguments — easier to scan what variables
+# are being interpolated at a glance, especially when the format string is long.
+uninlined_format_args = "allow"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 dotenvy = "0.15.7"
