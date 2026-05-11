@@ -54,6 +54,14 @@ modules:
 
           - install -Dm755 extract/usr/bin/chronicler /app/bin/chronicler
 
+          # Bundled resources (CHANGELOG.md, HELP.md, etc.) live under
+          # /usr/lib/<productName>/ in the .deb. Tauri's resource resolver
+          # finds them via <binary>/../lib/Chronicler/, so they need to land
+          # at /app/lib/Chronicler/ inside the Flatpak.
+          - |
+              mkdir -p /app/lib
+              cp -r extract/usr/lib/Chronicler /app/lib/Chronicler
+
           # Rename icons to the Flatpak App ID (required for the desktop
           # file's Icon= entry to resolve), then copy them in. The mkdir is
           # load-bearing: with /app/share absent, `cp -r src/icons /app/share/`
