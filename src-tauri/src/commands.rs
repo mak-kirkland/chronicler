@@ -21,10 +21,20 @@ use tracing::instrument;
 
 // --- Vault and Initialization ---
 
-/// Retrieves the stored vault path from the configuration file.
+/// Returns the active vault path for this session, falling back to the
+/// on-disk config when no vault is yet open.
+///
+/// Reading from the World's in-memory `root_path` keeps the running session
+/// stable when a second instance rewrites the shared config (e.g. by
+/// switching its own vault) — otherwise a later `world.initialize()` refresh
+/// would surface the *other* instance's vault as ours and any UI that builds
+/// paths from `$vaultPath` would target the wrong directory.
 #[command]
-#[instrument(skip(app_handle), err(Debug))]
-pub fn get_vault_path(app_handle: AppHandle) -> Result<Option<String>> {
+#[instrument(skip(world, app_handle), err(Debug))]
+pub fn get_vault_path(world: State<World>, app_handle: AppHandle) -> Result<Option<String>> {
+    if let Some(p) = world.root_path.read().clone() {
+        return Ok(Some(p.to_string_lossy().into_owned()));
+    }
     config::get_vault_path(&app_handle)
 }
 
