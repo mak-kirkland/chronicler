@@ -178,6 +178,52 @@ impl World {
         }
     }
 
+    /// Returns the current vault root, or `VaultNotInitialized` if no vault is open.
+    fn vault_root(&self) -> Result<PathBuf> {
+        self.root_path
+            .read()
+            .clone()
+            .ok_or(ChroniclerError::VaultNotInitialized)
+    }
+
+    /// Runs `f` against the active renderer, or returns `VaultNotInitialized`.
+    fn with_renderer<F, R>(&self, f: F) -> Result<R>
+    where
+        F: FnOnce(&Renderer) -> Result<R>,
+    {
+        self.renderer
+            .read()
+            .as_ref()
+            .ok_or(ChroniclerError::VaultNotInitialized)
+            .and_then(f)
+    }
+
+    /// Runs `f` against the active writer, or returns `VaultNotInitialized`.
+    fn with_writer<F, R>(&self, f: F) -> Result<R>
+    where
+        F: FnOnce(&Writer) -> Result<R>,
+    {
+        self.writer
+            .read()
+            .as_ref()
+            .ok_or(ChroniclerError::VaultNotInitialized)
+            .and_then(f)
+    }
+
+    /// Registers a batch of newly-imported files in the index and refreshes
+    /// link relations. No-op for an empty batch (avoids a needless write lock
+    /// and the full relation rebuild).
+    fn ingest_imported_files(&self, paths: &[PathBuf]) {
+        if paths.is_empty() {
+            return;
+        }
+        let mut indexer = self.indexer.write();
+        for path in paths {
+            indexer.update_file(path);
+        }
+        indexer.rebuild_relations();
+    }
+
     /// Initializes the world by performing a full scan of the vault directory and starting
     /// the file watcher. This is an internal method called by `change_vault`.
     /// This function modifies the interior state via locks.
@@ -394,33 +440,18 @@ impl World {
 
     /// Processes raw markdown content and returns the fully rendered page data.
     pub fn render_page_preview(&self, content: &str) -> Result<RenderedPage> {
-        // This operation does not lock the renderer, only the indexer internally for link resolution.
-        if let Some(renderer) = self.renderer.read().as_ref() {
-            renderer.render_page_preview(content)
-        } else {
-            Err(ChroniclerError::VaultNotInitialized)
-        }
+        self.with_renderer(|r| r.render_page_preview(content))
     }
 
     /// Renders a string of pure Markdown to a `RenderedPage` object.
     /// This bypasses all wikilink and frontmatter processing.
     pub fn render_markdown(&self, markdown: &str) -> Result<RenderedPage> {
-        // This is a pure function and doesn't require any state locks.
-        if let Some(renderer) = self.renderer.read().as_ref() {
-            renderer.render_markdown(markdown)
-        } else {
-            Err(ChroniclerError::VaultNotInitialized)
-        }
+        self.with_renderer(|r| r.render_markdown(markdown))
     }
 
     /// Fetches and renders all data required for the main file view.
     pub fn build_page_view(&self, path: &str) -> Result<FullPageData> {
-        // The renderer handles its own internal locking of the indexer.
-        if let Some(renderer) = self.renderer.read().as_ref() {
-            renderer.build_page_view(path)
-        } else {
-            Err(ChroniclerError::VaultNotInitialized)
-        }
+        self.with_renderer(|r| r.build_page_view(path))
     }
 
     /// Returns a list of all directory paths in the vault.
@@ -430,20 +461,12 @@ impl World {
 
     /// Converts a relative or absolute image path to a Base64 Data URL string.
     pub fn get_image_as_base64(&self, path: &str) -> Result<String> {
-        if let Some(renderer) = self.renderer.read().as_ref() {
-            Ok(renderer.convert_image_path_to_data_url(path))
-        } else {
-            Err(ChroniclerError::VaultNotInitialized)
-        }
+        self.with_renderer(|r| Ok(r.convert_image_path_to_data_url(path)))
     }
 
     /// Returns the best source string (Asset URL or Base64) for a given image path.
     pub fn get_image_source(&self, path: &str) -> Result<String> {
-        if let Some(renderer) = self.renderer.read().as_ref() {
-            Ok(renderer.get_image_source(path))
-        } else {
-            Err(ChroniclerError::VaultNotInitialized)
-        }
+        self.with_renderer(|r| Ok(r.get_image_source(path)))
     }
 
     /// Returns a URL for a cached thumbnail of the given image, generating
@@ -451,11 +474,7 @@ impl World {
     /// decode error, missing file), falls back to the full-size source so
     /// the gallery tile still displays something.
     pub async fn get_image_thumbnail(&self, path: &str) -> Result<String> {
-        let root = self
-            .root_path
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
+        let root = self.vault_root()?;
         let image_path = PathBuf::from(path);
 
         match crate::thumbnailer::get_image_thumbnail_async(root, image_path).await {
@@ -478,11 +497,7 @@ impl World {
         &self,
         image_filename: &str,
     ) -> Result<Option<crate::tiler::TileSetInfo>> {
-        let root = self
-            .root_path
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
+        let root = self.vault_root()?;
 
         let image_path = {
             let indexer = self.indexer.read();
@@ -505,14 +520,9 @@ impl World {
         image_filename: &str,
         app_handle: AppHandle,
     ) -> Result<crate::tiler::TileSetInfo> {
-        // 1. Get the vault root path.
-        let root = self
-            .root_path
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
+        let root = self.vault_root()?;
 
-        // 2. Resolve the image filename → absolute path using the indexer's media resolver.
+        // Resolve the image filename → absolute path via the indexer's media resolver.
         let image_path = {
             let indexer = self.indexer.read();
             indexer
@@ -547,12 +557,7 @@ impl World {
     /// This method doesn't need to modify the index directly, as the file watcher
     /// will detect the change and send an event.
     pub fn write_page_content(&self, path: &str, content: &str) -> Result<()> {
-        let writer = self
-            .writer
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
-        writer.write_page_content(Path::new(path), content)
+        self.with_writer(|w| w.write_page_content(Path::new(path), content))
     }
 
     /// Creates a new markdown file, optionally using a template.
@@ -562,18 +567,13 @@ impl World {
         file_name: String,
         template_path: Option<String>,
     ) -> Result<PageHeader> {
-        let writer = self
-            .writer
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
-
         // Read the template content if a path is provided.
         let template_content = template_path
             .map(|p| fs::read_to_string(Path::new(&p)))
             .transpose()?;
 
-        let page_header = writer.create_new_file(&parent_dir, &file_name, template_content)?;
+        let page_header = self
+            .with_writer(|w| w.create_new_file(&parent_dir, &file_name, template_content))?;
 
         // A brand-new page has no backlinks pointing at it yet and its own
         // outgoing links (from the template, if any) become visible as soon
@@ -589,13 +589,7 @@ impl World {
 
     /// Creates a new, empty folder.
     pub fn create_new_folder(&self, parent_dir: String, folder_name: String) -> Result<()> {
-        let writer = self
-            .writer
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
-
-        let new_path = writer.create_new_folder(&parent_dir, &folder_name)?;
+        let new_path = self.with_writer(|w| w.create_new_folder(&parent_dir, &folder_name))?;
 
         // Folders don't participate in the relation graph, so registering
         // the directory asset is sufficient; skip the rebuild.
@@ -609,12 +603,6 @@ impl World {
     /// Renames a file or folder in-place and synchronously updates the index.
     /// Returns the new path of the renamed item.
     pub fn rename_path(&self, path: PathBuf, new_name: String) -> Result<PathBuf> {
-        let writer = self
-            .writer
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
-
         // Get necessary info from the indexer before performing the operation.
         let backlinks = {
             let index = self.indexer.read();
@@ -628,7 +616,7 @@ impl World {
                 .unwrap_or_default()
         };
 
-        let new_path = writer.rename_path(&path, &new_name, &backlinks)?;
+        let new_path = self.with_writer(|w| w.rename_path(&path, &new_name, &backlinks))?;
 
         // After the transaction succeeds, update the indexer's in-memory state.
         self.indexer
@@ -645,12 +633,6 @@ impl World {
     /// Moves a file or folder to a new directory, updating links and the index.
     /// Returns the new path of the moved item.
     pub fn move_path(&self, source_path: PathBuf, dest_dir: PathBuf) -> Result<PathBuf> {
-        let writer = self
-            .writer
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
-
         // Get backlinks from the indexer *before* the move.
         let backlinks = {
             let index = self.indexer.read();
@@ -665,7 +647,7 @@ impl World {
         };
 
         // The writer performs the transactional move on the file system.
-        let new_path = writer.move_path(&source_path, &dest_dir, &backlinks)?;
+        let new_path = self.with_writer(|w| w.move_path(&source_path, &dest_dir, &backlinks))?;
 
         // After the move succeeds, notify the indexer of the rename event.
         self.indexer
@@ -684,17 +666,7 @@ impl World {
     /// Includes a safety guard that prevents deletion of the vault root or its
     /// direct children, protecting against catastrophic data loss.
     pub fn delete_path(&self, path: PathBuf) -> Result<()> {
-        let writer = self
-            .writer
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
-
-        let vault_root = self
-            .root_path
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
+        let vault_root = self.vault_root()?;
 
         let event = if path.is_dir() {
             FileEvent::FolderDeleted(path.clone())
@@ -702,20 +674,14 @@ impl World {
             FileEvent::Deleted(path.clone())
         };
 
-        writer.delete_path(&path, &vault_root)?;
+        self.with_writer(|w| w.delete_path(&path, &vault_root))?;
         self.indexer.write().handle_event_and_rebuild(&event);
         Ok(())
     }
 
     /// Duplicates a page and synchronously updates the index.
     pub fn duplicate_page(&self, path: String) -> Result<PageHeader> {
-        let writer = self
-            .writer
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
-
-        let new_page_header = writer.duplicate_page(&PathBuf::from(path))?;
+        let new_page_header = self.with_writer(|w| w.duplicate_page(&PathBuf::from(path)))?;
 
         // The duplicate may have outgoing links copied from the source, but
         // the backlinks on its targets will be refreshed when the watcher
@@ -736,21 +702,10 @@ impl World {
         app_handle: &AppHandle,
         docx_paths: Vec<PathBuf>,
     ) -> Result<Vec<PathBuf>> {
-        let output_dir = self
-            .root_path
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
-
+        let output_dir = self.vault_root()?;
         let converted_paths =
             importer::convert_docx_to_markdown(app_handle, docx_paths, output_dir)?;
-
-        let mut indexer = self.indexer.write();
-        for path in &converted_paths {
-            indexer.update_file(path); // Update index state
-        }
-        indexer.rebuild_relations(); // Rebuild relations once
-
+        self.ingest_imported_files(&converted_paths);
         Ok(converted_paths)
     }
 
@@ -765,29 +720,10 @@ impl World {
         app_handle: &AppHandle,
         folder_path: PathBuf,
     ) -> Result<Vec<PathBuf>> {
-        // 1. Determine the output path (the root of the current vault).
-        let output_dir = self
-            .root_path
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
-
-        // 2. Delegate the file discovery and conversion process to the importer module.
+        let output_dir = self.vault_root()?;
         let converted_paths =
             importer::convert_docx_in_folder(app_handle, &folder_path, output_dir)?;
-
-        // If the importer found no files, we can stop early.
-        if converted_paths.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        // 3. The World's responsibility is to update the index after the import.
-        let mut indexer = self.indexer.write();
-        for path in &converted_paths {
-            indexer.update_file(path); // Update index state
-        }
-        indexer.rebuild_relations(); // Rebuild relations once
-
+        self.ingest_imported_files(&converted_paths);
         Ok(converted_paths)
     }
 
@@ -797,25 +733,10 @@ impl World {
         app_handle: AppHandle,
         xml_path: PathBuf,
     ) -> Result<Vec<PathBuf>> {
-        let output_dir = self
-            .root_path
-            .read()
-            .clone()
-            .ok_or(ChroniclerError::VaultNotInitialized)?;
-
+        let output_dir = self.vault_root()?;
         let imported_paths =
             mediawiki_importer::import_mediawiki_dump(app_handle, xml_path, output_dir).await?;
-
-        if imported_paths.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        // After import, update the index with all the new files.
-        let mut indexer = self.indexer.write();
-        for path in &imported_paths {
-            indexer.update_file(path);
-        }
-        indexer.rebuild_relations();
+        self.ingest_imported_files(&imported_paths);
 
         Ok(imported_paths)
     }
