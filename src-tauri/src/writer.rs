@@ -151,6 +151,72 @@ fn replace_insert_in_content(content: &str, old_stem: &str, new_stem: &str) -> O
     }
 }
 
+/// Moves a path to the OS trash/recycle bin.
+///
+/// Flatpak redirects $XDG_DATA_HOME to the app's private data dir
+/// (~/.var/app/<id>/data/). The trash crate's first decision is whether
+/// $XDG_DATA_HOME/Trash and the file being trashed share an st_dev —
+/// they don't, because the sandbox setup gives the app-private dir a
+/// different device id from the rest of the user's home even though both
+/// sit on the same physical filesystem. So the crate falls into its
+/// second code path: walk up from the file to its mount-point root and
+/// `mkdir .Trash-$UID/` there. For a file under /home/<user>/, that root
+/// is /home (or /), both root-owned mode 755 — the mkdir fails with
+/// PermissionDenied. Pointing XDG_DATA_HOME at the user's own
+/// $HOME/.local/share for the call keeps the device ids matching and
+/// puts trashed files where the user's file manager actually shows them.
+fn move_to_trash(path: &Path) -> Result<()> {
+    #[cfg(target_os = "linux")]
+    let _xdg_guard = if Path::new("/.flatpak-info").exists() {
+        Some(XdgDataHomeOverride::redirect_to_real_home()?)
+    } else {
+        None
+    };
+
+    trash::delete(path).map_err(|e| {
+        ChroniclerError::TrashError(format!(
+            "Failed to move '{}' to trash: {}",
+            path.display(),
+            e
+        ))
+    })
+}
+
+/// Scoped override of `XDG_DATA_HOME`, restored on drop.
+///
+/// `std::env::set_var` is process-global and racy with concurrent env reads
+/// from other threads (UB on some platforms; `unsafe` from Rust 2024
+/// onwards). Safe here because Tauri sync commands run serially on the
+/// blocking pool and no other code path mutates env vars during a delete.
+#[cfg(target_os = "linux")]
+struct XdgDataHomeOverride {
+    previous: Option<std::ffi::OsString>,
+}
+
+#[cfg(target_os = "linux")]
+impl XdgDataHomeOverride {
+    fn redirect_to_real_home() -> Result<Self> {
+        let home = std::env::var_os("HOME").ok_or_else(|| {
+            ChroniclerError::TrashError(
+                "HOME is unset; can't locate the user's trash directory".into(),
+            )
+        })?;
+        let previous = std::env::var_os("XDG_DATA_HOME");
+        std::env::set_var("XDG_DATA_HOME", PathBuf::from(home).join(".local/share"));
+        Ok(Self { previous })
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl Drop for XdgDataHomeOverride {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(v) => std::env::set_var("XDG_DATA_HOME", v),
+            None => std::env::remove_var("XDG_DATA_HOME"),
+        }
+    }
+}
+
 impl Writer {
     /// Creates a new Writer.
     pub fn new() -> Self {
@@ -230,13 +296,7 @@ tags: [add, your, tags]
         }
 
         // --- Move to OS trash instead of permanent deletion ---
-        trash::delete(path).map_err(|e| {
-            ChroniclerError::TrashError(format!(
-                "Failed to move '{}' to trash: {}",
-                path.display(),
-                e
-            ))
-        })?;
+        move_to_trash(path)?;
 
         Ok(())
     }
