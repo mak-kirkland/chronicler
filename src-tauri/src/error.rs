@@ -100,6 +100,9 @@ pub enum ChroniclerError {
     // Thumbnail Generation Errors
     #[error("Thumbnail generation failed: {0}")]
     ThumbnailGeneration(String),
+
+    #[error("Theme error: {0}")]
+    Theme(String),
 }
 
 // We need to implement Serialize for the error type to be able to return
