@@ -11,6 +11,7 @@ use crate::{
     error::Result,
     fonts, importer,
     models::{FileNode, RenderedPage},
+    themes,
     world::World,
 };
 use chrono::{Local, NaiveDate};
@@ -442,4 +443,50 @@ pub fn get_telemetry_enabled(app_handle: AppHandle) -> Result<Option<bool>> {
 #[instrument(skip(app_handle))]
 pub fn set_telemetry_enabled(enabled: bool, app_handle: AppHandle) -> Result<()> {
     config::set_telemetry_enabled(enabled, &app_handle)
+}
+
+// --- Themes ---
+
+/// Returns every custom theme currently stored under `<app_config_dir>/themes/`.
+/// Themes are returned as opaque JSON values — the frontend owns the shape.
+#[command]
+#[instrument(skip(app_handle), err(Debug))]
+pub fn list_themes_on_disk(app_handle: AppHandle) -> Result<Vec<serde_json::Value>> {
+    themes::list_themes(&app_handle)
+}
+
+/// Writes a theme JSON to disk.
+///
+/// With no `path`, the theme is saved into the app's managed themes
+/// directory (this is the normal Save flow — slug computed from `name`,
+/// overwriting any existing file with the same theme name).
+///
+/// With a `path`, the theme is written verbatim to that path. The path
+/// originates from the OS save dialog on the frontend, so routing the
+/// write through Rust avoids the scoped restrictions on
+/// `@tauri-apps/plugin-fs` (the Export flow).
+#[command]
+#[instrument(skip(app_handle, theme), err(Debug))]
+pub fn save_theme_to_disk(
+    theme: serde_json::Value,
+    path: Option<String>,
+    app_handle: AppHandle,
+) -> Result<()> {
+    let target = path.as_deref().map(std::path::Path::new);
+    themes::save_theme(&app_handle, theme, target)
+}
+
+/// Deletes the theme file whose `name` matches.
+#[command]
+#[instrument(skip(app_handle), err(Debug))]
+pub fn delete_theme_from_disk(name: String, app_handle: AppHandle) -> Result<()> {
+    themes::delete_theme(&app_handle, &name)
+}
+
+/// Reads a theme JSON from a user-supplied path (Import). Returns the raw
+/// JSON for the frontend to validate against its `CustomTheme` shape.
+#[command]
+#[instrument(err(Debug))]
+pub fn import_theme_from_path(path: String) -> Result<serde_json::Value> {
+    themes::import_theme_from_path(std::path::Path::new(&path))
 }

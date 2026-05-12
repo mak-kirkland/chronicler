@@ -373,3 +373,36 @@ export const getTelemetryEnabled = () =>
  */
 export const setTelemetryEnabled = (enabled: boolean) =>
     invoke<void>("set_telemetry_enabled", { enabled });
+
+// --- Theme Commands ---
+
+/**
+ * Lists every custom theme JSON stored under the app's themes directory.
+ * Returned values are opaque to the backend; the frontend supplies the shape.
+ */
+export const listThemesOnDisk = <T = unknown>() =>
+    invoke<T[]>("list_themes_on_disk");
+
+/**
+ * Writes a theme JSON to disk.
+ *
+ * Without a `path`, the theme is saved to the app's managed themes
+ * directory (the normal Save flow). With a `path`, the theme is written
+ * verbatim to that path — used by the Export flow with a path obtained
+ * from the OS save dialog.
+ */
+export const saveThemeToDisk = (theme: unknown, path?: string) =>
+    invoke<void>("save_theme_to_disk", { theme, path });
+
+/**
+ * Deletes the theme file whose `name` matches. No-ops if absent.
+ */
+export const deleteThemeFromDisk = (name: string) =>
+    invoke<void>("delete_theme_from_disk", { name });
+
+/**
+ * Reads and parses a theme JSON from a user-supplied path. Used by the
+ * Import flow. The frontend validates the returned shape.
+ */
+export const importThemeFromPath = <T = unknown>(path: string) =>
+    invoke<T>("import_theme_from_path", { path });

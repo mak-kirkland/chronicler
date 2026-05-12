@@ -173,7 +173,7 @@ Chronicler stores global settings, themes and fonts in a dedicated folder on you
 ### 🎨 Themes & Fonts
 
 - **Themes**: Switch between built-in color schemes or create your own with the Theme Editor.
-- **Custom Fonts**: Add your own `.woff2`, `.ttf`, or `.otf` font files to the `fonts` subfolder within the **Application Settings Directory**. After a restart, they will be available in the theme editor.hemes
+- **Custom Fonts**: Add your own `.woff2`, `.ttf`, or `.otf` font files to the `fonts` subfolder within the **Application Settings Directory** (see above). After a restart, they will be available in the theme editor.hemes
 
 ---
 

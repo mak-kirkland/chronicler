@@ -31,6 +31,7 @@ mod parser;
 mod renderer;
 mod sanitizer;
 mod telemetry;
+mod themes;
 mod thumbnailer;
 mod tiler;
 mod utils;
@@ -179,6 +180,10 @@ fn main() {
             commands::log_from_frontend,
             commands::get_telemetry_enabled,
             commands::set_telemetry_enabled,
+            commands::list_themes_on_disk,
+            commands::save_theme_to_disk,
+            commands::delete_theme_from_disk,
+            commands::import_theme_from_path,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);
