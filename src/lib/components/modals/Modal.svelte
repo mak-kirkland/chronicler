@@ -9,11 +9,13 @@
         title = "Modal Title",
         onClose = closeModal,
         showCloseButton = true,
+        wide = false,
     } = $props<{
         children: Snippet;
         title?: string;
         onClose?: () => void;
         showCloseButton?: boolean;
+        wide?: boolean;
     }>();
 
     let modalElement: HTMLDivElement;
@@ -71,6 +73,7 @@
     <div
         bind:this={modalElement}
         class="modal-content"
+        class:wide
         role="dialog"
         aria-modal="true"
         tabindex="-1"
@@ -128,6 +131,9 @@
         max-width: 600px;
         box-shadow: 0 5px 15px var(--color-overlay-light);
         color: var(--color-text-primary);
+    }
+    .modal-content.wide {
+        max-width: 960px;
     }
     .modal-header {
         display: flex;
