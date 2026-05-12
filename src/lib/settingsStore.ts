@@ -15,6 +15,12 @@ import { isColorDark, debounce } from "$lib/utils";
 import { SIDEBAR_INITIAL_WIDTH } from "$lib/config";
 import { showImages, showExternalFiles } from "$lib/explorerStore";
 import {
+    listThemesOnDisk,
+    saveThemeToDisk,
+    deleteThemeFromDisk,
+} from "$lib/commands";
+import { log } from "$lib/logger";
+import {
     BUILT_IN_THEME_FONTS,
     BUILT_IN_THEME_MODES,
     type ThemePalette,
@@ -22,15 +28,24 @@ import {
 
 // --- Type Definitions ---
 
-/** Defines the shape of the GLOBAL settings object saved to disk. */
+/** Defines the shape of the GLOBAL settings object saved to disk.
+ *
+ * Custom themes used to live here as a `userThemes: CustomTheme[]` array,
+ * but they now have their own per-file storage under `<app_config_dir>/themes/`.
+ * `loadGlobalSettings` migrates any leftover legacy entries on startup.
+ */
 interface GlobalSettings {
-    userThemes: CustomTheme[];
     /**
      * The name of the last active theme.
      * Storing this globally allows the app to load the correct theme
      * immediately on startup, before any vault-specific settings are loaded.
      */
     lastActiveTheme?: ThemeName;
+}
+
+/** Legacy shape kept just long enough to migrate older settings files. */
+interface LegacyGlobalSettings extends GlobalSettings {
+    userThemes?: CustomTheme[];
 }
 
 /**
@@ -189,13 +204,14 @@ export const atmosphereMode = derived(
 
 /**
  * Saves the current state of GLOBAL settings to the persistent file.
+ *
+ * Custom themes are persisted separately (one JSON file per theme); they are
+ * deliberately omitted here so subsequent saves naturally drop any legacy
+ * `userThemes` field that migration left behind in the underlying JSON.
  */
 async function saveGlobalSettings() {
     if (!globalSettingsFile) return;
     const settings: GlobalSettings = {
-        userThemes: get(userThemes),
-        // By saving the active theme here, we persist it across sessions
-        // and between opening/closing vaults.
         lastActiveTheme: get(activeTheme),
     };
     await globalSettingsFile.set("globalSettings", settings);
@@ -241,25 +257,51 @@ export async function loadGlobalSettings() {
     globalSettingsFile = new LazyStore(GLOBAL_SETTINGS_FILENAME);
 
     const settings =
-        await globalSettingsFile.get<GlobalSettings>("globalSettings");
-    if (settings) {
-        // MIGRATION STEP:
-        // Ensure all loaded themes have the full palette (including new syntax keys).
-        // If they are missing keys, fill them with smart defaults.
-        const migratedThemes = (settings.userThemes ?? []).map((theme) => ({
+        await globalSettingsFile.get<LegacyGlobalSettings>("globalSettings");
+
+    // Load custom themes from their per-file storage. Each `.json` file in
+    // `<app_config_dir>/themes/` is one theme.
+    let diskThemes: CustomTheme[] = [];
+    try {
+        const raw = await listThemesOnDisk<CustomTheme>();
+        diskThemes = raw.map((theme) => ({
             ...theme,
             palette: fillMissingColors(theme.palette),
         }));
+    } catch (e) {
+        log.error("Failed to load custom themes from disk", e, "settings");
+    }
 
-        userThemes.set(migratedThemes);
+    // One-shot migration from the legacy `userThemes` array in
+    // `global.settings.json`. The next `saveGlobalSettings` call drops the
+    // field from the underlying JSON.
+    if (diskThemes.length === 0 && settings?.userThemes?.length) {
+        const legacyThemes = settings.userThemes.map((theme) => ({
+            ...theme,
+            palette: fillMissingColors(theme.palette),
+        }));
+        await Promise.all(
+            legacyThemes.map((theme) =>
+                saveThemeToDisk(theme).catch((e) =>
+                    log.error(
+                        `Failed to migrate legacy theme "${theme.name}"`,
+                        e,
+                        "settings",
+                    ),
+                ),
+            ),
+        );
+        diskThemes = legacyThemes;
+    }
 
-        // Load the last used theme from the global settings file.
+    userThemes.set(diskThemes);
+
+    // Load the last used theme from the global settings file.
+    if (settings) {
         activeTheme.set(settings.lastActiveTheme ?? "light");
     }
 
-    // Enable automatic saving for global settings.
-    globalUnsubscribers.push(userThemes.subscribe(debouncedGlobalSave));
-    // Also subscribe the activeTheme to the global saver. This is the key
+    // Subscribe the activeTheme to the global saver. This is the key
     // to persisting the theme when it's changed.
     globalUnsubscribers.push(activeTheme.subscribe(debouncedGlobalSave));
 }
@@ -389,26 +431,45 @@ export function setFontSize(newSize: number) {
 }
 
 /**
- * Adds a new custom theme or updates an existing one in the global store.
- * @param theme The custom theme object to save.
+ * Adds a new custom theme or updates an existing one, persisting the change
+ * to its own JSON file under `<app_config_dir>/themes/`. Missing syntax
+ * colors are filled before persisting so imported themes don't render with
+ * blanks until the next app start.
  */
-export function saveCustomTheme(theme: CustomTheme) {
+export async function saveCustomTheme(theme: CustomTheme): Promise<void> {
+    const complete: CustomTheme = {
+        ...theme,
+        palette: fillMissingColors(theme.palette),
+    };
+    try {
+        await saveThemeToDisk(complete);
+    } catch (e) {
+        log.error(`Failed to save theme "${complete.name}"`, e, "settings");
+        throw e;
+    }
     userThemes.update((themes) => {
-        const existingIndex = themes.findIndex((t) => t.name === theme.name);
+        const existingIndex = themes.findIndex((t) => t.name === complete.name);
         if (existingIndex > -1) {
-            themes[existingIndex] = theme; // Update existing theme
+            themes[existingIndex] = complete;
         } else {
-            themes.push(theme); // Add new theme
+            themes.push(complete);
         }
         return themes;
     });
 }
 
 /**
- * Deletes a custom theme by its name from the global store.
- * @param themeName The name of the theme to delete.
+ * Deletes a custom theme by name, removing both the in-memory entry and the
+ * on-disk JSON file. Falls back to the light theme when the deleted theme
+ * was active.
  */
-export function deleteCustomTheme(themeName: ThemeName) {
+export async function deleteCustomTheme(themeName: ThemeName): Promise<void> {
+    try {
+        await deleteThemeFromDisk(themeName);
+    } catch (e) {
+        log.error(`Failed to delete theme "${themeName}"`, e, "settings");
+        throw e;
+    }
     userThemes.update((themes) => themes.filter((t) => t.name !== themeName));
     // If the deleted theme was active, fall back to the light theme.
     if (get(activeTheme) === themeName) {

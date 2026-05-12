@@ -1,9 +1,11 @@
 <script lang="ts">
     import { get } from "svelte/store";
-    import { confirm } from "@tauri-apps/plugin-dialog";
+    import { confirm, open, save, message } from "@tauri-apps/plugin-dialog";
     import Modal from "$lib/components/modals/Modal.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Select from "$lib/components/ui/Select.svelte";
+    import { log } from "$lib/logger";
+    import { saveThemeToDisk, importThemeFromPath } from "$lib/commands";
     import {
         activeTheme,
         userThemes,
@@ -88,7 +90,7 @@
 
     // Visual grouping for the editor — purely presentational, the underlying
     // palette is still THEME_PALETTE_KEYS.
-    const UI_SUBGROUPS: Array<{
+    const COLOR_SUBGROUPS: Array<{
         title: string;
         keys: ReadonlyArray<keyof ThemePalette>;
     }> = [
@@ -124,6 +126,7 @@
                 "--color-text-error",
             ],
         },
+        { title: "Code", keys: SYNTAX_PALETTE_KEYS },
     ];
 
     const defaultPalette: ThemePalette = {
@@ -289,11 +292,13 @@
         originalName = theme.name;
     }
 
-    function handleSave() {
+    async function handleSave() {
         const themeToSave = currentTheme;
         if (!themeToSave || !themeToSave.name.trim()) {
-            // TODO: Using a custom modal or inline message is better than alert() in Tauri apps.
-            alert("Theme name cannot be empty.");
+            await message("Theme name cannot be empty.", {
+                title: "Invalid Theme",
+                kind: "warning",
+            });
             return;
         }
 
@@ -304,15 +309,20 @@
             isRenaming &&
             $userThemes.some((t) => t.name === themeToSave.name)
         ) {
-            alert("A theme with this name already exists.");
+            await message("A theme with this name already exists.", {
+                title: "Name Conflict",
+                kind: "warning",
+            });
             return;
         }
 
+        // Order matters: delete the old file BEFORE writing the new one so a
+        // failed delete can't orphan the rename.
         if (isRenaming) {
-            deleteCustomTheme(originalName as ThemeName);
+            await deleteCustomTheme(originalName as ThemeName);
         }
 
-        saveCustomTheme(themeToSave);
+        await saveCustomTheme(themeToSave);
         originalName = themeToSave.name;
 
         if (isRenaming && wasActive) {
@@ -324,16 +334,113 @@
         const themeToDelete = currentTheme;
         if (!themeToDelete) return;
 
-        const message = `Are you sure you want to delete "${themeToDelete.name}"?`;
+        const prompt = `Are you sure you want to delete "${themeToDelete.name}"?`;
         if (
-            await confirm(message, {
+            await confirm(prompt, {
                 title: "Confirm Deletion",
             })
         ) {
-            deleteCustomTheme(themeToDelete.name);
+            await deleteCustomTheme(themeToDelete.name);
             currentTheme = null;
             originalName = null;
         }
+    }
+
+    /**
+     * Writes the currently-edited theme to a user-chosen `.json` file. The
+     * exported file is the same JSON shape we read back on import.
+     */
+    async function handleExport() {
+        const themeToExport = currentTheme;
+        if (!themeToExport) return;
+
+        const defaultName =
+            themeToExport.name.trim().replace(/[^a-z0-9-]+/gi, "-") || "theme";
+        const targetPath = await save({
+            title: "Export Theme",
+            defaultPath: `${defaultName}.json`,
+            filters: [{ name: "Theme JSON", extensions: ["json"] }],
+        });
+        if (!targetPath) return;
+
+        try {
+            await saveThemeToDisk(themeToExport, targetPath);
+        } catch (e) {
+            log.error(
+                `Failed to export theme "${themeToExport.name}"`,
+                e,
+                "theme-editor",
+            );
+            await message(`Could not write theme to file:\n${String(e)}`, {
+                title: "Export Failed",
+                kind: "error",
+            });
+        }
+    }
+
+    /**
+     * Validates that a parsed JSON value at least has the fields a
+     * CustomTheme needs. We accept missing palette entries (the live load
+     * path fills them via fillMissingColors) but require a name + palette.
+     */
+    function asCustomTheme(value: unknown): CustomTheme | null {
+        if (!value || typeof value !== "object") return null;
+        const v = value as Record<string, unknown>;
+        if (typeof v.name !== "string" || !v.name.trim()) return null;
+        if (!v.palette || typeof v.palette !== "object") return null;
+        const out: CustomTheme = {
+            name: v.name.trim(),
+            palette: v.palette as ThemePalette,
+        };
+        if (typeof v.headingFont === "string") out.headingFont = v.headingFont;
+        if (typeof v.bodyFont === "string") out.bodyFont = v.bodyFont;
+        return out;
+    }
+
+    async function handleImport() {
+        const picked = await open({
+            title: "Import Theme",
+            multiple: false,
+            filters: [{ name: "Theme JSON", extensions: ["json"] }],
+        });
+        if (!picked || typeof picked !== "string") return;
+
+        let parsed: unknown;
+        try {
+            parsed = await importThemeFromPath(picked);
+        } catch (e) {
+            log.error("Failed to read theme file", e, "theme-editor");
+            await message(`Could not read theme file:\n${String(e)}`, {
+                title: "Import Failed",
+                kind: "error",
+            });
+            return;
+        }
+
+        const theme = asCustomTheme(parsed);
+        if (!theme) {
+            await message(
+                "This file doesn't look like a Chronicler theme (missing `name` or `palette`).",
+                { title: "Invalid Theme", kind: "error" },
+            );
+            return;
+        }
+
+        // Auto-rename on collision so the import never silently overwrites
+        // an existing theme.
+        theme.name = uniqueThemeName(theme.name);
+
+        try {
+            await saveCustomTheme(theme);
+        } catch (e) {
+            await message(`Could not save imported theme:\n${String(e)}`, {
+                title: "Import Failed",
+                kind: "error",
+            });
+            return;
+        }
+
+        editTheme(theme);
     }
 </script>
 
@@ -389,6 +496,7 @@
 
             <footer class="sidebar-actions">
                 <Button onclick={createNewTheme}>+ New theme</Button>
+                <Button onclick={handleImport}>Import theme…</Button>
                 <Select
                     options={cloneOptions}
                     bind:value={cloneSourceName}
@@ -433,7 +541,7 @@
                     </div>
                 </section>
 
-                {#each UI_SUBGROUPS as group (group.title)}
+                {#each COLOR_SUBGROUPS as group (group.title)}
                     <section class="canvas-section">
                         <h5 class="section-title">{group.title}</h5>
                         <div class="swatch-grid">
@@ -472,40 +580,11 @@
                     </section>
                 {/each}
 
-                <section class="canvas-section">
-                    <h5 class="section-title">Code</h5>
-                    <div class="swatch-grid">
-                        {#each SYNTAX_PALETTE_KEYS as key (key)}
-                            <div class="swatch">
-                                <div
-                                    class="swatch-chip"
-                                    style:background={currentTheme.palette[key]}
-                                >
-                                    <input
-                                        type="color"
-                                        bind:value={currentTheme.palette[key]}
-                                        aria-label={colorLabels[key] || key}
-                                    />
-                                </div>
-                                <div class="swatch-meta">
-                                    <span class="swatch-name"
-                                        >{colorLabels[key] || key}</span
-                                    >
-                                    <input
-                                        type="text"
-                                        class="swatch-hex"
-                                        bind:value={currentTheme.palette[key]}
-                                        spellcheck="false"
-                                    />
-                                </div>
-                            </div>
-                        {/each}
-                    </div>
-                </section>
-
                 <footer class="canvas-actions">
                     <Button type="button" onclick={handleSave}
                         >Save theme</Button
+                    >
+                    <Button type="button" onclick={handleExport}>Export…</Button
                     >
                     {#if originalName}
                         <Button type="button" onclick={handleDelete}
