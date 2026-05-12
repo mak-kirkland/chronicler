@@ -17,10 +17,10 @@
     } from "$lib/settingsStore";
     import {
         THEME_PALETTE_KEYS,
-        UI_PALETTE_KEYS,
         SYNTAX_PALETTE_KEYS,
         type ThemePalette,
         AVAILABLE_FONTS,
+        BUILT_IN_THEME_FONTS,
     } from "$lib/themeRegistry";
 
     let { onClose } = $props<{ onClose: () => void }>();
@@ -28,23 +28,51 @@
     // --- State ---
     let currentTheme: CustomTheme | null = $state(null);
     let originalName: ThemeName | null = $state(null);
+    // Bound to the clone-picker so we can reset it back to placeholder after each clone.
+    let cloneSourceName: string | undefined = $state(undefined);
+
+    // --- Clone Source Options ---
+    // Built-ins live in CSS and need a probe to resolve; user themes carry
+    // their own palette. The `kind:` prefix in the value disambiguates them
+    // (a user theme could in principle share a name with a built-in).
+    function titleCase(name: string): string {
+        return name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+
+    const cloneOptions = $derived([
+        ...Object.keys(BUILT_IN_THEME_FONTS).map((name) => ({
+            value: `builtin:${name}`,
+            label: titleCase(name),
+        })),
+        ...$userThemes.map((t) => ({
+            value: `user:${t.name}`,
+            label: t.name,
+        })),
+    ]);
 
     // --- Computed Font List ---
-    // Combine built-in fonts with user-provided fonts for the dropdowns
     const allAvailableFonts = $derived([
         ...AVAILABLE_FONTS,
         ...$userFonts.map((f) => ({ name: f.name, value: `"${f.name}"` })),
     ]);
 
+    const fontOptions = $derived([
+        { value: "", label: "Default" },
+        ...allAvailableFonts.map((f) => ({
+            value: f.value,
+            label: f.name,
+        })),
+    ]);
+
     // --- Constants ---
     const colorLabels: Record<string, string> = {
         // UI Colors
-        "--color-background-primary": "Primary Background",
-        "--color-background-secondary": "Secondary Background",
-        "--color-background-tertiary": "Tertiary Background",
-        "--color-text-heading": "Header Text",
-        "--color-text-primary": "Primary Text",
-        "--color-text-secondary": "Secondary Text",
+        "--color-background-primary": "Primary",
+        "--color-background-secondary": "Secondary",
+        "--color-background-tertiary": "Tertiary",
+        "--color-text-heading": "Headings",
+        "--color-text-primary": "Body",
+        "--color-text-secondary": "Secondary",
         "--color-border-primary": "Borders",
         "--color-accent-primary": "Accent",
         "--color-icons": "Icons",
@@ -54,9 +82,49 @@
 
         // Syntax Colors
         "--code-tag": "HTML Tags",
-        "--code-attribute": "Attributes (class=)",
+        "--code-attribute": "Attributes",
         "--code-string": "Strings",
     };
+
+    // Visual grouping for the editor — purely presentational, the underlying
+    // palette is still THEME_PALETTE_KEYS.
+    const UI_SUBGROUPS: Array<{
+        title: string;
+        keys: ReadonlyArray<keyof ThemePalette>;
+    }> = [
+        {
+            title: "Surfaces",
+            keys: [
+                "--color-background-primary",
+                "--color-background-secondary",
+                "--color-background-tertiary",
+            ],
+        },
+        {
+            title: "Ink",
+            keys: [
+                "--color-text-heading",
+                "--color-text-primary",
+                "--color-text-secondary",
+            ],
+        },
+        {
+            title: "Accents",
+            keys: [
+                "--color-border-primary",
+                "--color-accent-primary",
+                "--color-icons",
+            ],
+        },
+        {
+            title: "Signals",
+            keys: [
+                "--color-text-link",
+                "--color-text-link-broken",
+                "--color-text-error",
+            ],
+        },
+    ];
 
     const defaultPalette: ThemePalette = {
         // UI Defaults
@@ -80,7 +148,6 @@
     };
 
     // --- Helper Functions ---
-    /** Removes only the styles applied by the live preview. */
     function clearLivePreviewStyles() {
         for (const key of THEME_PALETTE_KEYS) {
             document.documentElement.style.removeProperty(key);
@@ -100,7 +167,6 @@
     $effect(() => {
         // Live preview effect
         if (currentTheme) {
-            // Apply colors
             for (const [key, value] of Object.entries(currentTheme.palette)) {
                 document.documentElement.style.setProperty(
                     key,
@@ -108,17 +174,24 @@
                 );
             }
 
-            // Apply font preview if selected
             if (currentTheme.headingFont) {
                 document.documentElement.style.setProperty(
                     "--font-family-heading",
                     currentTheme.headingFont,
+                );
+            } else {
+                document.documentElement.style.removeProperty(
+                    "--font-family-heading",
                 );
             }
             if (currentTheme.bodyFont) {
                 document.documentElement.style.setProperty(
                     "--font-family-body",
                     currentTheme.bodyFont,
+                );
+            } else {
+                document.documentElement.style.removeProperty(
+                    "--font-family-body",
                 );
             }
 
@@ -135,6 +208,78 @@
             // Optional: Default to current fonts or leave undefined
         };
         originalName = null;
+    }
+
+    /**
+     * Resolves a built-in theme's full palette by applying it to a hidden
+     * probe and reading the computed CSS variables. We can't just read the
+     * `[data-theme="..."]` block directly because most built-ins inherit
+     * many keys from `:root` rather than overriding them.
+     */
+    function resolveBuiltInPalette(themeName: string): ThemePalette {
+        const probe = document.createElement("div");
+        probe.setAttribute("data-theme", themeName);
+        probe.style.display = "none";
+        document.body.appendChild(probe);
+        try {
+            const cs = getComputedStyle(probe);
+            const palette = {} as ThemePalette;
+            for (const key of THEME_PALETTE_KEYS) {
+                palette[key] = cs.getPropertyValue(key).trim();
+            }
+            return palette;
+        } finally {
+            probe.remove();
+        }
+    }
+
+    function uniqueThemeName(base: string): string {
+        const taken = new Set(get(userThemes).map((t) => t.name));
+        if (!taken.has(base)) return base;
+        let i = 2;
+        while (taken.has(`${base} (${i})`)) i++;
+        return `${base} (${i})`;
+    }
+
+    function applyClone(
+        sourceName: string,
+        palette: ThemePalette,
+        headingFont?: string,
+        bodyFont?: string,
+    ) {
+        currentTheme = {
+            name: uniqueThemeName(`${sourceName} Copy`),
+            palette: { ...palette },
+            headingFont,
+            bodyFont,
+        };
+        originalName = null;
+        cloneSourceName = undefined;
+    }
+
+    function handleCloneSelect(value: string) {
+        const sep = value.indexOf(":");
+        const kind = value.slice(0, sep);
+        const name = value.slice(sep + 1);
+        if (kind === "builtin") {
+            const fonts = BUILT_IN_THEME_FONTS[name];
+            applyClone(
+                titleCase(name),
+                resolveBuiltInPalette(name),
+                fonts?.heading,
+                fonts?.body,
+            );
+        } else {
+            const source = get(userThemes).find((t) => t.name === name);
+            if (source) {
+                applyClone(
+                    source.name,
+                    source.palette,
+                    source.headingFont,
+                    source.bodyFont,
+                );
+            }
+        }
     }
 
     function editTheme(theme: CustomTheme) {
@@ -192,123 +337,186 @@
     }
 </script>
 
-<Modal title="Theme Editor" {onClose}>
-    <div class="theme-editor-container">
-        <aside class="theme-list-panel">
-            <h4>Custom Themes</h4>
-            {#if $userThemes.length > 0}
-                <ul class="theme-list">
+<Modal title="Theme Editor" {onClose} wide>
+    <div class="editor">
+        <aside class="sidebar">
+            <header class="sidebar-header">
+                <span class="eyebrow">Library</span>
+                <span class="count">{$userThemes.length}</span>
+            </header>
+
+            <div class="theme-list">
+                {#if $userThemes.length > 0}
                     {#each $userThemes as theme (theme.name)}
-                        <li>
-                            <button
-                                class="theme-item"
-                                class:active={currentTheme?.name === theme.name}
-                                onclick={() => editTheme(theme)}
+                        <button
+                            type="button"
+                            class="theme-card"
+                            class:active={originalName === theme.name}
+                            onclick={() => editTheme(theme)}
+                        >
+                            <span class="theme-card-name">{theme.name}</span>
+                            <span
+                                class="theme-card-swatches"
+                                aria-hidden="true"
                             >
-                                {theme.name}
-                            </button>
-                        </li>
+                                <span
+                                    style:background={theme.palette[
+                                        "--color-background-primary"
+                                    ]}
+                                ></span>
+                                <span
+                                    style:background={theme.palette[
+                                        "--color-accent-primary"
+                                    ]}
+                                ></span>
+                                <span
+                                    style:background={theme.palette[
+                                        "--color-text-primary"
+                                    ]}
+                                ></span>
+                                <span
+                                    style:background={theme.palette[
+                                        "--color-text-link"
+                                    ]}
+                                ></span>
+                            </span>
+                        </button>
                     {/each}
-                </ul>
-            {:else}
-                <p class="no-themes-message">No custom themes yet.</p>
-            {/if}
-            <Button onclick={createNewTheme}>+ Create New Theme</Button>
+                {:else}
+                    <p class="empty-list">No custom themes yet.</p>
+                {/if}
+            </div>
+
+            <footer class="sidebar-actions">
+                <Button onclick={createNewTheme}>+ New theme</Button>
+                <Select
+                    options={cloneOptions}
+                    bind:value={cloneSourceName}
+                    placeholder="Duplicate from…"
+                    onSelect={handleCloneSelect}
+                />
+            </footer>
         </aside>
-        <main class="theme-form-panel">
+
+        <main class="canvas">
             {#if currentTheme}
-                <div class="form-group">
-                    <label for="theme-name">Theme Name</label>
+                <header class="canvas-header">
+                    <span class="eyebrow">
+                        {originalName ? "Editing" : "New theme"}
+                    </span>
                     <input
-                        id="theme-name"
+                        class="title-input"
                         type="text"
                         bind:value={currentTheme.name}
+                        spellcheck="false"
+                        aria-label="Theme name"
                     />
-                </div>
+                </header>
 
-                <h4>Typography (Optional)</h4>
-                <div class="font-grid">
-                    <div class="form-group">
-                        <!-- svelte-ignore a11y_label_has_associated_control -->
-                        <label>Heading Font</label>
-                        <Select
-                            options={[
-                                { value: "", label: "-" },
-                                ...allAvailableFonts.map((f) => ({
-                                    value: f.value,
-                                    label: f.name,
-                                })),
-                            ]}
-                            bind:value={currentTheme.headingFont}
-                        />
-                    </div>
-                    <div class="form-group">
-                        <!-- svelte-ignore a11y_label_has_associated_control -->
-                        <label>Body Font</label>
-                        <Select
-                            options={[
-                                { value: "", label: "-" },
-                                ...allAvailableFonts.map((f) => ({
-                                    value: f.value,
-                                    label: f.name,
-                                })),
-                            ]}
-                            bind:value={currentTheme.bodyFont}
-                        />
-                    </div>
-                </div>
-
-                <h4>UI Colors</h4>
-                <div class="color-grid">
-                    {#each UI_PALETTE_KEYS as paletteKey (paletteKey)}
-                        <div class="form-group color-picker-group">
-                            <label for="color-{paletteKey}"
-                                >{colorLabels[paletteKey] || paletteKey}</label
-                            >
-                            <div class="color-input-wrapper">
-                                <input
-                                    id="color-{paletteKey}"
-                                    type="color"
-                                    bind:value={
-                                        currentTheme.palette[paletteKey]
-                                    }
-                                />
-                                <span>{currentTheme.palette[paletteKey]}</span>
-                            </div>
+                <section class="canvas-section">
+                    <h5 class="section-title">Typography</h5>
+                    <div class="font-row">
+                        <div class="font-field">
+                            <span class="field-label">Heading</span>
+                            <Select
+                                options={fontOptions}
+                                bind:value={currentTheme.headingFont}
+                            />
                         </div>
-                    {/each}
-                </div>
-
-                <h4>Syntax Highlighting</h4>
-                <div class="color-grid">
-                    {#each SYNTAX_PALETTE_KEYS as paletteKey (paletteKey)}
-                        <div class="form-group color-picker-group">
-                            <label for="color-{paletteKey}"
-                                >{colorLabels[paletteKey] || paletteKey}</label
-                            >
-                            <div class="color-input-wrapper">
-                                <input
-                                    id="color-{paletteKey}"
-                                    type="color"
-                                    bind:value={
-                                        currentTheme.palette[paletteKey]
-                                    }
-                                />
-                                <span>{currentTheme.palette[paletteKey]}</span>
-                            </div>
+                        <div class="font-field">
+                            <span class="field-label">Body</span>
+                            <Select
+                                options={fontOptions}
+                                bind:value={currentTheme.bodyFont}
+                            />
                         </div>
-                    {/each}
-                </div>
+                    </div>
+                </section>
 
-                <div class="form-actions">
+                {#each UI_SUBGROUPS as group (group.title)}
+                    <section class="canvas-section">
+                        <h5 class="section-title">{group.title}</h5>
+                        <div class="swatch-grid">
+                            {#each group.keys as key (key)}
+                                <div class="swatch">
+                                    <div
+                                        class="swatch-chip"
+                                        style:background={currentTheme.palette[
+                                            key
+                                        ]}
+                                    >
+                                        <input
+                                            type="color"
+                                            bind:value={
+                                                currentTheme.palette[key]
+                                            }
+                                            aria-label={colorLabels[key] || key}
+                                        />
+                                    </div>
+                                    <div class="swatch-meta">
+                                        <span class="swatch-name"
+                                            >{colorLabels[key] || key}</span
+                                        >
+                                        <input
+                                            type="text"
+                                            class="swatch-hex"
+                                            bind:value={
+                                                currentTheme.palette[key]
+                                            }
+                                            spellcheck="false"
+                                        />
+                                    </div>
+                                </div>
+                            {/each}
+                        </div>
+                    </section>
+                {/each}
+
+                <section class="canvas-section">
+                    <h5 class="section-title">Code</h5>
+                    <div class="swatch-grid">
+                        {#each SYNTAX_PALETTE_KEYS as key (key)}
+                            <div class="swatch">
+                                <div
+                                    class="swatch-chip"
+                                    style:background={currentTheme.palette[key]}
+                                >
+                                    <input
+                                        type="color"
+                                        bind:value={currentTheme.palette[key]}
+                                        aria-label={colorLabels[key] || key}
+                                    />
+                                </div>
+                                <div class="swatch-meta">
+                                    <span class="swatch-name"
+                                        >{colorLabels[key] || key}</span
+                                    >
+                                    <input
+                                        type="text"
+                                        class="swatch-hex"
+                                        bind:value={currentTheme.palette[key]}
+                                        spellcheck="false"
+                                    />
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                </section>
+
+                <footer class="canvas-actions">
                     <Button type="button" onclick={handleSave}
-                        >Save Theme</Button
+                        >Save theme</Button
                     >
-                    <Button type="button" onclick={handleDelete}>Delete</Button>
-                </div>
+                    {#if originalName}
+                        <Button type="button" onclick={handleDelete}
+                            >Delete</Button
+                        >
+                    {/if}
+                </footer>
             {:else}
-                <div class="placeholder">
-                    <p>Select a theme to edit, or create a new one.</p>
+                <div class="empty-canvas">
+                    <span class="eyebrow">Theme Editor</span>
+                    <h4>Pick a theme on the left, or start fresh.</h4>
                 </div>
             {/if}
         </main>
@@ -316,140 +524,276 @@
 </Modal>
 
 <style>
-    .theme-editor-container {
-        display: flex;
-        gap: 2rem;
-        /* Set a max-height relative to the viewport and a min-height */
-        max-height: 70vh;
-        min-height: 450px;
+    .editor {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 1.75rem;
+        height: 65vh;
+        min-height: 480px;
+        max-height: 640px;
     }
-    .theme-list-panel {
-        flex: 0 0 200px;
-        border-right: 1px solid var(--color-border-primary);
-        padding-right: 2rem;
+
+    /* ---- Sidebar ---- */
+    .sidebar {
         display: flex;
         flex-direction: column;
-    }
-    .theme-list {
-        list-style: none;
-        padding: 0;
-        margin: 0 0 1rem 0;
-        flex-grow: 1;
-    }
-    .theme-item {
-        width: 100%;
-        background: none;
-        border: none;
-        color: var(--color-text-link);
-        text-align: left;
-        padding: 0.5rem;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 1rem;
-    }
-    .theme-item:hover {
-        background-color: var(--color-background-secondary);
-    }
-    .theme-item.active {
-        background-color: var(--color-accent-primary);
-        color: var(--color-text-primary);
-        font-weight: bold;
-    }
-    .no-themes-message {
-        font-style: italic;
-        color: var(--color-text-secondary);
-        padding: 1rem 0.5rem;
-        flex-grow: 1;
-    }
-    .theme-form-panel {
-        flex: 1;
-        /* Allow this panel to scroll vertically */
-        overflow-y: auto;
-        /* Add some padding to the right to make space for the scrollbar */
-        padding-right: 1rem;
-        /* Add padding-left so focus rings and borders aren't clipped by overflow */
-        padding-left: 0.5rem;
-        /* A crucial property for flexbox children to scroll correctly */
+        border-right: 1px solid var(--color-border-primary);
+        padding-right: 1.5rem;
         min-height: 0;
     }
-    .form-group {
-        margin-bottom: 1rem;
+    .sidebar-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
     }
-    .form-group label {
-        display: block;
-        margin-bottom: 0.5rem;
+    .eyebrow {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
         color: var(--color-text-secondary);
+        font-weight: 600;
     }
-    .form-group input[type="text"] {
-        width: 100%;
-        padding: 0.5rem;
-        font-size: 1rem;
-        border: 1px solid var(--color-border-primary);
-        background-color: var(--color-background-secondary);
-        color: var(--color-text-primary);
-        border-radius: 4px;
-        box-sizing: border-box;
+    .count {
+        font-size: 0.85rem;
+        color: var(--color-text-secondary);
+        font-variant-numeric: tabular-nums;
     }
-    .color-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1rem;
-        padding-bottom: 1rem;
+    .theme-list {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        padding-right: 0.2rem;
     }
-    .color-input-wrapper {
+    .theme-card {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+        background: none;
+        border: 1px solid transparent;
+        color: var(--color-text-primary);
+        text-align: left;
+        padding: 0.5rem 0.65rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease;
     }
-    .color-input-wrapper input[type="color"] {
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
+    .theme-card:hover {
+        background-color: var(--color-background-secondary);
+    }
+    .theme-card.active {
+        background-color: var(--color-background-secondary);
+        border-color: var(--color-border-primary);
+    }
+    .theme-card-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+    }
+    .theme-card-swatches {
+        display: flex;
+        gap: 2px;
+        flex-shrink: 0;
+    }
+    .theme-card-swatches > span {
+        width: 8px;
+        height: 18px;
+        border-radius: 1px;
+        border: 1px solid var(--color-border-primary);
+    }
+    .empty-list {
+        color: var(--color-text-secondary);
+        font-style: italic;
+        font-size: 0.9rem;
+        padding: 1rem 0.5rem;
+        margin: 0;
+    }
+    .sidebar-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--color-border-primary);
+    }
+
+    /* ---- Canvas ---- */
+    .canvas {
+        overflow-y: auto;
+        min-height: 0;
+        padding: 0 0.75rem 0 0.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        position: relative;
+    }
+    .canvas-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+    .title-input {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid transparent;
+        color: var(--color-text-heading);
+        font-family: var(--font-family-heading);
+        font-size: 1.6rem;
+        padding: 0.15rem 0;
+        margin: 0;
+        line-height: 1.2;
+        transition: border-color 0.2s ease;
+    }
+    .title-input:focus {
+        outline: none;
+        border-bottom-color: var(--color-border-primary);
+    }
+
+    .canvas-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .section-title {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: var(--color-text-secondary);
+        margin: 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--color-border-primary);
+        font-weight: 600;
+    }
+
+    /* ---- Swatches ---- */
+    .swatch-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.65rem;
+    }
+    .swatch {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.45rem 0.55rem;
+        border: 1px solid var(--color-border-primary);
+        border-radius: 6px;
+        background: var(--color-background-secondary);
+        min-width: 0;
+    }
+    .swatch-chip {
+        position: relative;
         width: 40px;
         height: 40px;
-        background-color: transparent;
-        border: 1px solid var(--color-border-primary);
-        padding: 0;
         border-radius: 4px;
-        cursor: pointer;
+        flex-shrink: 0;
+        box-shadow: inset 0 0 0 1px var(--color-overlay-light);
+        overflow: hidden;
     }
-    /* Hides the default color picker UI for a custom look */
-    .color-input-wrapper input[type="color"]::-webkit-color-swatch-wrapper {
-        padding: 0;
-    }
-    .color-input-wrapper input[type="color"]::-webkit-color-swatch {
+    .swatch-chip input[type="color"] {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
         border: none;
-        border-radius: 4px;
+        background: transparent;
+        padding: 0;
+        cursor: pointer;
+        opacity: 0;
     }
-    .form-actions {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--color-border-primary);
+    .swatch-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+        flex: 1;
+    }
+    .swatch-name {
+        font-size: 0.78rem;
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        letter-spacing: 0.02em;
+    }
+    .swatch-hex {
+        font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+        font-size: 0.82rem;
+        background: var(--color-background-primary);
+        border: 1px solid var(--color-border-primary);
+        color: var(--color-text-primary);
+        border-radius: 3px;
+        padding: 0.2rem 0.35rem;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .swatch-hex:focus {
+        outline: 1px solid var(--color-accent-primary);
+        outline-offset: 1px;
+    }
+
+    /* ---- Typography ---- */
+    .font-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.85rem;
+    }
+    .font-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+    .field-label {
+        font-size: 0.78rem;
+        color: var(--color-text-secondary);
+        letter-spacing: 0.02em;
+    }
+
+    /* ---- Sticky actions ---- */
+    .canvas-actions {
         display: flex;
         gap: 0.5rem;
         position: sticky;
         bottom: 0;
-        background-color: var(--color-background-primary);
+        background: var(--color-background-primary);
+        padding: 0.85rem 0 0.25rem;
+        margin: 0.25rem -0.75rem 0 -0.25rem;
+        padding-left: 0.25rem;
+        padding-right: 0.75rem;
+        border-top: 1px solid var(--color-border-primary);
     }
-    .placeholder {
+
+    /* ---- Empty canvas ---- */
+    .empty-canvas {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-self: center;
+        text-align: center;
+        margin: auto;
+        max-width: 340px;
         color: var(--color-text-secondary);
-        font-style: italic;
     }
-
-    h4 {
-        margin-top: 1rem;
-        margin-bottom: 0.5rem;
-        padding-bottom: 0.25rem;
-        border-bottom: 1px solid var(--color-border-primary);
-    }
-
-    .font-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
+    .empty-canvas h4 {
+        margin: 0;
+        color: var(--color-text-heading);
+        font-family: var(--font-family-heading);
+        font-size: 1.35rem;
+        border: none;
+        padding: 0;
+        line-height: 1.3;
     }
 </style>
