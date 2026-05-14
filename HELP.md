@@ -162,6 +162,7 @@ Chronicler stores global settings, themes and fonts in a dedicated folder on you
 
 - **Windows**: `%AppData%\pro.chronicler\`
 - **Linux**: `~/.local/share/pro.chronicler/`
+- **Flatpak**: `~/.var/app/pro.chronicler.Chronicler/config/pro.chronicler`
 - **macOS**: `~/Library/Application Support/pro.chronicler/`
 
 ---
