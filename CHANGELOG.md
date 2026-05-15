@@ -2,6 +2,23 @@
 
 ---
 
+## [v0.51.5-alpha] - 2026-05-15
+
+### 🐞 Fixed
+
+- **Maps**: Fixed a bug where deleting the map currently being viewed would cause the application to remain in Map View displaying displaying stale content; it now correctly returns you to the Welcome view.
+
+### 🚀 Performance
+
+- **Maps**: Optimized map pins and regions by implementing a high-speed spatial lookup for faster region hit-testing, a "fingerprinting" system that only updates elements that have actually changed, and an icon caching system to prevent unnecessary re-rendering of markers.
+
+### 🔄 Changed
+
+- **Documentation**: Updated the Help documentation to include the correct settings directory paths for Flatpak users.
+- **Telemetry**: Reduce website network traffic by only sending a single anonymous ping once per install rather than on every application startup.
+
+---
+
 ## [v0.51.4-alpha] - 2026-05-10
 
 ### 🐞 Fixed
