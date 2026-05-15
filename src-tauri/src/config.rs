@@ -49,6 +49,12 @@ pub struct AppConfig {
     /// `Some(true)` means opted in; `Some(false)` means opted out.
     #[serde(default)]
     pub telemetry_enabled: Option<bool>,
+    /// Whether the one-time analytics ping has been successfully sent for
+    /// this install. Once true, the app skips the ping on subsequent launches
+    /// so we don't keep billing serverless invocations for a user we've
+    /// already counted.
+    #[serde(default)]
+    pub analytics_ping_sent: bool,
 }
 
 /// Retrieves the path to the configuration file.
@@ -171,5 +177,12 @@ pub fn remove_recent_vault(path: String, app_handle: &AppHandle) -> Result<()> {
 pub fn set_telemetry_enabled(enabled: bool, app_handle: &AppHandle) -> Result<()> {
     let mut config = load(app_handle)?;
     config.telemetry_enabled = Some(enabled);
+    save(app_handle, &config)
+}
+
+/// Marks the one-time analytics ping as sent so future launches skip it.
+pub fn mark_analytics_ping_sent(app_handle: &AppHandle) -> Result<()> {
+    let mut config = load(app_handle)?;
+    config.analytics_ping_sent = true;
     save(app_handle, &config)
 }

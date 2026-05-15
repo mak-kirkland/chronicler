@@ -104,15 +104,25 @@ fn main() {
             }
 
             // --- ANALYTICS PING ---
-            // Only fires if the user has explicitly opted in. `None` (never
+            // Only fires if the user has explicitly opted in AND we haven't
+            // already successfully pinged for this install. `None` (never
             // chosen) and `Some(false)` (declined) both skip the ping.
+            // The `analytics_ping_sent` flag is persisted to config after a
+            // successful send so subsequent launches don't bill another
+            // serverless invocation for the same user.
             let app_handle_for_ping = app_handle.clone();
             tauri::async_runtime::spawn(async move {
-                let opted_in = config::load(&app_handle_for_ping)
-                    .map(|c| c.telemetry_enabled == Some(true))
-                    .unwrap_or(false);
-                if opted_in {
-                    let _ = telemetry::send_analytics_ping().await;
+                let cfg = match config::load(&app_handle_for_ping) {
+                    Ok(c) => c,
+                    Err(_) => return,
+                };
+                if cfg.telemetry_enabled != Some(true) || cfg.analytics_ping_sent {
+                    return;
+                }
+                if let Ok(true) = telemetry::send_analytics_ping().await {
+                    if let Err(e) = config::mark_analytics_ping_sent(&app_handle_for_ping) {
+                        tracing::warn!("Failed to persist analytics_ping_sent flag: {}", e);
+                    }
                 }
             });
 
