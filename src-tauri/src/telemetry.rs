@@ -18,7 +18,12 @@ const ANALYTICS_ENDPOINT: &str = "https://chronicler.pro/api/chronicler-ping";
 /// This function hashes the machine ID with a secret salt to ensure privacy.
 /// It is designed to be fire-and-forget; it will log errors but not return them
 /// to avoid disrupting the application startup.
-pub async fn send_analytics_ping() -> Result<()> {
+///
+/// Returns `Ok(true)` if the server returned a 2xx response (so the caller can
+/// persist a "ping sent" marker), `Ok(false)` if the request failed or the
+/// server returned a non-success status — in which case the caller should
+/// retry on the next launch.
+pub async fn send_analytics_ping() -> Result<bool> {
     // 1. Get the raw machine ID using the same method as licensing
     let raw_id = machine_uid::get().unwrap_or_else(|_| "unknown-machine".into());
 
@@ -46,13 +51,16 @@ pub async fn send_analytics_ping() -> Result<()> {
     match res {
         Ok(response) => {
             if response.status().is_success() {
-                info!("Daily active user ping sent successfully.");
+                info!("Analytics ping sent successfully.");
+                Ok(true)
             } else {
                 warn!("Analytics ping failed with status: {}", response.status());
+                Ok(false)
             }
         }
-        Err(e) => warn!("Failed to send analytics ping: {}", e),
+        Err(e) => {
+            warn!("Failed to send analytics ping: {}", e);
+            Ok(false)
+        }
     }
-
-    Ok(())
 }
