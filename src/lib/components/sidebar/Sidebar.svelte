@@ -20,6 +20,7 @@
     let activeTab = $state<"files" | "tags" | "gallery" | "reports">("files");
     let searchTerm = $state("");
     let titleWidth = $state(0);
+    let footerNaturalWidth = $state(0);
 
     // When the value of activeTab changes, clear the search term
     $effect(() => {
@@ -27,16 +28,22 @@
         searchTerm = "";
     });
 
-    // Dynamically calculate the minimum width based on the title's rendered size and the current font scale
+    // Dynamically calculate the minimum width so neither the title nor the
+    // footer button row overflows the sidebar at the current font/theme.
     $effect(() => {
-        if (titleWidth > 0) {
-            // The sidebar-header has 1rem padding on each side (2rem total).
-            // Calculate real pixels based on the user's root font size scale.
-            const totalPadding = 32 * ($fontSize / 100);
+        if (titleWidth > 0 || footerNaturalWidth > 0) {
+            const scale = $fontSize / 100;
+            // .sidebar-header has 1rem padding on each side.
+            const headerPadding = 32 * scale;
+            // .sidebar-footer has 0.75rem padding on each side.
+            const footerPadding = 24 * scale;
             const buffer = 16; // extra buffer to guarantee no immediate visual touching
-            minWidth = Math.ceil(titleWidth + totalPadding + buffer);
 
-            // Auto-expand the sidebar if it is currently too small for the new font size
+            const titleNeeded = titleWidth + headerPadding;
+            const footerNeeded = footerNaturalWidth + footerPadding;
+            minWidth = Math.ceil(Math.max(titleNeeded, footerNeeded) + buffer);
+
+            // Auto-expand the sidebar if it is currently too small
             if (width < minWidth) {
                 width = minWidth;
             }
@@ -172,7 +179,7 @@
                 title="New Page"
                 onclick={showCreateFile}
             >
-                + Page
+                + <Icon type="file" />
             </Button>
             <Button
                 size="small"
@@ -180,7 +187,7 @@
                 title="New Folder"
                 onclick={showCreateFolder}
             >
-                + Folder
+                + <Icon type="folder" />
             </Button>
             {#if $hasMapsEntitlement}
                 <Button
@@ -189,8 +196,25 @@
                     title="New Map"
                     onclick={showCreateMap}
                 >
-                    + Map
+                    + <Icon type="map" />
                 </Button>
+            {/if}
+        </div>
+
+        <!--
+            Off-screen mirror of the primary action buttons used to measure
+            their intrinsic combined width (without flex-grow stretching).
+            Drives the dynamic sidebar min-width above.
+        -->
+        <div
+            class="footer-measure"
+            aria-hidden="true"
+            bind:clientWidth={footerNaturalWidth}
+        >
+            <Button size="small">+ <Icon type="file" /></Button>
+            <Button size="small">+ <Icon type="folder" /></Button>
+            {#if $hasMapsEntitlement}
+                <Button size="small">+ <Icon type="map" /></Button>
             {/if}
         </div>
 
@@ -280,6 +304,17 @@
 
     .primary-actions :global(.new-path-button) {
         flex-grow: 1;
+    }
+
+    .footer-measure {
+        position: absolute;
+        visibility: hidden;
+        pointer-events: none;
+        top: -9999px;
+        left: -9999px;
+        display: flex;
+        gap: 0.5rem;
+        width: max-content;
     }
 
     .secondary-actions {
