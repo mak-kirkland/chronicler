@@ -2,6 +2,16 @@
 
 ---
 
+## [v0.51.6-alpha] - 2026-05-17
+
+### 🐞 Fixed
+
+- **Linux**: Fixed an issue with Flatpak builds where the in-app Changelog and Help modals failed to load due to missing resource files.
+- **Linux**: Fixed a permission error on Flatpak installations that prevented the application from moving deleted notes to the system trash.
+- **Sidebar**: Extended the "minimum width" calculation to include the footer action row, preventing buttons like "+ Map" from overflowing. Also replaced the text labels with icons.
+
+---
+
 ## [v0.51.5-alpha] - 2026-05-15
 
 ### 🐞 Fixed
