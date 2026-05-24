@@ -2,6 +2,24 @@
 
 ---
 
+## [v0.52.0-alpha] - 2026-05-24
+
+### ✨ Added
+
+- **Maps**: Added settings toggles to independently enable or disable page link and map hover previews for each vault.
+- **Maps**: Added support for placeholder targets on map elements. You can now link pins and regions to pages or maps that haven't been created yet, and the links will automatically resolve once those targets exist.
+
+### 🐞 Fixed
+
+- **Maps**: Fixed a visual issue where hovering over map elements could cause page and map previews to overlap. They are now smartly positioned side-by-side on opposing sides of your cursor.
+- **UI**: Increased the layer ordering (`z-index`) for all modals to guarantee they stay layered correctly above all other background interface elements.
+
+### 🔄 Changed
+
+- **UI**: Improved the text auto-complete dropdowns so that pressing `Shift+Enter` consistently closes the menu and submits your raw typed text, accompanied by a new helpful hint at the bottom of the list.
+
+---
+
 ## [v0.51.6-alpha] - 2026-05-17
 
 ### 🐞 Fixed
