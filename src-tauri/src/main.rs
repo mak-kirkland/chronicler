@@ -74,6 +74,7 @@ fn main() {
         // part of the state (e.g., renderer) won't block writes on
         // another (e.g., indexer).
         .manage(World::new())
+        .manage(licensing::LicenseRefreshGuard::default())
         // Add the .setup() hook here, before the plugins.
         .setup(move |app| {
             // Get a handle to the app instance to access Tauri's APIs.

@@ -314,9 +314,32 @@ pub async fn download_pandoc(app_handle: AppHandle) -> Result<()> {
 
 /// Retrieves the current license status from the stored license file.
 #[command]
-#[instrument(skip(app_handle), err(Debug))]
-pub fn get_license_status(app_handle: AppHandle) -> Result<Option<License>> {
-    licensing::load_and_verify_license(&app_handle)
+#[instrument(skip(app_handle, guard), err(Debug))]
+pub fn get_license_status(
+    app_handle: AppHandle,
+    guard: tauri::State<'_, licensing::LicenseRefreshGuard>,
+) -> Result<Option<License>> {
+    let verified = licensing::load_and_verify_license(&app_handle)?;
+    let license = verified.as_ref().map(|v| v.license.clone());
+
+    // Spawn at most one silent refresh per process lifetime, *after*
+    // we've captured the on-disk cert above. This guarantees the running
+    // session reflects the cert that was on disk at startup — a faster
+    // refresh can't overwrite the cert before the frontend reads it.
+    if let Some(v) = &verified {
+        if v.freshness == licensing::Freshness::NeedsRefresh
+            && !guard
+                .0
+                .swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
+            let handle = app_handle.clone();
+            tauri::async_runtime::spawn(
+                licensing::refresh_license_in_background(handle),
+            );
+        }
+    }
+
+    Ok(license)
 }
 
 /// Verifies a license key, and if valid, saves it to the config directory.
