@@ -119,7 +119,7 @@ export interface FullPageData {
 export interface License {
     key: string;
     status: string;
-    expiry: string;
+    expiry: string | null;
     entitlements: string[];
 }
 
