@@ -17,6 +17,7 @@ import type {
     BrokenLink,
     ParseError,
     UserFont,
+    ImportedImage,
 } from "./bindings";
 import type { MapConfig, TileSetInfo } from "./mapModels";
 
@@ -39,6 +40,12 @@ function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
  * @returns A promise that resolves to the vault path string or null if not set.
  */
 export const getVaultPath = () => invoke<string | null>("get_vault_path");
+
+// --- Image Insertion ---
+
+/** Copies an image file from disk (chosen via the OS picker) into the vault's images/ folder. */
+export const importImageFile = (sourcePath: string) =>
+    invoke<ImportedImage>("import_image_file", { sourcePath });
 
 /**
  * Retrieves the list of recently opened vaults from the configuration.
