@@ -107,3 +107,17 @@ export function addHeading(view: EditorView, level: number) {
         });
     }
 }
+
+/**
+ * Inserts an image wikilink `![[filename]]` at the cursor, replacing any
+ * current selection, then refocuses the editor.
+ */
+export function insertImageRef(view: EditorView, filename: string) {
+    const ref = `![[${filename}]]`;
+    const { from, to } = view.state.selection.main;
+    view.dispatch({
+        changes: { from, to, insert: ref },
+        selection: { anchor: from + ref.length },
+    });
+    view.focus();
+}
