@@ -183,6 +183,10 @@
      * Opens the file dialog to select a MediaWiki XML file.
      */
     async function selectMediawikiDump() {
+        if (!pandocInstalled) {
+            await installPandoc();
+            return; // User can click again after installation is complete.
+        }
         try {
             const selected = await open({
                 multiple: false,
@@ -205,9 +209,17 @@
                 Import a MediaWiki XML dump file. This will convert pages,
                 download images, and create tag indexes.
             </p>
+            {#if !pandocInstalled}
+                <p class="pandoc-warning">
+                    This feature requires <strong>Pandoc</strong>. Click the
+                    button below to download and install it automatically.
+                </p>
+            {/if}
             <div class="button-group">
                 <Button onclick={selectMediawikiDump} disabled={isProcessing}>
-                    {#if isProcessing}
+                    {#if isProcessing && !pandocInstalled}
+                        Installing Pandoc...
+                    {:else if isProcessing}
                         Importing...
                     {:else}
                         Select XML File
