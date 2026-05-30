@@ -183,3 +183,16 @@ export interface IndexUpdatePayload {
     /** An image file was added, renamed, or removed (not just content-modified). */
     media_changed: boolean;
 }
+
+/**
+ * Result of importing an image into the vault.
+ * Mirrors `ImportedImage` in `src-tauri/src/models.rs`.
+ */
+export interface ImportedImage {
+    /** The final on-disk filename, e.g. "diagram-2.png". */
+    filename: string;
+    /** The vault-relative path, e.g. "images/diagram-2.png". */
+    relative_path: string;
+    /** True if an identical existing file was reused instead of writing a copy. */
+    reused: boolean;
+}
