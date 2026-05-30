@@ -1,6 +1,7 @@
 <script lang="ts">
     import { tags } from "$lib/worldStore";
     import { navigateToPage } from "$lib/actions";
+    import { fileStemString } from "$lib/utils";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
 
     let { name } = $props<{ name: string }>();
@@ -23,7 +24,11 @@
             <li>
                 <button
                     class="link-button"
-                    onclick={() => navigateToPage(page)}
+                    onclick={() =>
+                        navigateToPage({
+                            path: page.path,
+                            title: fileStemString(page.path),
+                        })}
                 >
                     {page.title}
                 </button>
