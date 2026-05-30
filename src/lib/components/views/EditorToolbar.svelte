@@ -8,6 +8,7 @@
         addHeading,
     } from "$lib/editor";
     import type { IconType } from "$lib/icons";
+    import { pickAndInsertImages } from "$lib/imageInsert";
 
     let { editorView, onInfoboxClick } = $props<{
         editorView: EditorView | undefined;
@@ -52,6 +53,13 @@
             title: "Heading 3",
             action: (v: EditorView) => addHeading(v, 3),
             iconType: "heading3",
+        },
+        {
+            title: "Insert Image",
+            action: (v: EditorView) => {
+                void pickAndInsertImages(v);
+            },
+            iconType: "image",
         },
     ];
 

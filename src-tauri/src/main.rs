@@ -21,6 +21,7 @@ mod config;
 mod error;
 mod events;
 mod fonts;
+mod images;
 mod importer;
 mod indexer;
 mod licensing;
@@ -169,6 +170,7 @@ fn main() {
             commands::get_image_as_base64,
             commands::get_image_source,
             commands::get_image_thumbnail,
+            commands::import_image_file,
             commands::get_app_usage_days,
             commands::duplicate_page,
             commands::get_all_broken_links,
