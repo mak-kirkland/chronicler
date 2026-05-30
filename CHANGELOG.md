@@ -2,6 +2,19 @@
 
 ---
 
+## [v0.52.1-alpha] - 2026-05-30
+
+### 🐞 Fixed
+
+- **Editor**: Fixed an issue with wikilink auto-complete sorting. The dropdown now properly ranks exact matches and prefix matches over fuzzy suggestions.
+
+### 🚀 Performance
+
+- **Maps**: Fixed a major performance issue where opening very large map configs would cause the application to hang. The map configuration logic now bypasses unnecessary "deep" processing, keeping interaction immediate and fluid.
+- **Indexer**: Scoped file-system index refreshes so that some bulk external operations (such as asset exports in your vault folder) no longer cause user interface lag. The system now intelligently targets and refetches only the data categories that actually changed.
+
+---
+
 ## [v0.52.0-alpha] - 2026-05-24
 
 ### ✨ Added
