@@ -103,6 +103,9 @@ pub enum ChroniclerError {
 
     #[error("Theme error: {0}")]
     Theme(String),
+
+    #[error("Image import failed: {0}")]
+    ImageImport(String),
 }
 
 // We need to implement Serialize for the error type to be able to return

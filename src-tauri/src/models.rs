@@ -261,3 +261,14 @@ pub struct ParseError {
     /// The detailed error message.
     pub error: String,
 }
+
+/// The result of importing an image into the vault, returned to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ImportedImage {
+    /// The final on-disk filename, e.g. "diagram-2.png".
+    pub filename: String,
+    /// The vault-relative path, e.g. "images/diagram-2.png".
+    pub relative_path: String,
+    /// True if an identical existing file was reused instead of writing a copy.
+    pub reused: bool,
+}

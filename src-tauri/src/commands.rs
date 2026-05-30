@@ -5,10 +5,10 @@
 
 use crate::licensing;
 use crate::licensing::License;
-use crate::models::{BrokenImage, BrokenLink, FullPageData, PageHeader, ParseError};
+use crate::models::{BrokenImage, BrokenLink, FullPageData, ImportedImage, PageHeader, ParseError};
 use crate::{
     config,
-    error::Result,
+    error::{ChroniclerError, Result},
     fonts, importer,
     models::{FileNode, RenderedPage},
     themes,
@@ -60,6 +60,21 @@ pub fn remove_recent_vault(path: String, app_handle: AppHandle) -> Result<()> {
 #[instrument(skip(world, app_handle), err(Debug))]
 pub fn initialize_vault(path: String, world: State<World>, app_handle: AppHandle) -> Result<()> {
     world.change_vault(path, app_handle)
+}
+
+// --- Image Insertion ---
+
+/// Copies an image file from disk (chosen via the OS picker) into the vault's
+/// `images/` directory and returns the resulting reference.
+#[command]
+#[instrument(skip(world), err(Debug))]
+pub fn import_image_file(world: State<World>, source_path: String) -> Result<ImportedImage> {
+    let vault_root = world
+        .root_path
+        .read()
+        .clone()
+        .ok_or(ChroniclerError::VaultNotInitialized)?;
+    crate::images::import_image_from_path(&vault_root, &source_path)
 }
 
 // --- Data Retrieval ---
