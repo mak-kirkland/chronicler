@@ -61,13 +61,20 @@
     .setting-control-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        /* Top-align so the switch lines up with the title, not the vertical
+           center of a multi-line description. The gap keeps a wrapping
+           description from crowding the switch. */
+        align-items: flex-start;
+        gap: 1.5rem;
     }
 
     .label-group {
         display: flex;
         flex-direction: column;
         gap: 0.15rem;
+        /* Allow the text column to shrink so the description wraps instead of
+           pushing against the fixed-width switch. */
+        min-width: 0;
     }
 
     .label-group label {
