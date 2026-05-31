@@ -33,9 +33,14 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import InfoboxEditorModal from "$lib/components/infobox/InfoboxEditorModal.svelte";
 
-    let { content = $bindable(), pageName = "" } = $props<{
+    let {
+        content = $bindable(),
+        pageName = "",
+        pagePath = "",
+    } = $props<{
         content?: string;
         pageName?: string;
+        pagePath?: string;
     }>();
     let editor: EditorView | undefined = $state();
 
@@ -424,7 +429,7 @@
         // images), and never blocks the default text paste.
         EditorView.domEventHandlers({
             paste: (_event, view) => {
-                void pasteImageFromClipboard(view, pageName);
+                void pasteImageFromClipboard(view, pageName, pagePath);
                 return false;
             },
         }),
@@ -440,7 +445,11 @@
 </script>
 
 <div class="editor-container">
-    <EditorToolbar editorView={editor} onInfoboxClick={handleInfoboxClick} />
+    <EditorToolbar
+        editorView={editor}
+        onInfoboxClick={handleInfoboxClick}
+        {pagePath}
+    />
     <div class="editor-wrapper">
         <Codemirror
             on:ready={(e) => (editor = e.detail)}
