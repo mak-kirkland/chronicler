@@ -82,6 +82,9 @@ interface VaultSettings {
     areMapPreviewsEnabled: boolean;
     showImages: boolean;
     showExternalFiles: boolean;
+    imageImportLocation: ImageImportLocation;
+    imageImportDir: string;
+    promptForImageName: boolean;
 }
 
 export type ThemeName = string;
@@ -145,6 +148,19 @@ export const areInfoboxTagsVisible = writable<boolean>(true);
 export const areFooterTagsVisible = writable<boolean>(false);
 export const areLinkPreviewsEnabled = writable<boolean>(true);
 export const areMapPreviewsEnabled = writable<boolean>(true);
+
+// --- Image import behaviour ---
+/** Where newly pasted/imported images are written. */
+export type ImageImportLocation = "folder" | "adjacent";
+/**
+ * `folder`: write into `imageImportDir` (e.g. "images").
+ * `adjacent`: write next to the current page (its own folder).
+ */
+export const imageImportLocation = writable<ImageImportLocation>("folder");
+/** The vault-relative folder used in `folder` mode. */
+export const imageImportDir = writable<string>("images");
+/** When true, prompt for a filename on single-image paste/import. */
+export const promptForImageName = writable<boolean>(false);
 
 // --- Helper: Migration Logic ---
 
@@ -237,6 +253,9 @@ async function saveVaultSettings() {
         areMapPreviewsEnabled: get(areMapPreviewsEnabled),
         showImages: get(showImages),
         showExternalFiles: get(showExternalFiles),
+        imageImportLocation: get(imageImportLocation),
+        imageImportDir: get(imageImportDir),
+        promptForImageName: get(promptForImageName),
     };
     await vaultSettingsFile.set("vaultSettings", settings);
     await vaultSettingsFile.save();
@@ -341,6 +360,9 @@ export async function initializeVaultSettings(vaultPath: string) {
         areMapPreviewsEnabled.set(settings.areMapPreviewsEnabled ?? true);
         showImages.set(settings.showImages ?? true);
         showExternalFiles.set(settings.showExternalFiles ?? false);
+        imageImportLocation.set(settings.imageImportLocation ?? "folder");
+        imageImportDir.set(settings.imageImportDir ?? "images");
+        promptForImageName.set(settings.promptForImageName ?? false);
     } else {
         // If the vault has no settings file, it should adopt the current theme.
         // We immediately save the current settings to create the vault file,
@@ -363,6 +385,9 @@ export async function initializeVaultSettings(vaultPath: string) {
         areMapPreviewsEnabled.subscribe(debouncedVaultSave),
         showImages.subscribe(debouncedVaultSave),
         showExternalFiles.subscribe(debouncedVaultSave),
+        imageImportLocation.subscribe(debouncedVaultSave),
+        imageImportDir.subscribe(debouncedVaultSave),
+        promptForImageName.subscribe(debouncedVaultSave),
     ];
 }
 
@@ -388,6 +413,9 @@ export function destroyVaultSettings() {
     areMapPreviewsEnabled.set(true);
     showImages.set(true);
     showExternalFiles.set(false);
+    imageImportLocation.set("folder");
+    imageImportDir.set("images");
+    promptForImageName.set(false);
 
     // Reset atmosphere to defaults so next vault starts fresh if unconfigured
     atmosphere.set(defaultAtmosphere);

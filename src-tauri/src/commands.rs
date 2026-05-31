@@ -74,23 +74,44 @@ fn vault_root(world: &State<World>) -> Result<PathBuf> {
         .ok_or(ChroniclerError::VaultNotInitialized)
 }
 
-/// Copies an image file from disk (chosen via the OS picker) into the vault's
-/// `images/` directory and returns the resulting reference.
+/// Copies an image file from disk (chosen via the OS picker) into `dir` (a
+/// vault-relative directory) and returns the resulting reference. `name_override`
+/// replaces the source filename when the "prompt for name" flow supplies one.
 #[command]
 #[instrument(skip(world), err(Debug))]
-pub fn import_image_file(world: State<World>, source_path: String) -> Result<ImportedImage> {
-    crate::images::import_image_from_path(&vault_root(&world)?, Path::new(&source_path))
+pub fn import_image_file(
+    world: State<World>,
+    source_path: String,
+    dir: String,
+    name_override: Option<String>,
+) -> Result<ImportedImage> {
+    crate::images::import_image_from_path(
+        &vault_root(&world)?,
+        Path::new(&source_path),
+        &dir,
+        name_override.as_deref(),
+    )
 }
 
-/// Imports image(s) from the OS clipboard into the vault's `images/` directory,
-/// returning a reference per image — an empty list when the clipboard holds no
-/// image, so the editor can let a normal text paste proceed. Backs Ctrl/Cmd+V
-/// image paste; reading the clipboard at the OS layer works where the webview's
-/// own clipboard does not (notably WebKitGTK on Linux).
+/// Whether the OS clipboard currently holds raw image data (a bitmap). Lets the
+/// editor decide whether to prompt for a filename before pasting, without
+/// prompting on ordinary text pastes.
+#[command]
+#[instrument(skip(app_handle))]
+pub fn clipboard_has_image(app_handle: AppHandle) -> bool {
+    app_handle.clipboard().read_image().is_ok()
+}
+
+/// Imports image(s) from the OS clipboard into `dir` (a vault-relative
+/// directory), returning a reference per image — an empty list when the
+/// clipboard holds no image, so the editor can let a normal text paste proceed.
+/// Backs Ctrl/Cmd+V image paste; reading the clipboard at the OS layer works
+/// where the webview's own clipboard does not (notably WebKitGTK on Linux).
 ///
 /// Two cases are covered:
 ///   * raw image data (a screenshot or "Copy Image") arrives as a bitmap, is
-///     encoded to PNG, and is named `<page_name>-<timestamp>.png`;
+///     encoded to PNG, and is named from `name_override` if given, else
+///     `<page_name>-<timestamp>.png`;
 ///   * file(s) copied in a file manager arrive as a `file://` path list and are
 ///     imported from disk under their original names.
 #[command]
@@ -99,17 +120,23 @@ pub fn import_image_from_clipboard(
     app_handle: AppHandle,
     world: State<World>,
     page_name: String,
+    dir: String,
+    name_override: Option<String>,
 ) -> Result<Vec<ImportedImage>> {
     // Case 1: a raw bitmap (screenshot, "Copy Image" from a browser/viewer).
     if let Ok(image) = app_handle.clipboard().read_image() {
         let vault_root = vault_root(&world)?;
         let png = crate::images::encode_rgba_png(image.width(), image.height(), image.rgba())?;
-        let base = match page_name.trim() {
-            "" => "image",
-            name => name,
-        };
-        let name = format!("{base}-{}.png", Local::now().format("%Y%m%d-%H%M%S"));
-        let imported = crate::images::write_image_into_vault(&vault_root, &png, &name)?;
+        // A user-supplied name (from the prompt) is authoritative; otherwise
+        // fall back to `<page>-<timestamp>.png`.
+        let name = name_override.unwrap_or_else(|| {
+            let base = match page_name.trim() {
+                "" => "image",
+                s => s,
+            };
+            format!("{base}-{}.png", Local::now().format("%Y%m%d-%H%M%S"))
+        });
+        let imported = crate::images::write_image_into_vault(&vault_root, &png, &name, &dir)?;
         return Ok(vec![imported]);
     }
 
@@ -120,7 +147,7 @@ pub fn import_image_from_clipboard(
             let vault_root = vault_root(&world)?;
             return paths
                 .iter()
-                .map(|p| crate::images::import_image_from_path(&vault_root, p))
+                .map(|p| crate::images::import_image_from_path(&vault_root, p, &dir, None))
                 .collect();
         }
     }

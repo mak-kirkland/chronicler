@@ -44,11 +44,26 @@ export const getVaultPath = () => invoke<string | null>("get_vault_path");
 // --- Image Insertion ---
 
 /** Copies an image file from disk (chosen via the OS picker) into the vault's images/ folder. */
-export const importImageFile = (sourcePath: string) =>
-    invoke<ImportedImage>("import_image_file", { sourcePath });
+export const importImageFile = (
+    sourcePath: string,
+    dir: string,
+    nameOverride: string | null = null,
+) => invoke<ImportedImage>("import_image_file", { sourcePath, dir, nameOverride });
 
-export const importImageFromClipboard = (pageName: string) =>
-    invoke<ImportedImage[]>("import_image_from_clipboard", { pageName });
+export const importImageFromClipboard = (
+    pageName: string,
+    dir: string,
+    nameOverride: string | null = null,
+) =>
+    invoke<ImportedImage[]>("import_image_from_clipboard", {
+        pageName,
+        dir,
+        nameOverride,
+    });
+
+/** Whether the OS clipboard currently holds a bitmap (vs text / files). */
+export const clipboardHasImage = () =>
+    invoke<boolean>("clipboard_has_image");
 
 /**
  * Retrieves the list of recently opened vaults from the configuration.

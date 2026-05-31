@@ -1,15 +1,15 @@
-//! Importing images into the vault's `images/` directory.
+//! Importing images into a directory inside the vault (configurable; defaults to
+//! `images`, or the page's own folder in "adjacent" mode).
 //!
-//! Backs the `import_image_file` command (the editor's "Insert image" button):
-//! it sanitizes the filename, enforces a size and type limit, de-duplicates by
-//! content, and writes atomically.
+//! Backs the editor's image paste and "Insert image" button: it sanitizes the
+//! filename and target directory, enforces a size and type limit, de-duplicates
+//! by content, and writes atomically.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use percent_encoding::percent_decode_str;
 
-use crate::config::IMAGES_DIR_NAME;
 use crate::error::{ChroniclerError, Result};
 use crate::models::ImportedImage;
 
@@ -101,13 +101,25 @@ fn resolve_target_name(images_dir: &Path, name: &str, bytes: &[u8]) -> Result<(S
     }
 }
 
-/// Copy `bytes` into `<vault_root>/images/`, returning the resulting reference.
+/// Reduce a caller-supplied vault-relative directory to a safe normalized form:
+/// split on either separator, drop empty/`.`/`..` components (path-traversal
+/// guard), and rejoin with `/`. An empty result means the vault root itself.
+fn sanitize_subdir(dir: &str) -> String {
+    dir.split(['/', '\\'])
+        .filter(|c| !c.is_empty() && *c != "." && *c != "..")
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// Copy `bytes` into `dir` (a vault-relative directory; empty means the vault
+/// root), returning the resulting reference. The directory is created if missing.
 /// An identically-named file with identical content is reused (no write); a name
 /// clash with different content gets a numeric suffix.
 pub fn write_image_into_vault(
     vault_root: &Path,
     bytes: &[u8],
     suggested_filename: &str,
+    dir: &str,
 ) -> Result<ImportedImage> {
     if bytes.is_empty() {
         return Err(ChroniclerError::ImageImport("Image is empty".into()));
@@ -120,7 +132,9 @@ pub fn write_image_into_vault(
     }
 
     let safe_name = sanitize_image_filename(suggested_filename)?;
-    let images_dir = vault_root.join(IMAGES_DIR_NAME);
+    let safe_dir = sanitize_subdir(dir);
+    // Joining an empty `safe_dir` leaves `vault_root` itself (the root case).
+    let images_dir = vault_root.join(&safe_dir);
     fs::create_dir_all(&images_dir)?;
 
     let (final_name, reused) = resolve_target_name(&images_dir, &safe_name, bytes)?;
@@ -128,8 +142,13 @@ pub fn write_image_into_vault(
         crate::writer::atomic_write(&images_dir.join(&final_name), bytes)?;
     }
 
+    let relative_path = if safe_dir.is_empty() {
+        final_name.clone()
+    } else {
+        format!("{safe_dir}/{final_name}")
+    };
     Ok(ImportedImage {
-        relative_path: format!("{IMAGES_DIR_NAME}/{final_name}"),
+        relative_path,
         filename: final_name,
         reused,
     })
@@ -190,14 +209,24 @@ pub fn image_paths_from_clipboard_text(text: &str) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Read an image file from disk and import it (used by the picker command).
-pub fn import_image_from_path(vault_root: &Path, source: &Path) -> Result<ImportedImage> {
-    let suggested = source
-        .file_name()
-        .and_then(|n| n.to_str())
-        .ok_or_else(|| ChroniclerError::ImageImport("Invalid source path".into()))?;
+/// Read an image file from disk and import it into `dir`. `name_override`, when
+/// given, replaces the source filename (used by the picker's "prompt for name"
+/// flow); otherwise the source's own filename is kept.
+pub fn import_image_from_path(
+    vault_root: &Path,
+    source: &Path,
+    dir: &str,
+    name_override: Option<&str>,
+) -> Result<ImportedImage> {
+    let suggested = match name_override {
+        Some(name) => name,
+        None => source
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| ChroniclerError::ImageImport("Invalid source path".into()))?,
+    };
     let bytes = fs::read(source)?;
-    write_image_into_vault(vault_root, &bytes, suggested)
+    write_image_into_vault(vault_root, &bytes, suggested, dir)
 }
 
 #[cfg(test)]
@@ -208,7 +237,7 @@ mod tests {
     #[test]
     fn writes_new_image() {
         let dir = tempdir().unwrap();
-        let out = write_image_into_vault(dir.path(), b"PNGDATA", "diagram.png").unwrap();
+        let out = write_image_into_vault(dir.path(), b"PNGDATA", "diagram.png", "images").unwrap();
         assert_eq!(out.filename, "diagram.png");
         assert_eq!(out.relative_path, "images/diagram.png");
         assert!(!out.reused);
@@ -219,10 +248,36 @@ mod tests {
     }
 
     #[test]
+    fn writes_into_custom_and_nested_dirs() {
+        let dir = tempdir().unwrap();
+        let out = write_image_into_vault(dir.path(), b"X", "a.png", "art/refs").unwrap();
+        assert_eq!(out.relative_path, "art/refs/a.png");
+        assert!(dir.path().join("art/refs/a.png").exists());
+    }
+
+    #[test]
+    fn empty_dir_writes_to_vault_root() {
+        let dir = tempdir().unwrap();
+        let out = write_image_into_vault(dir.path(), b"X", "a.png", "").unwrap();
+        assert_eq!(out.relative_path, "a.png");
+        assert!(dir.path().join("a.png").exists());
+    }
+
+    #[test]
+    fn sanitizes_dir_path_traversal() {
+        let dir = tempdir().unwrap();
+        let out = write_image_into_vault(dir.path(), b"X", "a.png", "../../etc").unwrap();
+        // The `..` components are stripped, keeping the write inside the vault.
+        assert_eq!(out.relative_path, "etc/a.png");
+        assert!(dir.path().join("etc/a.png").exists());
+        assert!(!dir.path().parent().unwrap().join("etc/a.png").exists());
+    }
+
+    #[test]
     fn reuses_identical_existing_file() {
         let dir = tempdir().unwrap();
-        write_image_into_vault(dir.path(), b"SAME", "pic.png").unwrap();
-        let out = write_image_into_vault(dir.path(), b"SAME", "pic.png").unwrap();
+        write_image_into_vault(dir.path(), b"SAME", "pic.png", "images").unwrap();
+        let out = write_image_into_vault(dir.path(), b"SAME", "pic.png", "images").unwrap();
         assert_eq!(out.filename, "pic.png");
         assert!(out.reused);
         assert!(!dir.path().join("images/pic-2.png").exists());
@@ -231,8 +286,8 @@ mod tests {
     #[test]
     fn suffixes_on_clash_with_different_content() {
         let dir = tempdir().unwrap();
-        write_image_into_vault(dir.path(), b"FIRST", "pic.png").unwrap();
-        let out = write_image_into_vault(dir.path(), b"SECOND", "pic.png").unwrap();
+        write_image_into_vault(dir.path(), b"FIRST", "pic.png", "images").unwrap();
+        let out = write_image_into_vault(dir.path(), b"SECOND", "pic.png", "images").unwrap();
         assert_eq!(out.filename, "pic-2.png");
         assert!(!out.reused);
         assert_eq!(fs::read(dir.path().join("images/pic.png")).unwrap(), b"FIRST");
@@ -245,7 +300,7 @@ mod tests {
     #[test]
     fn sanitizes_path_traversal() {
         let dir = tempdir().unwrap();
-        let out = write_image_into_vault(dir.path(), b"X", "../../evil.png").unwrap();
+        let out = write_image_into_vault(dir.path(), b"X", "../../evil.png", "images").unwrap();
         assert_eq!(out.filename, "evil.png");
         assert!(dir.path().join("images/evil.png").exists());
         assert!(!dir.path().parent().unwrap().join("evil.png").exists());
@@ -254,15 +309,15 @@ mod tests {
     #[test]
     fn rejects_non_image_extension() {
         let dir = tempdir().unwrap();
-        assert!(write_image_into_vault(dir.path(), b"X", "notes.txt").is_err());
+        assert!(write_image_into_vault(dir.path(), b"X", "notes.txt", "images").is_err());
     }
 
     #[test]
     fn rejects_empty_and_oversize() {
         let dir = tempdir().unwrap();
-        assert!(write_image_into_vault(dir.path(), b"", "a.png").is_err());
+        assert!(write_image_into_vault(dir.path(), b"", "a.png", "images").is_err());
         let big = vec![0u8; MAX_IMAGE_BYTES + 1];
-        assert!(write_image_into_vault(dir.path(), &big, "a.png").is_err());
+        assert!(write_image_into_vault(dir.path(), &big, "a.png", "images").is_err());
     }
 
     #[test]

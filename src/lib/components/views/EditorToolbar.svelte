@@ -10,9 +10,10 @@
     import type { IconType } from "$lib/icons";
     import { pickAndInsertImages } from "$lib/imageInsert";
 
-    let { editorView, onInfoboxClick } = $props<{
+    let { editorView, onInfoboxClick, pagePath = "" } = $props<{
         editorView: EditorView | undefined;
         onInfoboxClick?: () => void;
+        pagePath?: string;
     }>();
 
     // Define an interface for the actions
@@ -57,7 +58,7 @@
         {
             title: "Insert Image",
             action: (v: EditorView) => {
-                void pickAndInsertImages(v);
+                void pickAndInsertImages(v, pagePath);
             },
             iconType: "image",
         },
