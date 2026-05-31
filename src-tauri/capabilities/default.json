@@ -6,6 +6,8 @@
     "permissions": [
         "core:default",
         "dialog:default",
+        "clipboard-manager:allow-read-image",
+        "clipboard-manager:allow-read-text",
         "opener:default",
         {
             "identifier": "opener:allow-open-path",

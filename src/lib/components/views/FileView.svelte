@@ -342,7 +342,10 @@
         >
             {#if $fileViewMode === "split"}
                 <div class="editor-pane">
-                    <Editor bind:content={pageData.raw_content} />
+                    <Editor
+                        bind:content={pageData.raw_content}
+                        pageName={file.title}
+                    />
                 </div>
                 <!--
                     The preview-pane serves as the scrolling container.
@@ -362,7 +365,10 @@
                 </div>
             {:else if $fileViewMode === "editor"}
                 <div class="unified-editor-pane">
-                    <Editor bind:content={pageData.raw_content} />
+                    <Editor
+                        bind:content={pageData.raw_content}
+                        pageName={file.title}
+                    />
                 </div>
             {:else}
                 <div class="unified-preview-pane scrollable">

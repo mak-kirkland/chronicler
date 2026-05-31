@@ -137,6 +137,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         // Register all our `#[tauri::command]` functions.
         .invoke_handler(tauri::generate_handler![
             commands::get_vault_path,
@@ -171,6 +172,7 @@ fn main() {
             commands::get_image_source,
             commands::get_image_thumbnail,
             commands::import_image_file,
+            commands::import_image_from_clipboard,
             commands::get_app_usage_days,
             commands::duplicate_page,
             commands::get_all_broken_links,
