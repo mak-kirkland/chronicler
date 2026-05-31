@@ -47,6 +47,9 @@ export const getVaultPath = () => invoke<string | null>("get_vault_path");
 export const importImageFile = (sourcePath: string) =>
     invoke<ImportedImage>("import_image_file", { sourcePath });
 
+export const importImageFromClipboard = (pageName: string) =>
+    invoke<ImportedImage[]>("import_image_from_clipboard", { pageName });
+
 /**
  * Retrieves the list of recently opened vaults from the configuration.
  * @returns A promise that resolves to an array of path strings.
