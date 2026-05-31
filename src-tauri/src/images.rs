@@ -5,7 +5,9 @@
 //! content, and writes atomically.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use percent_encoding::percent_decode_str;
 
 use crate::config::IMAGES_DIR_NAME;
 use crate::error::{ChroniclerError, Result};
@@ -13,6 +15,11 @@ use crate::models::ImportedImage;
 
 const MAX_IMAGE_BYTES: usize = 25 * 1024 * 1024;
 const ALLOWED_IMAGE_EXTS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "avif"];
+
+/// Whether `ext` (without the leading dot, any case) names an image type we accept.
+fn is_allowed_ext(ext: &str) -> bool {
+    ALLOWED_IMAGE_EXTS.contains(&ext.to_ascii_lowercase().as_str())
+}
 
 /// Reduce a caller-supplied name to a safe basename with an allowed image
 /// extension. Strips directory components (path-traversal guard) and replaces
@@ -34,7 +41,7 @@ fn sanitize_image_filename(suggested: &str) -> Result<String> {
     if stem.is_empty() {
         return Err(ChroniclerError::ImageImport("Image has no usable name".into()));
     }
-    if !ALLOWED_IMAGE_EXTS.contains(&ext.as_str()) {
+    if !is_allowed_ext(&ext) {
         return Err(ChroniclerError::ImageImport(format!(
             "Unsupported image type: .{ext}"
         )));
@@ -128,9 +135,63 @@ pub fn write_image_into_vault(
     })
 }
 
+/// Encode raw 8-bit RGBA pixels (row-major) into PNG bytes. Turns the decoded
+/// image the OS clipboard hands back into a file we can store.
+pub fn encode_rgba_png(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>> {
+    let expected = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|px| px.checked_mul(4));
+    if rgba.is_empty() || expected != Some(rgba.len()) {
+        return Err(ChroniclerError::ImageImport(
+            "Clipboard image has no usable pixel data".into(),
+        ));
+    }
+
+    let buffer = image::RgbaImage::from_raw(width, height, rgba.to_vec()).ok_or_else(|| {
+        ChroniclerError::ImageImport("Clipboard image has no usable pixel data".into())
+    })?;
+    let mut png = Vec::new();
+    buffer
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .map_err(|e| ChroniclerError::ImageImport(format!("Failed to encode image: {e}")))?;
+    Ok(png)
+}
+
+/// Whether `path`'s extension is one we accept as an image.
+fn is_allowed_image_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(is_allowed_ext)
+}
+
+/// Turn one clipboard line into a local path: a `file://` URI is stripped of its
+/// scheme/host and percent-decoded (e.g. `%20` → space); anything else is
+/// treated as a plain path.
+fn line_to_local_path(line: &str) -> PathBuf {
+    match line.strip_prefix("file://") {
+        // `file:///path` leaves a leading `/`; a non-empty host (e.g.
+        // `file://host/path`) won't exist locally and is dropped by the caller.
+        Some(rest) => PathBuf::from(percent_decode_str(rest).decode_utf8_lossy().into_owned()),
+        None => PathBuf::from(line),
+    }
+}
+
+/// Parse clipboard text into the local image files it points to. File managers
+/// put a newline-separated `file://` URI list (or plain paths) on the clipboard
+/// when you copy a file; this keeps only entries that exist and look like images,
+/// so ordinary copied text yields an empty list and the caller can fall back to
+/// a normal text paste.
+pub fn image_paths_from_clipboard_text(text: &str) -> Vec<PathBuf> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(line_to_local_path)
+        .filter(|path| is_allowed_image_path(path) && path.is_file())
+        .collect()
+}
+
 /// Read an image file from disk and import it (used by the picker command).
-pub fn import_image_from_path(vault_root: &Path, source_path: &str) -> Result<ImportedImage> {
-    let source = Path::new(source_path);
+pub fn import_image_from_path(vault_root: &Path, source: &Path) -> Result<ImportedImage> {
     let suggested = source
         .file_name()
         .and_then(|n| n.to_str())
@@ -202,5 +263,44 @@ mod tests {
         assert!(write_image_into_vault(dir.path(), b"", "a.png").is_err());
         let big = vec![0u8; MAX_IMAGE_BYTES + 1];
         assert!(write_image_into_vault(dir.path(), &big, "a.png").is_err());
+    }
+
+    #[test]
+    fn encodes_rgba_to_png() {
+        // A 1x1 opaque red pixel.
+        let png = encode_rgba_png(1, 1, &[255, 0, 0, 255]).unwrap();
+        // PNG magic number.
+        assert_eq!(&png[..8], &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]);
+    }
+
+    #[test]
+    fn rejects_rgba_with_wrong_length() {
+        // 2x2 needs 16 bytes; fewer provided.
+        assert!(encode_rgba_png(2, 2, &[0, 0, 0, 255]).is_err());
+        assert!(encode_rgba_png(1, 1, &[]).is_err());
+    }
+
+    #[test]
+    fn extracts_image_files_from_clipboard_text() {
+        let dir = tempdir().unwrap();
+        let img = dir.path().join("a copy.png");
+        fs::write(&img, b"PNG").unwrap();
+        let txt = dir.path().join("notes.txt");
+        fs::write(&txt, b"hi").unwrap();
+
+        // A `file://` URI with an escaped space resolves to the real file.
+        let uri = format!("file://{}", img.to_string_lossy().replace(' ', "%20"));
+        assert_eq!(image_paths_from_clipboard_text(&uri), vec![img.clone()]);
+
+        // A plain path also works.
+        assert_eq!(
+            image_paths_from_clipboard_text(&img.to_string_lossy()),
+            vec![img.clone()]
+        );
+
+        // Non-image files, missing files, and ordinary text are ignored.
+        assert!(image_paths_from_clipboard_text(&txt.to_string_lossy()).is_empty());
+        assert!(image_paths_from_clipboard_text("file:///does/not/exist.png").is_empty());
+        assert!(image_paths_from_clipboard_text("just some copied words").is_empty());
     }
 }

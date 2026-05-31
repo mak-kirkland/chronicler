@@ -28,11 +28,15 @@
         tags as worldTags,
     } from "$lib/worldStore";
     import { toggleBold, toggleItalic } from "$lib/editor";
+    import { pasteImageFromClipboard } from "$lib/imageInsert";
     import EditorToolbar from "$lib/components/views/EditorToolbar.svelte";
     import { openModal, closeModal } from "$lib/modalStore";
     import InfoboxEditorModal from "$lib/components/infobox/InfoboxEditorModal.svelte";
 
-    let { content = $bindable() } = $props<{ content?: string }>();
+    let { content = $bindable(), pageName = "" } = $props<{
+        content?: string;
+        pageName?: string;
+    }>();
     let editor: EditorView | undefined = $state();
 
     onMount(() => {
@@ -414,6 +418,16 @@
 
         Prec.highest(keymap.of([...customKeymap, ...defaultKeymap])),
         EditorView.lineWrapping,
+
+        // Paste an image from the clipboard. Reads the OS clipboard via the
+        // backend (WebKitGTK leaves the paste event's clipboardData empty for
+        // images), and never blocks the default text paste.
+        EditorView.domEventHandlers({
+            paste: (_event, view) => {
+                void pasteImageFromClipboard(view, pageName);
+                return false;
+            },
+        }),
 
         // The structural base theme
         chroniclerTheme,
