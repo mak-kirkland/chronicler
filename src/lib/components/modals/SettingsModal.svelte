@@ -12,6 +12,10 @@
         headingFont,
         bodyFont,
         userFonts,
+        imageImportLocation,
+        imageImportDir,
+        promptForImageName,
+        type ImageImportLocation,
     } from "$lib/settingsStore";
     import { AVAILABLE_FONTS } from "$lib/themeRegistry";
     import { loadAllUserFonts } from "$lib/fonts";
@@ -80,7 +84,11 @@
         if (!telemetryLoaded) return;
         const currentValue = telemetryEnabled;
         setTelemetryEnabled(currentValue).catch((e) => {
-            log.error("Failed to save telemetry preference", e, "SettingsModal");
+            log.error(
+                "Failed to save telemetry preference",
+                e,
+                "SettingsModal",
+            );
         });
     });
 
@@ -195,7 +203,11 @@
                 try {
                     await installUserFont(path);
                 } catch (e) {
-                    log.error(`Failed to install font '${path}'`, e, "SettingsModal");
+                    log.error(
+                        `Failed to install font '${path}'`,
+                        e,
+                        "SettingsModal",
+                    );
                     failures.push(path);
                 }
             }
@@ -345,8 +357,8 @@
                             {isInstallingFont ? "Adding…" : "Add Font…"}
                         </Button>
                         <span class="setting-description">
-                            Pick a `.ttf`, `.otf`, or `.woff2` file to add it
-                            to the dropdowns above.
+                            Pick a `.ttf`, `.otf`, or `.woff2` file to add it to
+                            the dropdowns above.
                         </span>
                     </div>
                     {#if fontInstallMessage}
@@ -378,6 +390,42 @@
             <h4>Templates</h4>
             <p>Manage your custom page templates.</p>
             <Button onclick={openTemplateManager}>Manage Templates</Button>
+        </div>
+
+        <div class="setting-item">
+            <h4>Images</h4>
+            <p>Choose where pasted and imported images are saved.</p>
+            <div class="form-group">
+                <!-- svelte-ignore a11y_label_has_associated_control -->
+                <label>Image location</label>
+                <Select
+                    options={[
+                        { value: "folder", label: "In a folder" },
+                        { value: "adjacent", label: "Next to the page" },
+                    ]}
+                    value={$imageImportLocation}
+                    onSelect={(val) =>
+                        ($imageImportLocation = val as ImageImportLocation)}
+                />
+            </div>
+            {#if $imageImportLocation === "folder"}
+                <div class="form-group">
+                    <label for="image-dir-input">Images folder</label>
+                    <input
+                        id="image-dir-input"
+                        class="setting-text-input"
+                        type="text"
+                        bind:value={$imageImportDir}
+                        placeholder="images"
+                    />
+                </div>
+            {/if}
+            <ToggleSwitch
+                id="prompt-image-name-toggle"
+                label="Prompt for a name on import"
+                description="Ask for a file name when pasting an image, instead of using a generated one."
+                bind:checked={$promptForImageName}
+            />
         </div>
 
         <div class="setting-item">
@@ -605,6 +653,20 @@
     }
 
     .license-input-group input:focus {
+        outline: 2px solid var(--color-accent-primary);
+        outline-offset: -1px;
+        border-color: var(--color-accent-primary);
+    }
+    .setting-text-input {
+        background-color: var(--color-background-secondary);
+        color: var(--color-text-primary);
+        border: 1px solid var(--color-border-primary);
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        font-family: inherit;
+        font-size: 1rem;
+    }
+    .setting-text-input:focus {
         outline: 2px solid var(--color-accent-primary);
         outline-offset: -1px;
         border-color: var(--color-accent-primary);
