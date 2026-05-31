@@ -15,8 +15,9 @@ use crate::{
     world::World,
 };
 use chrono::{Local, NaiveDate};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle, Manager, State};
+use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_opener::OpenerExt;
 use tracing::instrument;
 
@@ -64,17 +65,67 @@ pub fn initialize_vault(path: String, world: State<World>, app_handle: AppHandle
 
 // --- Image Insertion ---
 
+/// The active vault's root directory, or `VaultNotInitialized` if none is open.
+fn vault_root(world: &State<World>) -> Result<PathBuf> {
+    world
+        .root_path
+        .read()
+        .clone()
+        .ok_or(ChroniclerError::VaultNotInitialized)
+}
+
 /// Copies an image file from disk (chosen via the OS picker) into the vault's
 /// `images/` directory and returns the resulting reference.
 #[command]
 #[instrument(skip(world), err(Debug))]
 pub fn import_image_file(world: State<World>, source_path: String) -> Result<ImportedImage> {
-    let vault_root = world
-        .root_path
-        .read()
-        .clone()
-        .ok_or(ChroniclerError::VaultNotInitialized)?;
-    crate::images::import_image_from_path(&vault_root, &source_path)
+    crate::images::import_image_from_path(&vault_root(&world)?, Path::new(&source_path))
+}
+
+/// Imports image(s) from the OS clipboard into the vault's `images/` directory,
+/// returning a reference per image — an empty list when the clipboard holds no
+/// image, so the editor can let a normal text paste proceed. Backs Ctrl/Cmd+V
+/// image paste; reading the clipboard at the OS layer works where the webview's
+/// own clipboard does not (notably WebKitGTK on Linux).
+///
+/// Two cases are covered:
+///   * raw image data (a screenshot or "Copy Image") arrives as a bitmap, is
+///     encoded to PNG, and is named `<page_name>-<timestamp>.png`;
+///   * file(s) copied in a file manager arrive as a `file://` path list and are
+///     imported from disk under their original names.
+#[command]
+#[instrument(skip(app_handle, world), err(Debug))]
+pub fn import_image_from_clipboard(
+    app_handle: AppHandle,
+    world: State<World>,
+    page_name: String,
+) -> Result<Vec<ImportedImage>> {
+    // Case 1: a raw bitmap (screenshot, "Copy Image" from a browser/viewer).
+    if let Ok(image) = app_handle.clipboard().read_image() {
+        let vault_root = vault_root(&world)?;
+        let png = crate::images::encode_rgba_png(image.width(), image.height(), image.rgba())?;
+        let base = match page_name.trim() {
+            "" => "image",
+            name => name,
+        };
+        let name = format!("{base}-{}.png", Local::now().format("%Y%m%d-%H%M%S"));
+        let imported = crate::images::write_image_into_vault(&vault_root, &png, &name)?;
+        return Ok(vec![imported]);
+    }
+
+    // Case 2: file(s) copied in a file manager arrive as a `file://` path list.
+    if let Ok(text) = app_handle.clipboard().read_text() {
+        let paths = crate::images::image_paths_from_clipboard_text(&text);
+        if !paths.is_empty() {
+            let vault_root = vault_root(&world)?;
+            return paths
+                .iter()
+                .map(|p| crate::images::import_image_from_path(&vault_root, p))
+                .collect();
+        }
+    }
+
+    Ok(Vec::new())
 }
 
 // --- Data Retrieval ---
