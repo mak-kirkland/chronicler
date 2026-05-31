@@ -345,6 +345,7 @@
                     <Editor
                         bind:content={pageData.raw_content}
                         pageName={file.title}
+                        pagePath={file.path}
                     />
                 </div>
                 <!--
@@ -368,6 +369,7 @@
                     <Editor
                         bind:content={pageData.raw_content}
                         pageName={file.title}
+                        pagePath={file.path}
                     />
                 </div>
             {:else}

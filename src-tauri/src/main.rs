@@ -173,6 +173,7 @@ fn main() {
             commands::get_image_thumbnail,
             commands::import_image_file,
             commands::import_image_from_clipboard,
+            commands::clipboard_has_image,
             commands::get_app_usage_days,
             commands::duplicate_page,
             commands::get_all_broken_links,
