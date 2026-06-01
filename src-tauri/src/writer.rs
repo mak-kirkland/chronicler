@@ -11,6 +11,7 @@ use crate::{
     wikilink::WIKILINK_RE,
 };
 use regex::{Captures, Regex};
+use same_file::Handle;
 use std::sync::LazyLock;
 use std::time::Duration;
 use std::{
@@ -202,6 +203,14 @@ fn replace_insert_in_content(content: &str, old_stem: &str, new_stem: &str) -> O
         Some(new_content.into_owned())
     } else {
         None
+    }
+}
+
+/// Returns `true` when both paths refer to the same underlying file.
+fn is_same_file(a: &Path, b: &Path) -> bool {
+    match (Handle::from_path(a), Handle::from_path(b)) {
+        (Ok(ha), Ok(hb)) => ha == hb,
+        _ => false,
     }
 }
 
@@ -419,7 +428,10 @@ tags: [add, your, tags]
         new_path: PathBuf,
         backlinks: &HashSet<PathBuf>,
     ) -> Result<PathBuf> {
-        if new_path.exists() {
+        // Only reject when the destination is a *genuinely different*
+        // file.  Comparing file identity lets a self-rename through
+        // while still catching real collisions.
+        if new_path.exists() && !is_same_file(old_path, &new_path) {
             return Err(ChroniclerError::FileAlreadyExists(new_path.clone()));
         }
 
@@ -649,6 +661,58 @@ mod tests {
         let page2_content = fs::read_to_string(&page2_path).unwrap();
         assert!(page2_content.contains("[[First Chapter]]"));
         assert!(!page2_content.contains("[[Page One]]"));
+    }
+
+    #[test]
+    fn test_rename_to_same_name_is_allowed() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("Note.md");
+        fs::write(&path, "content").unwrap();
+        let writer = Writer::new();
+
+        let result = writer.rename_path(&path, "Note", &HashSet::new());
+
+        assert!(
+            result.is_ok(),
+            "renaming a file to its own name should succeed, got {:?}",
+            result
+        );
+        assert!(path.exists());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "content");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_case_only_rename_when_destination_is_same_file_is_allowed() {
+        let dir = tempdir().unwrap();
+        let upper = dir.path().join("Filename.md");
+        let lower = dir.path().join("filename.md");
+        fs::write(&upper, "content").unwrap();
+        fs::hard_link(&upper, &lower).unwrap();
+        let writer = Writer::new();
+
+        let result = writer.rename_path(&upper, "filename", &HashSet::new());
+
+        assert!(
+            result.is_ok(),
+            "case-only rename onto the same underlying file should succeed, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_rename_onto_different_existing_file_is_rejected() {
+        let (_dir, page1_path, _page2_path) = setup_writer_test_vault();
+        let writer = Writer::new();
+
+        // `Page Two.md` already exists in the test vault.
+        let result = writer.rename_path(&page1_path, "Page Two", &HashSet::new());
+
+        assert!(
+            matches!(result, Err(ChroniclerError::FileAlreadyExists(_))),
+            "renaming onto a different existing file should be rejected, got {:?}",
+            result
+        );
     }
 
     #[test]
