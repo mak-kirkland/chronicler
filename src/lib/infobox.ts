@@ -17,7 +17,12 @@ import {
     type Node,
 } from "yaml";
 import { TEMPLATE_FOLDER_PATH } from "$lib/config";
-import { normalizePath, findNodeByPath, fileStemString, uuid } from "$lib/utils";
+import {
+    normalizePath,
+    findNodeByPath,
+    fileStemString,
+    uuid,
+} from "$lib/utils";
 import { log } from "$lib/logger";
 import type { FileNode } from "./bindings";
 
@@ -513,6 +518,24 @@ export function applyInfoboxStateToContent(
         doc = parseDocument(match[1]);
         // Extract body to append later
         body = originalContent.replace(frontmatterRegex, "").trimStart();
+
+        // If the existing frontmatter is malformed, the parsed Document carries
+        // errors and refuses to be re-stringified - `doc.toString()` below
+        // would throw the cryptic "Document with errors cannot be stringified".
+        // Refuse to save and surface a clear, actionable message so the
+        // user can fix the YAML by hand in the text editor without losing anything.
+        if (doc.errors.length > 0) {
+            const detail = doc.errors.map((e) => e.message).join("; ");
+            log.warn(
+                `Refusing to save: existing frontmatter is malformed: ${detail}`,
+                "infobox",
+            );
+            throw new Error(
+                "This page's frontmatter contains invalid YAML, so the infobox " +
+                    "editor can't safely save it. Please fix the frontmatter in " +
+                    "the text editor, then reopen the infobox editor.",
+            );
+        }
     } else {
         doc = new Document({});
         // If no frontmatter existed, the whole content is the body
@@ -594,7 +617,9 @@ export function applyInfoboxStateToContent(
             // Serialize above/below — support both string and string[]
             if (rest.above) {
                 if (Array.isArray(rest.above)) {
-                    const cleaned = rest.above.map((s) => s.trim()).filter(Boolean);
+                    const cleaned = rest.above
+                        .map((s) => s.trim())
+                        .filter(Boolean);
                     if (cleaned.length > 0) rule.above = cleaned;
                 } else {
                     const trimmed = rest.above.trim();
@@ -603,7 +628,9 @@ export function applyInfoboxStateToContent(
             }
             if (rest.below) {
                 if (Array.isArray(rest.below)) {
-                    const cleaned = rest.below.map((s) => s.trim()).filter(Boolean);
+                    const cleaned = rest.below
+                        .map((s) => s.trim())
+                        .filter(Boolean);
                     if (cleaned.length > 0) rule.below = cleaned;
                 } else {
                     const trimmed = rest.below.trim();
@@ -703,7 +730,10 @@ export function applyInfoboxStateToContent(
         doc.set(key, valToSet);
     }
 
-    const newFrontmatter = doc.toString().trim();
+    // Use `lineWidth: 0` to disable line folding. The library default (80)
+    // wraps long values onto indented continuation lines. Those continuation
+    // lines are fragile and can become malformed YAML.
+    const newFrontmatter = doc.toString({ lineWidth: 0 }).trim();
     // Reconstruct file
     if (newFrontmatter) {
         return `---\n${newFrontmatter}\n---\n\n${body}`;
