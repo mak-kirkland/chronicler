@@ -36,6 +36,7 @@ serde_yaml = "0.9"
 regex = "1.10"
 pulldown-cmark = { version = "0.13" }
 walkdir = "2.3"
+same-file = "1.0"
 notify = "6.1"
 thiserror = "1.0"
 notify-debouncer-full = "0.3"

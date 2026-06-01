@@ -740,6 +740,7 @@ dependencies = [
  "rayon",
  "regex",
  "reqwest",
+ "same-file",
  "serde",
  "serde_json",
  "serde_yaml",
