@@ -224,7 +224,7 @@
             if (shouldClose) onClose();
         } catch (e) {
             log.error("Failed to save infobox", e, "InfoboxEditorModal");
-            alert(`Failed to save: ${e}`);
+            alert(`Failed to save: ${e instanceof Error ? e.message : e}`);
         } finally {
             isSaving = false;
         }
