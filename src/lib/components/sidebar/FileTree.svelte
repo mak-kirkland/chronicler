@@ -44,17 +44,19 @@
      * Handles a click on any non-directory node, routing to the correct
      * view based on the file type. Note the capitalized enum variant names.
      */
-    function handleNodeClick(node: FileNode) {
+    function handleNodeClick(node: FileNode, e?: MouseEvent) {
+        const newTab = !!e && (e.button === 1 || e.ctrlKey || e.metaKey);
         if (isMarkdown(node)) {
-            navigateToPage({ title: node.name, path: node.path });
+            navigateToPage(
+                { title: node.name, path: node.path },
+                undefined,
+                newTab,
+            );
         } else if (isImage(node)) {
-            navigateToImage({ title: node.name, path: node.path });
+            navigateToImage({ title: node.name, path: node.path }, newTab);
         } else if (isMap(node)) {
             // Open the map view
-            navigateToMap({
-                title: node.name,
-                path: node.path,
-            });
+            navigateToMap({ title: node.name, path: node.path }, newTab);
         } else if (isExternal(node)) {
             // Hand off to the OS default application (PDF viewer, Excel, etc.)
             openPath(node.path).catch((err) => {
@@ -143,8 +145,14 @@
                 $currentView.type === "image" ||
                 $currentView.type === "map") &&
                 $currentView.data?.path === node.path}
-            onclick={() => handleNodeClick(node)}
+            onclick={(e) => handleNodeClick(node, e)}
             onkeydown={(e) => e.key === "Enter" && handleNodeClick(node)}
+            onauxclick={(e) => {
+                if (e.button === 1) {
+                    e.preventDefault();
+                    handleNodeClick(node, e);
+                }
+            }}
             role="button"
             tabindex="0"
             oncontextmenu={(e) => {

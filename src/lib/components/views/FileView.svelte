@@ -5,7 +5,10 @@
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import SaveStatus from "$lib/components/views/SaveStatus.svelte";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
-    import { fileViewMode, currentView, rightSidebar } from "$lib/viewStores";
+    import { tabs, tabStatus } from "$lib/viewStores";
+    import type { FileViewMode } from "$lib/viewStores";
+    import { onDestroy } from "svelte";
+    import BacklinksPanel from "$lib/components/views/BacklinksPanel.svelte";
     import { isTocVisible } from "$lib/settingsStore";
     import { files, isWorldLoaded } from "$lib/worldStore";
     import {
@@ -13,8 +16,12 @@
         writePageContent,
         renderPagePreview,
     } from "$lib/commands";
-    import { handleContentClick, navigateToMap } from "$lib/actions";
-    import type { PageHeader, FullPageData } from "$lib/bindings";
+    import {
+        handleContentClick,
+        navigateToMap,
+        navigateToPage,
+    } from "$lib/actions";
+    import type { PageHeader, FullPageData, Backlink } from "$lib/bindings";
     import { findFileInTree } from "$lib/utils";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
     import { log } from "$lib/logger";
@@ -23,10 +30,17 @@
     import InfoboxEditorModal from "$lib/components/infobox/InfoboxEditorModal.svelte";
     import FloatingMenu from "$lib/components/ui/FloatingMenu.svelte";
 
-    let { file, sectionId } = $props<{
+    let { file, sectionId, tabId, isActive, initialMode } = $props<{
         file: PageHeader;
         sectionId?: string;
+        tabId: string;
+        isActive: boolean;
+        initialMode?: FileViewMode;
     }>();
+
+    let mode = $state<FileViewMode>(initialMode ?? "preview");
+    let backlinks = $state<Backlink[]>([]);
+    let showBacklinks = $state(false);
 
     let pageData = $state<FullPageData | null>(null);
     let error = $state<string | null>(null);
@@ -47,6 +61,8 @@
 
     // This effect handles loading the page data whenever the `file` prop changes.
     $effect(() => {
+        const loadPath = file.path;
+
         // --- State Reset ---
         isLoading = true;
         showLoading = false; // Reset the visual loading state
@@ -56,7 +72,7 @@
         saveStatus = "idle"; // Reset save status for the new file
         lastSaveTime = null; // Reset last save time for the new file
         clearTimeout(loadingTimer); // Clear any pending loading message timer
-        rightSidebar.update((state) => ({ ...state, backlinks: [] })); // Reset backlinks
+        backlinks = []; // Reset backlinks
         isMapMenuOpen = false; // Close menu on navigation
 
         // --- Set a timer to show the "Loading..." message only if it takes too long ---
@@ -69,11 +85,8 @@
             .then((data) => {
                 pageData = data;
                 pristineContent = data.raw_content;
-                // Update the backlinks in the store for the right sidebar.
-                rightSidebar.update((state) => ({
-                    ...state,
-                    backlinks: data.backlinks,
-                }));
+                // Update the backlinks shown in the right sidebar.
+                backlinks = data.backlinks;
             })
 
             .catch((e) => {
@@ -90,6 +103,19 @@
         return () => {
             clearTimeout(saveTimeout);
             clearTimeout(loadingTimer); // Also clear the loading timer on cleanup
+            // Flush any pending edits for the file we are leaving (covers tab
+            // close, vault switch, and navigating within the tab). At cleanup
+            // time pageData/pristineContent still hold the OLD file's values,
+            // and loadPath is the OLD path captured for this effect run.
+            // Skip when a save is already in flight ("saving") — that write
+            // persists the same content; "dirty"/"error" still need flushing.
+            if (
+                pageData &&
+                pageData.raw_content !== pristineContent &&
+                saveStatus !== "saving"
+            ) {
+                void writePageContent(loadPath, pageData.raw_content);
+            }
         };
     });
 
@@ -113,6 +139,11 @@
             saveStatus = "saving";
             writePageContent(path, contentToSave)
                 .then(() => {
+                    // If the user navigated to another file while this save was
+                    // in flight, the component's reactive state now belongs to
+                    // that file — don't write this file's status/preview onto
+                    // it. The content itself was already persisted above.
+                    if (file.path !== path) return null;
                     pristineContent = contentToSave;
                     saveStatus = "idle"; // Return to idle after a successful save
                     lastSaveTime = new Date(); // Set the timestamp of the successful save
@@ -121,23 +152,37 @@
                     return renderPagePreview(contentToSave);
                 })
                 .then((newlyRenderedData) => {
-                    if (pageData) pageData.rendered_page = newlyRenderedData;
+                    if (newlyRenderedData && pageData) {
+                        pageData.rendered_page = newlyRenderedData;
+                    }
                 })
                 .catch((e) => {
-                    log.error("Failed to save or re-render content", e, "FileView");
+                    if (file.path !== path) return;
+                    log.error(
+                        "Failed to save or re-render content",
+                        e,
+                        "FileView",
+                    );
                     saveStatus = "error";
                 });
         }, AUTOSAVE_DEBOUNCE_MS);
     });
 
+    // Surface this tab's save status to the tab bar.
+    $effect(() => {
+        tabStatus.set(tabId, saveStatus);
+    });
+    onDestroy(() => tabStatus.clear(tabId));
+
     // This effect navigates away if the current file is deleted from the vault.
     $effect(() => {
         const tree = $files;
         if ($isWorldLoaded && tree && !findFileInTree(tree, file.path)) {
-            console.log(
-                `Current file ${file.path} not found in tree. Closing view.`,
+            log.debug(
+                `Current file ${file.path} not found in tree; closing tab.`,
+                "FileView",
             );
-            currentView.set({ type: "welcome" });
+            tabs.close(tabId);
         }
     });
 
@@ -274,58 +319,54 @@
                     </Button>
                 {/if}
 
-                {#if $rightSidebar.backlinks.length > 0}
+                {#if backlinks.length > 0}
                     <Button
                         size="small"
-                        onclick={() =>
-                            rightSidebar.update((state) => ({
-                                ...state,
-                                isVisible: !state.isVisible,
-                            }))}
+                        onclick={() => (showBacklinks = !showBacklinks)}
                         title="Toggle Backlinks"
                     >
                         <Icon type="backlinks" />
-                        {$rightSidebar.backlinks.length}
+                        {backlinks.length}
                     </Button>
                 {/if}
 
                 <!-- View Mode Controls -->
-                {#if $fileViewMode === "preview"}
+                {#if mode === "preview"}
                     <Button
                         size="small"
-                        onclick={() => ($fileViewMode = "split")}
+                        onclick={() => (mode = "split")}
                         title="Edit"
                     >
                         <Icon type="edit" /> Edit
                     </Button>
                 {/if}
-                {#if $fileViewMode === "split"}
+                {#if mode === "split"}
                     <Button
                         size="small"
-                        onclick={() => ($fileViewMode = "editor")}
+                        onclick={() => (mode = "editor")}
                         title="Editor Only"
                     >
                         <Icon type="file" /> Editor Only
                     </Button>
                     <Button
                         size="small"
-                        onclick={() => ($fileViewMode = "preview")}
+                        onclick={() => (mode = "preview")}
                         title="Preview Only"
                     >
                         <Icon type="preview" /> Preview Only
                     </Button>
                 {/if}
-                {#if $fileViewMode === "editor"}
+                {#if mode === "editor"}
                     <Button
                         size="small"
-                        onclick={() => ($fileViewMode = "split")}
+                        onclick={() => (mode = "split")}
                         title="Split View"
                     >
                         <Icon type="split" /> Split View
                     </Button>
                     <Button
                         size="small"
-                        onclick={() => ($fileViewMode = "preview")}
+                        onclick={() => (mode = "preview")}
                         title="Preview Only"
                     >
                         <Icon type="preview" /> Preview Only
@@ -340,12 +381,13 @@
             onclick={handleContentClick}
             onkeydown={handleContentClick}
         >
-            {#if $fileViewMode === "split"}
+            {#if mode === "split"}
                 <div class="editor-pane">
                     <Editor
                         bind:content={pageData.raw_content}
                         pageName={file.title}
                         pagePath={file.path}
+                        {isActive}
                     />
                 </div>
                 <!--
@@ -364,12 +406,13 @@
                         />
                     </div>
                 </div>
-            {:else if $fileViewMode === "editor"}
+            {:else if mode === "editor"}
                 <div class="unified-editor-pane">
                     <Editor
                         bind:content={pageData.raw_content}
                         pageName={file.title}
                         pagePath={file.path}
+                        {isActive}
                     />
                 </div>
             {:else}
@@ -385,6 +428,16 @@
                         />
                     </div>
                 </div>
+            {/if}
+            {#if showBacklinks && backlinks.length > 0}
+                <!-- Clicking a backlink navigates this tab to that page; the
+                     Backlink is converted to a PageHeader for navigation. -->
+                <BacklinksPanel
+                    {backlinks}
+                    onClose={() => (showBacklinks = false)}
+                    onNavigate={(link) =>
+                        navigateToPage({ title: link.title, path: link.path })}
+                />
             {/if}
         </div>
     {/if}

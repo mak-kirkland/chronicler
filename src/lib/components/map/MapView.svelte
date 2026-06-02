@@ -64,7 +64,10 @@
         areMapPreviewsEnabled,
     } from "$lib/settingsStore";
 
-    let { data } = $props<{ data: PageHeader }>();
+    let { data, isActive = true } = $props<{
+        data: PageHeader;
+        isActive?: boolean;
+    }>();
 
     // -------------------------------------------------------------------------
     // Hoisted Leaflet class: tile layer that serves from the Rust-generated
@@ -126,6 +129,15 @@
 
     let mapElement = $state<HTMLElement | null>(null);
     let map: L.Map | null = null;
+
+    // When this map's tab becomes active, Leaflet must re-measure: a map built
+    // inside a hidden (display:none) tab pane has zero size and renders blank
+    // until told otherwise. Mirrors the CodeMirror remeasure in Editor.svelte.
+    $effect(() => {
+        if (isActive && map) {
+            map.invalidateSize();
+        }
+    });
 
     // Layer Groups to manage different types of content
     let imageOverlays = new Map<string, L.ImageOverlay | L.GridLayer>();
@@ -1246,10 +1258,10 @@
                 // Find shapes with navigation targets using spatial index
                 const allShapes = spatialIndex
                     ? spatialIndex.query(
-                      mapX,
-                      mapY,
-                      layerVisibilityLookup ?? mapConfig.layers,
-                  )
+                          mapX,
+                          mapY,
+                          layerVisibilityLookup ?? mapConfig.layers,
+                      )
                     : getShapesAtPoint(
                           mapX,
                           mapY,

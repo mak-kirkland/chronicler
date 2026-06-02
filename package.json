@@ -35,7 +35,8 @@
         "katex": "^0.16.47",
         "leaflet": "^1.9.4",
         "marked": "^16.4.2",
-        "svelte-codemirror-editor": "^1.4.2"
+        "svelte-codemirror-editor": "^1.4.2",
+        "vitest": "^4.1.10"
     },
     "devDependencies": {
         "@sveltejs/adapter-static": "^3.0.10",

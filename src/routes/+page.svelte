@@ -1,6 +1,9 @@
 <script lang="ts">
     import type { Component } from "svelte";
-    import { currentView, fileViewMode, rightSidebar } from "$lib/viewStores";
+    import { tabs } from "$lib/viewStores";
+    import { currentViewOf } from "$lib/tabs";
+    import type { Tab } from "$lib/tabs";
+    import TabBar from "$lib/components/views/TabBar.svelte";
 
     // Import all possible main view components
     import WelcomeView from "$lib/components/views/WelcomeView.svelte";
@@ -8,7 +11,6 @@
     import FileView from "$lib/components/views/FileView.svelte";
     import ImageView from "$lib/components/views/ImageView.svelte";
     import MapView from "$lib/components/map/MapView.svelte";
-    import BacklinksPanel from "$lib/components/views/BacklinksPanel.svelte";
     import BrokenLinksReportView from "$lib/components/reports/BrokenLinksReportView.svelte";
     import ParseErrorsReportView from "$lib/components/reports/ParseErrorsReportView.svelte";
     import BrokenImagesReport from "$lib/components/reports/BrokenImagesReport.svelte";
@@ -26,21 +28,33 @@
         "report:broken-images": BrokenImagesReport,
     };
 
-    // This reactive block determines which component and props to render
-    // based on the current state of the `currentView` store.
-    const activeView = $derived(() => {
-        const view = $currentView;
+    // Resolve a tab to the component + props to render. View-specific extras
+    // (tabId/isActive/initialMode) are injected here so the template stays a
+    // single, branch-free spread. `isActive` lets FileView's editor and MapView's
+    // Leaflet re-measure when a tab mounted hidden becomes visible; `initialMode`
+    // is a one-shot seed FileView reads only at mount.
+    function resolve(
+        tab: Tab,
+        activeId: string,
+    ): { component: Component<any>; props: Record<string, any> } {
+        const view = currentViewOf(tab);
+        const isActive = tab.id === activeId;
         let key: string = view.type;
         let props: Record<string, any> = {};
-
         switch (view.type) {
             case "file":
-                props = { file: view.data, sectionId: view.sectionId };
-                break;
-            case "image":
-                props = { data: view.data };
+                props = {
+                    file: view.data,
+                    sectionId: view.sectionId,
+                    tabId: tab.id,
+                    isActive,
+                    initialMode: tab.initialFileMode,
+                };
                 break;
             case "map":
+                props = { data: view.data, isActive };
+                break;
+            case "image":
                 props = { data: view.data };
                 break;
             case "tag":
@@ -51,32 +65,52 @@
                 key = `report:${view.name}`;
                 break;
         }
-
-        return {
-            component: componentMap[key],
-            props: props,
-        };
-    });
-
-    // In Svelte 5, we can derive values directly from other derived signals.
-    const ActiveComponent = $derived(activeView().component);
-    const props = $derived(activeView().props);
-
-    // This effect resets the file view mode and hides the right sidebar
-    // whenever the user navigates away from the file view.
-    $effect(() => {
-        if ($currentView.type !== "file") {
-            $fileViewMode = "preview";
-            rightSidebar.update((state) => ({ ...state, isVisible: false }));
-        }
-    });
+        return { component: componentMap[key], props };
+    }
 </script>
 
-<!-- Use the variable directly as a component tag, which is the Svelte 5 way. -->
-{#if ActiveComponent}
-    <ActiveComponent {...props} />
-{/if}
+<div class="tabbed-layout">
+    <TabBar />
+    <div class="tab-panes">
+        {#each $tabs.tabs as tab (tab.id)}
+            {@const resolved = resolve(tab, $tabs.activeId)}
+            {@const Active = resolved.component}
+            <div class="tab-pane" class:active={tab.id === $tabs.activeId}>
+                {#if Active}
+                    <!-- Key on the component so the pane re-mounts when a tab's
+                         view type changes in place (e.g. welcome → file via
+                         openInCurrent). A bare dynamic <Active> in a reused
+                         keyed-each block does not swap on its own. -->
+                    {#key Active}
+                        <Active {...resolved.props} />
+                    {/key}
+                {/if}
+            </div>
+        {/each}
+    </div>
+</div>
 
-{#if $rightSidebar.isVisible}
-    <BacklinksPanel />
-{/if}
+<style>
+    .tabbed-layout {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+    }
+    .tab-panes {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+    }
+    /* Inactive panes stay mounted (state preserved) but hidden. */
+    .tab-pane {
+        position: absolute;
+        inset: 0;
+        display: none;
+    }
+    .tab-pane.active {
+        display: flex;
+        flex-direction: column;
+    }
+</style>

@@ -1,150 +1,99 @@
 /**
- * @file This file contains stores related to UI state and navigation,
- * not the core application data, which is managed by worldStore.ts, or the
- * application's core lifecycle state, which is managed in appState.ts.
+ * @file UI state and navigation stores — not the core application data (managed
+ * by worldStore.ts) nor the app's lifecycle state (managed in appState.ts). The
+ * core here is the `tabs` store: a list of open tabs, each with its own
+ * back/forward history. `currentView` is a derived read-only view of the active
+ * tab (kept for existing read sites), and `navigation` is a thin facade over the
+ * active tab's history.
  */
+import { writable, derived, type Readable } from "svelte/store";
+import * as T from "./tabs";
+import type { TabsState, ViewState, OpenOptions } from "./tabs";
 
-import { writable, type Writable, get, derived } from "svelte/store";
-import type { PageHeader, Backlink } from "./bindings";
+// Re-export the shared types so existing `$lib/viewStores` type imports keep working.
+export type { ViewState, Tab, FileViewMode } from "./tabs";
+export type SaveStatus = "idle" | "dirty" | "saving" | "error";
 
-// --- View Management ---
+let idCounter = 0;
+const makeId = () => `tab-${idCounter++}`;
 
-/**
- * A union type to represent the possible states of the main view.
- */
-export type ViewState =
-    | { type: "welcome" }
-    | { type: "tag"; tagName: string }
-    | { type: "file"; data: PageHeader | null; sectionId?: string | null }
-    | { type: "image"; data: PageHeader | null }
-    | { type: "map"; data: PageHeader | null }
-    | { type: "report"; name: string };
-
-/**
- * This store manages what is currently displayed in the main content area.
- * It defaults to the 'welcome' screen.
- */
-export const currentView: Writable<ViewState> = writable({ type: "welcome" });
-
-/**
- * This store manages the view mode (split, preview, or editor) for files.
- */
-export const fileViewMode: Writable<"preview" | "split" | "editor"> =
-    writable("preview");
-
-// --- Right Sidebar State ---
-
-interface RightSidebarState {
-    isVisible: boolean;
-    backlinks: Backlink[];
-}
-
-const initialRightSidebarState: RightSidebarState = {
-    isVisible: false,
-    backlinks: [],
-};
-
-/**
- * Manages the state of the right-hand metadata panel (for backlinks, etc.).
- */
-export const rightSidebar = writable<RightSidebarState>(
-    initialRightSidebarState,
-);
-
-// --- Navigation History Store ---
-
-function createNavigationStore() {
-    const history = writable<ViewState[]>([{ type: "welcome" }]);
-    const currentIndex = writable(0);
-    let isNavigating = false; // Flag to prevent history push on back/forward
-
-    // Subscribe to changes in the main view store
-    currentView.subscribe((view) => {
-        if (isNavigating) {
-            isNavigating = false;
-            return;
-        }
-
-        const currentHistory = get(history);
-        const currentIdx = get(currentIndex);
-
-        // If the new view is the same as the current one, do nothing.
-        if (
-            JSON.stringify(view) === JSON.stringify(currentHistory[currentIdx])
-        ) {
-            return;
-        }
-
-        history.update((h) => {
-            // If we've navigated back and then choose a new page,
-            // we should discard the "forward" history.
-            if (currentIdx < h.length - 1) {
-                h.splice(currentIdx + 1);
-            }
-            h.push(view);
-            currentIndex.set(h.length - 1);
-            return h;
-        });
-    });
-
-    function back() {
-        const currentIdx = get(currentIndex);
-        if (currentIdx > 0) {
-            isNavigating = true;
-            currentIndex.update((n) => n - 1);
-            currentView.set(get(history)[get(currentIndex)]);
-        }
-    }
-
-    function forward() {
-        const currentIdx = get(currentIndex);
-        const currentHistory = get(history);
-        if (currentIdx < currentHistory.length - 1) {
-            isNavigating = true;
-            currentIndex.update((n) => n + 1);
-            currentView.set(get(history)[get(currentIndex)]);
-        }
-    }
-
-    function reset() {
-        history.set([{ type: "welcome" }]);
-        currentIndex.set(0);
-    }
-
-    const canGoBack = derived(
-        currentIndex,
-        ($currentIndex) => $currentIndex > 0,
+function createTabsStore() {
+    const { subscribe, update, set } = writable<TabsState>(
+        T.createInitialState(makeId()),
     );
-    const canGoForward = derived(
-        [currentIndex, history],
-        ([$currentIndex, $history]) => $currentIndex < $history.length - 1,
-    );
-
     return {
-        subscribe: derived(
-            [history, currentIndex, canGoBack, canGoForward],
-            ([$history, $currentIndex, $canGoBack, $canGoForward]) => ({
-                history: $history,
-                currentIndex: $currentIndex,
-                canGoBack: $canGoBack,
-                canGoForward: $canGoForward,
-            }),
-        ).subscribe,
-        back,
-        forward,
-        reset,
+        subscribe,
+        openInCurrent: (view: ViewState) =>
+            update((s) => T.openInCurrent(s, view)),
+        openInNew: (view: ViewState, opts?: OpenOptions) =>
+            update((s) => T.openInNew(s, view, makeId(), opts)),
+        newBlankTab: () => update((s) => T.newBlankTab(s, makeId())),
+        activate: (id: string) => update((s) => T.activate(s, id)),
+        close: (id: string) => update((s) => T.closeTab(s, id, makeId)),
+        closeActive: () => update((s) => T.closeTab(s, s.activeId, makeId)),
+        closeOthers: (id: string) => update((s) => T.closeOthers(s, id)),
+        closeAll: () => update((s) => T.closeAll(s, makeId)),
+        back: () => update((s) => T.back(s)),
+        forward: () => update((s) => T.forward(s)),
+        nextTab: () => update((s) => T.nextTab(s)),
+        prevTab: () => update((s) => T.prevTab(s)),
+        jumpToIndex: (idx: number) => update((s) => T.jumpToIndex(s, idx)),
+        applyRename: (
+            oldPath: string,
+            newPath: string,
+            newTitle: string,
+            kindOf: (p: string) => "file" | "image" | "map",
+        ) =>
+            update((s) => T.applyRename(s, oldPath, newPath, newTitle, kindOf)),
+        applyDelete: (path: string) =>
+            update((s) => T.applyDelete(s, path, makeId)),
+        reset: () => set(T.createInitialState(makeId())),
     };
 }
 
-export const navigation = createNavigationStore();
+export const tabs = createTabsStore();
+
+/** The active tab's current view. Read-only — write via `tabs.*`. */
+export const currentView: Readable<ViewState> = derived(tabs, (s) =>
+    T.currentViewOf(T.getActiveTab(s)),
+);
+
+/** The active tab id, for highlighting in the tab bar / sidebar. */
+export const activeTabId: Readable<string> = derived(tabs, (s) => s.activeId);
 
 /**
- * Resets all UI-related data stores to their initial state.
- * This is useful when changing vaults.
+ * Back/forward facade over the ACTIVE tab's history. `ViewHeader` and
+ * `keybindings` use this unchanged.
  */
+export const navigation = {
+    subscribe: derived(tabs, (s) => ({
+        canGoBack: T.canGoBack(s),
+        canGoForward: T.canGoForward(s),
+    })).subscribe,
+    back: tabs.back,
+    forward: tabs.forward,
+    reset: tabs.reset,
+};
+
+/** Per-tab save status (id -> status), reported by FileView, read by TabBar. */
+function createTabStatusStore() {
+    const { subscribe, update } = writable<Record<string, SaveStatus>>({});
+    return {
+        subscribe,
+        set: (id: string, status: SaveStatus) =>
+            update((m) => (m[id] === status ? m : { ...m, [id]: status })),
+        clear: (id: string) =>
+            update((m) => {
+                const next = { ...m };
+                delete next[id];
+                return next;
+            }),
+    };
+}
+
+export const tabStatus = createTabStatusStore();
+
+/** Resets all UI stores. Used when changing vaults. */
 export function resetAllStores() {
-    currentView.set({ type: "welcome" });
-    navigation.reset();
-    fileViewMode.set("preview");
-    rightSidebar.set(initialRightSidebarState);
+    tabs.reset();
 }
