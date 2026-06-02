@@ -1,37 +1,29 @@
 <script lang="ts">
-    import { rightSidebar, currentView } from "$lib/viewStores";
     import type { Backlink } from "$lib/bindings";
     import Icon from "$lib/components/ui/Icon.svelte";
 
-    function handleLinkClick(file: Backlink) {
-        // When a backlink is clicked, navigate to that file.
-        // We need to convert the Backlink to a PageHeader for navigation.
-        currentView.set({
-            type: "file",
-            data: { title: file.title, path: file.path },
-        });
-    }
-
-    function closePanel() {
-        rightSidebar.update((state) => ({ ...state, isVisible: false }));
-    }
+    let { backlinks, onClose, onNavigate } = $props<{
+        backlinks: Backlink[];
+        onClose: () => void;
+        onNavigate: (link: Backlink) => void;
+    }>();
 </script>
 
 <aside class="right-sidebar">
     <div class="sidebar-header">
         <h3>Backlinks</h3>
-        <button class="close-btn" onclick={closePanel} title="Close Panel">
+        <button class="close-btn" onclick={onClose} title="Close Panel">
             <Icon type="close" />
         </button>
     </div>
     <div class="sidebar-content">
-        {#if $rightSidebar.backlinks.length > 0}
+        {#if backlinks.length > 0}
             <ul>
-                {#each $rightSidebar.backlinks as link (link.path)}
+                {#each backlinks as link (link.path)}
                     <li>
                         <button
                             class="link-button"
-                            onclick={() => handleLinkClick(link)}
+                            onclick={() => onNavigate(link)}
                         >
                             <span>{link.title}</span>
                             {#if link.count > 1}

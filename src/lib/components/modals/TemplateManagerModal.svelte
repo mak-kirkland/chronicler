@@ -7,7 +7,7 @@
         deletePath,
         writePageContent,
     } from "$lib/commands";
-    import { navigateToPage } from "$lib/actions";
+    import { openPageForEditing } from "$lib/actions";
     import { openModal, closeModal } from "$lib/modalStore";
     import { isMarkdown, normalizePath, findNodeByPath } from "$lib/utils";
     import {
@@ -21,15 +21,13 @@
     import Button from "$lib/components/ui/Button.svelte";
     import TextInputModal from "$lib/components/modals/TextInputModal.svelte";
     import ConfirmModal from "$lib/components/modals/ConfirmModal.svelte";
-    import { fileViewMode } from "$lib/viewStores";
 
     let { onClose } = $props<{
         onClose: () => void;
     }>();
 
     // --- Constants ---
-    const DEFAULT_TEMPLATE_CONTENT =
-        '---\ntags: []\n---\n\n';
+    const DEFAULT_TEMPLATE_CONTENT = "---\ntags: []\n---\n\n";
 
     // --- Derived State ---
     const fullTemplatePath = $derived(
@@ -120,8 +118,7 @@
             await world.initialize();
 
             // Navigate to the new template *after* everything is done
-            fileViewMode.set("split");
-            navigateToPage(newTemplate);
+            openPageForEditing(newTemplate);
         } catch (e: any) {
             alert(`Failed to create template: ${e}`);
             if (newTemplate) {
@@ -155,8 +152,7 @@
      * Navigates to the main editor to edit the selected template.
      */
     function handleEdit(template: PageHeader) {
-        fileViewMode.set("split");
-        navigateToPage(template);
+        openPageForEditing(template);
         onClose();
     }
 
