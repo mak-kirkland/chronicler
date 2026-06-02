@@ -75,6 +75,7 @@ interface VaultSettings {
     bodyFont: string;
     fontSize: number;
     sidebarWidth: number;
+    isSidebarVisible: boolean;
     isTocVisible: boolean;
     areInfoboxTagsVisible: boolean;
     areFooterTagsVisible: boolean;
@@ -143,6 +144,7 @@ export const headingFont = writable<string>(`"Cinzel", cursive`);
 export const bodyFont = writable<string>(`"Junicode", serif`);
 export const fontSize = writable<number>(100);
 export const sidebarWidth = writable<number>(SIDEBAR_INITIAL_WIDTH);
+export const isSidebarVisible = writable<boolean>(true); // Default to visible
 export const isTocVisible = writable<boolean>(true); // Default to visible
 export const areInfoboxTagsVisible = writable<boolean>(true);
 export const areFooterTagsVisible = writable<boolean>(false);
@@ -246,6 +248,7 @@ async function saveVaultSettings() {
         bodyFont: get(bodyFont),
         fontSize: get(fontSize),
         sidebarWidth: get(sidebarWidth),
+        isSidebarVisible: get(isSidebarVisible),
         isTocVisible: get(isTocVisible),
         areInfoboxTagsVisible: get(areInfoboxTagsVisible),
         areFooterTagsVisible: get(areFooterTagsVisible),
@@ -353,6 +356,7 @@ export async function initializeVaultSettings(vaultPath: string) {
         bodyFont.set(settings.bodyFont ?? `"IM Fell English", serif`);
         fontSize.set(settings.fontSize ?? 100);
         sidebarWidth.set(settings.sidebarWidth ?? SIDEBAR_INITIAL_WIDTH);
+        isSidebarVisible.set(settings.isSidebarVisible ?? true); // Fallback to true
         isTocVisible.set(settings.isTocVisible ?? true); // Fallback to true
         areInfoboxTagsVisible.set(settings.areInfoboxTagsVisible ?? true);
         areFooterTagsVisible.set(settings.areFooterTagsVisible ?? true);
@@ -378,6 +382,7 @@ export async function initializeVaultSettings(vaultPath: string) {
         bodyFont.subscribe(debouncedVaultSave),
         fontSize.subscribe(debouncedVaultSave),
         sidebarWidth.subscribe(debouncedVaultSave),
+        isSidebarVisible.subscribe(debouncedVaultSave),
         isTocVisible.subscribe(debouncedVaultSave),
         areInfoboxTagsVisible.subscribe(debouncedVaultSave),
         areFooterTagsVisible.subscribe(debouncedVaultSave),
@@ -406,6 +411,7 @@ export function destroyVaultSettings() {
 
     fontSize.set(100);
     sidebarWidth.set(SIDEBAR_INITIAL_WIDTH);
+    isSidebarVisible.set(true); // Reset to default
     isTocVisible.set(true); // Reset to default
     areInfoboxTagsVisible.set(true);
     areFooterTagsVisible.set(true);
