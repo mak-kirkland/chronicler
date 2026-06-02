@@ -5,7 +5,8 @@
  * operations like file creation or navigation are handled consistently.
  */
 
-import { currentView, fileViewMode } from "./viewStores";
+import { currentView, tabs } from "./viewStores";
+import type { ViewState } from "./viewStores";
 import type { PageHeader } from "./bindings";
 // Import all commands under a 'commands' namespace to prevent naming conflicts.
 import * as commands from "./commands";
@@ -19,13 +20,34 @@ import { get } from "svelte/store";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { log } from "./logger";
 
+/** Classifies a path into the view type used to display it. */
+function kindOf(path: string): "file" | "image" | "map" {
+    if (isMarkdownFile(path)) return "file";
+    if (isImageFile(path)) return "image";
+    return "map";
+}
+
+/** Opens a view in a new tab or navigates the active tab to it. */
+function navigate(view: ViewState, newTab: boolean) {
+    if (newTab) {
+        tabs.openInNew(view);
+    } else {
+        tabs.openInCurrent(view);
+    }
+}
+
 /**
  * Navigates the main view to display a specific file.
  * @param page The header of the page to navigate to, containing its path and title.
  * @param sectionId Optional header ID to scroll to after navigation.
+ * @param newTab If true, opens in a new tab instead of the current one.
  */
-export function navigateToPage(page: PageHeader, sectionId?: string | null) {
-    currentView.set({ type: "file", data: page, sectionId });
+export function navigateToPage(
+    page: PageHeader,
+    sectionId?: string | null,
+    newTab = false,
+) {
+    navigate({ type: "file", data: page, sectionId }, newTab);
 }
 
 /**
@@ -110,6 +132,9 @@ export function handleContentClick(event: Event) {
         const href = link.getAttribute("href");
         const path = link.getAttribute("data-path");
         const view = get(currentView);
+        const mouse = event instanceof MouseEvent ? event : null;
+        const openInNewTab =
+            !!mouse && (mouse.button === 1 || mouse.ctrlKey || mouse.metaKey);
 
         // A) Handle internal wikilinks
         if (link.classList.contains("internal-link")) {
@@ -145,7 +170,7 @@ export function handleContentClick(event: Event) {
                     href && href.startsWith("#")
                         ? href.substring(1)
                         : undefined;
-                navigateToPage({ path, title }, sectionId);
+                navigateToPage({ path, title }, sectionId, openInNewTab);
             }
             return;
         }
@@ -175,62 +200,37 @@ export function handleContentClick(event: Event) {
 /**
  * Navigates to the tag index view for a specific tag.
  * @param tagName The name of the tag to display.
+ * @param newTab If true, opens in a new tab instead of the current one.
  */
-export function navigateToTag(tagName: string) {
-    currentView.set({ type: "tag", tagName });
+export function navigateToTag(tagName: string, newTab = false) {
+    navigate({ type: "tag", tagName }, newTab);
 }
 
 /**
  * Navigates to a specific report view.
  * @param reportName The identifier for the report to display.
+ * @param newTab If true, opens in a new tab instead of the current one.
  */
-export function navigateToReport(reportName: string) {
-    currentView.set({ type: "report", name: reportName });
+export function navigateToReport(reportName: string, newTab = false) {
+    navigate({ type: "report", name: reportName }, newTab);
 }
 
 /**
  * Navigates the main view to display an image.
  * @param image The header of the image to open, containing its path and title.
+ * @param newTab If true, opens in a new tab instead of the current one.
  */
-export function navigateToImage(image: PageHeader) {
-    currentView.set({ type: "image", data: image });
+export function navigateToImage(image: PageHeader, newTab = false) {
+    navigate({ type: "image", data: image }, newTab);
 }
 
 /**
  * Navigates the main view to display a specific map.
  * @param page The header of the map to navigate to, containing its path and title.
+ * @param newTab If true, opens in a new tab instead of the current one.
  */
-export function navigateToMap(page: PageHeader) {
-    currentView.set({ type: "map", data: page });
-}
-
-/**
- * Helper to update the current view if the file at oldPath is currently active.
- * Handles renaming/moving logic for Files, Images, and Maps.
- */
-function navigateToUpdatedPath(oldPath: string, newPath: string) {
-    const view = get(currentView);
-    // Check if the current view corresponds to the old path
-    const isActive =
-        (view.type === "file" ||
-            view.type === "image" ||
-            view.type === "map") &&
-        view.data?.path === oldPath;
-
-    if (isActive) {
-        const newTitle = fileStemString(newPath);
-
-        // If the file type changed to markdown or image (e.g. via rename), switch views.
-        if (isMarkdownFile(newPath)) {
-            navigateToPage({ path: newPath, title: newTitle });
-        } else if (isImageFile(newPath)) {
-            navigateToImage({ path: newPath, title: newTitle });
-        } else if (view.type === "map") {
-            // If we were in a map view and it hasn't become a standard file/image,
-            // assume it remains a map (handles .cmap).
-            navigateToMap({ path: newPath, title: newTitle });
-        }
-    }
+export function navigateToMap(page: PageHeader, newTab = false) {
+    navigate({ type: "map", data: page }, newTab);
 }
 
 /**
@@ -248,6 +248,11 @@ export async function initializeVault(path: string) {
             `Could not open vault at "${path}". Please ensure it is a valid directory. Error: ${e}`,
         );
     }
+}
+
+/** Opens a page in a NEW tab, pre-set to split (edit) mode. */
+export function openPageForEditing(page: PageHeader) {
+    tabs.openInNew({ type: "file", data: page }, { fileMode: "split" });
 }
 
 /**
@@ -271,8 +276,7 @@ export async function createFile(
         // Manually trigger a refresh to ensure the frontend's file tree is up-to-date.
         await world.initialize();
         // Now that the frontend state is fresh, we can safely navigate to the new file.
-        currentView.set({ type: "file", data: newPage });
-        fileViewMode.set("split");
+        openPageForEditing(newPage);
         return newPage;
     } catch (e) {
         log.error("Failed to create file", e, "actions");
@@ -282,8 +286,8 @@ export async function createFile(
 }
 
 /**
- * Renames a file or folder, refreshes the world state, and conditionally
- * navigates the main view to the new path if the renamed item was open.
+ * Renames a file or folder, refreshes the world state, and updates any open
+ * tabs that point at the renamed item so they follow it to the new path.
  * @param path The current path of the item to rename.
  * @param newName The new name for the item.
  */
@@ -293,8 +297,9 @@ export async function renamePath(path: string, newName: string) {
         const newPath = await commands.renamePath(path, newName);
         await world.initialize(); // Refresh all data after the operation.
 
-        // If the file was open, navigate the view to its new path.
-        navigateToUpdatedPath(path, newPath);
+        // Repoint every open tab whose history references the old path
+        // (handles Files, Images, and Maps, including a type change on rename).
+        tabs.applyRename(path, newPath, fileStemString(newPath), kindOf);
     } catch (e) {
         log.error(`Rename failed for path: ${path}`, e, "actions");
         alert(`Error: ${e}`);
@@ -303,25 +308,16 @@ export async function renamePath(path: string, newName: string) {
 }
 
 /**
- * Deletes a file or folder, refreshes the world state, and navigates
- * away if the deleted item was the active view.
+ * Deletes a file or folder, refreshes the world state, and closes any open
+ * tabs whose current view is the deleted item.
  * @param path The path of the item to delete.
  */
 export async function deletePath(path: string) {
     try {
         await commands.deletePath(path);
         await world.initialize(); // Refresh data
-
-        // If the deleted item was the active view, navigate to the welcome screen.
-        const view = get(currentView);
-        const isActive =
-            (view.type === "file" ||
-                view.type === "image" ||
-                view.type === "map") &&
-            view.data?.path === path;
-        if (isActive) {
-            currentView.set({ type: "welcome" });
-        }
+        // Close any open tab currently showing the deleted file.
+        tabs.applyDelete(path);
     } catch (e) {
         log.error(`Delete failed for path: ${path}`, e, "actions");
         alert(`Error: ${e}`);
@@ -386,8 +382,8 @@ export function promptAndCreateItem(
 }
 
 /**
- * Moves a file or folder, refreshes the world state, and conditionally
- * navigates the main view to the new path if the moved item was open.
+ * Moves a file or folder, refreshes the world state, and updates any open
+ * tabs that point at the moved item so they follow it to the new path.
  * @param sourcePath The full path of the item to move.
  * @param destinationDir The full path of the target directory.
  */
@@ -405,8 +401,8 @@ export async function movePath(sourcePath: string, destinationDir: string) {
         const newPath = await commands.movePath(sourcePath, destinationDir);
         await world.initialize(); // Refresh data to show the move in the UI.
 
-        // If the file was open, navigate the view to its new path.
-        navigateToUpdatedPath(sourcePath, newPath);
+        // Repoint every open tab whose history references the old path.
+        tabs.applyRename(sourcePath, newPath, fileStemString(newPath), kindOf);
     } catch (e) {
         log.error(
             `Move failed for source '${sourcePath}' to '${destinationDir}'`,
