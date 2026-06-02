@@ -2,6 +2,17 @@
 
 ---
 
+## [v0.52.2-alpha] - 2026-06-02
+
+### 🐞 Fixed
+
+- **Reports**: Fixed a false positive in the Broken Images report where external URLs (web links, data URIs, local file paths) were incorrectly flagged as broken. These references point to resources outside your vault, so they are now skipped during validation.
+- **macOS**: Fixed a compatibility issue on macOS Big Sur where the "Add" button in Infobox and Map editor modals would appear to do nothing. Also fixed the move arrows in Infobox tabs throwing an error on click. Both issues were caused by browser APIs unavailable in the older system WebView on that OS.
+- **Infobox**: Fixed a bug where opening a file saved with Windows-style line endings (CRLF) in the Infobox editor would cause all frontmatter to be wiped on save, replacing it with a blank infobox.
+- **Maps**: Fixed a regression where clicking on overlapping map regions no longer showed the disambiguation menu to let you choose which region you intended to select.
+
+---
+
 ## [v0.52.1-alpha] - 2026-05-30
 
 ### 🐞 Fixed
