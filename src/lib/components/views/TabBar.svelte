@@ -1,5 +1,6 @@
 <script lang="ts">
     import { tabs, tabStatus, activeTabId } from "$lib/viewStores";
+    import { isSidebarVisible } from "$lib/settingsStore";
     import TabItem from "$lib/components/views/TabItem.svelte";
     import ContextMenu from "$lib/components/ui/ContextMenu.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
@@ -16,6 +17,15 @@
 </script>
 
 <div class="tab-bar" role="tablist">
+    <button
+        class="sidebar-toggle-btn"
+        title={$isSidebarVisible ? "Hide sidebar" : "Show sidebar"}
+        aria-label="Toggle sidebar"
+        aria-pressed={$isSidebarVisible}
+        onclick={() => ($isSidebarVisible = !$isSidebarVisible)}
+    >
+        ☰
+    </button>
     <div class="tabs-scroll">
         {#each $tabs.tabs as tab (tab.id)}
             <div class="tab-slot">
@@ -77,7 +87,8 @@
         display: flex;
         align-items: stretch;
     }
-    .new-tab-btn {
+    .new-tab-btn,
+    .sidebar-toggle-btn {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -89,7 +100,14 @@
         color: var(--color-text-secondary);
         cursor: pointer;
     }
-    .new-tab-btn:hover {
+    .sidebar-toggle-btn {
+        border-left: none;
+        border-right: 1px solid var(--color-border-primary);
+        font-size: 1.1rem;
+        line-height: 1;
+    }
+    .new-tab-btn:hover,
+    .sidebar-toggle-btn:hover {
         background: var(--color-background-tertiary);
         color: var(--color-text-primary);
     }

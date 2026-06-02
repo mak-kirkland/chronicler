@@ -16,6 +16,7 @@
         userThemes,
         themeRefresher,
         sidebarWidth,
+        isSidebarVisible,
         headingFont,
         bodyFont,
         atmosphere,
@@ -222,7 +223,9 @@
 -->
 <div
     class="app-shell"
-    style="--sidebar-width: {$sidebarWidth}px; --texture-opacity: {$atmosphere.textureOpacity};"
+    style="--sidebar-width: {$isSidebarVisible
+        ? $sidebarWidth
+        : 0}px; --texture-opacity: {$atmosphere.textureOpacity};"
     data-icons={$atmosphere.icons}
     data-buttons={$atmosphere.buttons}
     data-texture={$atmosphere.textures}
@@ -254,21 +257,26 @@
             <Button onclick={handleTryAgain}>Select a Different Folder</Button>
         </div>
     {:else if $appStatus.state === "ready"}
-        <Sidebar bind:width={$sidebarWidth} bind:minWidth={dynamicMinWidth} />
+        {#if $isSidebarVisible}
+            <Sidebar
+                bind:width={$sidebarWidth}
+                bind:minWidth={dynamicMinWidth}
+            />
 
-        <div
-            class="resizer"
-            onmousedown={startResize}
-            onkeydown={handleKeyResize}
-            role="slider"
-            tabindex="0"
-            aria-label="Resize sidebar"
-            aria-orientation="vertical"
-            aria-valuenow={$sidebarWidth}
-            aria-valuemin={dynamicMinWidth}
-            aria-valuemax={SIDEBAR_MAX_WIDTH}
-            style="left: {$sidebarWidth - 2.5}px;"
-        ></div>
+            <div
+                class="resizer"
+                onmousedown={startResize}
+                onkeydown={handleKeyResize}
+                role="slider"
+                tabindex="0"
+                aria-label="Resize sidebar"
+                aria-orientation="vertical"
+                aria-valuenow={$sidebarWidth}
+                aria-valuemin={dynamicMinWidth}
+                aria-valuemax={SIDEBAR_MAX_WIDTH}
+                style="left: {$sidebarWidth - 2.5}px;"
+            ></div>
+        {/if}
 
         <!-- Main content area -->
         <main class="main-content">
