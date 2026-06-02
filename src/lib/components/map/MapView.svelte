@@ -993,9 +993,13 @@
         // --- Attach Global Event Listeners ---
         attachContextMenuHandler(h);
         attachMouseMoveHandler(h);
+        // Order matters: Leaflet fires "click" handlers in registration order.
+        // attachCleanupHandlers() clears `contextMenu` on click, so it MUST be
+        // registered before attachClickHandler() - otherwise it runs last and
+        // wipes the disambiguation menu that the click handler just opened.
+        attachCleanupHandlers();
         attachClickHandler(h);
         attachDrawingHandler();
-        attachCleanupHandlers();
         attachViewportCullHandler();
     }
 
