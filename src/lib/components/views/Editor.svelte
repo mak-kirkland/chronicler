@@ -37,15 +37,26 @@
         content = $bindable(),
         pageName = "",
         pagePath = "",
+        isActive = true,
     } = $props<{
         content?: string;
         pageName?: string;
         pagePath?: string;
+        isActive?: boolean;
     }>();
     let editor: EditorView | undefined = $state();
 
     onMount(() => {
         editor?.focus();
+    });
+
+    // When this editor's tab becomes active again, CodeMirror needs to
+    // re-measure (it was display:none and has no geometry) and regain focus.
+    $effect(() => {
+        if (isActive && editor) {
+            editor.requestMeasure();
+            editor.focus();
+        }
     });
 
     /**

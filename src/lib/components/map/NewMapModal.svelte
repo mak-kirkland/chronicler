@@ -6,7 +6,7 @@
         world,
     } from "$lib/worldStore";
     import { writePageContent } from "$lib/commands";
-    import { currentView } from "$lib/viewStores";
+    import { navigateToMap } from "$lib/actions";
     import { registerMap } from "$lib/mapStore";
     import { join } from "@tauri-apps/api/path";
     import { convertFileSrc } from "@tauri-apps/api/core";
@@ -110,13 +110,7 @@
             onClose();
 
             // 4. Navigate
-            currentView.set({
-                type: "map",
-                data: {
-                    title: name.trim(),
-                    path: normalizedPath,
-                },
-            });
+            navigateToMap({ title: name.trim(), path: normalizedPath });
         } catch (e) {
             log.error("Failed to create map", e, "NewMapModal");
             alert("Failed to create map.");
