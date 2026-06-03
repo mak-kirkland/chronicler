@@ -335,14 +335,29 @@ export function parseInfoboxContent(yamlContent: string): InfoboxState {
     let data: any = {};
 
     try {
-        // If the content is full file content with delimiters, extract them.
+        // Extract the frontmatter block from full file content.
         // Tolerate both LF and CRLF line endings (Rust parser does the same).
+        // If there is no leading `---` delimiter, the file has no frontmatter,
+        // so there is nothing to load — we must NOT treat the body as YAML.
+        // (The Rust `extract_frontmatter` and `applyInfoboxStateToContent`
+        // save path both treat delimiter-less content as pure body.) Otherwise
+        // a plain note or a markdown table would be parsed as frontmatter.
         const match = yamlContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-        const frontmatter = match ? match[1] : yamlContent;
+        const frontmatter = match ? match[1] : "";
 
-        // Parse into a JS object for the Editor to consume
+        // Parse into a JS object for the Editor to consume.
         const doc = parseDocument(frontmatter);
-        data = doc.toJSON() || {};
+        const parsed = doc.toJSON();
+
+        // Frontmatter must be a key/value map. If it parsed to a scalar, array,
+        // or null (e.g. body prose, or a region falsely captured up to a
+        // markdown table separator `--- | ---`), there are no fields to load.
+        // Without this guard, `Object.entries` over a string below would turn
+        // every character into a bogus single-character custom field.
+        data =
+            parsed && typeof parsed === "object" && !Array.isArray(parsed)
+                ? parsed
+                : {};
     } catch (e) {
         log.error("Failed to parse YAML for editor", e, "infobox");
         // Fallback to empty
