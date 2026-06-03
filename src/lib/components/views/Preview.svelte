@@ -143,10 +143,20 @@
        This block now only handles high-level layout.
     */
 
+    /* The preview pane's width is decoupled from the viewport (it's a flex
+       child sitting next to the sidebar), so this layout must respond to its
+       OWN width, not the viewport. Establish a query container; the infobox
+       float width, the TOC width, and the stacking breakpoint below are all
+       sized against it via cqi units / @container. */
+    .preview-container {
+        container: preview-pane / inline-size;
+    }
+
     /* --- Float-based Layout for Unified Mode --- */
     .preview-container.mode-unified .infobox-wrapper {
         float: right;
-        width: clamp(20rem, 20vw, 28rem);
+        /* cqi (container-relative) tracks the pane instead of the window. */
+        width: clamp(20rem, 20cqi, 28rem);
         /* Add margin to create space between the infobox and the wrapping text */
         margin-left: 2rem;
         margin-bottom: 1rem;
@@ -154,7 +164,7 @@
 
     /* The TOC behaves as a block element */
     .preview-container.mode-unified .toc-wrapper {
-        width: clamp(20rem, 22vw, 28rem);
+        width: clamp(20rem, 22cqi, 28rem);
     }
 
     /* --- Layout for Split Mode (Infobox on top) --- */
@@ -166,8 +176,11 @@
     }
 
     /* --- Responsive Overrides --- */
-    /* On smaller screens, disable float and stack the infobox on top for both modes. */
-    @media (max-width: 800px) {
+    /* When the preview pane itself (not the viewport) is narrow, the floated
+       infobox and the TOC can no longer sit side by side without overlapping,
+       so drop the float and stack them. Keyed to the container width so it
+       works even when Chronicler is half-screen or the sidebar is wide. */
+    @container preview-pane (max-width: 800px) {
         .preview-container.mode-unified .infobox-wrapper,
         .preview-container.mode-unified .toc-wrapper {
             float: none;
