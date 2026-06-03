@@ -16,6 +16,7 @@ import {
     initializeVaultSettings,
     destroyVaultSettings,
 } from "$lib/settingsStore";
+import { loadKeybindings } from "$lib/keybindingStore";
 import { loadActiveFonts } from "$lib/fonts";
 import { checkForAppUpdates } from "$lib/updater";
 import { licenseStore } from "./licenseStore";
@@ -61,8 +62,13 @@ export async function handleVaultSelected(path: string) {
  */
 export async function initializeApp() {
     try {
-        // Load global settings and license status that apply to the whole application first.
-        await Promise.all([loadGlobalSettings(), licenseStore.initialize()]);
+        // Load global settings, keybindings, and license status that apply to
+        // the whole application first.
+        await Promise.all([
+            loadGlobalSettings(),
+            loadKeybindings(),
+            licenseStore.initialize(),
+        ]);
 
         // Then, check if a vault was already open from the last session.
         const path = await getVaultPath();
@@ -84,7 +90,9 @@ export async function initializeApp() {
                     });
                 }
             })
-            .catch((e) => log.error("Telemetry consent check failed", e, "startup"));
+            .catch((e) =>
+                log.error("Telemetry consent check failed", e, "startup"),
+            );
 
         // Defer the non-critical "nag screen" check. We wrap it in an async
         // IIFE (Immediately Invoked Function Expression) to "fire-and-forget".

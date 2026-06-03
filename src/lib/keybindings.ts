@@ -1,13 +1,17 @@
 /**
  * @file This module centralizes all global keybinding and shortcut logic.
  *
- * It provides a clean way to define actions and map them to keyboard shortcuts
- * and mouse buttons. This structure is designed to be extensible, allowing for
- * user-configurable keybindings in the future by loading the mappings from a
- * settings store instead of using the hardcoded defaults.
+ * Actions are decoupled from the keys that trigger them: this file owns the
+ * action handlers and window listeners, while the combos themselves come from
+ * the reactive `keybindingStore` (defaults from `keybindingRegistry`, merged
+ * with any user overrides). Binding combos are read lazily at event time, so
+ * rebinding in the Keyboard Shortcuts modal takes effect immediately.
  */
 
+import { get } from "svelte/store";
 import { navigation, tabs } from "$lib/viewStores";
+import { effectiveBindings, isCapturing } from "$lib/keybindingStore";
+import { eventToCombo, IS_MAC } from "$lib/keybindingUtils";
 
 // Define our actions as a type for safety and autocompletion.
 type ActionName =
@@ -29,35 +33,17 @@ const actionHandlers: Record<ActionName, () => void> = {
     prevTab: () => tabs.prevTab(),
 };
 
-// Detect macOS to use platform-appropriate shortcuts.
-// On macOS, Alt+Arrow is used for word-level cursor movement in text fields,
-// so we use Cmd+[ / Cmd+] instead (the standard browser back/forward shortcut).
-const isMac = navigator.platform.toUpperCase().includes("MAC");
-
-// The default keybinding configuration.
-// In the future, this could be loaded from and merged with user settings.
-const KEYBINDINGS: { keys: string[]; action: ActionName }[] = [
-    {
-        keys: isMac ? ["Meta+["] : ["Alt+ArrowLeft"],
-        action: "navigateBack",
-    },
-    {
-        keys: isMac ? ["Meta+]"] : ["Alt+ArrowRight"],
-        action: "navigateForward",
-    },
-    { keys: isMac ? ["Meta+t"] : ["Control+t"], action: "newTab" },
-    { keys: isMac ? ["Meta+w"] : ["Control+w"], action: "closeTab" },
-    { keys: ["Control+Tab"], action: "nextTab" },
-    { keys: ["Control+Shift+Tab"], action: "prevTab" },
-];
-
 /**
  * Handles the global keydown event, checks for matching shortcuts, and
  * executes the corresponding action.
  */
 function handleKeyDown(event: KeyboardEvent) {
+    // While the user is recording a new shortcut, let the modal's capture
+    // listener own every keystroke — never fire an app action mid-capture.
+    if (get(isCapturing)) return;
+
     // Jump to tab N: Ctrl/Cmd+1..9 (9 = last tab).
-    const jumpMod = isMac ? event.metaKey : event.ctrlKey;
+    const jumpMod = IS_MAC ? event.metaKey : event.ctrlKey;
     if (jumpMod && /^[1-9]$/.test(event.key)) {
         event.preventDefault();
         const n = Number(event.key);
@@ -65,14 +51,16 @@ function handleKeyDown(event: KeyboardEvent) {
         return;
     }
 
-    // Construct a simple, consistent representation of the key combination.
-    const keyCombo = `${event.ctrlKey ? "Control+" : ""}${event.altKey ? "Alt+" : ""}${event.metaKey ? "Meta+" : ""}${event.shiftKey ? "Shift+" : ""}${event.key}`;
-
-    // Find the action that matches the pressed key combination.
-    const binding = KEYBINDINGS.find((b) => b.keys.includes(keyCombo));
-    if (binding) {
-        event.preventDefault();
-        actionHandlers[binding.action]();
+    // Match the pressed combo against the current (possibly overridden)
+    // bindings for our window-level actions.
+    const combo = eventToCombo(event);
+    const bindings = get(effectiveBindings);
+    for (const action of Object.keys(actionHandlers) as ActionName[]) {
+        if (bindings[action]?.includes(combo)) {
+            event.preventDefault();
+            actionHandlers[action]();
+            return;
+        }
     }
 }
 
