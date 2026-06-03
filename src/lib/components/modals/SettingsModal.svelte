@@ -30,6 +30,7 @@
     import Modal from "$lib/components/modals/Modal.svelte";
     import ThemeEditorModal from "$lib/components/modals/ThemeEditorModal.svelte";
     import TemplateManagerModal from "$lib/components/modals/TemplateManagerModal.svelte";
+    import KeybindingsModal from "$lib/components/modals/KeybindingsModal.svelte";
     import AtmosphereModal from "$lib/components/modals/AtmosphereModal.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import ImporterModal from "$lib/components/modals/ImporterModal.svelte";
@@ -160,6 +161,15 @@
     function openTemplateManager() {
         openModal({
             component: TemplateManagerModal,
+            props: {
+                onClose: closeModal,
+            },
+        });
+    }
+
+    function openKeybindings() {
+        openModal({
+            component: KeybindingsModal,
             props: {
                 onClose: closeModal,
             },
@@ -390,6 +400,12 @@
             <h4>Templates</h4>
             <p>Manage your custom page templates.</p>
             <Button onclick={openTemplateManager}>Manage Templates</Button>
+        </div>
+
+        <div class="setting-item">
+            <h4>Keyboard Shortcuts</h4>
+            <p>View and customize keyboard shortcuts.</p>
+            <Button onclick={openKeybindings}>Customize Shortcuts</Button>
         </div>
 
         <div class="setting-item">

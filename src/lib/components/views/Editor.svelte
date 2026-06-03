@@ -5,7 +5,7 @@
     import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
     import { yamlFrontmatter } from "@codemirror/lang-yaml";
     import { EditorView, keymap } from "@codemirror/view";
-    import { Prec } from "@codemirror/state";
+    import { Prec, Compartment } from "@codemirror/state";
     import {
         HighlightStyle,
         syntaxHighlighting,
@@ -28,6 +28,9 @@
         tags as worldTags,
     } from "$lib/worldStore";
     import { toggleBold, toggleItalic } from "$lib/editor";
+    import { effectiveBindings } from "$lib/keybindingStore";
+    import { comboToCodeMirror } from "$lib/keybindingUtils";
+    import type { EditorCommandId } from "$lib/keybindingRegistry";
     import { pasteImageFromClipboard } from "$lib/imageInsert";
     import EditorToolbar from "$lib/components/views/EditorToolbar.svelte";
     import { openModal, closeModal } from "$lib/modalStore";
@@ -242,35 +245,61 @@
         return false;
     }
 
-    // Define custom keybindings
-    const customKeymap = [
-        {
-            key: "Mod-b",
-            run: (view: EditorView) => {
-                toggleBold(view);
-                return true;
-            },
+    // Rebindable Chronicler editor commands, keyed by their registry action id.
+    // The combos themselves come from the keybinding store (see buildKeymap).
+    const editorCommandRuns: Record<
+        EditorCommandId,
+        (view: EditorView) => boolean
+    > = {
+        editorBold: (view) => {
+            toggleBold(view);
+            return true;
         },
-        {
-            key: "Mod-i",
-            run: (view: EditorView) => {
-                toggleItalic(view);
-                return true;
-            },
+        editorItalic: (view) => {
+            toggleItalic(view);
+            return true;
         },
-        {
-            key: "Shift-Enter",
-            run: forceWikilinkCompletion,
-        },
-        {
-            key: "Tab",
-            run: acceptCompletion,
-        },
-        {
-            key: "[",
-            run: handleLeftBracket,
-        },
-    ];
+        editorForceWikilink: forceWikilinkCompletion,
+        editorAcceptCompletion: acceptCompletion,
+    };
+
+    // A compartment lets us swap the keymap live when the user rebinds a
+    // shortcut, without tearing down and rebuilding the whole editor.
+    const keybindingCompartment = new Compartment();
+
+    /**
+     * Builds the editor keymap from the current effective bindings. Rebindable
+     * commands come from the store; the literal "[" auto-pair handler (editor
+     * behavior, not a user-facing shortcut) and CodeMirror's defaultKeymap are
+     * always present.
+     */
+    function buildKeymap(bindings: Record<string, string[]>) {
+        const custom = Object.entries(editorCommandRuns).flatMap(([id, run]) =>
+            (bindings[id] ?? []).map((combo) => ({
+                key: comboToCodeMirror(combo),
+                run,
+            })),
+        );
+        return Prec.highest(
+            keymap.of([
+                ...custom,
+                { key: "[", run: handleLeftBracket },
+                ...defaultKeymap,
+            ]),
+        );
+    }
+
+    // Re-apply the keymap whenever the user's bindings change.
+    $effect(() => {
+        const bindings = $effectiveBindings;
+        if (editor) {
+            editor.dispatch({
+                effects: keybindingCompartment.reconfigure(
+                    buildKeymap(bindings),
+                ),
+            });
+        }
+    });
 
     /**
      * 1. EDITOR UI THEME
@@ -432,7 +461,7 @@
             }),
         }),
 
-        Prec.highest(keymap.of([...customKeymap, ...defaultKeymap])),
+        keybindingCompartment.of(buildKeymap(get(effectiveBindings))),
         EditorView.lineWrapping,
 
         // Paste an image from the clipboard. Reads the OS clipboard via the
