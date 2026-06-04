@@ -41,11 +41,15 @@
         pageName = "",
         pagePath = "",
         isActive = true,
+        shouldFocus = false,
     } = $props<{
         content?: string;
         pageName?: string;
         pagePath?: string;
         isActive?: boolean;
+        /** True while this pane is in an edit mode. Boolean so the effect below
+         *  only re-runs on the actual false→true edge (entering edit mode). */
+        shouldFocus?: boolean;
     }>();
     let editor: EditorView | undefined = $state();
 
@@ -57,6 +61,18 @@
     // re-measure (it was display:none and has no geometry) and regain focus.
     $effect(() => {
         if (isActive && editor) {
+            editor.requestMeasure();
+            editor.focus();
+        }
+    });
+
+    // Focus when this pane enters an edit mode. The effect only re-runs when
+    // `shouldFocus` (or `editor`) changes, so it fires on the false→true edge —
+    // no state is read and written here, so there's no update loop. Because the
+    // signal is driven by THIS pane's mode (not visibility), the two editors of
+    // a split don't fight: only the pane whose mode changed re-focuses.
+    $effect(() => {
+        if (shouldFocus && editor) {
             editor.requestMeasure();
             editor.focus();
         }
