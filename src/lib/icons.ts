@@ -20,6 +20,7 @@ export interface IconPack {
         image: string;
         map: string;
         globe: string;
+        canvas: string;
 
         // Navigation & Sidebar
         tags: string;
@@ -50,6 +51,13 @@ export interface IconPack {
         heading1: string;
         heading2: string;
         heading3: string;
+
+        // Canvas Toolbar
+        select: string;
+        textCard: string;
+        connect: string;
+        undo: string;
+        redo: string;
     };
 }
 
@@ -66,6 +74,7 @@ export const coreIcons: IconPack = {
         image: "/icons/default/Icons_Image.svg",
         map: "/icons/default/Icons_Map.svg",
         globe: "/icons/default/Icons_Globe.svg",
+        canvas: "/icons/default/Icons_Canvas.svg",
 
         // Navigation & Sidebar
         tags: "/icons/default/Icons_Tags.svg",
@@ -89,6 +98,13 @@ export const coreIcons: IconPack = {
         newFile: "/icons/default/Icons_NewFile.svg",
         newFolder: "/icons/default/Icons_NewFolder.svg",
 
+        // Canvas Toolbar
+        select: "/icons/default/Icons_Select.svg",
+        textCard: "/icons/default/Icons_TextCard.svg",
+        connect: "/icons/default/Icons_Connect.svg",
+        undo: "/icons/default/Icons_Undo.svg",
+        redo: "/icons/default/Icons_Redo.svg",
+
         // Fallbacks: Use text for items missing from the file list
         bold: "B",
         italic: "I",
@@ -109,6 +125,7 @@ export const legacyIcons: IconPack = {
         image: "🖼️",
         map: "🗺",
         globe: "🌍",
+        canvas: "▦",
         tags: "#",
         gallery: "🖼️",
         reports: "📈",
@@ -125,6 +142,11 @@ export const legacyIcons: IconPack = {
         close: "×",
         newFile: "+📄",
         newFolder: "+📁",
+        select: "⤢",
+        textCard: "T",
+        connect: "↗",
+        undo: "↶",
+        redo: "↷",
         bold: "B",
         italic: "I",
         strikethrough: "S",
@@ -144,6 +166,7 @@ export const professionalPack: IconPack = {
         image: `<path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>`,
         map: `<path d="M20.5 3l-6 2-6-2-5.5 1.83c-.55.18-.9.71-.9 1.29v14.47c0 .76.81 1.27 1.5 1.04l5.4-1.8 6 2 5.5-1.83c.55-.18.9-.71.9-1.29V4.29c0-.76-.81-1.27-1.5-1.04l-5.4 1.8zM15 19l-6-2.11V5l6 2.11V19z"/>`,
         globe: `<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-1.07 3.97-2.9 5.4z"/>`,
+        canvas: `<rect x="3" y="3" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="15" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 6 h4 a2 2 0 0 1 2 2 v7" fill="none" stroke="currentColor" stroke-width="2"/>`,
 
         // Navigation
         tags: `<path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>`,
@@ -174,6 +197,13 @@ export const professionalPack: IconPack = {
         heading1: `<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h2V7H7V5h10v2h-2v10h2v2z"/>`,
         heading2: `<path d="M5 4v3h5.5v10H5v3h14v-3h-5.5V7H19V4z"/>`,
         heading3: `<path d="M5 4v3h5.5v10H5v3h14v-3h-5.5V7H19V4z" transform="scale(0.8) translate(3,3)"/>`,
+
+        // Canvas Toolbar
+        select: `<path d="M6 3.5 L19 12 L13 13.5 L10 20 Z"/>`,
+        textCard: `<path d="M5.5 7 V4.5 h13 V7 M12 4.5 v15 M9 19.5 h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        connect: `<circle cx="6.5" cy="17.5" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 14.5 L18 6 M18 6 h-5 M18 6 v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        undo: `<path d="M7 10 H15 a4.5 4.5 0 0 1 0 9 H10 M10.5 6 L6.5 10 L10.5 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        redo: `<path d="M17 10 H9 a4.5 4.5 0 0 0 0 9 H14 M13.5 6 L17.5 10 L13.5 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
     },
 };
 export const fantasyIcons: IconPack = {
@@ -209,6 +239,9 @@ export const fantasyIcons: IconPack = {
                 <ellipse cx="12" cy="11" rx="4" ry="1.5" fill="#FFFFFF" opacity="0.4" transform="rotate(-30 12 11)"/>
                 <path d="M8 17l1 3h6l1-3H8z" fill="#8B4513"/>
                 <path d="M7 20h10v2H7z" fill="#DAA520"/>`,
+
+        // Canvas (neutral until themed art exists)
+        canvas: `<rect x="3" y="3" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="15" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 6 h4 a2 2 0 0 1 2 2 v7" fill="none" stroke="currentColor" stroke-width="2"/>`,
 
         // Navigation - Golden Compass
         tags: `<path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" fill="#B8860B"/>
@@ -277,6 +310,13 @@ export const fantasyIcons: IconPack = {
         heading1: `<text x="4" y="18" font-family="serif" font-weight="bold" font-size="20" fill="#DAA520">H1</text>`,
         heading2: `<text x="4" y="18" font-family="serif" font-weight="bold" font-size="17" fill="#DAA520">H2</text>`,
         heading3: `<text x="4" y="18" font-family="serif" font-weight="bold" font-size="14" fill="#DAA520">H3</text>`,
+
+        // Canvas Toolbar (neutral until themed art exists)
+        select: `<path d="M6 3.5 L19 12 L13 13.5 L10 20 Z"/>`,
+        textCard: `<path d="M5.5 7 V4.5 h13 V7 M12 4.5 v15 M9 19.5 h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        connect: `<circle cx="6.5" cy="17.5" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 14.5 L18 6 M18 6 h-5 M18 6 v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        undo: `<path d="M7 10 H15 a4.5 4.5 0 0 1 0 9 H10 M10.5 6 L6.5 10 L10.5 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        redo: `<path d="M17 10 H9 a4.5 4.5 0 0 0 0 9 H14 M13.5 6 L17.5 10 L13.5 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
     },
 };
 
@@ -310,6 +350,9 @@ export const sciFiIcons: IconPack = {
                 <ellipse cx="12" cy="12" rx="8" ry="3" fill="none" stroke="#0ff" opacity="0.7"/>
                 <ellipse cx="12" cy="12" rx="3" ry="8" fill="none" stroke="#0ff" opacity="0.7"/>
                 <circle cx="12" cy="12" r="2" fill="#0ff" opacity="0.3"/>`,
+
+        // Canvas (neutral until themed art exists)
+        canvas: `<rect x="3" y="3" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="15" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 6 h4 a2 2 0 0 1 2 2 v7" fill="none" stroke="currentColor" stroke-width="2"/>`,
 
         // Navigation - Circuit / Node
         tags: `<circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -396,6 +439,13 @@ export const sciFiIcons: IconPack = {
         heading1: `<text x="2" y="18" font-family="monospace" font-weight="bold" font-size="20">H1</text>`,
         heading2: `<text x="2" y="18" font-family="monospace" font-weight="bold" font-size="16">H2</text>`,
         heading3: `<text x="2" y="18" font-family="monospace" font-weight="bold" font-size="12">H3</text>`,
+
+        // Canvas Toolbar (neutral until themed art exists)
+        select: `<path d="M6 3.5 L19 12 L13 13.5 L10 20 Z"/>`,
+        textCard: `<path d="M5.5 7 V4.5 h13 V7 M12 4.5 v15 M9 19.5 h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        connect: `<circle cx="6.5" cy="17.5" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 14.5 L18 6 M18 6 h-5 M18 6 v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        undo: `<path d="M7 10 H15 a4.5 4.5 0 0 1 0 9 H10 M10.5 6 L6.5 10 L10.5 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        redo: `<path d="M17 10 H9 a4.5 4.5 0 0 0 0 9 H14 M13.5 6 L17.5 10 L13.5 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
     },
 };
 

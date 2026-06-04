@@ -18,6 +18,7 @@ export type ViewState =
     | { type: "file"; data: PageHeader | null; sectionId?: string | null }
     | { type: "image"; data: PageHeader | null }
     | { type: "map"; data: PageHeader | null }
+    | { type: "canvas"; data: PageHeader | null }
     | { type: "report"; name: string };
 
 export type FileViewMode = "preview" | "split" | "editor";
@@ -265,9 +266,17 @@ export function jumpToIndex(state: TabsState, idx: number): TabsState {
     return target ? showInFocusedPane(state, target.id) : state;
 }
 
-type PathView = Extract<ViewState, { type: "file" | "image" | "map" }>;
+type PathView = Extract<
+    ViewState,
+    { type: "file" | "image" | "map" | "canvas" }
+>;
 function isPathView(v: ViewState): v is PathView {
-    return v.type === "file" || v.type === "image" || v.type === "map";
+    return (
+        v.type === "file" ||
+        v.type === "image" ||
+        v.type === "map" ||
+        v.type === "canvas"
+    );
 }
 
 export function applyRename(
@@ -275,7 +284,7 @@ export function applyRename(
     oldPath: string,
     newPath: string,
     newTitle: string,
-    kindOf: (path: string) => "file" | "image" | "map",
+    kindOf: (path: string) => "file" | "image" | "map" | "canvas",
 ): TabsState {
     // Rename rewrites EVERY history entry across ALL tabs so back/forward stays
     // valid (cf. applyDelete, which only inspects each tab's current view).
