@@ -52,6 +52,9 @@ pub enum VaultAsset {
     /// An interactive map configuration file (.cmap).
     /// Stores the parsed config to allow backlink calculations.
     Map(Box<MapConfig>),
+    /// A brainstorming canvas file (.canvas). Phase 1 does not parse its
+    /// contents into the index (unlike Map); the frontend reads it on demand.
+    Canvas,
     /// A non-indexed file (e.g. PDF, spreadsheet) shown in the explorer
     /// but opened in the OS default application on click.
     External,
@@ -126,6 +129,8 @@ pub enum FileType {
     Image,
     /// An interactive map configuration (`.cmap`).
     Map,
+    /// A brainstorming canvas (`.canvas`, JSON Canvas format).
+    Canvas,
     /// A non-indexed file opened in the OS default application (e.g., `.pdf`, `.xlsx`).
     External,
 }

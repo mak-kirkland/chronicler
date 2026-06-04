@@ -20,6 +20,7 @@ import type {
     ImportedImage,
 } from "./bindings";
 import type { MapConfig, TileSetInfo } from "./mapModels";
+import type { CanvasData } from "$lib/canvasModels";
 
 /**
  * Thin wrapper around Tauri's `invoke` that funnels every backend call
@@ -276,6 +277,16 @@ export const getImageThumbnail = (path: string) =>
 export const getMapConfig = async (path: string): Promise<MapConfig> => {
     const json = await invoke<string>("get_map_config", { path });
     return JSON.parse(json) as MapConfig;
+};
+
+/**
+ * Reads and parses a `.canvas` file from within the vault.
+ * The backend returns the raw JSON string and we `JSON.parse` it here
+ * (same rationale as getMapConfig — avoid double IPC serialization).
+ */
+export const getCanvasData = async (path: string): Promise<CanvasData> => {
+    const json = await invoke<string>("get_canvas_data", { path });
+    return JSON.parse(json) as CanvasData;
 };
 
 /**

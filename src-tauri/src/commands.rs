@@ -325,6 +325,13 @@ pub fn get_map_config(path: String, world: State<World>) -> Result<String> {
     world.get_map_config(&path)
 }
 
+/// Reads a `.canvas` file and returns its raw JSON. Frontend parses once.
+#[command]
+#[instrument(skip(world), err(Debug))]
+pub fn get_canvas_data(path: String, world: State<World>) -> Result<String> {
+    world.get_canvas_data(&path)
+}
+
 /// Returns cached tile info for a map layer image, or `None` if no pyramid
 /// is on disk. Pure read — never triggers generation. Frontend awaits this
 /// before mounting a layer to avoid loading the original image when tiles

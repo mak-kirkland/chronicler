@@ -28,6 +28,7 @@ import { hasMapsEntitlement } from "$lib/licenseStore";
 import TextInputModal from "./components/modals/TextInputModal.svelte";
 import ConfirmModal from "./components/modals/ConfirmModal.svelte";
 import NewMapModal from "./components/map/NewMapModal.svelte";
+import NewCanvasModal from "./components/modals/NewCanvasModal.svelte";
 
 /**
  * This function dynamically builds the list of actions for the context menu
@@ -113,6 +114,16 @@ export function getContextMenuActions(
         actions.push({
             label: "New Page...",
             handler: () => promptAndCreateItem("file", node.path),
+        });
+
+        actions.push({
+            label: "New Canvas...",
+            handler: () => {
+                openModal({
+                    component: NewCanvasModal,
+                    props: { parentDir: node.path, onClose: closeModal },
+                });
+            },
         });
 
         // Only show if the user has the maps entitlement

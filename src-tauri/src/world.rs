@@ -488,6 +488,11 @@ impl World {
         self.indexer.read().get_map_config(path)
     }
 
+    /// Reads a `.canvas` file from the vault and returns its raw JSON content.
+    pub fn get_canvas_data(&self, path: &str) -> Result<String> {
+        self.indexer.read().get_canvas_data(path)
+    }
+
     /// Returns cached tile info for a map layer image, or `None` if no
     /// pyramid is on disk. Pure read — never triggers generation.
     ///

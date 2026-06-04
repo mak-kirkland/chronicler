@@ -9,6 +9,7 @@
         navigateToPage,
         navigateToImage,
         navigateToMap,
+        navigateToCanvas,
     } from "$lib/actions";
     import { draggable, droppable } from "$lib/domActions";
     import { openPath } from "@tauri-apps/plugin-opener";
@@ -21,6 +22,7 @@
         isImage,
         isMarkdown,
         isMap,
+        isCanvas,
         getDisplayName,
     } from "$lib/utils";
     import { log } from "$lib/logger";
@@ -57,6 +59,8 @@
         } else if (isMap(node)) {
             // Open the map view
             navigateToMap({ title: node.name, path: node.path }, newTab);
+        } else if (isCanvas(node)) {
+            navigateToCanvas({ title: node.name, path: node.path }, newTab);
         } else if (isExternal(node)) {
             // Hand off to the OS default application (PDF viewer, Excel, etc.)
             openPath(node.path).catch((err) => {
@@ -143,7 +147,8 @@
             class="file"
             class:active={($currentView.type === "file" ||
                 $currentView.type === "image" ||
-                $currentView.type === "map") &&
+                $currentView.type === "map" ||
+                $currentView.type === "canvas") &&
                 $currentView.data?.path === node.path}
             onclick={(e) => handleNodeClick(node, e)}
             onkeydown={(e) => e.key === "Enter" && handleNodeClick(node)}
@@ -164,6 +169,8 @@
                 <Icon type="image" />
             {:else if isMap(node)}
                 <Icon type="globe" />
+            {:else if isCanvas(node)}
+                <Icon type="file" />
             {:else}
                 <Icon type="file" />
             {/if}
