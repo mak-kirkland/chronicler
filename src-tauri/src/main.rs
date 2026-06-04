@@ -158,6 +158,7 @@ fn main() {
             commands::move_path,
             commands::open_in_explorer,
             commands::get_map_config,
+            commands::get_canvas_data,
             commands::lookup_layer_tile_info,
             commands::ensure_layer_tiles,
             commands::get_all_directory_paths,

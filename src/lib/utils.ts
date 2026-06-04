@@ -68,6 +68,15 @@ export function isMap(node: FileNode): boolean {
 }
 
 /**
+ * A helper function to check if a FileNode is a Canvas file.
+ * @param node The FileNode to check.
+ * @returns True if the node's file_type is 'Canvas'
+ */
+export function isCanvas(node: FileNode): boolean {
+    return node.file_type === "Canvas";
+}
+
+/**
  * A helper function to check if a FileNode is an external file
  * (e.g. PDF, spreadsheet) that should be opened in the OS default app.
  * @param node The FileNode to check.
@@ -86,6 +95,9 @@ export function isExternal(node: FileNode): boolean {
 export function getDisplayName(node: FileNode): string {
     if (isMap(node)) {
         return node.name.replace(".cmap", "");
+    }
+    if (isCanvas(node)) {
+        return node.name.replace(/\.canvas$/i, "");
     }
     return node.name;
 }
@@ -117,6 +129,14 @@ export function isImageFile(path: string): boolean {
  */
 export function isMapFile(path: string): boolean {
     return path.toLowerCase().endsWith(".cmap");
+}
+
+/**
+ * Checks if a given path string points to a canvas file.
+ * @returns True if the path ends with .canvas (case-insensitive)
+ */
+export function isCanvasFile(path: string): boolean {
+    return path.toLowerCase().endsWith(".canvas");
 }
 
 /**

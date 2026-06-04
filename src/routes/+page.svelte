@@ -13,6 +13,7 @@
     import FileView from "$lib/components/views/FileView.svelte";
     import ImageView from "$lib/components/views/ImageView.svelte";
     import MapView from "$lib/components/map/MapView.svelte";
+    import CanvasView from "$lib/components/canvas/CanvasView.svelte";
     import BrokenLinksReportView from "$lib/components/reports/BrokenLinksReportView.svelte";
     import ParseErrorsReportView from "$lib/components/reports/ParseErrorsReportView.svelte";
     import BrokenImagesReport from "$lib/components/reports/BrokenImagesReport.svelte";
@@ -25,6 +26,7 @@
         file: FileView,
         image: ImageView,
         map: MapView,
+        canvas: CanvasView,
         "report:broken-links": BrokenLinksReportView,
         "report:parse-errors": ParseErrorsReportView,
         "report:broken-images": BrokenImagesReport,
@@ -63,6 +65,9 @@
                 };
                 break;
             case "map":
+                props = { data: view.data, isActive };
+                break;
+            case "canvas":
                 props = { data: view.data, isActive };
                 break;
             case "image":

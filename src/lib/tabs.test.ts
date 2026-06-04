@@ -175,6 +175,23 @@ describe("applyRename / applyDelete", () => {
     });
 });
 
+describe("canvas ViewState + applyRename", () => {
+    it("applyRename repoints a canvas tab and can change its kind", () => {
+        const canvas = (path: string, title = path): ViewState => ({
+            type: "canvas",
+            data: { path, title },
+        });
+        let s = T.createInitialState("t1");
+        s = T.openInCurrent(s, canvas("/v/Old.canvas", "Old"));
+        s = T.applyRename(s, "/v/Old.canvas", "/v/New.canvas", "New", () => "canvas");
+        const v = T.currentViewOf(T.getActiveTab(s));
+        expect(v).toEqual({
+            type: "canvas",
+            data: { path: "/v/New.canvas", title: "New" },
+        });
+    });
+});
+
 describe("split view", () => {
     // [a(welcome), b(p1), c(p2)] with c active
     const setup3 = () => {

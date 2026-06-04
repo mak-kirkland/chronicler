@@ -15,6 +15,7 @@
     import SearchInput from "$lib/components/ui/SearchInput.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
     import NewMapModal from "$lib/components/map/NewMapModal.svelte";
+    import NewCanvasModal from "$lib/components/modals/NewCanvasModal.svelte";
     import { t } from "$lib/i18n";
 
     let { width = $bindable(), minWidth = $bindable(200) } = $props();
@@ -70,6 +71,16 @@
         if ($vaultPath) {
             promptAndCreateItem("folder", $vaultPath);
         }
+    }
+
+    function showCreateCanvas() {
+        if (!$vaultPath) return;
+        openModal({
+            component: NewCanvasModal,
+            props: {
+                onClose: closeModal,
+            },
+        });
     }
 
     function showCreateMap() {
@@ -190,6 +201,14 @@
             >
                 + <Icon type="folder" />
             </Button>
+            <Button
+                size="small"
+                class="new-path-button"
+                title={$t("sidebar.newCanvas")}
+                onclick={showCreateCanvas}
+            >
+                + <Icon type="canvas" />
+            </Button>
             {#if $hasMapsEntitlement}
                 <Button
                     size="small"
@@ -214,6 +233,7 @@
         >
             <Button size="small">+ <Icon type="file" /></Button>
             <Button size="small">+ <Icon type="folder" /></Button>
+            <Button size="small">+ <Icon type="canvas" /></Button>
             {#if $hasMapsEntitlement}
                 <Button size="small">+ <Icon type="map" /></Button>
             {/if}
