@@ -2,6 +2,25 @@
 
 ---
 
+## [v0.53.0-alpha] - 2026-06-04
+
+### ✨ Added
+
+- **Explorer**: Added opt-in support for showing PDF and Excel files in the file tree. When enabled via the explorer context menu, clicking one of these files opens it in your system's default application. This is turned off by default so existing vaults are unaffected.
+
+### 🐞 Fixed
+
+- **Watcher**: Fixed an issue where dragging or moving a file into your vault from outside it would not appear in the file tree. The file watcher now correctly detects these externally-moved files immediately.
+- **Donation Modal**: Fixed a bug where dismissing the donation prompt made it impossible to quit the application afterwards.
+- **Fonts**: Fixed an issue where custom fonts could appear in the Settings dropdown but silently fail to apply. The application now reads font names directly from the font file itself using a consistent cross-platform method, ensuring the name used to display the font always matches the name used to load it.
+
+### 🚀 Performance
+
+- **Maps**: Large map images are now pre-sliced into tiles behind the scenes, dramatically reducing lag and memory usage when working with high-resolution maps. A progress bar is shown while tiles are being prepared, and the map falls back to a normal view in the meantime.
+- **Gallery**: Significantly reduced memory usage and scroll lag in the image gallery. The application now generates and caches small thumbnail previews instead of loading full-resolution images for every visible tile.
+
+---
+
 ## [v0.52.2-alpha] - 2026-06-02
 
 ### 🐞 Fixed
