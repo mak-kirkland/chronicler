@@ -59,9 +59,36 @@
     // Check if this page is pinned on any maps
     let associatedMaps = $derived(pageData?.associated_maps || []);
 
-    // This effect handles loading the page data whenever the `file` prop changes.
+    // The path currently loaded into `pageData`. Makes the load effect below
+    // idempotent — it only resets/refetches when the path actually changes.
+    let loadedPath: string | null = null;
+
+    // Persist any unsaved edits for `path` before we navigate away from it.
+    // Skips when a save is already in flight ("saving") — that write persists
+    // the same content; "dirty"/"error" still need flushing.
+    function flushPendingEdits(path: string | null) {
+        if (
+            path &&
+            pageData &&
+            pageData.raw_content !== pristineContent &&
+            saveStatus !== "saving"
+        ) {
+            void writePageContent(path, pageData.raw_content);
+        }
+    }
+
+    // Load page data when the file path changes. The path guard is load-bearing:
+    // Svelte re-runs this effect on UNRELATED store changes too, because the
+    // parent passes fresh spread props (e.g. when focus moves to the other split
+    // pane). Without the guard each spurious run would null out pageData,
+    // tearing down the content DOM and resetting the scroll position.
     $effect(() => {
-        const loadPath = file.path;
+        const path = file.path;
+        if (path === loadedPath) return;
+
+        // Flush the outgoing file's edits before swapping in the new one.
+        flushPendingEdits(loadedPath);
+        loadedPath = path;
 
         // --- State Reset ---
         isLoading = true;
@@ -71,6 +98,7 @@
         pristineContent = "";
         saveStatus = "idle"; // Reset save status for the new file
         lastSaveTime = null; // Reset last save time for the new file
+        clearTimeout(saveTimeout); // Drop the previous file's pending autosave
         clearTimeout(loadingTimer); // Clear any pending loading message timer
         backlinks = []; // Reset backlinks
         isMapMenuOpen = false; // Close menu on navigation
@@ -80,43 +108,35 @@
             showLoading = true;
         }, 500); // Only show "Loading..." after 500ms
 
-        // --- Data Fetching ---
-        buildPageView(file.path)
+        // --- Data Fetching --- (`loadedPath !== path` guards a stale fetch that
+        // resolves after we've already navigated somewhere else.)
+        buildPageView(path)
             .then((data) => {
+                if (loadedPath !== path) return;
                 pageData = data;
                 pristineContent = data.raw_content;
                 // Update the backlinks shown in the right sidebar.
                 backlinks = data.backlinks;
             })
-
             .catch((e) => {
+                if (loadedPath !== path) return;
                 log.error("Failed to get page data", e, "FileView");
                 error = `Could not load file: ${e}`;
             })
             .finally(() => {
+                if (loadedPath !== path) return;
                 isLoading = false;
                 showLoading = false; // Hide loading message
                 clearTimeout(loadingTimer); // Clear timer as loading is finished
             });
+    });
 
-        // Cleanup function clears any pending save timeouts when the file changes or component unmounts.
-        return () => {
-            clearTimeout(saveTimeout);
-            clearTimeout(loadingTimer); // Also clear the loading timer on cleanup
-            // Flush any pending edits for the file we are leaving (covers tab
-            // close, vault switch, and navigating within the tab). At cleanup
-            // time pageData/pristineContent still hold the OLD file's values,
-            // and loadPath is the OLD path captured for this effect run.
-            // Skip when a save is already in flight ("saving") — that write
-            // persists the same content; "dirty"/"error" still need flushing.
-            if (
-                pageData &&
-                pageData.raw_content !== pristineContent &&
-                saveStatus !== "saving"
-            ) {
-                void writePageContent(loadPath, pageData.raw_content);
-            }
-        };
+    // Flush pending edits and clear timers when the tab unmounts (tab close,
+    // vault switch). Navigating within the tab is flushed in the load effect.
+    onDestroy(() => {
+        clearTimeout(saveTimeout);
+        clearTimeout(loadingTimer);
+        flushPendingEdits(loadedPath);
     });
 
     // This effect handles auto-saving the content and updating the visual status indicator.
@@ -459,8 +479,13 @@
         min-width: 0; /* Helps with ellipsis truncation */
     }
     .save-status-wrapper {
-        width: 180px; /* Fixed width prevents jitter between "Unsaved" and "Last saved at..." */
-        flex-shrink: 0;
+        /* At comfortable widths this reserves a stable 180px so the title
+           doesn't jitter as the status text changes. When the pane is narrow
+           (e.g. a split pane) it yields space first — shrinking faster than the
+           title — so the title isn't cut off by an otherwise-empty block. */
+        width: 180px;
+        flex-shrink: 4;
+        min-width: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
