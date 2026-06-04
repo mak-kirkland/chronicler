@@ -9,7 +9,8 @@ use crate::{
     error::Result,
     events::FileEvent,
     utils::{
-        is_external_file, is_image_file, is_map_file, is_markdown_file, is_under_hidden_subdir,
+        is_canvas_file, is_external_file, is_image_file, is_map_file, is_markdown_file,
+        is_under_hidden_subdir,
     },
 };
 use notify_debouncer_full::{
@@ -106,8 +107,8 @@ impl Drop for Watcher {
 }
 
 /// Translates each raw debounced event and broadcasts the resulting
-/// `FileEvent`s. Markdown, image, and map files are tracked; temp files
-/// (`.#foo.md`) and hidden subdirs of the vault are ignored.
+/// `FileEvent`s. Markdown, image, map, and canvas files are tracked; temp
+/// files (`.#foo.md`) and hidden subdirs of the vault are ignored.
 #[instrument(level = "debug", skip(sender, vault_root, events))]
 fn publish(sender: &broadcast::Sender<FileEvent>, vault_root: &Path, events: Vec<DebouncedEvent>) {
     for event in events {
@@ -226,7 +227,11 @@ fn is_ignored(path: &Path, vault_root: &Path) -> bool {
 }
 
 fn has_tracked_extension(path: &Path) -> bool {
-    is_markdown_file(path) || is_image_file(path) || is_map_file(path) || is_external_file(path)
+    is_markdown_file(path)
+        || is_image_file(path)
+        || is_map_file(path)
+        || is_canvas_file(path)
+        || is_external_file(path)
 }
 
 /// Checks if a path points to a temporary/lock file (like .#file.md).
@@ -234,4 +239,24 @@ fn is_temp_file(path: &Path) -> bool {
     path.file_stem()
         .and_then(|stem| stem.to_str())
         .is_some_and(|s| s.starts_with(".#"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn canvas_files_are_tracked() {
+        // Regression: the watcher must forward .canvas events, otherwise a
+        // newly created canvas never reaches the indexer or the file tree.
+        assert!(has_tracked_extension(Path::new("Ideas.canvas")));
+    }
+
+    #[test]
+    fn canvas_creation_publishes_created_event() {
+        let ev =
+            classify_appearance(Path::new("/vault/Ideas.canvas"), Path::new("/vault"));
+        assert!(matches!(ev, Some(FileEvent::Created(_))));
+    }
 }
