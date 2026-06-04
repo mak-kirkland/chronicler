@@ -12,9 +12,19 @@
     import Icon from "$lib/components/ui/Icon.svelte";
     import type { IconType } from "$lib/icons";
 
-    let { tab, active, status, onActivate, onClose, onContextMenu } = $props<{
+    let {
+        tab,
+        active,
+        displayed = false,
+        status,
+        onActivate,
+        onClose,
+        onContextMenu,
+    } = $props<{
         tab: Tab;
         active: boolean;
+        /** Shown in the other (non-focused) pane of a split. */
+        displayed?: boolean;
         status: SaveStatus | undefined;
         onActivate: () => void;
         onClose: () => void;
@@ -71,6 +81,7 @@
 <div
     class="tab"
     class:active
+    class:displayed
     role="tab"
     tabindex="0"
     aria-selected={active}
@@ -120,6 +131,12 @@
         background: var(--color-background-primary);
         color: var(--color-text-primary);
         box-shadow: inset 0 -2px 0 var(--color-accent-primary);
+    }
+    /* The other pane of a split: shown but not focused — a dimmer underline. */
+    .tab.displayed:not(.active) {
+        background: var(--color-background-primary);
+        color: var(--color-text-primary);
+        box-shadow: inset 0 -2px 0 var(--color-border-primary);
     }
     .tab-title {
         flex-grow: 1;

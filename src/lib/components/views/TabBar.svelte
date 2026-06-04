@@ -1,5 +1,11 @@
 <script lang="ts">
-    import { tabs, tabStatus, activeTabId } from "$lib/viewStores";
+    import {
+        tabs,
+        tabStatus,
+        activeTabId,
+        displayedPanes,
+        isViewSplit,
+    } from "$lib/viewStores";
     import { isSidebarVisible } from "$lib/settingsStore";
     import TabItem from "$lib/components/views/TabItem.svelte";
     import ContextMenu from "$lib/components/ui/ContextMenu.svelte";
@@ -32,6 +38,8 @@
                 <TabItem
                     {tab}
                     active={tab.id === $activeTabId}
+                    displayed={$displayedPanes.includes(tab.id) &&
+                        tab.id !== $activeTabId}
                     status={$tabStatus[tab.id]}
                     onActivate={() => tabs.activate(tab.id)}
                     onClose={() => tabs.close(tab.id)}
@@ -40,6 +48,15 @@
             </div>
         {/each}
     </div>
+    <button
+        class="split-btn"
+        title={$isViewSplit ? "Already split" : "Split view"}
+        aria-label="Split view"
+        disabled={$isViewSplit}
+        onclick={() => tabs.split()}
+    >
+        <Icon type="split" />
+    </button>
     <button
         class="new-tab-btn"
         title="New tab"
@@ -88,6 +105,7 @@
         align-items: stretch;
     }
     .new-tab-btn,
+    .split-btn,
     .sidebar-toggle-btn {
         display: flex;
         align-items: center;
@@ -107,8 +125,13 @@
         line-height: 1;
     }
     .new-tab-btn:hover,
+    .split-btn:hover:not(:disabled),
     .sidebar-toggle-btn:hover {
         background: var(--color-background-tertiary);
         color: var(--color-text-primary);
+    }
+    .split-btn:disabled {
+        opacity: 0.4;
+        cursor: default;
     }
 </style>

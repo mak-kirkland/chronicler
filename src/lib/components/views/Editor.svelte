@@ -62,6 +62,17 @@
         }
     });
 
+    // Re-measure whenever the editor's own box changes width/height — e.g. when
+    // the view is split 50/50 (which halves this pane without toggling
+    // `isActive`) or the sidebar opens. ResizeObserver fires on first observe,
+    // so the initial geometry is covered too.
+    $effect(() => {
+        if (!editor) return;
+        const ro = new ResizeObserver(() => editor?.requestMeasure());
+        ro.observe(editor.dom);
+        return () => ro.disconnect();
+    });
+
     /**
      * Opens the visual Infobox Editor modal using the CURRENT content in memory.
      * This avoids the data-loss race condition.

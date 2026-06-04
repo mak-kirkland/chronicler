@@ -15,7 +15,8 @@ describe("createInitialState", () => {
     it("starts with one welcome tab that is active", () => {
         const s = T.createInitialState("a");
         expect(s.tabs).toHaveLength(1);
-        expect(s.activeId).toBe("a");
+        expect(T.activeIdOf(s)).toBe("a");
+        expect(T.isSplit(s)).toBe(false);
         expect(T.currentViewOf(s.tabs[0])).toEqual({ type: "welcome" });
     });
 });
@@ -57,7 +58,7 @@ describe("openInNew / newBlankTab", () => {
         let s = T.createInitialState("a");
         s = T.openInNew(s, file("/p1.md"), "b", { fileMode: "split" });
         expect(s.tabs).toHaveLength(2);
-        expect(s.activeId).toBe("b");
+        expect(T.activeIdOf(s)).toBe("b");
         expect(T.getActiveTab(s).initialFileMode).toBe("split");
     });
 
@@ -73,7 +74,7 @@ describe("activate", () => {
         let s = T.createInitialState("a");
         s = T.openInNew(s, file("/p1.md"), "b"); // active = b
         s = T.activate(s, "a");
-        expect(s.activeId).toBe("a");
+        expect(T.activeIdOf(s)).toBe("a");
         const before = s;
         s = T.activate(s, "nope");
         expect(s).toBe(before);
@@ -88,7 +89,7 @@ describe("closeTab", () => {
         s = T.openInNew(s, file("/p2.md"), "c"); // active = c
         s = T.closeTab(s, "c", mk);
         expect(s.tabs.map((t) => t.id)).toEqual(["a", "b"]);
-        expect(s.activeId).toBe("b");
+        expect(T.activeIdOf(s)).toBe("b");
     });
 
     it("leaves a single fresh welcome tab when the last tab is closed", () => {
@@ -97,14 +98,14 @@ describe("closeTab", () => {
         s = T.closeTab(s, "a", mk);
         expect(s.tabs).toHaveLength(1);
         expect(T.currentViewOf(s.tabs[0])).toEqual({ type: "welcome" });
-        expect(s.activeId).toBe(s.tabs[0].id);
+        expect(T.activeIdOf(s)).toBe(s.tabs[0].id);
     });
 
     it("keeps the active tab when closing a different tab", () => {
         let s = T.createInitialState("a");
         s = T.openInNew(s, file("/p1.md"), "b"); // active = b
         s = T.closeTab(s, "a", ids());
-        expect(s.activeId).toBe("b");
+        expect(T.activeIdOf(s)).toBe("b");
     });
 });
 
@@ -115,7 +116,7 @@ describe("closeOthers / closeAll", () => {
         s = T.openInNew(s, file("/p2.md"), "c");
         s = T.closeOthers(s, "b");
         expect(s.tabs.map((t) => t.id)).toEqual(["b"]);
-        expect(s.activeId).toBe("b");
+        expect(T.activeIdOf(s)).toBe("b");
     });
 
     it("closeAll resets to a single welcome tab", () => {
@@ -146,10 +147,10 @@ describe("nextTab / prevTab / jumpToIndex", () => {
         let s = T.createInitialState("a");
         s = T.openInNew(s, file("/p1.md"), "b");
         s = T.openInNew(s, file("/p2.md"), "c"); // [a,b,c], active c
-        expect(T.nextTab(s).activeId).toBe("a"); // wraps
-        expect(T.prevTab(s).activeId).toBe("b");
-        expect(T.jumpToIndex(s, 0).activeId).toBe("a");
-        expect(T.jumpToIndex(s, -1).activeId).toBe("c"); // -1 = last
+        expect(T.activeIdOf(T.nextTab(s))).toBe("a"); // wraps
+        expect(T.activeIdOf(T.prevTab(s))).toBe("b");
+        expect(T.activeIdOf(T.jumpToIndex(s, 0))).toBe("a");
+        expect(T.activeIdOf(T.jumpToIndex(s, -1))).toBe("c"); // -1 = last
     });
 });
 
@@ -170,6 +171,118 @@ describe("applyRename / applyDelete", () => {
         s = T.openInNew(s, file("/p1.md"), "b"); // active b
         s = T.applyDelete(s, "/p1.md", ids());
         expect(s.tabs.map((t) => t.id)).toEqual(["a"]);
-        expect(s.activeId).toBe("a");
+        expect(T.activeIdOf(s)).toBe("a");
+    });
+});
+
+describe("split view", () => {
+    // [a(welcome), b(p1), c(p2)] with c active
+    const setup3 = () => {
+        let s = T.createInitialState("a");
+        s = T.openInNew(s, file("/p1.md"), "b");
+        s = T.openInNew(s, file("/p2.md"), "c");
+        return s;
+    };
+
+    it("puts the active tab on the left and focuses a second pane on the right", () => {
+        let s = setup3();
+        s = T.splitView(s, ids());
+        expect(T.isSplit(s)).toBe(true);
+        expect(s.panes[0]).toBe("c"); // active tab → left
+        expect(s.panes[1]).toBe("b"); // adjacent tab → right (c is last → b)
+        expect(s.focused).toBe(1); // right pane focused
+        expect(T.activeIdOf(s)).toBe("b");
+    });
+
+    it("creates a welcome tab on the right when only one tab is open", () => {
+        let s = T.createInitialState("a");
+        s = T.splitView(s, () => "w");
+        expect(s.tabs.map((t) => t.id)).toEqual(["a", "w"]);
+        expect(s.panes).toEqual(["a", "w"]);
+        expect(T.currentViewOf(s.tabs[1])).toEqual({ type: "welcome" });
+    });
+
+    it("is a no-op when already split", () => {
+        let s = setup3();
+        s = T.splitView(s, ids());
+        const before = s;
+        s = T.splitView(s, ids());
+        expect(s).toBe(before);
+    });
+
+    it("loads a non-displayed tab into the focused pane", () => {
+        let s = setup3();
+        s = T.splitView(s, ids()); // panes [c, b], focused 1
+        s = T.activate(s, "a");
+        expect(s.panes).toEqual(["c", "a"]);
+        expect(s.focused).toBe(1);
+    });
+
+    it("just moves focus when activating the tab shown in the other pane", () => {
+        let s = setup3();
+        s = T.splitView(s, ids()); // panes [c, b], focused 1
+        s = T.activate(s, "c"); // c is in the left pane
+        expect(s.panes).toEqual(["c", "b"]); // unchanged
+        expect(s.focused).toBe(0);
+    });
+
+    it("focusPane sets the focused pane", () => {
+        let s = setup3();
+        s = T.splitView(s, ids()); // focused 1
+        s = T.focusPane(s, 0);
+        expect(s.focused).toBe(0);
+        expect(T.activeIdOf(s)).toBe("c");
+    });
+
+    it("closePane collapses to the surviving pane and clears the split", () => {
+        let s = setup3();
+        s = T.splitView(s, ids()); // panes [c, b]
+        s = T.closePane(s, 1); // close right
+        expect(T.isSplit(s)).toBe(false);
+        expect(s.panes).toEqual(["c"]);
+        expect(T.activeIdOf(s)).toBe("c");
+    });
+
+    it("closePane can close the left pane and keep the right", () => {
+        let s = setup3();
+        s = T.splitView(s, ids()); // panes [c, b]
+        s = T.closePane(s, 0);
+        expect(s.panes).toEqual(["b"]);
+    });
+
+    it("closing a tab shown in a pane replaces it and keeps the split", () => {
+        let s = setup3(); // [a, b, c]
+        s = T.splitView(s, ids()); // panes [c, b], focused 1
+        s = T.closeTab(s, "b", ids());
+        expect(T.isSplit(s)).toBe(true);
+        expect(s.tabs.map((t) => t.id)).toEqual(["a", "c"]);
+        expect(s.panes).toEqual(["c", "a"]);
+    });
+
+    it("collapses the split when closing a tab leaves fewer than two", () => {
+        let s = T.createInitialState("a");
+        s = T.openInNew(s, file("/p1.md"), "b"); // [a, b]
+        s = T.splitView(s, ids()); // panes [b, a]
+        s = T.closeTab(s, "a", ids());
+        expect(T.isSplit(s)).toBe(false);
+        expect(s.tabs.map((t) => t.id)).toEqual(["b"]);
+        expect(s.panes).toEqual(["b"]);
+    });
+
+    it("leaves both panes intact when closing a background tab", () => {
+        let s = setup3();
+        s = T.splitView(s, ids()); // panes [c, b]; 'a' is background
+        s = T.closeTab(s, "a", ids());
+        expect(s.panes).toEqual(["c", "b"]);
+        expect(T.isSplit(s)).toBe(true);
+    });
+
+    it("collapses the split when a file shown in a pane is deleted", () => {
+        let s = setup3(); // a=welcome, b=p1, c=p2
+        s = T.splitView(s, ids()); // panes [c, b]
+        s = T.applyDelete(s, "/p2.md", ids()); // c shows p2
+        expect(s.tabs.map((t) => t.id)).toEqual(["a", "b"]);
+        expect(s.panes).toEqual(["b"]);
+        expect(T.isSplit(s)).toBe(false);
     });
 });

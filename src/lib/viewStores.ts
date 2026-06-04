@@ -30,9 +30,15 @@ function createTabsStore() {
         newBlankTab: () => update((s) => T.newBlankTab(s, makeId())),
         activate: (id: string) => update((s) => T.activate(s, id)),
         close: (id: string) => update((s) => T.closeTab(s, id, makeId)),
-        closeActive: () => update((s) => T.closeTab(s, s.activeId, makeId)),
+        closeActive: () =>
+            update((s) => T.closeTab(s, T.activeIdOf(s), makeId)),
         closeOthers: (id: string) => update((s) => T.closeOthers(s, id)),
         closeAll: () => update((s) => T.closeAll(s, makeId)),
+        split: () => update((s) => T.splitView(s, makeId)),
+        closePane: (paneIndex: number) =>
+            update((s) => T.closePane(s, paneIndex)),
+        focusPane: (paneIndex: number) =>
+            update((s) => T.focusPane(s, paneIndex)),
         back: () => update((s) => T.back(s)),
         forward: () => update((s) => T.forward(s)),
         nextTab: () => update((s) => T.nextTab(s)),
@@ -58,8 +64,27 @@ export const currentView: Readable<ViewState> = derived(tabs, (s) =>
     T.currentViewOf(T.getActiveTab(s)),
 );
 
-/** The active tab id, for highlighting in the tab bar / sidebar. */
-export const activeTabId: Readable<string> = derived(tabs, (s) => s.activeId);
+/** The active (focused-pane) tab id, for highlighting in the tab bar / sidebar. */
+export const activeTabId: Readable<string> = derived(tabs, (s) =>
+    T.activeIdOf(s),
+);
+
+/** The 1 or 2 displayed tab ids, left→right. Length 2 means the view is split. */
+export const displayedPanes: Readable<string[]> = derived(
+    tabs,
+    (s) => s.panes,
+);
+
+/** Index into `displayedPanes` of the focused pane. */
+export const focusedPaneIndex: Readable<number> = derived(
+    tabs,
+    (s) => s.focused,
+);
+
+/** Whether two panes are shown side by side. */
+export const isViewSplit: Readable<boolean> = derived(tabs, (s) =>
+    T.isSplit(s),
+);
 
 /**
  * Back/forward facade over the ACTIVE tab's history. `ViewHeader` and
