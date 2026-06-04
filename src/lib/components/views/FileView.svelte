@@ -42,6 +42,37 @@
     let backlinks = $state<Backlink[]>([]);
     let showBacklinks = $state(false);
 
+    // The editor and preview both stay mounted across mode toggles (only their
+    // visibility/width change via CSS) so scroll position and CodeMirror state
+    // survive switching preview ↔ split ↔ editor. The editor is mounted lazily
+    // on first edit and then kept, so files you only ever read never spin up a
+    // CodeMirror instance.
+    let editorEverShown = $state((initialMode ?? "preview") !== "preview");
+    $effect(() => {
+        if (mode !== "preview") editorEverShown = true;
+    });
+
+    // Editor-only mode hides the preview with `display: none`, and WebKitGTK
+    // drops the scrollTop of a display:none container (Chrome keeps it). So we
+    // track the preview's scroll while it's visible and re-apply it whenever it
+    // becomes visible again, instead of trusting the browser to preserve it.
+    let previewPaneEl = $state<HTMLElement | null>(null);
+    let savedPreviewScroll = 0;
+    function rememberPreviewScroll() {
+        if (mode !== "editor" && previewPaneEl) {
+            savedPreviewScroll = previewPaneEl.scrollTop;
+        }
+    }
+    $effect(() => {
+        if (mode !== "editor" && previewPaneEl) {
+            const el = previewPaneEl;
+            const top = savedPreviewScroll;
+            // rAF lets the re-shown / re-laid-out content settle before we
+            // restore, so the scrollTop isn't clamped against a stale height.
+            requestAnimationFrame(() => (el.scrollTop = top));
+        }
+    });
+
     let pageData = $state<FullPageData | null>(null);
     let error = $state<string | null>(null);
     let isLoading = $state(true);
@@ -98,6 +129,7 @@
         pristineContent = "";
         saveStatus = "idle"; // Reset save status for the new file
         lastSaveTime = null; // Reset last save time for the new file
+        savedPreviewScroll = 0; // A new file starts at the top, not the old scroll
         clearTimeout(saveTimeout); // Drop the previous file's pending autosave
         clearTimeout(loadingTimer); // Clear any pending loading message timer
         backlinks = []; // Reset backlinks
@@ -396,59 +428,51 @@
         </ViewHeader>
 
         <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!--
+            The editor and preview are mounted once and shown/hidden/sized by the
+            mode class, rather than swapped between {#if} branches. Recreating the
+            scroll containers on every mode change would reset scroll position and
+            tear down CodeMirror state; keeping them mounted preserves both.
+        -->
         <div
             class="content-panes"
+            class:split={mode === "split"}
+            class:editor-only={mode === "editor"}
+            class:preview-only={mode === "preview"}
             onclick={handleContentClick}
             onkeydown={handleContentClick}
         >
-            {#if mode === "split"}
+            {#if editorEverShown}
                 <div class="editor-pane">
                     <Editor
                         bind:content={pageData.raw_content}
                         pageName={file.title}
                         pagePath={file.path}
                         {isActive}
+                        shouldFocus={mode !== "preview"}
                     />
-                </div>
-                <!--
-                    The preview-pane serves as the scrolling container.
-                    Inside, 'chronicler-preview' provides the background texture and padding.
-                -->
-                <div class="preview-pane scrollable">
-                    <div class="chronicler-preview">
-                        <Preview
-                            renderedData={pageData.rendered_page}
-                            infoboxData={pageData.rendered_page
-                                .processed_frontmatter}
-                            mode="split"
-                            onInfoboxEdit={handleInfoboxEdit}
-                            fallbackTitle={file.title}
-                        />
-                    </div>
-                </div>
-            {:else if mode === "editor"}
-                <div class="unified-editor-pane">
-                    <Editor
-                        bind:content={pageData.raw_content}
-                        pageName={file.title}
-                        pagePath={file.path}
-                        {isActive}
-                    />
-                </div>
-            {:else}
-                <div class="unified-preview-pane scrollable">
-                    <div class="chronicler-preview">
-                        <Preview
-                            renderedData={pageData.rendered_page}
-                            infoboxData={pageData.rendered_page
-                                .processed_frontmatter}
-                            mode="unified"
-                            onInfoboxEdit={handleInfoboxEdit}
-                            fallbackTitle={file.title}
-                        />
-                    </div>
                 </div>
             {/if}
+            <!--
+                The preview-pane serves as the scrolling container.
+                Inside, 'chronicler-preview' provides the background texture and padding.
+            -->
+            <div
+                class="preview-pane scrollable"
+                bind:this={previewPaneEl}
+                onscroll={rememberPreviewScroll}
+            >
+                <div class="chronicler-preview">
+                    <Preview
+                        renderedData={pageData.rendered_page}
+                        infoboxData={pageData.rendered_page
+                            .processed_frontmatter}
+                        mode={mode === "split" ? "split" : "unified"}
+                        onInfoboxEdit={handleInfoboxEdit}
+                        fallbackTitle={file.title}
+                    />
+                </div>
+            </div>
             {#if showBacklinks && backlinks.length > 0}
                 <!-- Clicking a backlink navigates this tab to that page; the
                      Backlink is converted to a PageHeader for navigation. -->
@@ -515,8 +539,8 @@
         overflow: hidden;
     }
 
-    /* Layout Panes */
-    .unified-preview-pane,
+    /* Layout Panes. Both stay mounted; the mode classes below decide which is
+       shown and how wide, so scroll/editor state persists across mode toggles. */
     .preview-pane {
         flex: 1;
         /* "width: 0" combined with "flex: 1" is a robust fix for preventing
@@ -525,6 +549,26 @@
         min-width: 0; /* Allows the pane to shrink */
         position: relative; /* Context for the absolute wrapper */
         height: 100%;
+    }
+    .editor-pane {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        box-sizing: border-box;
+        overflow-y: auto; /* Editor can keep its simple scroll */
+    }
+
+    /* Preview-only: hide the editor, preview fills the width.
+       Editor-only: hide the preview, editor fills the width.
+       Split: both visible, with a divider down the middle. */
+    .content-panes.preview-only .editor-pane {
+        display: none;
+    }
+    .content-panes.editor-only .preview-pane {
+        display: none;
+    }
+    .content-panes.split .editor-pane {
+        border-right: 1px solid var(--color-border-primary);
     }
 
     /* Utility to enable scrolling */
@@ -540,22 +584,6 @@
         padding: 2rem;
         box-sizing: border-box;
         position: relative;
-    }
-
-    .unified-editor-pane {
-        flex: 1;
-        min-width: 0;
-        height: 100%;
-        overflow-y: auto;
-    }
-
-    .editor-pane {
-        flex: 1;
-        min-width: 0;
-        height: 100%;
-        box-sizing: border-box;
-        border-right: 1px solid var(--color-border-primary);
-        overflow-y: auto; /* Editor can keep its simple scroll */
     }
     .status-container {
         padding: 2rem;
