@@ -120,6 +120,12 @@ pub fn read_file_capped(path: &Path) -> crate::error::Result<String> {
     Ok(contents)
 }
 
+/// Checks if a path points to a canvas file (.canvas).
+pub fn is_canvas_file(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("canvas"))
+}
+
 /// Extracts the file stem from a path and returns it as a clean String.
 /// Returns an empty string if the path has no file stem.
 pub fn file_stem_string(path: &Path) -> String {
@@ -244,6 +250,19 @@ mod tests {
             Path::new("/vault/images/cover.jpg"),
             root,
         ));
+    }
+
+    #[test]
+    fn canvas_file_recognises_extension() {
+        assert!(is_canvas_file(Path::new("/v/Ideas.canvas")));
+        assert!(is_canvas_file(Path::new("/v/My Board.CANVAS")));
+    }
+
+    #[test]
+    fn canvas_file_rejects_others() {
+        assert!(!is_canvas_file(Path::new("/v/world.cmap")));
+        assert!(!is_canvas_file(Path::new("/v/note.md")));
+        assert!(!is_canvas_file(Path::new("/v/no_extension")));
     }
 
     #[test]

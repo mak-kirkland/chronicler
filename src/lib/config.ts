@@ -72,3 +72,6 @@ export const DEFAULT_TEMPLATE_NAME = "_default";
  * Maximum number of map configs to keep in cache.
  */
 export const MAX_CACHED_MAPS = 32;
+
+/** How many parsed canvases to keep in the in-memory LRU cache. */
+export const MAX_CACHED_CANVASES = 8;

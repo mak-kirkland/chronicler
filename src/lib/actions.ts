@@ -10,7 +10,12 @@ import type { ViewState } from "./viewStores";
 import type { PageHeader } from "./bindings";
 // Import all commands under a 'commands' namespace to prevent naming conflicts.
 import * as commands from "./commands";
-import { fileStemString, isImageFile, isMarkdownFile } from "./utils";
+import {
+    fileStemString,
+    isCanvasFile,
+    isImageFile,
+    isMarkdownFile,
+} from "./utils";
 import { world, pagePathLookup, mapPathLookup } from "./worldStore";
 import NewPageModal from "./components/modals/NewPageModal.svelte";
 import TextInputModal from "./components/modals/TextInputModal.svelte";
@@ -22,9 +27,10 @@ import { log } from "./logger";
 import { translate } from "./i18n";
 
 /** Classifies a path into the view type used to display it. */
-function kindOf(path: string): "file" | "image" | "map" {
+function kindOf(path: string): "file" | "image" | "map" | "canvas" {
     if (isMarkdownFile(path)) return "file";
     if (isImageFile(path)) return "image";
+    if (isCanvasFile(path)) return "canvas";
     return "map";
 }
 
@@ -234,6 +240,15 @@ export function navigateToImage(image: PageHeader, newTab = false) {
  */
 export function navigateToMap(page: PageHeader, newTab = false) {
     navigate({ type: "map", data: page }, newTab);
+}
+
+/**
+ * Navigates the main view to display a brainstorming canvas.
+ * @param page The header of the canvas to navigate to (path + title).
+ * @param newTab If true, opens in a new tab instead of the current one.
+ */
+export function navigateToCanvas(page: PageHeader, newTab = false) {
+    navigate({ type: "canvas", data: page }, newTab);
 }
 
 /**

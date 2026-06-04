@@ -12,8 +12,8 @@ use crate::{
     },
     parser,
     utils::{
-        file_stem_string, is_external_file, is_hidden_path, is_image_file, is_map_file,
-        is_markdown_file,
+        file_stem_string, is_canvas_file, is_external_file, is_hidden_path, is_image_file,
+        is_map_file, is_markdown_file,
     },
 };
 use natord::compare_ignore_case as nat_compare;
@@ -198,6 +198,15 @@ impl Indexer {
                     error: Some(format!("Could not read map file: {}", e)),
                 },
             }
+        } else if is_canvas_file(&canonical_path) {
+            // Canvases are recognized so they appear in the tree and are
+            // readable, but we don't parse their JSON into the index in
+            // Phase 1 — a malformed canvas must not break vault indexing.
+            ScanResult {
+                path: canonical_path,
+                asset: Some(VaultAsset::Canvas),
+                error: None,
+            }
         } else if is_external_file(&canonical_path) {
             ScanResult {
                 path: canonical_path,
@@ -295,6 +304,7 @@ impl Indexer {
                     VaultAsset::Page(_) => (p + 1, i, m, d, x),
                     VaultAsset::Image => (p, i + 1, m, d, x),
                     VaultAsset::Map(_) => (p, i, m + 1, d, x),
+                    VaultAsset::Canvas => (p, i, m, d, x),
                     VaultAsset::Directory => (p, i, m, d + 1, x),
                     VaultAsset::External => (p, i, m, d, x + 1),
                 });
@@ -714,6 +724,7 @@ impl Indexer {
             Some(VaultAsset::Page(_)) => FileType::Markdown,
             Some(VaultAsset::Image) => FileType::Image,
             Some(VaultAsset::Map(_)) => FileType::Map,
+            Some(VaultAsset::Canvas) => FileType::Canvas,
             Some(VaultAsset::External) => FileType::External,
             None => {
                 // This is the root directory case (root itself isn't in assets with this key)
@@ -929,6 +940,18 @@ impl Indexer {
         }
 
         // It is safe to read because the index only contains files within the vault root.
+        Ok(fs::read_to_string(&path_buf)?)
+    }
+
+    /// Reads a `.canvas` file from the vault and returns its raw JSON content.
+    /// Mirrors `get_map_config`: the frontend parses once. The security check
+    /// (file must be a known indexed asset) guarantees we only read inside the
+    /// vault root.
+    pub fn get_canvas_data(&self, path: &str) -> Result<String> {
+        let path_buf = PathBuf::from(path);
+        if !self.assets.contains_key(&path_buf) {
+            return Err(ChroniclerError::FileNotFound(path_buf));
+        }
         Ok(fs::read_to_string(&path_buf)?)
     }
 }
@@ -1206,5 +1229,40 @@ Now I link to [[Page Two]]!
         assert!(!is_external_image_ref("x.png"));
         assert!(!is_external_image_ref("assets/x.png"));
         assert!(!is_external_image_ref(""));
+    }
+
+    #[test]
+    fn indexes_canvas_files_as_canvas_asset() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let canvas_path = root.join("Ideas.canvas");
+        fs::write(&canvas_path, r#"{"nodes":[],"edges":[]}"#).unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        let canonical = fs::canonicalize(&canvas_path).unwrap();
+        assert!(matches!(
+            indexer.assets.get(&canonical),
+            Some(VaultAsset::Canvas)
+        ));
+    }
+
+    #[test]
+    fn get_canvas_data_returns_raw_json() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let canvas_path = root.join("Ideas.canvas");
+        let body = r#"{"nodes":[],"edges":[]}"#;
+        fs::write(&canvas_path, body).unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+        let canonical = fs::canonicalize(&canvas_path).unwrap();
+
+        let out = indexer
+            .get_canvas_data(canonical.to_str().unwrap())
+            .unwrap();
+        assert_eq!(out, body);
     }
 }

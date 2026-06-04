@@ -48,7 +48,7 @@ function createTabsStore() {
             oldPath: string,
             newPath: string,
             newTitle: string,
-            kindOf: (p: string) => "file" | "image" | "map",
+            kindOf: (p: string) => "file" | "image" | "map" | "canvas",
         ) =>
             update((s) => T.applyRename(s, oldPath, newPath, newTitle, kindOf)),
         applyDelete: (path: string) =>
