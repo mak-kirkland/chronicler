@@ -5,7 +5,7 @@
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import SaveStatus from "$lib/components/views/SaveStatus.svelte";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
-    import { tabs, tabStatus } from "$lib/viewStores";
+    import { tabs, tabStatus, isViewSplit } from "$lib/viewStores";
     import type { FileViewMode } from "$lib/viewStores";
     import { onDestroy } from "svelte";
     import BacklinksPanel from "$lib/components/views/BacklinksPanel.svelte";
@@ -58,6 +58,23 @@
     // becomes visible again, instead of trusting the browser to preserve it.
     let previewPaneEl = $state<HTMLElement | null>(null);
     let savedPreviewScroll = 0;
+
+    // Tracks whether the pane is too narrow to fit the header button labels
+    // (e.g. a small window), so they can collapse to icons. The template ORs
+    // this with split view, which always shows icons. A ResizeObserver (rather
+    // than a CSS container query) avoids turning the container into a containing
+    // block, which would disturb the Maps dropdown's positioning.
+    let fileContainerEl = $state<HTMLElement | null>(null);
+    let narrowHeader = $state(false);
+    const NARROW_HEADER_PX = 640;
+    $effect(() => {
+        if (!fileContainerEl) return;
+        const ro = new ResizeObserver((entries) => {
+            narrowHeader = entries[0].contentRect.width < NARROW_HEADER_PX;
+        });
+        ro.observe(fileContainerEl);
+        return () => ro.disconnect();
+    });
     function rememberPreviewScroll() {
         if (mode !== "editor" && previewPaneEl) {
             savedPreviewScroll = previewPaneEl.scrollTop;
@@ -292,7 +309,7 @@
     }
 </script>
 
-<div class="file-view-container">
+<div class="file-view-container" bind:this={fileContainerEl}>
     {#if isLoading && showLoading}
         <div class="status-container">
             <p>Loading...</p>
@@ -312,7 +329,14 @@
                     <SaveStatus status={saveStatus} {lastSaveTime} />
                 </div>
             </div>
-            <div slot="right" class="header-actions">
+            <!-- Collapse the action buttons to icons only (tooltips still name
+                 them) when the pane is narrow, and always in split view, to
+                 leave room for the title and save status. -->
+            <div
+                slot="right"
+                class="header-actions"
+                class:icons-only={narrowHeader || $isViewSplit}
+            >
                 <!-- Map Navigation Button -->
                 {#if associatedMaps.length > 0}
                     <!-- Wrapper div to serve as reliable anchor -->
@@ -325,9 +349,11 @@
                                 : "View on Maps..."}
                         >
                             <Icon type="map" />
-                            {associatedMaps.length === 1
-                                ? "View on Map"
-                                : `Maps (${associatedMaps.length})`}
+                            <span class="btn-label">
+                                {associatedMaps.length === 1
+                                    ? "View on Map"
+                                    : `Maps (${associatedMaps.length})`}
+                            </span>
                         </Button>
 
                         {#if isMapMenuOpen}
@@ -367,7 +393,9 @@
                         onclick={() => ($isTocVisible = !$isTocVisible)}
                         title="Toggle Table of Contents"
                     >
-                        <Icon type="contents" /> Contents
+                        <Icon type="contents" /><span class="btn-label">
+                            Contents</span
+                        >
                     </Button>
                 {/if}
 
@@ -389,7 +417,7 @@
                         onclick={() => (mode = "split")}
                         title="Edit"
                     >
-                        <Icon type="edit" /> Edit
+                        <Icon type="edit" /><span class="btn-label"> Edit</span>
                     </Button>
                 {/if}
                 {#if mode === "split"}
@@ -398,14 +426,18 @@
                         onclick={() => (mode = "editor")}
                         title="Editor Only"
                     >
-                        <Icon type="file" /> Editor Only
+                        <Icon type="file" /><span class="btn-label">
+                            Editor Only</span
+                        >
                     </Button>
                     <Button
                         size="small"
                         onclick={() => (mode = "preview")}
                         title="Preview Only"
                     >
-                        <Icon type="preview" /> Preview Only
+                        <Icon type="preview" /><span class="btn-label">
+                            Preview Only</span
+                        >
                     </Button>
                 {/if}
                 {#if mode === "editor"}
@@ -414,14 +446,18 @@
                         onclick={() => (mode = "split")}
                         title="Split View"
                     >
-                        <Icon type="split" /> Split View
+                        <Icon type="split" /><span class="btn-label">
+                            Split View</span
+                        >
                     </Button>
                     <Button
                         size="small"
                         onclick={() => (mode = "preview")}
                         title="Preview Only"
                     >
-                        <Icon type="preview" /> Preview Only
+                        <Icon type="preview" /><span class="btn-label">
+                            Preview Only</span
+                        >
                     </Button>
                 {/if}
             </div>
@@ -521,6 +557,11 @@
         align-items: center;
         gap: 0.5rem;
         flex-shrink: 0;
+    }
+    /* Narrow pane: collapse the action buttons to icons only. The label spans
+       carry their own leading space, so hiding them removes the gap too. */
+    .header-actions.icons-only .btn-label {
+        display: none;
     }
     .view-title {
         font-family: var(--font-family-heading);
