@@ -139,6 +139,16 @@
         }
     });
 
+    // Re-measure on any container resize — splitting the view 50/50 halves this
+    // pane without toggling `isActive`, and a stale Leaflet size renders blank
+    // or misaligned tiles. `mapElement` is reactive; `map` is read at call time.
+    $effect(() => {
+        if (!mapElement) return;
+        const ro = new ResizeObserver(() => map?.invalidateSize());
+        ro.observe(mapElement);
+        return () => ro.disconnect();
+    });
+
     // Layer Groups to manage different types of content
     let imageOverlays = new Map<string, L.ImageOverlay | L.GridLayer>();
 
