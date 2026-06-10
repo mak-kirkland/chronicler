@@ -2,6 +2,24 @@
 
 ---
 
+## [v0.54.0-alpha] - 2026-06-10
+
+### ✨ Added
+
+- **Settings**: Added an "Add Font…" button to the Fonts section in Settings. You can now install custom fonts through a file picker instead of having to manually locate and drop files into the application's config directory. The font dropdown refreshes immediately after installing.
+- **Explorer**: The "Show Images" and "Show External Files" toggles are now saved per-vault. Previously these reset every time you reopened the vault.
+- **Logging**: Frontend errors and warnings are now written to the same log file as the rest of the application, making bug reports more complete and easier to diagnose.
+
+### 🐞 Fixed
+
+- **Navigation**: Fixed the back and forward mouse buttons (buttons 4 and 5) not working for navigation on Linux.
+
+### 🔄 Changed
+
+- **Explorer**: Toggleable settings in the explorer context menu now show a checkmark next to active options rather than flipping between "Show X" and "Hide X" labels, making it easier to see the current state at a glance.
+
+---
+
 ## [v0.53.0-alpha] - 2026-06-04
 
 ### ✨ Added
