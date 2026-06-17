@@ -2,6 +2,17 @@
 
 ---
 
+## [v0.54.1-alpha] - 2026-06-17
+
+### 🐞 Fixed
+
+- **Vault**: Fixed a bug where running two Chronicler instances simultaneously could cause the first instance to silently switch to the second instance's vault, potentially sending file operations to the wrong directory.
+- **Editor**: Fixed intermittent "Save failed" errors for users whose vaults are stored in a cloud-synced folder (Dropbox, OneDrive, etc.). These failures were caused by sync and antivirus agents briefly locking files during upload or scanning. The application will now automatically retry the save a few times before giving up.
+- **Editor**: The `<u>` HTML tag is now supported for underlining text in pages.
+- **Atmosphere**: Replaced the background texture in the Fantasy Atmosphere Pack with a seamless version.
+
+---
+
 ## [v0.54.0-alpha] - 2026-06-10
 
 ### ✨ Added
