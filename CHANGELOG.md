@@ -2,6 +2,20 @@
 
 ---
 
+## [v0.55.0-alpha] - 2026-06-24
+
+### ✨ Added
+
+- **Themes**: Redesigned the theme editor with a wider layout, live color swatches, and palette colors organized into clear sections. Each custom theme in the sidebar also now shows a small preview of its palette. Themes can also now be duplicated, allowing "editing" of built-in themes.
+- **Themes**: Custom themes can now be imported and exported as individual files, making it easier to back them up or share them with others.
+
+### 🐞 Fixed
+
+- **Tags**: Fixed an issue where opening a page from the tag index would show its frontmatter title in the page header instead of the actual page name.
+- **Import**: Fixed an error when importing MediaWiki XML files on a fresh install. Pandoc is now automatically downloaded for this import path, matching the existing behavior for Word document imports.
+
+---
+
 ## [v0.54.1-alpha] - 2026-06-17
 
 ### 🐞 Fixed
