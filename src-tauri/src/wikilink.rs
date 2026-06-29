@@ -9,8 +9,12 @@ use std::sync::LazyLock;
 /// Shared wikilink regex pattern.
 /// Captures: 1: target, 2: section (optional), 3: alias (optional)
 /// Format: [[target#section|alias]]
+///
+/// The target is allowed to be empty so that target-less section links like
+/// `[[#Heading]]` (a link to a heading within the *current* page) are matched.
+/// Consumers must treat an empty target as a same-page reference.
 pub static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[\[([^\[\]\|#]+)(?:#([^\[\]\|#]+))?(?:\|([^\[\]]+))?\]\]").unwrap()
+    Regex::new(r"\[\[([^\[\]\|#]*)(?:#([^\[\]\|#]+))?(?:\|([^\[\]]+))?\]\]").unwrap()
 });
 
 /// A helper to convert a byte offset to a 1-based line and column number.
@@ -40,11 +44,7 @@ fn offset_to_line_col(content: &str, byte_offset: usize) -> LinkPosition {
 pub fn extract_wikilinks(content: &str) -> Vec<Link> {
     WIKILINK_RE
         .captures_iter(content)
-        .map(|cap| {
-            // The match for the whole pattern `[[...]]` is at index 0.
-            let full_match = cap.get(0).unwrap();
-            let offset = full_match.start();
-            let position = Some(offset_to_line_col(content, offset));
+        .filter_map(|cap| {
             let target = cap
                 .get(1)
                 .unwrap()
@@ -52,14 +52,26 @@ pub fn extract_wikilinks(content: &str) -> Vec<Link> {
                 .replace("\\", "")
                 .trim()
                 .to_string();
+
+            // Target-less links (e.g. `[[#Heading]]`) point at a section within the
+            // current page, so they reference no other page and must not be indexed
+            // as cross-page links (which would create spurious backlinks).
+            if target.is_empty() {
+                return None;
+            }
+
+            // The match for the whole pattern `[[...]]` is at index 0.
+            let full_match = cap.get(0).unwrap();
+            let offset = full_match.start();
+            let position = Some(offset_to_line_col(content, offset));
             let section = cap.get(2).map(|m| m.as_str().trim().to_string());
             let alias = cap.get(3).map(|m| m.as_str().trim().to_string());
-            Link {
+            Some(Link {
                 target,
                 section,
                 alias,
                 position,
-            }
+            })
         })
         .collect()
 }
@@ -67,6 +79,18 @@ pub fn extract_wikilinks(content: &str) -> Vec<Link> {
 #[cfg(test)]
 mod tests {
     use super::*; // Import everything from the parent module
+
+    #[test]
+    fn test_same_page_section_link_is_not_indexed() {
+        // A target-less section link like [[#Header]] references a heading in the
+        // *current* page, not another page, so it must not be extracted as a
+        // cross-page link (which would create a spurious backlink).
+        let content = "See [[#Overview]] and a real link to [[Other Page]].";
+        let links = extract_wikilinks(content);
+
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].target, "Other Page");
+    }
 
     #[test]
     fn test_extract_wikilinks_all_variants() {

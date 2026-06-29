@@ -139,15 +139,17 @@ export function handleContentClick(event: Event) {
 
         // A) Handle internal wikilinks
         if (link.classList.contains("internal-link")) {
-            // Check if it's a link to a section on the *same page*.
-            if (
-                path &&
-                view.type === "file" &&
-                view.data?.path === path &&
-                href &&
-                href.startsWith("#")
-            ) {
-                // It is a same-page anchor link. Let the browser handle it.
+            // Same-page anchor links should scroll natively. This covers both
+            // `[[This Page#Heading]]` (resolved to the current path) and target-less
+            // `[[#Heading]]` links, which carry an href but no data-path. Broken
+            // links are excluded so they still trigger the create-page flow below.
+            const isSamePageAnchor =
+                !!href &&
+                href.startsWith("#") &&
+                !link.classList.contains("broken") &&
+                (!path || (view.type === "file" && view.data?.path === path));
+            if (isSamePageAnchor) {
+                // Let the browser handle it.
                 return;
             }
 

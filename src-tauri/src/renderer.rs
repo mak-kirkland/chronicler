@@ -695,7 +695,24 @@ impl Renderer {
             .replace_all(&with_inserts, |caps: &Captures| {
                 let target = caps.get(1).map_or("", |m| m.as_str()).trim();
                 let section = caps.get(2).map(|m| m.as_str().trim());
-                let alias = caps.get(3).map(|m| m.as_str().trim()).unwrap_or(target);
+                let alias = caps.get(3).map(|m| m.as_str().trim());
+
+                // A target-less link points at a section within the *current* page.
+                // Render it as a same-page anchor with no data-path; the frontend then
+                // lets the browser scroll to the matching header id.
+                if target.is_empty() {
+                    return match section {
+                        Some(sec) => format!(
+                            "<a href=\"#{}\" class=\"internal-link\">{}</a>",
+                            slug::slugify(sec),
+                            alias.unwrap_or(sec)
+                        ),
+                        // `[[]]` / `[[|alias]]` reference nothing — leave them literal.
+                        None => caps.get(0).unwrap().as_str().to_string(),
+                    };
+                }
+
+                let alias = alias.unwrap_or(target);
                 let normalized_target = target.to_lowercase();
 
                 let href = if let Some(sec) = section {
@@ -1134,6 +1151,76 @@ mod tests {
         );
 
         assert_eq!(rendered, expected);
+    }
+
+    #[test]
+    fn test_same_page_section_link_anchor_matches_header_id() {
+        // End-to-end through render_page_preview (incl. sanitization): a `[[#Heading]]`
+        // link must survive sanitization and its href slug must match the id generated
+        // for the corresponding header, so the browser anchor scroll actually lands.
+        let (renderer, _) = setup_renderer();
+        let content = "Jump to [[#My Section]].\n\n## My Section\nContent.";
+        let result = renderer.render_page_preview(content).unwrap();
+
+        // The link renders as a same-page anchor (before the first header).
+        assert!(
+            result
+                .html_before_toc
+                .contains("<a href=\"#my-section\" class=\"internal-link\">My Section</a>"),
+            "missing same-page anchor link, got: {}",
+            result.html_before_toc
+        );
+        // The header it points at carries the matching id.
+        assert!(
+            result.html_after_toc.contains("id=\"my-section\""),
+            "header id does not match anchor, got: {}",
+            result.html_after_toc
+        );
+    }
+
+    #[test]
+    fn test_render_same_page_section_link() {
+        // [[#Section]] (no page name) links to a heading within the current page.
+        // It should render as a same-page anchor link (no data-path), using the
+        // section text as the label, with an href slug matching the header id.
+        let (renderer, _) = setup_renderer();
+        let content = "Jump to [[#My Section]].";
+        let rendered = renderer
+            .render_custom_syntax_in_string(content, &mut Vec::new())
+            .unwrap();
+
+        assert_eq!(
+            rendered,
+            "Jump to <a href=\"#my-section\" class=\"internal-link\">My Section</a>."
+        );
+    }
+
+    #[test]
+    fn test_render_same_page_section_link_with_alias() {
+        // A same-page section link may still carry an alias for display text.
+        let (renderer, _) = setup_renderer();
+        let content = "Jump to [[#My Section|see here]].";
+        let rendered = renderer
+            .render_custom_syntax_in_string(content, &mut Vec::new())
+            .unwrap();
+
+        assert_eq!(
+            rendered,
+            "Jump to <a href=\"#my-section\" class=\"internal-link\">see here</a>."
+        );
+    }
+
+    #[test]
+    fn test_render_empty_wikilink_is_left_literal() {
+        // An empty `[[]]` (or alias-only `[[|x]]`) targets nothing and has no
+        // section, so it must be left as literal text rather than rendered.
+        let (renderer, _) = setup_renderer();
+        let content = "An empty [[]] link.";
+        let rendered = renderer
+            .render_custom_syntax_in_string(content, &mut Vec::new())
+            .unwrap();
+
+        assert_eq!(rendered, "An empty [[]] link.");
     }
 
     #[test]
