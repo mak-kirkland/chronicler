@@ -2,6 +2,21 @@
 
 ---
 
+## [v0.55.1-alpha] - 2026-06-29
+
+### 🚀 Performance
+
+- **Maps**: Major performance overhaul for maps with large numbers of pins and regions. Pins and shapes are now rendered using a shared canvas instead of individual elements, and only items currently in view are drawn, dramatically improving pan and zoom smoothness on dense maps.
+- **Maps**: Pins on crowded maps now automatically cluster together into bubbles as you zoom out, making dense maps easier to read at a glance.
+- **Maps**: Map tiles are now larger (512px), cutting the number of requests needed to display a map by up to 4x.
+- **Maps**: Opening and panning around large map files is now noticeably faster, thanks to reduced redundant data processing both in the backend and the interface.
+
+### 🐞 Fixed
+
+- **Maps**: Map layers now correctly preserve transparency when tiled, instead of showing solid edges.
+
+---
+
 ## [v0.55.0-alpha] - 2026-06-24
 
 ### ✨ Added
