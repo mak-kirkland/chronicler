@@ -23,6 +23,7 @@ use crate::{
         VaultAsset,
     },
     renderer::Renderer,
+    snippets::SnippetWatcher,
     utils::{is_image_file, is_map_file, is_markdown_file},
     watcher::Watcher,
     writer::Writer,
@@ -157,6 +158,10 @@ pub struct World {
     pub renderer: Arc<RwLock<Option<Renderer>>>,
     /// A component for handling all file system write operations.
     writer: Arc<RwLock<Option<Writer>>>,
+    /// Dedicated watcher for the vault's CSS snippets dir. Emits
+    /// `snippets-changed` so the frontend can live-reload enabled snippets.
+    /// Wrapped in a Mutex so it can be swapped when the vault changes.
+    snippet_watcher: Arc<Mutex<Option<SnippetWatcher>>>,
 }
 
 impl World {
@@ -175,6 +180,7 @@ impl World {
             // The watcher starts as None and is created when a vault is initialized.
             watcher: Arc::new(Mutex::new(None)),
             writer: Arc::new(RwLock::new(None)),
+            snippet_watcher: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -244,6 +250,12 @@ impl World {
         let mut new_watcher = Watcher::new();
         new_watcher.start(root_path)?;
 
+        // --- 3b. Start the dedicated snippets watcher (live reload) ---
+        // The main watcher ignores hidden subdirs and `.css`, so snippet edits
+        // need their own watcher. Clone the handle since `app_handle` is later
+        // moved into the file-event task.
+        let new_snippet_watcher = SnippetWatcher::start(root_path, app_handle.clone());
+
         // --- 4. Subscribe to File Events ---
         let event_receiver = new_watcher.subscribe();
 
@@ -257,6 +269,8 @@ impl World {
         {
             // The watcher is replaced. The old watcher is dropped, automatically stopping its thread.
             *self.watcher.lock() = Some(new_watcher);
+            // Likewise swap in the new snippets watcher; the old one stops on drop.
+            *self.snippet_watcher.lock() = Some(new_snippet_watcher);
             *self.root_path.write() = Some(root_path.to_path_buf());
             // The fully scanned indexer replaces the old one.
             *self.indexer.write() = new_indexer_instance;
@@ -572,8 +586,8 @@ impl World {
             .map(|p| fs::read_to_string(Path::new(&p)))
             .transpose()?;
 
-        let page_header = self
-            .with_writer(|w| w.create_new_file(&parent_dir, &file_name, template_content))?;
+        let page_header =
+            self.with_writer(|w| w.create_new_file(&parent_dir, &file_name, template_content))?;
 
         // A brand-new page has no backlinks pointing at it yet and its own
         // outgoing links (from the template, if any) become visible as soon

@@ -18,6 +18,7 @@ import type {
     ParseError,
     UserFont,
     ImportedImage,
+    Snippet,
 } from "./bindings";
 import type { MapConfig, TileSetInfo } from "./mapModels";
 
@@ -48,7 +49,12 @@ export const importImageFile = (
     sourcePath: string,
     dir: string,
     nameOverride: string | null = null,
-) => invoke<ImportedImage>("import_image_file", { sourcePath, dir, nameOverride });
+) =>
+    invoke<ImportedImage>("import_image_file", {
+        sourcePath,
+        dir,
+        nameOverride,
+    });
 
 export const importImageFromClipboard = (
     pageName: string,
@@ -62,8 +68,7 @@ export const importImageFromClipboard = (
     });
 
 /** Whether the OS clipboard currently holds a bitmap (vs text / files). */
-export const clipboardHasImage = () =>
-    invoke<boolean>("clipboard_has_image");
+export const clipboardHasImage = () => invoke<boolean>("clipboard_has_image");
 
 /**
  * Retrieves the list of recently opened vaults from the configuration.
@@ -439,3 +444,30 @@ export const deleteThemeFromDisk = (name: string) =>
  */
 export const importThemeFromPath = <T = unknown>(path: string) =>
     invoke<T>("import_theme_from_path", { path });
+
+// --- CSS Snippet Commands ---
+
+/**
+ * Lists the active vault's `.css` snippet files with their enabled state.
+ */
+export const listSnippets = () => invoke<Snippet[]>("list_snippets");
+
+/**
+ * Reads a single snippet's raw CSS text. Path-traversal guarded in the
+ * backend. Callers must apply it via a `<style>` element's `textContent`
+ * (never innerHTML) to preserve the XSS-safe injection contract.
+ */
+export const readSnippet = (filename: string) =>
+    invoke<string>("read_snippet", { filename });
+
+/**
+ * Enables or disables a snippet for the active vault. Persisted app-side
+ * (keyed by vault path), so the choice never travels inside the vault.
+ */
+export const setSnippetEnabled = (filename: string, enabled: boolean) =>
+    invoke<void>("set_snippet_enabled", { filename, enabled });
+
+/**
+ * Opens the vault's snippets folder in the OS file manager, creating it first.
+ */
+export const openSnippetsDir = () => invoke<void>("open_snippets_dir");

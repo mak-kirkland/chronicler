@@ -9,6 +9,16 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+/// A user-defined CSS snippet file discovered in the vault's snippets dir,
+/// paired with whether it is currently enabled for this vault.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snippet {
+    /// The bare `.css` file name (e.g. `stat-blocks.css`).
+    pub filename: String,
+    /// Whether this snippet is currently applied to rendered notes.
+    pub enabled: bool,
+}
+
 /// Partial representation of a Map Pin for indexing purposes.
 /// We only need the target page to build relationships.
 #[derive(Debug, Clone, Serialize, Deserialize)]
