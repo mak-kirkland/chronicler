@@ -8,6 +8,7 @@ use crate::error::Result;
 use crate::writer::atomic_write;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -61,6 +62,12 @@ pub struct AppConfig {
     /// already counted.
     #[serde(default)]
     pub analytics_ping_sent: bool,
+    /// Enabled CSS snippet file names, keyed by vault path. Stored here — in the
+    /// app config, **not** inside the vault — so a shared or downloaded vault can
+    /// never arrive with its snippets pre-enabled. Enabling a snippet is always
+    /// an explicit local action, which is the crux of the opt-in trust model.
+    #[serde(default)]
+    pub enabled_snippets: HashMap<String, Vec<String>>,
 }
 
 /// Retrieves the path to the configuration file.
@@ -190,5 +197,45 @@ pub fn set_telemetry_enabled(enabled: bool, app_handle: &AppHandle) -> Result<()
 pub fn mark_analytics_ping_sent(app_handle: &AppHandle) -> Result<()> {
     let mut config = load(app_handle)?;
     config.analytics_ping_sent = true;
+    save(app_handle, &config)
+}
+
+/// Returns the enabled CSS snippet file names for a given vault path.
+pub fn get_enabled_snippets(app_handle: &AppHandle, vault_path: &str) -> Result<Vec<String>> {
+    let config = load(app_handle)?;
+    Ok(config
+        .enabled_snippets
+        .get(vault_path)
+        .cloned()
+        .unwrap_or_default())
+}
+
+/// Enables or disables a snippet for a vault, persisting the change. Enabling
+/// adds the file name to the vault's list (deduplicated); disabling removes it.
+/// A vault whose list becomes empty is pruned from the map to keep config tidy.
+pub fn set_snippet_enabled(
+    app_handle: &AppHandle,
+    vault_path: &str,
+    filename: &str,
+    enabled: bool,
+) -> Result<()> {
+    let mut config = load(app_handle)?;
+    let list = config
+        .enabled_snippets
+        .entry(vault_path.to_string())
+        .or_default();
+
+    if enabled {
+        if !list.iter().any(|f| f == filename) {
+            list.push(filename.to_string());
+        }
+    } else {
+        list.retain(|f| f != filename);
+    }
+
+    if list.is_empty() {
+        config.enabled_snippets.remove(vault_path);
+    }
+
     save(app_handle, &config)
 }

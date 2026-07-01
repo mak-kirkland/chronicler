@@ -34,6 +34,7 @@
     import AtmosphereModal from "$lib/components/modals/AtmosphereModal.svelte";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import ImporterModal from "$lib/components/modals/ImporterModal.svelte";
+    import CssSnippetsModal from "$lib/components/modals/CssSnippetsModal.svelte";
     import {
         openLogDirectory,
         getTelemetryEnabled,
@@ -179,6 +180,15 @@
     function openAtmosphereManager() {
         openModal({
             component: AtmosphereModal,
+            props: {
+                onClose: closeModal,
+            },
+        });
+    }
+
+    function openSnippetsManager() {
+        openModal({
+            component: CssSnippetsModal,
             props: {
                 onClose: closeModal,
             },
@@ -400,6 +410,15 @@
             <h4>Templates</h4>
             <p>Manage your custom page templates.</p>
             <Button onclick={openTemplateManager}>Manage Templates</Button>
+        </div>
+
+        <div class="setting-item">
+            <h4>CSS Snippets</h4>
+            <p>
+                Reuse your own CSS classes across notes instead of repeating
+                inline styles.
+            </p>
+            <Button onclick={openSnippetsManager}>Manage Snippets</Button>
         </div>
 
         <div class="setting-item">

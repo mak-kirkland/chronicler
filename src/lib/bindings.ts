@@ -176,6 +176,17 @@ export interface UserFont {
 }
 
 /**
+ * A user-defined CSS snippet file and its enabled state.
+ * Mirrors `Snippet` in `src-tauri/src/models.rs`.
+ */
+export interface Snippet {
+    /** The bare `.css` file name, e.g. "stat-blocks.css". */
+    filename: string;
+    /** Whether this snippet is currently applied to rendered notes. */
+    enabled: boolean;
+}
+
+/**
  * Payload received from the backend 'index-updated' event.
  * Mirrors `IndexUpdatePayload` in `src-tauri/src/world.rs`.
  *

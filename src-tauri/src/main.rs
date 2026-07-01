@@ -31,6 +31,7 @@ mod models;
 mod parser;
 mod renderer;
 mod sanitizer;
+mod snippets;
 mod telemetry;
 mod themes;
 mod thumbnailer;
@@ -191,6 +192,10 @@ fn main() {
             commands::save_theme_to_disk,
             commands::delete_theme_from_disk,
             commands::import_theme_from_path,
+            commands::list_snippets,
+            commands::read_snippet,
+            commands::set_snippet_enabled,
+            commands::open_snippets_dir,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);

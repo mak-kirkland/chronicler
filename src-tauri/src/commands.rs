@@ -5,13 +5,15 @@
 
 use crate::licensing;
 use crate::licensing::License;
-use crate::models::{BrokenImage, BrokenLink, FullPageData, ImportedImage, PageHeader, ParseError};
+use crate::models::{
+    BrokenImage, BrokenLink, FullPageData, ImportedImage, PageHeader, ParseError, Snippet,
+};
 use crate::{
     config,
     error::{ChroniclerError, Result},
     fonts, importer,
     models::{FileNode, RenderedPage},
-    themes,
+    snippets, themes,
     world::World,
 };
 use chrono::{Local, NaiveDate};
@@ -428,14 +430,10 @@ pub fn get_license_status(
     // refresh can't overwrite the cert before the frontend reads it.
     if let Some(v) = &verified {
         if v.freshness == licensing::Freshness::NeedsRefresh
-            && !guard
-                .0
-                .swap(true, std::sync::atomic::Ordering::SeqCst)
+            && !guard.0.swap(true, std::sync::atomic::Ordering::SeqCst)
         {
             let handle = app_handle.clone();
-            tauri::async_runtime::spawn(
-                licensing::refresh_license_in_background(handle),
-            );
+            tauri::async_runtime::spawn(licensing::refresh_license_in_background(handle));
         }
     }
 
@@ -613,4 +611,67 @@ pub fn delete_theme_from_disk(name: String, app_handle: AppHandle) -> Result<()>
 #[instrument(err(Debug))]
 pub fn import_theme_from_path(path: String) -> Result<serde_json::Value> {
     themes::import_theme_from_path(std::path::Path::new(&path))
+}
+
+// --- CSS Snippets ---
+
+/// Lists the active vault's `.css` snippet files, each paired with whether it
+/// is currently enabled. The enabled state is read from the app config (keyed
+/// by vault path), so it reflects this user's local opt-in choices only.
+#[command]
+#[instrument(skip(world, app_handle), err(Debug))]
+pub fn list_snippets(world: State<World>, app_handle: AppHandle) -> Result<Vec<Snippet>> {
+    let root = vault_root(&world)?;
+    let vault_key = root.to_string_lossy().into_owned();
+
+    let files = snippets::list_snippet_files(&root)?;
+    let enabled = config::get_enabled_snippets(&app_handle, &vault_key)?;
+
+    Ok(files
+        .into_iter()
+        .map(|filename| {
+            let enabled = enabled.iter().any(|f| f == &filename);
+            Snippet { filename, enabled }
+        })
+        .collect())
+}
+
+/// Reads a single snippet's raw CSS text (path-traversal guarded). The frontend
+/// applies it via a `<style>` element's `textContent`, never as HTML.
+#[command]
+#[instrument(skip(world), err(Debug))]
+pub fn read_snippet(world: State<World>, filename: String) -> Result<String> {
+    let root = vault_root(&world)?;
+    snippets::read_snippet_css(&root, &filename)
+}
+
+/// Enables or disables a snippet for the active vault. The choice is persisted
+/// app-side (keyed by vault path), never inside the vault, keeping snippets
+/// opt-in even when a vault is shared or synced.
+#[command]
+#[instrument(skip(world, app_handle), err(Debug))]
+pub fn set_snippet_enabled(
+    world: State<World>,
+    app_handle: AppHandle,
+    filename: String,
+    enabled: bool,
+) -> Result<()> {
+    let root = vault_root(&world)?;
+    // Reject a traversal name before it ever reaches the persisted config.
+    snippets::validate_snippet_filename(&filename)?;
+    let vault_key = root.to_string_lossy().into_owned();
+    config::set_snippet_enabled(&app_handle, &vault_key, &filename, enabled)
+}
+
+/// Opens the active vault's snippets folder in the OS file manager, creating it
+/// first so the user always lands somewhere valid.
+#[command]
+#[instrument(skip(world, app_handle), err(Debug))]
+pub fn open_snippets_dir(world: State<World>, app_handle: AppHandle) -> Result<()> {
+    let root = vault_root(&world)?;
+    let dir = snippets::ensure_snippets_dir(&root)?;
+    app_handle
+        .opener()
+        .open_path(dir.to_string_lossy(), None::<&str>)?;
+    Ok(())
 }
