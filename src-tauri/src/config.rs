@@ -8,8 +8,9 @@ use crate::error::Result;
 use crate::writer::atomic_write;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tracing::{error, warn};
@@ -42,6 +43,12 @@ pub const IMAGES_DIR_NAME: &str = "images";
 /// asset-protocol scope registered in `world::configure_vault_scope`.
 pub const VAULT_CACHE_DIR_NAME: &str = ".chronicler-cache";
 
+/// Hidden directory inside the vault holding user-authored configuration that
+/// travels *with* the vault — CSS snippets, calendar definitions. Distinct from
+/// [`VAULT_CACHE_DIR_NAME`], which holds regenerable derived assets. Starts with
+/// `.` so the vault indexer and watcher skip it during file scanning.
+pub const VAULT_CONFIG_DIR_NAME: &str = ".chronicler";
+
 /// Defines the structure of the application's configuration file.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct AppConfig {
@@ -61,6 +68,16 @@ pub struct AppConfig {
     /// already counted.
     #[serde(default)]
     pub analytics_ping_sent: bool,
+    /// Enabled CSS snippet file names, keyed by vault path. Stored here — in the
+    /// app config, **not** inside the vault — so a shared or downloaded vault can
+    /// never arrive with its snippets pre-enabled. Enabling a snippet is always
+    /// an explicit local action, which is the crux of the opt-in trust model.
+    ///
+    /// A `BTreeSet` gives dedup for free and a stable on-disk order; it
+    /// serializes as the same JSON array a `Vec` would, so existing configs
+    /// load unchanged.
+    #[serde(default)]
+    pub enabled_snippets: HashMap<String, BTreeSet<String>>,
 }
 
 /// Retrieves the path to the configuration file.
@@ -191,4 +208,89 @@ pub fn mark_analytics_ping_sent(app_handle: &AppHandle) -> Result<()> {
     let mut config = load(app_handle)?;
     config.analytics_ping_sent = true;
     save(app_handle, &config)
+}
+
+/// Builds the config key for a vault. The enabled-snippets map is keyed by the
+/// vault's path, so the conversion lives here rather than at each call site.
+fn vault_key(vault_path: &Path) -> String {
+    vault_path.to_string_lossy().into_owned()
+}
+
+/// Returns the enabled CSS snippet file names for a given vault.
+pub fn get_enabled_snippets(app_handle: &AppHandle, vault_path: &Path) -> Result<BTreeSet<String>> {
+    let config = load(app_handle)?;
+    Ok(config
+        .enabled_snippets
+        .get(&vault_key(vault_path))
+        .cloned()
+        .unwrap_or_default())
+}
+
+/// Enables or disables a snippet for a vault, persisting the change. A vault
+/// whose set becomes empty is pruned from the map to keep the config tidy.
+pub fn set_snippet_enabled(
+    app_handle: &AppHandle,
+    vault_path: &Path,
+    filename: &str,
+    enabled: bool,
+) -> Result<()> {
+    let key = vault_key(vault_path);
+    let mut config = load(app_handle)?;
+    let names = config.enabled_snippets.entry(key.clone()).or_default();
+
+    if enabled {
+        names.insert(filename.to_string());
+    } else {
+        names.remove(filename);
+    }
+
+    if names.is_empty() {
+        config.enabled_snippets.remove(&key);
+    }
+
+    save(app_handle, &config)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `enabled_snippets` is persisted user state. It was once a `Vec<String>`
+    /// and is now a `BTreeSet<String>`; both serialize as a JSON array, so
+    /// configs written by older builds must still load.
+    #[test]
+    fn enabled_snippets_loads_legacy_vec_shape() {
+        // Exactly what an older build wrote: a JSON array, unsorted, with a
+        // duplicate that the Vec representation permitted.
+        let legacy = r#"{
+            "vault_path": "/home/me/vault",
+            "enabled_snippets": {
+                "/home/me/vault": ["z.css", "a.css", "a.css"]
+            }
+        }"#;
+
+        let config: AppConfig = serde_json::from_str(legacy).unwrap();
+        let names = config.enabled_snippets.get("/home/me/vault").unwrap();
+
+        // The duplicate collapses and the order normalizes.
+        assert_eq!(
+            names.iter().cloned().collect::<Vec<_>>(),
+            vec!["a.css".to_string(), "z.css".to_string()]
+        );
+
+        // Round-trips back out as a plain JSON array, so an older build could
+        // still read what we write.
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(
+            json["enabled_snippets"]["/home/me/vault"],
+            serde_json::json!(["a.css", "z.css"])
+        );
+    }
+
+    /// A config from before the feature existed has no key at all.
+    #[test]
+    fn enabled_snippets_defaults_when_absent() {
+        let config: AppConfig = serde_json::from_str(r#"{"vault_path": null}"#).unwrap();
+        assert!(config.enabled_snippets.is_empty());
+    }
 }

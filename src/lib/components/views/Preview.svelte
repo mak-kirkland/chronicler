@@ -81,7 +81,7 @@
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex, a11y_mouse_events_have_key_events -->
 <div
-    class="preview-container chronicler-content mode-{mode}"
+    class="preview-container chronicler-content chronicler-note mode-{mode}"
     role="document"
     tabindex="0"
     onmouseover={handleMouseOver}
