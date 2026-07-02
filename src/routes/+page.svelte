@@ -4,6 +4,7 @@
     import { currentViewOf, isSplit } from "$lib/tabs";
     import type { Tab, TabsState } from "$lib/tabs";
     import Icon from "$lib/components/ui/Icon.svelte";
+    import { t } from "$lib/i18n";
     import TabBar from "$lib/components/views/TabBar.svelte";
 
     // Import all possible main view components
@@ -122,16 +123,16 @@
             <div class="pane-divider"></div>
             <button
                 class="pane-close left"
-                title="Close left pane"
-                aria-label="Close left pane"
+                title={$t("panes.closeLeft")}
+                aria-label={$t("panes.closeLeft")}
                 onclick={() => tabs.closePane(0)}
             >
                 <Icon type="close" />
             </button>
             <button
                 class="pane-close right"
-                title="Close right pane"
-                aria-label="Close right pane"
+                title={$t("panes.closeRight")}
+                aria-label={$t("panes.closeRight")}
                 onclick={() => tabs.closePane(1)}
             >
                 <Icon type="close" />

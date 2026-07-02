@@ -1,6 +1,7 @@
 <script lang="ts">
     import { brokenLinks, parseErrors, brokenImages } from "$lib/worldStore";
     import { navigateToReport } from "$lib/actions";
+    import { t } from "$lib/i18n";
 </script>
 
 <div class="report-list">
@@ -14,7 +15,7 @@
             role="button"
             tabindex="0"
         >
-            <span class="report-name">Broken Links</span>
+            <span class="report-name">{$t("reports.brokenLinks")}</span>
             <span class="report-count">({$brokenLinks.length})</span>
         </div>
     {/if}
@@ -29,7 +30,7 @@
             role="button"
             tabindex="0"
         >
-            <span class="report-name">Broken Images</span>
+            <span class="report-name">{$t("reports.brokenImages")}</span>
             <span class="report-count">({$brokenImages.length})</span>
         </div>
     {/if}
@@ -44,13 +45,13 @@
             role="button"
             tabindex="0"
         >
-            <span class="report-name">Parse Errors</span>
+            <span class="report-name">{$t("reports.parseErrors")}</span>
             <span class="report-count">({$parseErrors.length})</span>
         </div>
     {/if}
 
     {#if $brokenLinks.length === 0 && $parseErrors.length === 0 && $brokenImages.length === 0}
-        <p class="text-muted text-center">No issues found.</p>
+        <p class="text-muted text-center">{$t("reports.noIssues")}</p>
     {/if}
 </div>
 

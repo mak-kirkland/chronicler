@@ -18,6 +18,7 @@
     import Modal from "$lib/components/modals/Modal.svelte";
     import { log } from "$lib/logger";
     import type { MapConfig } from "$lib/mapModels";
+    import { t } from "$lib/i18n";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -113,52 +114,55 @@
             navigateToMap({ title: name.trim(), path: normalizedPath });
         } catch (e) {
             log.error("Failed to create map", e, "NewMapModal");
-            alert("Failed to create map.");
+            alert($t("map.createFailed"));
         } finally {
             isCreating = false;
         }
     }
 </script>
 
-<Modal title="Create New Map" {onClose}>
+<Modal title={$t("map.newTitle")} {onClose}>
     <form onsubmit={handleSubmit} class="form">
         <div class="form-group">
-            <label for="map-name">Map Name</label>
+            <label for="map-name">{$t("map.nameLabel")}</label>
             <input
                 id="map-name"
                 type="text"
                 bind:value={name}
                 use:autofocus
-                placeholder="e.g. World Map"
+                placeholder={$t("map.namePlaceholder")}
             />
         </div>
 
         <div class="form-group">
-            <label for="map-image">Base Image</label>
+            <label for="map-image">{$t("map.baseImage")}</label>
             <SearchableSelect
                 options={$allImageFiles}
                 bind:value={selectedImage}
-                placeholder="Select a file..."
+                placeholder={$t("map.selectFile")}
             />
 
             {#if selectedImage}
                 {#if mapWidth > 0}
                     <p class="help-text dimension-text">
-                        Detected: {mapWidth} x {mapHeight} px
+                        {$t("map.detectedDimensions", {
+                            width: mapWidth,
+                            height: mapHeight,
+                        })}
                     </p>
                 {:else}
                     <p class="help-text dimension-text">
-                        Detecting dimensions...
+                        {$t("map.detectingDimensions")}
                     </p>
                 {/if}
             {:else}
-                <p class="help-text">Select an image to begin.</p>
+                <p class="help-text">{$t("map.selectImageToBegin")}</p>
             {/if}
         </div>
 
         <div class="modal-actions">
             <Button type="button" variant="ghost" onclick={onClose}
-                >Cancel</Button
+                >{$t("common.cancel")}</Button
             >
             <Button
                 type="submit"
@@ -167,7 +171,7 @@
                     mapWidth === 0 ||
                     isCreating}
             >
-                {isCreating ? "Creating..." : "Create Map"}
+                {isCreating ? $t("map.creating") : $t("map.create")}
             </Button>
         </div>
     </form>

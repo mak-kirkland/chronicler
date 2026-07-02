@@ -7,6 +7,7 @@
      */
     import { formatCombo } from "$lib/keybindingUtils";
     import type { BindingDef } from "$lib/keybindingRegistry";
+    import { t } from "$lib/i18n";
 
     let {
         def,
@@ -31,12 +32,12 @@
 
 <div class="kb-row">
     <div class="kb-label">
-        <span class="kb-name">{def.label}</span>
+        <span class="kb-name">{$t(def.label)}</span>
         {#if def.description}
-            <span class="kb-desc">{def.description}</span>
+            <span class="kb-desc">{$t(def.description)}</span>
         {/if}
         {#if def.note}
-            <span class="kb-note">{def.note}</span>
+            <span class="kb-note">{$t(def.note)}</span>
         {/if}
         {#if warn && !isRecording}
             <span class="kb-warn">⚠ {warn}</span>
@@ -45,8 +46,8 @@
 
     <div class="kb-keys">
         {#if isRecording}
-            <span class="chip recording">Press keys…</span>
-            <span class="kb-hint">Esc cancels</span>
+            <span class="chip recording">{$t("keybindings.pressKeys")}</span>
+            <span class="kb-hint">{$t("keybindings.escCancels")}</span>
             {#if conflict}
                 <span class="kb-conflict">{conflict}</span>
             {/if}
@@ -55,16 +56,16 @@
                 <button
                     class="chip editable empty"
                     onclick={() => onStartRecord(def.id)}
-                    title="Click to set a shortcut"
+                    title={$t("keybindings.clickToSet")}
                 >
-                    Not set
+                    {$t("keybindings.notSet")}
                 </button>
             {:else}
                 {#each keys as combo}
                     <button
                         class="chip editable"
                         onclick={() => onStartRecord(def.id)}
-                        title="Click to rebind"
+                        title={$t("keybindings.clickToRebind")}
                     >
                         {formatCombo(combo)}
                     </button>
@@ -74,8 +75,8 @@
                 <button
                     class="kb-reset"
                     onclick={() => onReset(def.id)}
-                    title="Reset to default"
-                    aria-label="Reset to default">↺</button
+                    title={$t("keybindings.resetToDefault")}
+                    aria-label={$t("keybindings.resetToDefault")}>↺</button
                 >
             {/if}
         {:else}

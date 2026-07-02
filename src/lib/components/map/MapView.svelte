@@ -59,6 +59,7 @@
     import MapLayerControl from "$lib/components/map/MapLayerControl.svelte";
     import { hasMapsEntitlement } from "$lib/licenseStore";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
     import {
         areLinkPreviewsEnabled,
         areMapPreviewsEnabled,
@@ -348,12 +349,12 @@
                 if (config) {
                     mapConfig = config;
                 } else {
-                    error = "Failed to load map configuration.";
+                    error = $t("map.loadConfigFailed");
                 }
             })
             .catch((e) => {
                 log.error("Error loading map config", e, "MapView");
-                error = "Error loading map.";
+                error = $t("map.loadFailed");
             });
     });
 
@@ -457,11 +458,11 @@
                 show: true,
                 customActions: [
                     {
-                        label: `Open Page: ${item.targetPage}`,
+                        label: $t("map.openPage", { name: item.targetPage }),
                         handler: () => navigateToPageByTitle(item.targetPage!),
                     },
                     {
-                        label: `Open Map: ${item.targetMap}`,
+                        label: $t("map.openMap", { name: item.targetMap }),
                         handler: () => navigateToMapByTitle(item.targetMap!),
                     },
                 ],
@@ -1099,13 +1100,17 @@
 
             // Create edit actions for each shape found
             const editActions = shapesAtCursor.map((shape) => ({
-                label: `Edit Region: ${shape.label || "Unnamed"}`,
+                label: $t("map.editRegionNamed", {
+                    name: shape.label || $t("map.unnamed"),
+                }),
                 handler: () => handleEditRegion(shape),
             }));
 
             // Create delete actions for each shape found
             const deleteActions = shapesAtCursor.map((shape) => ({
-                label: `Delete Region: ${shape.label || "Unnamed"}`,
+                label: $t("map.deleteRegionNamed", {
+                    name: shape.label || $t("map.unnamed"),
+                }),
                 handler: () => handleDeleteShape(shape.id),
             }));
 
@@ -1299,13 +1304,19 @@
                     const acts: { label: string; handler: () => void }[] = [];
                     if (s.targetPage) {
                         acts.push({
-                            label: `Go to Page: ${s.targetPage} (${s.label || "Region"})`,
+                            label: $t("map.goToPage", {
+                                name: s.targetPage,
+                                region: s.label || $t("map.region"),
+                            }),
                             handler: () => navigateToPageByTitle(s.targetPage!),
                         });
                     }
                     if (s.targetMap) {
                         acts.push({
-                            label: `Go to Map: ${s.targetMap} (${s.label || "Region"})`,
+                            label: $t("map.goToMap", {
+                                name: s.targetMap,
+                                region: s.label || $t("map.region"),
+                            }),
                             handler: () => navigateToMapByTitle(s.targetMap!),
                         });
                     }
@@ -1782,7 +1793,7 @@
                 <div class="draw-controls">
                     <!-- Instruction text moved to map overlay -->
                     <Button size="small" onclick={cancelDrawing}
-                        >Cancel Drawing</Button
+                        >{$t("map.cancelDrawing")}</Button
                     >
                 </div>
             {:else}
@@ -1791,7 +1802,9 @@
                     size="small"
                     onclick={() => (isConsoleOpen = !isConsoleOpen)}
                 >
-                    {isConsoleOpen ? "Close Console" : "Manage Map"}
+                    {isConsoleOpen
+                        ? $t("map.closeConsole")
+                        : $t("map.manageMap")}
                 </Button>
             {/if}
         </div>
@@ -1799,14 +1812,16 @@
 
     {#if !$hasMapsEntitlement}
         <div class="status-container">
-            <p>Maps are not unlocked. Please upgrade your license.</p>
+            <p>{$t("map.notUnlocked")}</p>
         </div>
     {:else if error}
         <div class="error-container">
-            <ErrorBox title="Map Error">{error}</ErrorBox>
+            <ErrorBox title={$t("map.errorTitle")}>{error}</ErrorBox>
         </div>
     {:else if !mapConfig}
-        <div class="status-container"><p>Loading Map Configuration...</p></div>
+        <div class="status-container">
+            <p>{$t("map.loadingConfig")}</p>
+        </div>
     {:else}
         <div class="map-wrapper" class:drawing={isDrawing}>
             <div bind:this={mapElement} class="leaflet-container"></div>
@@ -1828,8 +1843,8 @@
             {#if isDrawing}
                 <div class="map-drawing-hint tooltip-floating">
                     {drawMode === "polygon"
-                        ? "Click map to add points. Double-click to finish."
-                        : "Draw mode active"}
+                        ? $t("map.polygonHint")
+                        : $t("map.drawModeActive")}
                 </div>
             {/if}
 
@@ -1861,9 +1876,12 @@
                             value={progress.current}
                             max={progress.total}
                             label={progress.phase === "loading"
-                                ? "Decoding image…"
-                                : "Generating tiles…"}
-                            detail="{progress.current}/{progress.total} zoom levels"
+                                ? $t("map.decodingImage")
+                                : $t("map.generatingTiles")}
+                            detail={$t("map.zoomLevels", {
+                                current: progress.current,
+                                total: progress.total,
+                            })}
                         />
                     {/each}
                 </div>
@@ -1883,13 +1901,13 @@
                           ...(contextMenu.pinId
                               ? [
                                     {
-                                        label: "Edit Pin",
+                                        label: $t("map.editPin"),
                                         handler: () =>
                                             contextMenu?.pinId &&
                                             handleEditPin(contextMenu.pinId),
                                     },
                                     {
-                                        label: "Delete Pin",
+                                        label: $t("map.deletePin"),
                                         handler: () =>
                                             contextMenu?.pinId &&
                                             handleDeletePin(contextMenu.pinId),
@@ -1899,12 +1917,12 @@
                               : [
                                     // 2. Creation Actions (always available for editing context)
                                     {
-                                        label: "Add Pin Here...",
+                                        label: $t("map.addPinHere"),
                                         handler: handleAddPin,
                                     },
                                     { isSeparator: true as const },
                                     {
-                                        label: "Draw Polygon Region",
+                                        label: $t("map.drawPolygonRegion"),
                                         handler: () => startDrawing("polygon"),
                                     },
                                 ]),

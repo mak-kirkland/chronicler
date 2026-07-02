@@ -19,6 +19,7 @@ import { dirname } from "@tauri-apps/api/path";
 import { get } from "svelte/store";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { log } from "./logger";
+import { translate } from "./i18n";
 
 /** Classifies a path into the view type used to display it. */
 function kindOf(path: string): "file" | "image" | "map" {
@@ -64,7 +65,7 @@ export function navigateToPageByTitle(pageTitle: string): boolean {
         return true;
     }
     log.warn(`Page not found: ${pageTitle}`, "actions");
-    alert(`Linked page "${pageTitle}" not found.`);
+    alert(translate("actions.linkedPageNotFound", { name: pageTitle }));
     return false;
 }
 
@@ -82,7 +83,7 @@ export function navigateToMapByTitle(mapTitle: string): boolean {
         return true;
     }
     log.warn(`Map not found: ${mapTitle}`, "actions");
-    alert(`Linked map "${mapTitle}" not found.`);
+    alert(translate("actions.linkedMapNotFound", { name: mapTitle }));
     return false;
 }
 
@@ -247,7 +248,7 @@ export async function initializeVault(path: string) {
         log.error(`Failed to initialize vault at ${path}`, e, "actions");
         // Re-throw the error so the calling component can handle it
         throw new Error(
-            `Could not open vault at "${path}". Please ensure it is a valid directory. Error: ${e}`,
+            translate("actions.openVaultFailed", { path, error: String(e) }),
         );
     }
 }
@@ -282,7 +283,7 @@ export async function createFile(
         return newPage;
     } catch (e) {
         log.error("Failed to create file", e, "actions");
-        alert(`Error: ${e}`);
+        alert(translate("actions.error", { error: String(e) }));
         throw e;
     }
 }
@@ -304,7 +305,7 @@ export async function renamePath(path: string, newName: string) {
         tabs.applyRename(path, newPath, fileStemString(newPath), kindOf);
     } catch (e) {
         log.error(`Rename failed for path: ${path}`, e, "actions");
-        alert(`Error: ${e}`);
+        alert(translate("actions.error", { error: String(e) }));
         throw e;
     }
 }
@@ -322,7 +323,7 @@ export async function deletePath(path: string) {
         tabs.applyDelete(path);
     } catch (e) {
         log.error(`Delete failed for path: ${path}`, e, "actions");
-        alert(`Error: ${e}`);
+        alert(translate("actions.error", { error: String(e) }));
         throw e;
     }
 }
@@ -338,7 +339,7 @@ export async function createFolder(parentDir: string, name: string) {
         await world.initialize(); // Refresh data
     } catch (e) {
         log.error(`Failed to create folder in: ${parentDir}`, e, "actions");
-        alert(`Error: ${e}`);
+        alert(translate("actions.error", { error: String(e) }));
         throw e;
     }
 }
@@ -370,9 +371,9 @@ export function promptAndCreateItem(
         openModal({
             component: TextInputModal,
             props: {
-                title: "New Folder",
-                label: "Enter the name for the new folder:",
-                buttonText: "Create",
+                title: translate("actions.newFolderTitle"),
+                label: translate("actions.newFolderLabel"),
+                buttonText: translate("common.create"),
                 onClose: closeModal,
                 onSubmit: (name: string) => {
                     createFolder(parentDir, name);
@@ -411,7 +412,7 @@ export async function movePath(sourcePath: string, destinationDir: string) {
             e,
             "actions",
         );
-        alert(`Error: ${e}`);
+        alert(translate("actions.error", { error: String(e) }));
         throw e;
     }
 }
@@ -427,7 +428,7 @@ export async function duplicatePage(path: string) {
         navigateToPage(newPage); // Navigate to the new duplicate
     } catch (e) {
         log.error(`Duplicate failed for path: ${path}`, e, "actions");
-        alert(`Error: ${e}`);
+        alert(translate("actions.error", { error: String(e) }));
         throw e;
     }
 }

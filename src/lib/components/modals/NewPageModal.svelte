@@ -16,6 +16,7 @@
         TEMPLATE_FOLDER_NAME,
         DEFAULT_TEMPLATE_NAME,
     } from "$lib/config";
+    import { t } from "$lib/i18n";
 
     let {
         parentDir,
@@ -91,7 +92,7 @@
     function handleSubmit(event: SubmitEvent) {
         event.preventDefault();
         if (!pageName.trim()) {
-            alert("Page name cannot be empty.");
+            alert($t("newPage.emptyName"));
             return;
         }
 
@@ -124,7 +125,7 @@
     function getDisplayDir(fullPath: string): string {
         const rootPath = $vaultPath ? normalizePath($vaultPath) : "";
         if (fullPath === rootPath) {
-            return "/ (Vault Root)";
+            return $t("newPage.vaultRoot");
         }
         // Remove the root path and the leading slash for a cleaner display
         return fullPath.replace(rootPath, "").replace(/^\//, "");
@@ -133,51 +134,53 @@
     /** Helper to display template names based on their path */
     function getTemplateDisplay(path: string): string {
         if (path === "") {
-            return hasCustomDefault ? "Default (Custom)" : "Default (Blank)";
+            return hasCustomDefault
+                ? $t("newPage.templateDefaultCustom")
+                : $t("newPage.templateDefaultBlank");
         }
-        const t = templates.find((item) => item.path === path);
-        return t ? t.title : path;
+        const template = templates.find((item) => item.path === path);
+        return template ? template.title : path;
     }
 </script>
 
-<Modal title="Create New Page" {onClose}>
+<Modal title={$t("newPage.title")} {onClose}>
     <form onsubmit={handleSubmit} class="form">
         <div class="form-group">
-            <label for="page-name">Page Name</label>
+            <label for="page-name">{$t("newPage.nameLabel")}</label>
             <input
                 id="page-name"
                 type="text"
                 bind:value={pageName}
                 use:autofocus
-                placeholder="Name of your new page"
+                placeholder={$t("newPage.namePlaceholder")}
             />
         </div>
 
         <div class="form-group">
-            <label for="folder-select">Folder</label>
+            <label for="folder-select">{$t("newPage.folderLabel")}</label>
             <SearchableSelect
                 options={allDirs}
                 bind:value={selectedParentDir}
                 formatLabel={getDisplayDir}
-                placeholder="Search folders..."
+                placeholder={$t("newPage.searchFolders")}
             />
         </div>
 
         <div class="form-group">
-            <label for="template-select">Template</label>
+            <label for="template-select">{$t("newPage.templateLabel")}</label>
             <SearchableSelect
                 options={templateOptions}
                 bind:value={selectedTemplatePath}
                 formatLabel={getTemplateDisplay}
-                placeholder="Search templates..."
+                placeholder={$t("newPage.searchTemplates")}
             />
         </div>
 
         <div class="modal-actions">
             <Button type="button" variant="ghost" onclick={onClose}
-                >Cancel</Button
+                >{$t("common.cancel")}</Button
             >
-            <Button type="submit">Create Page</Button>
+            <Button type="submit">{$t("newPage.create")}</Button>
         </div>
     </form>
 </Modal>

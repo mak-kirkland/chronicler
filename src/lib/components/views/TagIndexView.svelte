@@ -3,6 +3,7 @@
     import { navigateToPage } from "$lib/actions";
     import { fileStemString } from "$lib/utils";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
+    import { t } from "$lib/i18n";
 
     let { name } = $props<{ name: string }>();
 
@@ -15,7 +16,10 @@
 <div class="tag-index-wrapper">
     <ViewHeader>
         <div slot="left">
-            <h2>Index for <span class="tag-highlight">#{name}</span></h2>
+            <h2>
+                {$t("tags.indexFor")}
+                <span class="tag-highlight">#{name}</span>
+            </h2>
         </div>
     </ViewHeader>
 

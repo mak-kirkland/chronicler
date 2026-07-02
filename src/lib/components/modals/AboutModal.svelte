@@ -5,10 +5,11 @@
     import Modal from "$lib/components/modals/Modal.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
-    let appVersion = $state<string>("Unknown");
+    let appVersion = $state<string>("?");
 
     onMount(async () => {
         try {
@@ -19,30 +20,32 @@
     });
 </script>
 
-<Modal title="About Chronicler" {onClose}>
+<Modal title={$t("about.title")} {onClose}>
     <div class="about-container">
         <img src="/logo.png" alt="Chronicler Logo" class="app-logo" />
 
         <div class="app-info">
             <h2 class="app-name">Chronicler</h2>
-            <p class="app-version">Version {appVersion}</p>
+            <p class="app-version">
+                {$t("about.version", { version: appVersion })}
+            </p>
             <p class="app-description">
-                A powerful, offline worldbuilding tool for writers and GMs.
+                {$t("about.description")}
             </p>
         </div>
 
         <div class="credits-section">
-            <h3>Credits</h3>
+            <h3>{$t("about.credits")}</h3>
 
             <div class="credit-group">
-                <h4>Concept & Development</h4>
+                <h4>{$t("about.development")}</h4>
                 <p>Michael Kirkland</p>
             </div>
 
             <div class="credit-group">
-                <h4>Artwork & Animation</h4>
+                <h4>{$t("about.artwork")}</h4>
                 <p>
-                    Banner by
+                    {$t("about.bannerBy")}
                     <button
                         class="link-btn"
                         onclick={() =>
@@ -51,18 +54,18 @@
                         Sigmaeus
                     </button>
                 </p>
-                <p>Animation by a kind supporter</p>
+                <p>{$t("about.animationBy")}</p>
             </div>
 
             <div class="credit-group">
-                <h4>Special Thanks</h4>
-                <p>To the wonderful Discord community and early supporters.</p>
+                <h4>{$t("about.specialThanks")}</h4>
+                <p>{$t("about.thanksBody")}</p>
             </div>
         </div>
 
         <div class="links-section">
             <Button onclick={() => openUrl("https://chronicler.pro")}
-                >Website</Button
+                >{$t("about.website")}</Button
             >
             <Button
                 onclick={() =>
@@ -76,7 +79,7 @@
 
         <div class="footer">
             <p>
-                © {new Date().getFullYear()} Michael Kirkland. All rights reserved.
+                {$t("about.copyright", { year: new Date().getFullYear() })}
             </p>
         </div>
     </div>

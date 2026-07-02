@@ -2,12 +2,13 @@
     import { brokenImages } from "$lib/worldStore";
     import { navigateToPage } from "$lib/actions";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
+    import { t } from "$lib/i18n";
 </script>
 
 <div class="report-view-wrapper">
     <ViewHeader>
         <div slot="left">
-            <h2>Report: Broken Images</h2>
+            <h2>{$t("reports.brokenImagesTitle")}</h2>
         </div>
     </ViewHeader>
 
@@ -16,7 +17,10 @@
             <ul class="broken-images-list">
                 {#each $brokenImages as image (image.target)}
                     <li class="broken-image-item">
-                        <div class="target-name" title="Missing image file">
+                        <div
+                            class="target-name"
+                            title={$t("reports.missingImageFile")}
+                        >
                             {image.target}
                         </div>
                         <ul class="source-list">
@@ -25,7 +29,9 @@
                                     <button
                                         class="source-button"
                                         onclick={() => navigateToPage(source)}
-                                        title="Go to '{source.title}' to fix this embed"
+                                        title={$t("reports.goToFixEmbed", {
+                                            name: source.title,
+                                        })}
                                     >
                                         {source.title}
                                     </button>
@@ -37,7 +43,7 @@
             </ul>
         {:else}
             <p class="text-muted text-center">
-                No broken images found. Everything looks good!
+                {$t("reports.noBrokenImages")}
             </p>
         {/if}
     </div>

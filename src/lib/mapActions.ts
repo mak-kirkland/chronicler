@@ -11,6 +11,7 @@ import { openModal, closeModal } from "$lib/modalStore";
 import MapObjectModal from "$lib/components/map/MapObjectModal.svelte";
 import ConfirmModal from "$lib/components/modals/ConfirmModal.svelte";
 import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
+import { translate } from "$lib/i18n";
 
 /**
  * Helper to open the MapObjectModal with common props pre-filled.
@@ -75,8 +76,8 @@ export function editPin(mapPath: string, mapConfig: MapConfig, pin: MapPin) {
 export function deletePin(mapPath: string, pinId: string) {
     confirmAndDelete(
         mapPath,
-        "Delete Pin",
-        "Are you sure you want to delete this pin?",
+        translate("map.deletePin"),
+        translate("map.deletePinConfirm"),
         (config) => ({
             ...config,
             pins: config.pins.filter((p) => p.id !== pinId),
@@ -112,8 +113,8 @@ export function addRegion(
 export function deleteShape(mapPath: string, shapeId: string) {
     confirmAndDelete(
         mapPath,
-        "Delete Region",
-        "Are you sure you want to delete this region?",
+        translate("map.deleteRegion"),
+        translate("map.deleteRegionConfirm"),
         (config) => ({
             ...config,
             shapes: config.shapes.filter((s) => s.id !== shapeId),

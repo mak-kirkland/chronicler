@@ -10,6 +10,7 @@
         refreshSnippets,
     } from "$lib/snippetsStore";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     let { onClose = () => {} } = $props<{
         onClose?: () => void;
@@ -47,20 +48,17 @@
     }
 </script>
 
-<Modal title="CSS Snippets" {onClose}>
+<Modal title={$t("snippets.title")} {onClose}>
     <div class="snippets-body">
         <p class="intro">
-            Reuse your own CSS classes across notes instead of repeating inline
-            styles. Add <code>.css</code> files to the snippets folder, then enable
-            them here.
+            {$t("snippets.intro")}
         </p>
 
-        <div class="snippet-warning">Only enable snippets you trust.</div>
+        <div class="snippet-warning">{$t("snippets.trustWarning")}</div>
 
         {#if $snippets.length === 0}
             <p class="empty">
-                No snippets yet. Add a <code>.css</code> file to the snippets folder
-                to get started.
+                {$t("snippets.empty")}
             </p>
         {:else}
             <div class="snippet-list">
@@ -78,7 +76,7 @@
 
         <div class="actions">
             <Button onclick={handleOpenSnippetsFolder}>
-                Open Snippets Folder
+                {$t("snippets.openFolder")}
             </Button>
         </div>
     </div>

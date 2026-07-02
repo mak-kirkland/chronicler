@@ -29,6 +29,7 @@
     import { openModal, closeModal } from "$lib/modalStore";
     import InfoboxEditorModal from "$lib/components/infobox/InfoboxEditorModal.svelte";
     import FloatingMenu from "$lib/components/ui/FloatingMenu.svelte";
+    import { t } from "$lib/i18n";
 
     let { file, sectionId, tabId, isActive, initialMode } = $props<{
         file: PageHeader;
@@ -170,7 +171,7 @@
             .catch((e) => {
                 if (loadedPath !== path) return;
                 log.error("Failed to get page data", e, "FileView");
-                error = `Could not load file: ${e}`;
+                error = $t("fileView.loadFailed", { error: String(e) });
             })
             .finally(() => {
                 if (loadedPath !== path) return;
@@ -312,11 +313,11 @@
 <div class="file-view-container" bind:this={fileContainerEl}>
     {#if isLoading && showLoading}
         <div class="status-container">
-            <p>Loading...</p>
+            <p>{$t("common.loading")}</p>
         </div>
     {:else if error}
         <div class="status-container">
-            <ErrorBox title="File Error">{error}</ErrorBox>
+            <ErrorBox title={$t("fileView.errorTitle")}>{error}</ErrorBox>
         </div>
     {:else if pageData}
         <ViewHeader>
@@ -345,14 +346,18 @@
                             size="small"
                             onclick={handleMapClick}
                             title={associatedMaps.length === 1
-                                ? `View on Map: ${associatedMaps[0].title}`
-                                : "View on Maps..."}
+                                ? $t("fileView.viewOnMapTitle", {
+                                      name: associatedMaps[0].title,
+                                  })
+                                : $t("fileView.viewOnMaps")}
                         >
                             <Icon type="map" />
                             <span class="btn-label">
                                 {associatedMaps.length === 1
-                                    ? "View on Map"
-                                    : `Maps (${associatedMaps.length})`}
+                                    ? $t("fileView.viewOnMap")
+                                    : $t("fileView.mapsCount", {
+                                          count: associatedMaps.length,
+                                      })}
                             </span>
                         </Button>
 
@@ -391,10 +396,10 @@
                     <Button
                         size="small"
                         onclick={() => ($isTocVisible = !$isTocVisible)}
-                        title="Toggle Table of Contents"
+                        title={$t("fileView.toggleToc")}
                     >
                         <Icon type="contents" /><span class="btn-label">
-                            Contents</span
+                            {$t("fileView.contents")}</span
                         >
                     </Button>
                 {/if}
@@ -403,7 +408,7 @@
                     <Button
                         size="small"
                         onclick={() => (showBacklinks = !showBacklinks)}
-                        title="Toggle Backlinks"
+                        title={$t("fileView.toggleBacklinks")}
                     >
                         <Icon type="backlinks" />
                         {backlinks.length}
@@ -415,28 +420,30 @@
                     <Button
                         size="small"
                         onclick={() => (mode = "split")}
-                        title="Edit"
+                        title={$t("common.edit")}
                     >
-                        <Icon type="edit" /><span class="btn-label"> Edit</span>
+                        <Icon type="edit" /><span class="btn-label">
+                            {$t("common.edit")}</span
+                        >
                     </Button>
                 {/if}
                 {#if mode === "split"}
                     <Button
                         size="small"
                         onclick={() => (mode = "editor")}
-                        title="Editor Only"
+                        title={$t("fileView.editorOnly")}
                     >
                         <Icon type="file" /><span class="btn-label">
-                            Editor Only</span
+                            {$t("fileView.editorOnly")}</span
                         >
                     </Button>
                     <Button
                         size="small"
                         onclick={() => (mode = "preview")}
-                        title="Preview Only"
+                        title={$t("fileView.previewOnly")}
                     >
                         <Icon type="preview" /><span class="btn-label">
-                            Preview Only</span
+                            {$t("fileView.previewOnly")}</span
                         >
                     </Button>
                 {/if}
@@ -444,19 +451,19 @@
                     <Button
                         size="small"
                         onclick={() => (mode = "split")}
-                        title="Split View"
+                        title={$t("fileView.splitView")}
                     >
                         <Icon type="split" /><span class="btn-label">
-                            Split View</span
+                            {$t("fileView.splitView")}</span
                         >
                     </Button>
                     <Button
                         size="small"
                         onclick={() => (mode = "preview")}
-                        title="Preview Only"
+                        title={$t("fileView.previewOnly")}
                     >
                         <Icon type="preview" /><span class="btn-label">
-                            Preview Only</span
+                            {$t("fileView.previewOnly")}</span
                         >
                     </Button>
                 {/if}

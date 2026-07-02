@@ -8,6 +8,7 @@
     import InfoboxSettingsModal from "$lib/components/infobox/InfoboxSettingsModal.svelte";
     import Carousel from "$lib/components/ui/Carousel.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
+    import { t } from "$lib/i18n";
 
     // --- Props ---
     let {
@@ -120,7 +121,7 @@
                     <button
                         class="infobox-controls-button"
                         onclick={onEdit}
-                        title="Edit Infobox"
+                        title={$t("editor.editInfobox")}
                     >
                         <Icon type="edit" />
                     </button>
@@ -128,7 +129,7 @@
                 <button
                     class="infobox-controls-button"
                     onclick={openSettingsModal}
-                    title="Infobox settings"
+                    title={$t("infobox.settingsTitle")}
                 >
                     <Icon type="settings" />
                 </button>
@@ -158,7 +159,7 @@
 
         <div class="data-column">
             {#if data?.error}
-                <ErrorBox title="YAML Parse Error"
+                <ErrorBox title={$t("infobox.yamlParseError")}
                     >{data.details || data.error}</ErrorBox
                 >
             {/if}
@@ -224,7 +225,7 @@
                 {#if $areInfoboxTagsVisible}
                     {#if data?.tags && Array.isArray(data.tags) && data.tags.length > 0}
                         <hr class="layout-separator" />
-                        <dt>Tags</dt>
+                        <dt>{$t("infobox.tagsLabel")}</dt>
                         <dd class="tag-container">
                             <!--
                               Add unique key to prevent error from duplicate tags in its frontmatter.

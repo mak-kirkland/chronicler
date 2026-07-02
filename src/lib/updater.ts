@@ -13,6 +13,7 @@ import { openModal, closeModal } from "$lib/modalStore";
 import UpdateModal from "$lib/components/modals/UpdateModal.svelte";
 import { getLinuxInstallType } from "./commands";
 import { log } from "./logger";
+import { translate } from "./i18n";
 
 /**
  * Checks for application updates using Tauri v2 plugins.
@@ -93,7 +94,7 @@ export function formatChangelog(
     });
 
     if (changes.length === 0) {
-        return "No detailed release notes available.";
+        return translate("update.noReleaseNotes");
     }
 
     // 3. Sort the changes alphabetically by category, then by description.

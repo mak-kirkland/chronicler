@@ -26,6 +26,7 @@ import {
 import { vaultPath } from "$lib/worldStore";
 import { openModal, closeModal } from "$lib/modalStore";
 import TextInputModal from "$lib/components/modals/TextInputModal.svelte";
+import { translate } from "$lib/i18n";
 
 const IMAGE_EXTENSIONS = [
     "png",
@@ -78,8 +79,8 @@ function promptForName(defaultStem: string): Promise<string | null> {
         openModal({
             component: TextInputModal,
             props: {
-                title: "Name image",
-                label: "File name",
+                title: translate("imageInsert.nameImage"),
+                label: translate("imageInsert.fileName"),
                 initialValue: defaultStem,
                 onSubmit: (value: string) => {
                     resolve(value);
@@ -104,11 +105,16 @@ export async function pickAndInsertImages(
         selected = await open({
             multiple: true,
             directory: false,
-            title: "Insert image",
-            filters: [{ name: "Images", extensions: IMAGE_EXTENSIONS }],
+            title: translate("editor.insertImage"),
+            filters: [
+                {
+                    name: translate("imageInsert.imagesFilter"),
+                    extensions: IMAGE_EXTENSIONS,
+                },
+            ],
         });
     } catch (e) {
-        alert(`Could not open the image picker: ${e}`);
+        alert(translate("imageInsert.pickerFailed", { error: String(e) }));
         return;
     }
     if (!selected) return;
@@ -128,7 +134,7 @@ export async function pickAndInsertImages(
             const result = await importImageFile(path, dir, nameOverride);
             insertImageRef(view, result.filename);
         } catch (e) {
-            alert(`Could not insert image: ${e}`);
+            alert(translate("imageInsert.insertFailed", { error: String(e) }));
         }
     }
 }
@@ -165,6 +171,6 @@ export async function pasteImageFromClipboard(
         );
         for (const result of results) insertImageRef(view, result.filename);
     } catch (e) {
-        alert(`Could not paste image: ${e}`);
+        alert(translate("imageInsert.pasteFailed", { error: String(e) }));
     }
 }

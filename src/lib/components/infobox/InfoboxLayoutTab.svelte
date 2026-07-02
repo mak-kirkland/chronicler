@@ -1,9 +1,14 @@
 <script lang="ts">
-    import { reorderArrayItem, type EditorLayoutRule, type EditorField } from "$lib/infobox";
+    import {
+        reorderArrayItem,
+        type EditorLayoutRule,
+        type EditorField,
+    } from "$lib/infobox";
     import Button from "$lib/components/ui/Button.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
     import SearchableSelect from "$lib/components/ui/SearchableSelect.svelte";
     import InfoboxColumnInput from "$lib/components/infobox/InfoboxColumnInput.svelte";
+    import { t } from "$lib/i18n";
 
     let {
         layoutRules = $bindable(),
@@ -25,16 +30,22 @@
 </script>
 
 {#snippet structureButtons()}
-    <Button size="small" onclick={() => onAddRule("header")}>+ Header</Button>
-    <Button size="small" onclick={() => onAddRule("separator")}
-        >+ Separator</Button
+    <Button size="small" onclick={() => onAddRule("header")}
+        >{$t("infobox.addHeader")}</Button
     >
-    <Button size="small" onclick={() => onAddRule("columns")}>+ Columns</Button>
-    <Button size="small" onclick={() => onAddRule("alias")}>+ Alias</Button>
+    <Button size="small" onclick={() => onAddRule("separator")}
+        >{$t("infobox.addSeparator")}</Button
+    >
+    <Button size="small" onclick={() => onAddRule("columns")}
+        >{$t("infobox.addColumns")}</Button
+    >
+    <Button size="small" onclick={() => onAddRule("alias")}
+        >{$t("infobox.addAlias")}</Button
+    >
 {/snippet}
 
 <div class="form-section">
-    <p class="helper-text">Define visual structure rules.</p>
+    <p class="helper-text">{$t("infobox.layoutHelper")}</p>
     <div class="structure-toolbar">
         {@render structureButtons()}
     </div>
@@ -71,8 +82,8 @@
                                 type="text"
                                 class="form-input"
                                 bind:value={rule.text}
-                                placeholder="Header Text"
-                                aria-label="Header Text"
+                                placeholder={$t("infobox.headerText")}
+                                aria-label={$t("infobox.headerText")}
                             />
                             <div class="rule-position-row">
                                 <div style="min-width: 200px;">
@@ -81,7 +92,7 @@
                                             (f: EditorField) => f.key,
                                         )}
                                         bind:value={rule.above}
-                                        placeholder="Place Above..."
+                                        placeholder={$t("infobox.placeAbove")}
                                     />
                                 </div>
                                 <div style="min-width: 200px;">
@@ -90,7 +101,7 @@
                                             (f: EditorField) => f.key,
                                         )}
                                         bind:value={rule.below}
-                                        placeholder="Place Below..."
+                                        placeholder={$t("infobox.placeBelow")}
                                     />
                                 </div>
                             </div>
@@ -99,10 +110,12 @@
                                 type="text"
                                 class="form-input"
                                 bind:value={rule.text}
-                                placeholder="Display Name"
-                                aria-label="Display Name"
+                                placeholder={$t("infobox.displayName")}
+                                aria-label={$t("infobox.displayName")}
                             />
-                            <span class="rule-label">Fields to rename</span>
+                            <span class="rule-label"
+                                >{$t("infobox.fieldsToRename")}</span
+                            >
                             <InfoboxColumnInput
                                 bind:keys={rule.keys}
                                 allFields={customFields.map(
@@ -117,14 +130,16 @@
                                 )}
                             />
                         {:else if rule.type === "separator"}
-                            <span class="rule-label">Above</span>
+                            <span class="rule-label">{$t("infobox.above")}</span
+                            >
                             <InfoboxColumnInput
                                 bind:keys={rule.above}
                                 allFields={customFields.map(
                                     (f: EditorField) => f.key,
                                 )}
                             />
-                            <span class="rule-label">Below</span>
+                            <span class="rule-label">{$t("infobox.below")}</span
+                            >
                             <InfoboxColumnInput
                                 bind:keys={rule.below}
                                 allFields={customFields.map(

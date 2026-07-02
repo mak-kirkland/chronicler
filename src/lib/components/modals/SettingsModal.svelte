@@ -42,10 +42,24 @@
     } from "$lib/commands";
     import { DONATE_URL } from "$lib/config";
     import { log } from "$lib/logger";
+    import {
+        t,
+        availableLocales,
+        languagePreference,
+        setLanguagePreference,
+        systemLocaleCode,
+        SYSTEM_LOCALE,
+    } from "$lib/i18n";
 
     let { onClose = () => {} } = $props<{
         onClose?: () => void;
     }>();
+
+    /** Endonym of the language the OS locale resolves to, e.g. "Polski". */
+    const systemLocaleName = $derived(
+        $availableLocales.find((l) => l.code === systemLocaleCode())?.name ??
+            "English",
+    );
 
     // License State
     let licenseMessage = $state<string | null>(null);
@@ -126,7 +140,7 @@
      */
     async function verifyLicense() {
         if (!licenseKeyInput.trim()) {
-            licenseMessage = "Please paste a license key.";
+            licenseMessage = $t("settings.license.emptyKey");
             return;
         }
 
@@ -136,15 +150,17 @@
             const success = await licenseStore.verify(licenseKeyInput);
 
             if (success) {
-                licenseMessage = "License verified successfully!";
+                licenseMessage = $t("settings.license.verified");
                 licenseKeyInput = ""; // Clear input on success
                 showLicenseInput = false; // Hide input on success
             } else {
-                licenseMessage = `License is invalid. Please check the key and try again.`;
+                licenseMessage = $t("settings.license.invalid");
             }
         } catch (e: any) {
             log.error("License verification failed", e, "SettingsModal");
-            licenseMessage = `Failed to verify license: ${e.message || e}`;
+            licenseMessage = $t("settings.license.verifyFailed", {
+                error: e.message || e,
+            });
         } finally {
             isVerifyingLicense = false;
         }
@@ -236,13 +252,19 @@
 
             const installed = paths.length - failures.length;
             if (failures.length === 0) {
-                fontInstallMessage = `Added ${installed} font${installed === 1 ? "" : "s"}.`;
+                fontInstallMessage = $t("settings.fonts.added", {
+                    count: installed,
+                });
             } else {
-                fontInstallMessage = `Added ${installed} of ${paths.length} fonts. ${failures.length} could not be read.`;
+                fontInstallMessage = $t("settings.fonts.addedPartial", {
+                    installed,
+                    total: paths.length,
+                    failed: failures.length,
+                });
             }
         } catch (e) {
             log.error("Add font failed", e, "SettingsModal");
-            fontInstallMessage = "Failed to add font.";
+            fontInstallMessage = $t("settings.fonts.addFailed");
         } finally {
             isInstallingFont = false;
         }
@@ -263,21 +285,46 @@
     }
 </script>
 
-<Modal title="Settings" {onClose}>
+<Modal title={$t("settings.title")} {onClose}>
     <div class="modal-body-content">
         <div class="setting-item">
-            <h4>Appearance</h4>
-            <p>Change the colors, fonts, and text size of the application.</p>
+            <h4>{$t("settings.language.title")}</h4>
+            <p>{$t("settings.language.description")}</p>
+            <div class="form-group">
+                <Select
+                    options={[
+                        {
+                            value: SYSTEM_LOCALE,
+                            label: $t("settings.language.system", {
+                                name: systemLocaleName,
+                            }),
+                        },
+                        ...$availableLocales.map((l) => ({
+                            value: l.code,
+                            label: l.name,
+                        })),
+                    ]}
+                    value={$languagePreference}
+                    onSelect={(val) => setLanguagePreference(val)}
+                />
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <h4>{$t("settings.appearance.title")}</h4>
+            <p>{$t("settings.appearance.description")}</p>
             <div class="appearance-controls">
                 <!-- Theme (Color Palette) Selector -->
                 <div class="form-group">
                     <!-- svelte-ignore a11y_label_has_associated_control -->
-                    <label>Theme</label>
+                    <label>{$t("settings.appearance.theme")}</label>
                     <div class="theme-controls">
                         <Select
                             groups={[
                                 {
-                                    label: "Built-in Themes",
+                                    label: $t(
+                                        "settings.appearance.builtInThemes",
+                                    ),
                                     options: [
                                         {
                                             value: "light",
@@ -312,7 +359,9 @@
                                 ...($userThemes.length > 0
                                     ? [
                                           {
-                                              label: "Your Themes",
+                                              label: $t(
+                                                  "settings.appearance.yourThemes",
+                                              ),
                                               options: $userThemes.map(
                                                   (theme) => ({
                                                       value: theme.name,
@@ -326,18 +375,20 @@
                             value={$activeTheme}
                             onSelect={(val) => setActiveTheme(val as ThemeName)}
                         />
-                        <Button onclick={openThemeEditor}>Manage Themes</Button>
+                        <Button onclick={openThemeEditor}
+                            >{$t("settings.appearance.manageThemes")}</Button
+                        >
                     </div>
                 </div>
 
                 <!-- World Atmosphere -->
                 <div class="form-group">
-                    <span>World Atmosphere</span>
+                    <span>{$t("settings.atmosphere.title")}</span>
                     <p class="setting-description">
-                        Customize icons, textures, borders, and more.
+                        {$t("settings.atmosphere.description")}
                     </p>
                     <Button onclick={openAtmosphereManager}
-                        >Customize Atmosphere</Button
+                        >{$t("settings.atmosphere.customize")}</Button
                     >
                 </div>
 
@@ -345,7 +396,7 @@
                 <div class="font-selectors-grid">
                     <div class="form-group">
                         <!-- svelte-ignore a11y_label_has_associated_control -->
-                        <label>Heading Font</label>
+                        <label>{$t("settings.fonts.heading")}</label>
                         <Select
                             options={allAvailableFonts.map((f) => ({
                                 value: f.value,
@@ -356,7 +407,7 @@
                     </div>
                     <div class="form-group">
                         <!-- svelte-ignore a11y_label_has_associated_control -->
-                        <label>Body Font</label>
+                        <label>{$t("settings.fonts.body")}</label>
                         <Select
                             options={allAvailableFonts.map((f) => ({
                                 value: f.value,
@@ -374,11 +425,12 @@
                             onclick={handleAddFont}
                             disabled={isInstallingFont}
                         >
-                            {isInstallingFont ? "Adding…" : "Add Font…"}
+                            {isInstallingFont
+                                ? $t("settings.fonts.adding")
+                                : $t("settings.fonts.add")}
                         </Button>
                         <span class="setting-description">
-                            Pick a `.ttf`, `.otf`, or `.woff2` file to add it to
-                            the dropdowns above.
+                            {$t("settings.fonts.addDescription")}
                         </span>
                     </div>
                     {#if fontInstallMessage}
@@ -388,7 +440,9 @@
 
                 <!-- Font Size Slider -->
                 <div class="form-group">
-                    <label for="font-size-slider">Font Size</label>
+                    <label for="font-size-slider"
+                        >{$t("settings.fonts.size")}</label
+                    >
                     <div class="font-slider-container">
                         <input
                             id="font-size-slider"
@@ -407,36 +461,47 @@
         </div>
 
         <div class="setting-item">
-            <h4>Templates</h4>
-            <p>Manage your custom page templates.</p>
-            <Button onclick={openTemplateManager}>Manage Templates</Button>
+            <h4>{$t("settings.templates.title")}</h4>
+            <p>{$t("settings.templates.description")}</p>
+            <Button onclick={openTemplateManager}
+                >{$t("settings.templates.manage")}</Button
+            >
         </div>
 
         <div class="setting-item">
-            <h4>CSS Snippets</h4>
+            <h4>{$t("settings.snippets.title")}</h4>
             <p>
-                Reuse your own CSS classes across notes instead of repeating
-                inline styles.
+                {$t("settings.snippets.description")}
             </p>
-            <Button onclick={openSnippetsManager}>Manage Snippets</Button>
+            <Button onclick={openSnippetsManager}
+                >{$t("settings.snippets.manage")}</Button
+            >
         </div>
 
         <div class="setting-item">
-            <h4>Keyboard Shortcuts</h4>
-            <p>View and customize keyboard shortcuts.</p>
-            <Button onclick={openKeybindings}>Customize Shortcuts</Button>
+            <h4>{$t("settings.shortcuts.title")}</h4>
+            <p>{$t("settings.shortcuts.description")}</p>
+            <Button onclick={openKeybindings}
+                >{$t("settings.shortcuts.customize")}</Button
+            >
         </div>
 
         <div class="setting-item">
-            <h4>Images</h4>
-            <p>Choose where pasted and imported images are saved.</p>
+            <h4>{$t("settings.images.title")}</h4>
+            <p>{$t("settings.images.description")}</p>
             <div class="form-group">
                 <!-- svelte-ignore a11y_label_has_associated_control -->
-                <label>Image location</label>
+                <label>{$t("settings.images.location")}</label>
                 <Select
                     options={[
-                        { value: "folder", label: "In a folder" },
-                        { value: "adjacent", label: "Next to the page" },
+                        {
+                            value: "folder",
+                            label: $t("settings.images.inFolder"),
+                        },
+                        {
+                            value: "adjacent",
+                            label: $t("settings.images.nextToPage"),
+                        },
                     ]}
                     value={$imageImportLocation}
                     onSelect={(val) =>
@@ -445,7 +510,9 @@
             </div>
             {#if $imageImportLocation === "folder"}
                 <div class="form-group">
-                    <label for="image-dir-input">Images folder</label>
+                    <label for="image-dir-input"
+                        >{$t("settings.images.folder")}</label
+                    >
                     <input
                         id="image-dir-input"
                         class="setting-text-input"
@@ -457,61 +524,64 @@
             {/if}
             <ToggleSwitch
                 id="prompt-image-name-toggle"
-                label="Prompt for a name on import"
-                description="Ask for a file name when pasting an image, instead of using a generated one."
+                label={$t("settings.images.promptName")}
+                description={$t("settings.images.promptNameDescription")}
                 bind:checked={$promptForImageName}
             />
         </div>
 
         <div class="setting-item">
-            <h4>Change Vault</h4>
-            <p>Change the root folder for your notes.</p>
-            <Button onclick={handleChangeVault}>Change Vault Folder</Button>
+            <h4>{$t("settings.vault.title")}</h4>
+            <p>{$t("settings.vault.description")}</p>
+            <Button onclick={handleChangeVault}
+                >{$t("settings.vault.change")}</Button
+            >
         </div>
 
         <div class="setting-item">
-            <h4>Import</h4>
-            <p>Import .docx files from individual files or an entire folder.</p>
-            <Button onclick={openImporter}>Open Importer</Button>
+            <h4>{$t("settings.import.title")}</h4>
+            <p>{$t("settings.import.description")}</p>
+            <Button onclick={openImporter}>{$t("settings.import.open")}</Button>
         </div>
 
         <div class="setting-item">
-            <h4>Privacy</h4>
+            <h4>{$t("settings.privacy.title")}</h4>
             <ToggleSwitch
                 id="telemetry-toggle"
-                label="Send anonymous usage ping"
-                description="Helps me see how many people use Chronicler. No personal data."
+                label={$t("settings.privacy.telemetry")}
+                description={$t("settings.privacy.telemetryDescription")}
                 bind:checked={telemetryEnabled}
             />
         </div>
 
         <div class="setting-item">
-            <h4>License</h4>
+            <h4>{$t("settings.license.title")}</h4>
             {#if $licenseStore.status === "licensed"}
                 <p>
-                    License Status:
+                    {$t("settings.license.status")}
                     <span class="license-status-active"
                         >{$licenseStore.license?.status}</span
                     >
                 </p>
                 <p class="license-expiry">
-                    Expiry: {$licenseStore.license?.expiry}
+                    {$t("settings.license.expiry", {
+                        date: $licenseStore.license?.expiry ?? "",
+                    })}
                 </p>
                 {#if !showLicenseInput}
                     <Button onclick={() => (showLicenseInput = true)}
-                        >Replace License</Button
+                        >{$t("settings.license.replace")}</Button
                     >
                 {/if}
             {:else}
                 <p>
-                    To keep Chronicler alive and disable the donation prompts,
-                    please consider
+                    {$t("settings.license.supportPre")}
                     <a
                         href="https://chronicler.pro/#support"
                         onclick={(event) => {
                             event.preventDefault();
                             openUrl(DONATE_URL);
-                        }}>supporting</a
+                        }}>{$t("settings.license.supportLink")}</a
                     >.
                 </p>
             {/if}
@@ -520,7 +590,7 @@
                 <div class="license-input-group">
                     <input
                         type="text"
-                        placeholder="Paste license key here"
+                        placeholder={$t("settings.license.pastePlaceholder")}
                         bind:value={licenseKeyInput}
                         disabled={isVerifyingLicense}
                     />
@@ -529,9 +599,9 @@
                         disabled={isVerifyingLicense || !licenseKeyInput}
                     >
                         {#if isVerifyingLicense}
-                            Verifying...
+                            {$t("settings.license.verifying")}
                         {:else}
-                            Verify License
+                            {$t("settings.license.verify")}
                         {/if}
                     </Button>
                 </div>
@@ -545,16 +615,16 @@
 
     {#if appVersion}
         <div class="modal-footer">
-            <p>Chronicler Version: {appVersion}</p>
+            <p>{$t("settings.footer.version", { version: appVersion })}</p>
             <div class="footer-links">
                 <button
                     class="link-button"
                     onclick={() => (showChangelog = true)}
-                    >View Changelog</button
+                    >{$t("settings.footer.changelog")}</button
                 >
                 <span class="separator"> • </span>
                 <button class="link-button" onclick={openLogDirectory}
-                    >Open Log Directory</button
+                    >{$t("settings.footer.logs")}</button
                 >
             </div>
         </div>

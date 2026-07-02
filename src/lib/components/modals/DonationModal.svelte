@@ -5,6 +5,7 @@
     import { exit } from "@tauri-apps/plugin-process";
     import { DONATE_URL } from "$lib/config";
     import { closeModal } from "$lib/modalStore";
+    import { t } from "$lib/i18n";
 
     let { onDismiss = closeModal } = $props<{ onDismiss?: () => void }>();
 
@@ -18,25 +19,19 @@
     }
 </script>
 
-<Modal
-    title="Enjoying Chronicler?"
-    showCloseButton={false}
-    onClose={onDismiss}
->
+<Modal title={$t("donation.title")} showCloseButton={false} onClose={onDismiss}>
     <div class="donation-content">
-        <p>Thank you for using Chronicler!</p>
+        <p>{$t("donation.thanks")}</p>
         <p>
-            As a solo developer, your support is invaluable for <strong
-                >keeping the project alive</strong
-            >.
+            {$t("donation.body")}
         </p>
-        <p>If you find it useful, please consider supporting its future.</p>
+        <p>{$t("donation.consider")}</p>
         <div class="button-group">
             <Button variant="primary" size="large" onclick={handleDonate}>
-                ❤️ Yes, I'll Support!
+                {$t("donation.support")}
             </Button>
             <Button variant="primary" size="large" onclick={handleMaybeLater}>
-                Maybe Later
+                {$t("donation.later")}
             </Button>
         </div>
     </div>

@@ -5,6 +5,7 @@
     import { open } from "@tauri-apps/plugin-dialog";
     import { getRecentVaults, removeRecentVault } from "$lib/commands";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     let { onVaultSelected = (_path: string) => {} } = $props<{
         onVaultSelected?: (path: string) => void;
@@ -29,7 +30,7 @@
             const selected = await open({
                 directory: true,
                 multiple: false,
-                title: "Select Your Vault Folder",
+                title: $t("vaultSelector.dialogTitle"),
             });
             if (typeof selected === "string") {
                 onVaultSelected(selected);
@@ -81,7 +82,7 @@
             <div class="brand-text-wrapper">
                 <h1 class="brand-title">Chronicler</h1>
                 <p class="brand-tagline">
-                    Your digital scriptorium — where knowledge links together.
+                    {$t("vaultSelector.tagline")}
                 </p>
             </div>
         </div>
@@ -89,7 +90,7 @@
         <div class="vault-switcher">
             {#if recentVaults.length > 0}
                 <div class="recent-list-section">
-                    <h3>Open Recent</h3>
+                    <h3>{$t("vaultSelector.openRecent")}</h3>
                     <div class="recent-list-scroll-area">
                         <div class="recent-list">
                             {#each recentVaults as path (path)}
@@ -115,7 +116,9 @@
                                         class="remove-btn"
                                         onclick={(e) =>
                                             handleRemoveRecent(e, path)}
-                                        title="Remove from history"
+                                        title={$t(
+                                            "vaultSelector.removeFromHistory",
+                                        )}
                                     >
                                         <Icon type="close" />
                                     </button>
@@ -129,13 +132,13 @@
             <div class="action-section">
                 {#if recentVaults.length > 0}
                     <div class="divider">
-                        <span>or</span>
+                        <span>{$t("vaultSelector.or")}</span>
                     </div>
                 {/if}
 
                 <div class="open-action-card">
                     <Button size="large" onclick={selectVault}
-                        >Open Folder...</Button
+                        >{$t("vaultSelector.openFolder")}</Button
                     >
                 </div>
             </div>

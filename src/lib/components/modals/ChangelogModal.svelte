@@ -7,6 +7,7 @@
     import Preview from "$lib/components/views/Preview.svelte";
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import type { RenderedPage } from "$lib/bindings";
+    import { t } from "$lib/i18n";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -21,16 +22,16 @@
             renderedData = await renderMarkdown(markdownContent);
         } catch (e: any) {
             log.error("Failed to load changelog content", e, "ChangelogModal");
-            error = `Could not load changelog file: ${e.message}`;
+            error = $t("changelog.loadFailed", { error: e.message });
         } finally {
             isLoading = false;
         }
     });
 </script>
 
-<Modal title="Changelog" {onClose}>
+<Modal title={$t("changelog.title")} {onClose}>
     {#if isLoading}
-        <p>Loading changelog...</p>
+        <p>{$t("changelog.loading")}</p>
     {:else if error}
         <ErrorBox>{error}</ErrorBox>
     {:else if renderedData}

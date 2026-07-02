@@ -4,15 +4,17 @@
     // The styling for `.error-box` has been moved to the global `app.css`
     // to ensure consistency between errors generated from the frontend
     // (using this component) and errors generated from the backend HTML renderer.
-    let { children, title = "Error" } = $props<{
+    import { t } from "$lib/i18n";
+
+    let { children, title = undefined } = $props<{
         children: any;
         title?: string;
     }>();
 </script>
 
 <div class="error-box">
-    {#if title}
-        <strong>{title}:</strong>
+    {#if title !== ""}
+        <strong>{title ?? $t("layout.error")}:</strong>
     {/if}
     {@render children()}
 </div>

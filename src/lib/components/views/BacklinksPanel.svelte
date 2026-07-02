@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Backlink } from "$lib/bindings";
     import Icon from "$lib/components/ui/Icon.svelte";
+    import { t } from "$lib/i18n";
 
     let { backlinks, onClose, onNavigate } = $props<{
         backlinks: Backlink[];
@@ -11,8 +12,8 @@
 
 <aside class="right-sidebar">
     <div class="sidebar-header">
-        <h3>Backlinks</h3>
-        <button class="close-btn" onclick={onClose} title="Close Panel">
+        <h3>{$t("backlinks.title")}</h3>
+        <button class="close-btn" onclick={onClose} title={$t("common.close")}>
             <Icon type="close" />
         </button>
     </div>
@@ -36,7 +37,7 @@
                 {/each}
             </ul>
         {:else}
-            <p class="text-muted">No backlinks found for this page.</p>
+            <p class="text-muted">{$t("backlinks.none")}</p>
         {/if}
     </div>
 </aside>

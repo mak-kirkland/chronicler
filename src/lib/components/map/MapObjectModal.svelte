@@ -14,6 +14,7 @@
     import { uuid } from "$lib/utils";
     import { log } from "$lib/logger";
     import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
+    import { t } from "$lib/i18n";
 
     let { onClose, mapPath, mapConfig, mode, initialData } = $props<{
         onClose: () => void;
@@ -39,7 +40,15 @@
     }>();
 
     const isEditing = !!initialData.id;
-    const title = `${isEditing ? "Edit" : "Add"} ${mode === "pin" ? "Pin" : "Region"}`;
+    const title = $derived(
+        mode === "pin"
+            ? isEditing
+                ? $t("map.editPin")
+                : $t("map.addPin")
+            : isEditing
+              ? $t("map.editRegion")
+              : $t("map.addRegion"),
+    );
 
     // Initialize state
     let selectedPage = $state(initialData.targetPage || "");
@@ -144,7 +153,7 @@
             onClose();
         } catch (e) {
             log.error("Failed to save map object", e, "MapObjectModal");
-            alert("Failed to save map object.");
+            alert($t("map.saveObjectFailed"));
         } finally {
             isSaving = false;
         }
@@ -161,22 +170,22 @@
     >
         <!-- Link to Page -->
         <div class="form-group">
-            <label for="target-page">Link to Page</label>
+            <label for="target-page">{$t("map.linkToPage")}</label>
             <AutocompleteInput
                 id="target-page"
                 options={pageOptions}
-                placeholder="Search or type a page name..."
+                placeholder={$t("map.searchPagePlaceholder")}
                 bind:value={selectedPage}
             />
         </div>
 
         <!-- Link to Map -->
         <div class="form-group">
-            <label for="target-map">Link to Map</label>
+            <label for="target-map">{$t("map.linkToMap")}</label>
             <AutocompleteInput
                 id="target-map"
                 options={mapOptions}
-                placeholder="Search or type a map name..."
+                placeholder={$t("map.searchMapPlaceholder")}
                 bind:value={selectedMap}
             />
         </div>
@@ -184,7 +193,7 @@
         <!-- Layer Select -->
         <div class="form-group">
             <!-- svelte-ignore a11y_label_has_associated_control -->
-            <label>Assign to Layer</label>
+            <label>{$t("map.assignToLayer")}</label>
             <Select
                 options={layerOptions.map((opt) => ({
                     value: opt.id,
@@ -193,26 +202,27 @@
                 bind:value={selectedLayerId}
             />
             <p class="help-text">
-                Objects assigned to a specific layer will hide if that layer is
-                hidden.
+                {$t("map.layerAssignHelp")}
             </p>
         </div>
 
         <!-- Label -->
         <div class="form-group">
-            <label for="pin-label">Label (Optional)</label>
+            <label for="pin-label">{$t("map.labelOptional")}</label>
             <input
                 type="text"
                 id="pin-label"
                 bind:value={label}
-                placeholder={mode === "pin" ? "Pin Label" : "Region Label"}
+                placeholder={mode === "pin"
+                    ? $t("map.pinLabel")
+                    : $t("map.regionLabel")}
             />
         </div>
 
         <!-- Icon Picker (Pins Only) -->
         {#if mode === "pin"}
             <div class="form-group">
-                <label for="icon-select">Icon</label>
+                <label for="icon-select">{$t("map.icon")}</label>
                 <div class="icon-grid">
                     {#each ICONS as icon}
                         <button
@@ -230,7 +240,7 @@
 
         <!-- Color Picker -->
         <div class="form-group">
-            <label for="color-select">Color</label>
+            <label for="color-select">{$t("map.color")}</label>
             <div class="color-picker-row">
                 <div class="color-grid">
                     {#each PALETTE as color}
@@ -240,7 +250,9 @@
                             style="background-color: {color};"
                             class:selected={selectedColor === color}
                             onclick={() => (selectedColor = color)}
-                            aria-label="Select color {color}"
+                            aria-label={$t("map.selectColor", {
+                                name: color,
+                            })}
                         ></button>
                     {/each}
                 </div>
@@ -248,7 +260,7 @@
                     type="color"
                     bind:value={selectedColor}
                     class="color-input"
-                    title="Custom Color"
+                    title={$t("map.customColor")}
                 />
             </div>
         </div>
@@ -258,10 +270,10 @@
             <div class="form-group checkbox-group">
                 <label class="checkbox-label">
                     <input type="checkbox" bind:checked={isInvisible} />
-                    <span>Invisible Pin</span>
+                    <span>{$t("map.invisiblePin")}</span>
                 </label>
                 <p class="help-text">
-                    Invisible pins are only shown when the Map Console is open.
+                    {$t("map.invisiblePinHelp")}
                 </p>
             </div>
         {/if}
@@ -269,10 +281,10 @@
         <!-- Actions -->
         <div class="modal-actions">
             <Button type="button" variant="ghost" onclick={onClose}
-                >Cancel</Button
+                >{$t("common.cancel")}</Button
             >
             <Button type="submit" disabled={isSaving}>
-                {isSaving ? "Saving..." : "Save"}
+                {isSaving ? $t("save.saving") : $t("common.save")}
             </Button>
         </div>
     </form>

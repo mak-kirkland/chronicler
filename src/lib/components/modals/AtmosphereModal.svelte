@@ -8,6 +8,7 @@
     import Modal from "$lib/components/modals/Modal.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Select from "$lib/components/ui/Select.svelte";
+    import { t } from "$lib/i18n";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -15,18 +16,20 @@
     const packs = Object.values(atmospheres);
 
     // Define available icon packs (includes free options like "legacy")
-    const availableIconPacks = Object.entries(iconPacks).map(([id, pack]) => ({
-        id,
-        name:
-            id === "core"
-                ? "Standard"
-                : id === "legacy"
-                  ? "Legacy (Emoji)"
-                  : id === "fantasy-pack"
-                    ? "High Fantasy"
-                    : id,
-        pack,
-    }));
+    const availableIconPacks = $derived(
+        Object.entries(iconPacks).map(([id, pack]) => ({
+            id,
+            name:
+                id === "core"
+                    ? $t("atmosphere.iconsStandard")
+                    : id === "legacy"
+                      ? $t("atmosphere.iconsLegacy")
+                      : id === "fantasy-pack"
+                        ? $t("atmosphere.iconsHighFantasy")
+                        : id,
+            pack,
+        })),
+    );
 
     // Define a strict module key type that EXCLUDES 'textureOpacity' (which is a number)
     type AtmosphereStringKey = Exclude<
@@ -36,17 +39,17 @@
 
     // Define the modules we can configure for the fine-tuning section
     // Icons is handled separately since it has more options
-    const modules: { key: AtmosphereStringKey; label: string }[] = [
-        { key: "buttons", label: "Buttons" },
-        { key: "textures", label: "Textures" },
-        { key: "typography", label: "Typography" },
-        { key: "borders", label: "Borders" },
-        { key: "frames", label: "Image Frames" },
-        { key: "uiElements", label: "UI Elements" },
+    const modules = $derived<{ key: AtmosphereStringKey; label: string }[]>([
+        { key: "buttons", label: $t("atmosphere.moduleButtons") },
+        { key: "textures", label: $t("atmosphere.moduleTextures") },
+        { key: "typography", label: $t("atmosphere.moduleTypography") },
+        { key: "borders", label: $t("atmosphere.moduleBorders") },
+        { key: "frames", label: $t("atmosphere.moduleFrames") },
+        { key: "uiElements", label: $t("atmosphere.moduleUiElements") },
         // { key: "cursors", label: "Cursors" },
         // { key: "clickEffects", label: "Click & Type Effects" },
         // { key: "soundscape", label: "Ambience" }, // Uncomment when implemented
-    ];
+    ]);
 
     function isOwned(packId: string): boolean {
         return (
@@ -115,14 +118,13 @@
     }
 </script>
 
-<Modal title="Atmosphere & Immersion" {onClose}>
+<Modal title={$t("atmosphere.modalTitle")} {onClose}>
     <div class="modal-content-wrapper">
         <section class="pack-section">
             <div class="section-header">
-                <h4>Atmosphere Packs</h4>
+                <h4>{$t("atmosphere.packsTitle")}</h4>
                 <p>
-                    Total conversion skins that change icons, textures, and UI
-                    elements to match a genre.
+                    {$t("atmosphere.packsDescription")}
                 </p>
             </div>
 
@@ -140,11 +142,15 @@
                         onclick={() => owned && applyPreset(pack.id)}
                     >
                         <div class="pack-card-header">
-                            <span class="pack-name">{pack.name}</span>
+                            <span class="pack-name">{$t(pack.name)}</span>
                             {#if active}
-                                <span class="badge active-badge">Active</span>
+                                <span class="badge active-badge"
+                                    >{$t("atmosphere.badgeActive")}</span
+                                >
                             {:else if owned}
-                                <span class="badge owned-badge">Owned</span>
+                                <span class="badge owned-badge"
+                                    >{$t("atmosphere.badgeOwned")}</span
+                                >
                             {:else}
                                 <span class="lock-icon">🔒</span>
                             {/if}
@@ -190,7 +196,7 @@
                             {/if}
                         </div>
 
-                        <p class="pack-desc">{pack.description}</p>
+                        <p class="pack-desc">{$t(pack.description)}</p>
 
                         {#if !owned}
                             <div class="unlock-overlay">
@@ -202,7 +208,7 @@
                                         handlePurchase();
                                     }}
                                 >
-                                    Get Pack
+                                    {$t("atmosphere.getPack")}
                                 </Button>
                             </div>
                         {/if}
@@ -214,9 +220,11 @@
         <section class="global-section">
             <div class="setting-control-row">
                 <div class="label-group">
-                    <label for="opacity-slider">Texture Opacity</label>
+                    <label for="opacity-slider"
+                        >{$t("atmosphere.textureOpacity")}</label
+                    >
                     <span class="sub-label"
-                        >Adjust the intensity of the background texture.</span
+                        >{$t("atmosphere.textureOpacityDescription")}</span
                     >
                 </div>
                 <input
@@ -237,15 +245,15 @@
         <!-- Granular Mixer -->
         <section class="mixer-section">
             <div class="section-header">
-                <h4>Fine Tuning</h4>
-                <p>Mix and match individual elements from your owned packs.</p>
+                <h4>{$t("atmosphere.fineTuning")}</h4>
+                <p>{$t("atmosphere.fineTuningDescription")}</p>
             </div>
 
             <div class="mixer-grid">
                 <!-- Icons dropdown with all icon packs (including free legacy) -->
                 <div class="mixer-row">
                     <!-- svelte-ignore a11y_label_has_associated_control -->
-                    <label>Icons</label>
+                    <label>{$t("atmosphere.moduleIcons")}</label>
                     <div class="select-wrapper">
                         <Select
                             options={availableIconPacks.map((iconPack) => ({
@@ -268,7 +276,7 @@
                             <Select
                                 options={packs.map((pack) => ({
                                     value: pack.id,
-                                    label: pack.name,
+                                    label: $t(pack.name),
                                     disabled: !isOwned(pack.id),
                                 }))}
                                 value={$atmosphere[mod.key]}

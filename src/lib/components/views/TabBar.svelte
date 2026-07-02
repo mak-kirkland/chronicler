@@ -10,6 +10,7 @@
     import TabItem from "$lib/components/views/TabItem.svelte";
     import ContextMenu from "$lib/components/ui/ContextMenu.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
+    import { t } from "$lib/i18n";
 
     let menu = $state<{ id: string; x: number; y: number } | null>(null);
 
@@ -25,8 +26,10 @@
 <div class="tab-bar" role="tablist">
     <button
         class="sidebar-toggle-btn"
-        title={$isSidebarVisible ? "Hide sidebar" : "Show sidebar"}
-        aria-label="Toggle sidebar"
+        title={$isSidebarVisible
+            ? $t("tabs.hideSidebar")
+            : $t("tabs.showSidebar")}
+        aria-label={$t("tabs.toggleSidebar")}
         aria-pressed={$isSidebarVisible}
         onclick={() => ($isSidebarVisible = !$isSidebarVisible)}
     >
@@ -50,8 +53,8 @@
     </div>
     <button
         class="split-btn"
-        title={$isViewSplit ? "Already split" : "Split view"}
-        aria-label="Split view"
+        title={$isViewSplit ? $t("tabs.alreadySplit") : $t("tabs.splitView")}
+        aria-label={$t("tabs.splitView")}
         disabled={$isViewSplit}
         onclick={() => tabs.split()}
     >
@@ -59,7 +62,7 @@
     </button>
     <button
         class="new-tab-btn"
-        title="New tab"
+        title={$t("tabs.newTab")}
         onclick={() => tabs.newBlankTab()}
     >
         <Icon type="newFile" />
@@ -72,12 +75,12 @@
         y={menu.y}
         onClose={closeMenu}
         actions={[
-            { label: "Close", handler: () => tabs.close(menu!.id) },
+            { label: $t("common.close"), handler: () => tabs.close(menu!.id) },
             {
-                label: "Close Others",
+                label: $t("tabs.closeOthers"),
                 handler: () => tabs.closeOthers(menu!.id),
             },
-            { label: "Close All", handler: () => tabs.closeAll() },
+            { label: $t("tabs.closeAll"), handler: () => tabs.closeAll() },
         ]}
     />
 {/if}

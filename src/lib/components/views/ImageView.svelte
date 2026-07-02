@@ -4,6 +4,7 @@
     import { navigateToImage } from "$lib/actions";
     import { resolveImageSource } from "$lib/utils";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
@@ -86,7 +87,7 @@
             } catch (e) {
                 log.error("Failed to load image", e, "ImageView");
                 if (!isCancelled) {
-                    error = `Could not load image: ${e}`;
+                    error = $t("imageView.loadFailed", { error: String(e) });
                 }
             }
         }
@@ -125,7 +126,7 @@
     </ViewHeader>
     <div class="image-content">
         {#if error}
-            <ErrorBox title="Image Error">{error}</ErrorBox>
+            <ErrorBox title={$t("imageView.errorTitle")}>{error}</ErrorBox>
         {:else if imageUrl}
             <img src={imageUrl} alt={data.title} />
 
@@ -134,7 +135,7 @@
                 <button
                     class="nav-btn prev"
                     onclick={handlePrev}
-                    title="Previous (Left Arrow)"
+                    title={$t("imageView.previous")}
                 >
                     <Icon type="back" />
                 </button>
@@ -143,7 +144,7 @@
                 <button
                     class="nav-btn next"
                     onclick={handleNext}
-                    title="Next (Right Arrow)"
+                    title={$t("imageView.next")}
                 >
                     <Icon type="forward" />
                 </button>

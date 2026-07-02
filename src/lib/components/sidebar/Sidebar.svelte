@@ -15,6 +15,7 @@
     import SearchInput from "$lib/components/ui/SearchInput.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
     import NewMapModal from "$lib/components/map/NewMapModal.svelte";
+    import { t } from "$lib/i18n";
 
     let { width = $bindable(), minWidth = $bindable(200) } = $props();
     let activeTab = $state<"files" | "tags" | "gallery" | "reports">("files");
@@ -121,40 +122,40 @@
     <SearchInput
         bind:value={searchTerm}
         placeholder={activeTab === "files"
-            ? "Search files..."
+            ? $t("sidebar.searchFiles")
             : activeTab === "tags"
-              ? "Search tags..."
+              ? $t("sidebar.searchTags")
               : activeTab === "gallery"
-                ? "Search images..."
-                : "Search reports..."}
+                ? $t("sidebar.searchImages")
+                : $t("sidebar.searchReports")}
     />
 
     <div class="tab-navigation">
         <button
             class:active={activeTab === "files"}
             onclick={() => (activeTab = "files")}
-            title="Files"
+            title={$t("sidebar.files")}
         >
             <Icon type="folder" />
         </button>
         <button
             class:active={activeTab === "tags"}
             onclick={() => (activeTab = "tags")}
-            title="Tags"
+            title={$t("sidebar.tags")}
         >
             <Icon type="tags" />
         </button>
         <button
             class:active={activeTab === "gallery"}
             onclick={() => (activeTab = "gallery")}
-            title="Image Gallery"
+            title={$t("sidebar.gallery")}
         >
             <Icon type="gallery" />
         </button>
         <button
             class:active={activeTab === "reports"}
             onclick={() => (activeTab = "reports")}
-            title="Reports"
+            title={$t("sidebar.reports")}
         >
             <Icon type="reports" />
         </button>
@@ -176,7 +177,7 @@
             <Button
                 size="small"
                 class="new-path-button"
-                title="New Page"
+                title={$t("sidebar.newPage")}
                 onclick={showCreateFile}
             >
                 + <Icon type="file" />
@@ -184,7 +185,7 @@
             <Button
                 size="small"
                 class="new-path-button"
-                title="New Folder"
+                title={$t("sidebar.newFolder")}
                 onclick={showCreateFolder}
             >
                 + <Icon type="folder" />
@@ -193,7 +194,7 @@
                 <Button
                     size="small"
                     class="new-path-button"
-                    title="New Map"
+                    title={$t("sidebar.newMap")}
                     onclick={showCreateMap}
                 >
                     + <Icon type="map" />
@@ -219,13 +220,21 @@
         </div>
 
         <div class="secondary-actions">
-            <Button variant="ghost" title="Help" onclick={showHelp}>
+            <Button variant="ghost" title={$t("help.title")} onclick={showHelp}>
                 <Icon type="help" />
             </Button>
-            <Button variant="ghost" title="About" onclick={showAbout}>
+            <Button
+                variant="ghost"
+                title={$t("sidebar.about")}
+                onclick={showAbout}
+            >
                 <Icon type="info" />
             </Button>
-            <Button variant="ghost" title="Settings" onclick={showSettings}>
+            <Button
+                variant="ghost"
+                title={$t("settings.title")}
+                onclick={showSettings}
+            >
                 <Icon type="settings" />
             </Button>
         </div>

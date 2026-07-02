@@ -8,6 +8,7 @@
     import { isDragging } from "$lib/dragStore";
     import { showImages, showExternalFiles } from "$lib/explorerStore";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     // Import components needed for the view
     import FileTree from "$lib/components/sidebar/FileTree.svelte";
@@ -55,7 +56,11 @@
         const destinationDir = $vaultPath;
 
         if (!sourcePath || !destinationDir) {
-            log.error("Drop failed: Missing source or destination path.", undefined, "FileExplorer");
+            log.error(
+                "Drop failed: Missing source or destination path.",
+                undefined,
+                "FileExplorer",
+            );
             return;
         }
 
@@ -68,7 +73,11 @@
         try {
             await movePath(sourcePath, destinationDir);
         } catch (err) {
-            log.error("The root drop operation failed in the UI.", err, "FileExplorer");
+            log.error(
+                "The root drop operation failed in the UI.",
+                err,
+                "FileExplorer",
+            );
         }
     }
 </script>
@@ -117,11 +126,11 @@
                 />
             {/each}
         {:else if searchTerm}
-            <p class="text-muted text-center">No files found.</p>
+            <p class="text-muted text-center">{$t("explorer.noFiles")}</p>
         {:else if $isWorldLoaded}
-            <p class="text-muted text-center">Your vault is empty.</p>
+            <p class="text-muted text-center">{$t("explorer.emptyVault")}</p>
         {:else}
-            <p>Loading files...</p>
+            <p>{$t("explorer.loadingFiles")}</p>
         {/if}
     </div>
 </div>
