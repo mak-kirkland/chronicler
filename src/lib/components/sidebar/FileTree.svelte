@@ -24,6 +24,7 @@
         getDisplayName,
     } from "$lib/utils";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     let {
         node,
@@ -116,7 +117,7 @@
                 <Button
                     variant="ghost"
                     class="quick-action-btn"
-                    title="New Page"
+                    title={$t("sidebar.newPage")}
                     onclick={handleNewFile}
                 >
                     <Icon type="newFile" />
@@ -124,7 +125,7 @@
                 <Button
                     variant="ghost"
                     class="quick-action-btn"
-                    title="New Folder"
+                    title={$t("sidebar.newFolder")}
                     onclick={handleNewFolder}
                 >
                     <Icon type="newFolder" />

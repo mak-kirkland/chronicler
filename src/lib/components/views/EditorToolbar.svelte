@@ -9,8 +9,13 @@
     } from "$lib/editor";
     import type { IconType } from "$lib/icons";
     import { pickAndInsertImages } from "$lib/imageInsert";
+    import { t } from "$lib/i18n";
 
-    let { editorView, onInfoboxClick, pagePath = "" } = $props<{
+    let {
+        editorView,
+        onInfoboxClick,
+        pagePath = "",
+    } = $props<{
         editorView: EditorView | undefined;
         onInfoboxClick?: () => void;
         pagePath?: string;
@@ -24,45 +29,45 @@
     }
 
     // Define all toolbar actions in an array
-    const toolbarActions: ToolbarAction[] = [
+    const toolbarActions = $derived<ToolbarAction[]>([
         {
-            title: "Bold (Ctrl+B)",
+            title: $t("editor.bold"),
             action: toggleBold,
             iconType: "bold",
         },
         {
-            title: "Italic (Ctrl+I)",
+            title: $t("editor.italic"),
             action: toggleItalic,
             iconType: "italic",
         },
         {
-            title: "Strikethrough",
+            title: $t("editor.strikethrough"),
             action: toggleStrikethrough,
             iconType: "strikethrough",
         },
         {
-            title: "Heading 1",
+            title: $t("editor.heading1"),
             action: (v: EditorView) => addHeading(v, 1),
             iconType: "heading1",
         },
         {
-            title: "Heading 2",
+            title: $t("editor.heading2"),
             action: (v: EditorView) => addHeading(v, 2),
             iconType: "heading2",
         },
         {
-            title: "Heading 3",
+            title: $t("editor.heading3"),
             action: (v: EditorView) => addHeading(v, 3),
             iconType: "heading3",
         },
         {
-            title: "Insert Image",
+            title: $t("editor.insertImage"),
             action: (v: EditorView) => {
                 void pickAndInsertImages(v, pagePath);
             },
             iconType: "image",
         },
-    ];
+    ]);
 
     function handleAction(action: (view: EditorView) => void) {
         if (editorView) {
@@ -83,7 +88,7 @@
     <div class="separator"></div>
 
     <!-- Infobox Button -->
-    <button title="Edit Infobox" onclick={onInfoboxClick}>
+    <button title={$t("editor.editInfobox")} onclick={onInfoboxClick}>
         <Icon type="edit" />
     </button>
 </div>

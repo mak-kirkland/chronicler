@@ -24,6 +24,7 @@
         AVAILABLE_FONTS,
         BUILT_IN_THEME_FONTS,
     } from "$lib/themeRegistry";
+    import { t } from "$lib/i18n";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -59,7 +60,7 @@
     ]);
 
     const fontOptions = $derived([
-        { value: "", label: "Default" },
+        { value: "", label: $t("theme.fontDefault") },
         ...allAvailableFonts.map((f) => ({
             value: f.value,
             label: f.name,
@@ -67,35 +68,37 @@
     ]);
 
     // --- Constants ---
-    const colorLabels: Record<string, string> = {
+    const colorLabels = $derived<Record<string, string>>({
         // UI Colors
-        "--color-background-primary": "Primary",
-        "--color-background-secondary": "Secondary",
-        "--color-background-tertiary": "Tertiary",
-        "--color-text-heading": "Headings",
-        "--color-text-primary": "Body",
-        "--color-text-secondary": "Secondary",
-        "--color-border-primary": "Borders",
-        "--color-accent-primary": "Accent",
-        "--color-icons": "Icons",
-        "--color-text-link": "Links",
-        "--color-text-link-broken": "Broken Links",
-        "--color-text-error": "Errors",
+        "--color-background-primary": $t("theme.color.backgroundPrimary"),
+        "--color-background-secondary": $t("theme.color.backgroundSecondary"),
+        "--color-background-tertiary": $t("theme.color.backgroundTertiary"),
+        "--color-text-heading": $t("theme.color.headings"),
+        "--color-text-primary": $t("theme.color.body"),
+        "--color-text-secondary": $t("theme.color.textSecondary"),
+        "--color-border-primary": $t("theme.color.borders"),
+        "--color-accent-primary": $t("theme.color.accent"),
+        "--color-icons": $t("theme.color.icons"),
+        "--color-text-link": $t("theme.color.links"),
+        "--color-text-link-broken": $t("theme.color.brokenLinks"),
+        "--color-text-error": $t("theme.color.errors"),
 
         // Syntax Colors
-        "--code-tag": "HTML Tags",
-        "--code-attribute": "Attributes",
-        "--code-string": "Strings",
-    };
+        "--code-tag": $t("theme.color.htmlTags"),
+        "--code-attribute": $t("theme.color.attributes"),
+        "--code-string": $t("theme.color.strings"),
+    });
 
     // Visual grouping for the editor — purely presentational, the underlying
     // palette is still THEME_PALETTE_KEYS.
-    const COLOR_SUBGROUPS: Array<{
-        title: string;
-        keys: ReadonlyArray<keyof ThemePalette>;
-    }> = [
+    const COLOR_SUBGROUPS = $derived<
+        Array<{
+            title: string;
+            keys: ReadonlyArray<keyof ThemePalette>;
+        }>
+    >([
         {
-            title: "Surfaces",
+            title: $t("theme.groupSurfaces"),
             keys: [
                 "--color-background-primary",
                 "--color-background-secondary",
@@ -103,7 +106,7 @@
             ],
         },
         {
-            title: "Ink",
+            title: $t("theme.groupInk"),
             keys: [
                 "--color-text-heading",
                 "--color-text-primary",
@@ -111,7 +114,7 @@
             ],
         },
         {
-            title: "Accents",
+            title: $t("theme.groupAccents"),
             keys: [
                 "--color-border-primary",
                 "--color-accent-primary",
@@ -119,15 +122,15 @@
             ],
         },
         {
-            title: "Signals",
+            title: $t("theme.groupSignals"),
             keys: [
                 "--color-text-link",
                 "--color-text-link-broken",
                 "--color-text-error",
             ],
         },
-        { title: "Code", keys: SYNTAX_PALETTE_KEYS },
-    ];
+        { title: $t("theme.groupCode"), keys: SYNTAX_PALETTE_KEYS },
+    ]);
 
     const defaultPalette: ThemePalette = {
         // UI Defaults
@@ -206,7 +209,7 @@
 
     function createNewTheme() {
         currentTheme = {
-            name: "My New Theme",
+            name: $t("theme.newThemeName"),
             palette: { ...defaultPalette },
             // Optional: Default to current fonts or leave undefined
         };
@@ -251,7 +254,7 @@
         bodyFont?: string,
     ) {
         currentTheme = {
-            name: uniqueThemeName(`${sourceName} Copy`),
+            name: uniqueThemeName($t("theme.copyName", { name: sourceName })),
             palette: { ...palette },
             headingFont,
             bodyFont,
@@ -295,8 +298,8 @@
     async function handleSave() {
         const themeToSave = currentTheme;
         if (!themeToSave || !themeToSave.name.trim()) {
-            await message("Theme name cannot be empty.", {
-                title: "Invalid Theme",
+            await message($t("theme.emptyName"), {
+                title: $t("theme.invalidTheme"),
                 kind: "warning",
             });
             return;
@@ -309,8 +312,8 @@
             isRenaming &&
             $userThemes.some((t) => t.name === themeToSave.name)
         ) {
-            await message("A theme with this name already exists.", {
-                title: "Name Conflict",
+            await message($t("theme.nameExists"), {
+                title: $t("theme.nameConflict"),
                 kind: "warning",
             });
             return;
@@ -334,10 +337,10 @@
         const themeToDelete = currentTheme;
         if (!themeToDelete) return;
 
-        const prompt = `Are you sure you want to delete "${themeToDelete.name}"?`;
+        const prompt = $t("theme.deleteConfirm", { name: themeToDelete.name });
         if (
             await confirm(prompt, {
-                title: "Confirm Deletion",
+                title: $t("theme.confirmDeletion"),
             })
         ) {
             await deleteCustomTheme(themeToDelete.name);
@@ -357,9 +360,9 @@
         const defaultName =
             themeToExport.name.trim().replace(/[^a-z0-9-]+/gi, "-") || "theme";
         const targetPath = await save({
-            title: "Export Theme",
+            title: $t("theme.exportTitle"),
             defaultPath: `${defaultName}.json`,
-            filters: [{ name: "Theme JSON", extensions: ["json"] }],
+            filters: [{ name: $t("theme.jsonFilter"), extensions: ["json"] }],
         });
         if (!targetPath) return;
 
@@ -371,8 +374,8 @@
                 e,
                 "theme-editor",
             );
-            await message(`Could not write theme to file:\n${String(e)}`, {
-                title: "Export Failed",
+            await message($t("theme.exportFailedBody", { error: String(e) }), {
+                title: $t("theme.exportFailed"),
                 kind: "error",
             });
         }
@@ -399,9 +402,9 @@
 
     async function handleImport() {
         const picked = await open({
-            title: "Import Theme",
+            title: $t("theme.importTitle"),
             multiple: false,
-            filters: [{ name: "Theme JSON", extensions: ["json"] }],
+            filters: [{ name: $t("theme.jsonFilter"), extensions: ["json"] }],
         });
         if (!picked || typeof picked !== "string") return;
 
@@ -410,19 +413,22 @@
             parsed = await importThemeFromPath(picked);
         } catch (e) {
             log.error("Failed to read theme file", e, "theme-editor");
-            await message(`Could not read theme file:\n${String(e)}`, {
-                title: "Import Failed",
-                kind: "error",
-            });
+            await message(
+                $t("theme.importReadFailedBody", { error: String(e) }),
+                {
+                    title: $t("theme.importFailed"),
+                    kind: "error",
+                },
+            );
             return;
         }
 
         const theme = asCustomTheme(parsed);
         if (!theme) {
-            await message(
-                "This file doesn't look like a Chronicler theme (missing `name` or `palette`).",
-                { title: "Invalid Theme", kind: "error" },
-            );
+            await message($t("theme.importInvalidBody"), {
+                title: $t("theme.invalidTheme"),
+                kind: "error",
+            });
             return;
         }
 
@@ -433,10 +439,13 @@
         try {
             await saveCustomTheme(theme);
         } catch (e) {
-            await message(`Could not save imported theme:\n${String(e)}`, {
-                title: "Import Failed",
-                kind: "error",
-            });
+            await message(
+                $t("theme.importSaveFailedBody", { error: String(e) }),
+                {
+                    title: $t("theme.importFailed"),
+                    kind: "error",
+                },
+            );
             return;
         }
 
@@ -444,11 +453,11 @@
     }
 </script>
 
-<Modal title="Theme Editor" {onClose} wide>
+<Modal title={$t("theme.editorTitle")} {onClose} wide>
     <div class="editor">
         <aside class="sidebar">
             <header class="sidebar-header">
-                <span class="eyebrow">Library</span>
+                <span class="eyebrow">{$t("theme.library")}</span>
                 <span class="count">{$userThemes.length}</span>
             </header>
 
@@ -490,17 +499,17 @@
                         </button>
                     {/each}
                 {:else}
-                    <p class="empty-list">No custom themes yet.</p>
+                    <p class="empty-list">{$t("theme.noCustomThemes")}</p>
                 {/if}
             </div>
 
             <footer class="sidebar-actions">
-                <Button onclick={createNewTheme}>+ New theme</Button>
-                <Button onclick={handleImport}>Import theme…</Button>
+                <Button onclick={createNewTheme}>{$t("theme.new")}</Button>
+                <Button onclick={handleImport}>{$t("theme.import")}</Button>
                 <Select
                     options={cloneOptions}
                     bind:value={cloneSourceName}
-                    placeholder="Duplicate from…"
+                    placeholder={$t("theme.duplicateFrom")}
                     onSelect={handleCloneSelect}
                 />
             </footer>
@@ -510,29 +519,35 @@
             {#if currentTheme}
                 <header class="canvas-header">
                     <span class="eyebrow">
-                        {originalName ? "Editing" : "New theme"}
+                        {originalName
+                            ? $t("theme.editing")
+                            : $t("theme.newEyebrow")}
                     </span>
                     <input
                         class="title-input"
                         type="text"
                         bind:value={currentTheme.name}
                         spellcheck="false"
-                        aria-label="Theme name"
+                        aria-label={$t("theme.nameAriaLabel")}
                     />
                 </header>
 
                 <section class="canvas-section">
-                    <h5 class="section-title">Typography</h5>
+                    <h5 class="section-title">{$t("theme.typography")}</h5>
                     <div class="font-row">
                         <div class="font-field">
-                            <span class="field-label">Heading</span>
+                            <span class="field-label"
+                                >{$t("theme.headingFont")}</span
+                            >
                             <Select
                                 options={fontOptions}
                                 bind:value={currentTheme.headingFont}
                             />
                         </div>
                         <div class="font-field">
-                            <span class="field-label">Body</span>
+                            <span class="field-label"
+                                >{$t("theme.bodyFont")}</span
+                            >
                             <Select
                                 options={fontOptions}
                                 bind:value={currentTheme.bodyFont}
@@ -582,20 +597,21 @@
 
                 <footer class="canvas-actions">
                     <Button type="button" onclick={handleSave}
-                        >Save theme</Button
+                        >{$t("theme.save")}</Button
                     >
-                    <Button type="button" onclick={handleExport}>Export…</Button
+                    <Button type="button" onclick={handleExport}
+                        >{$t("theme.export")}</Button
                     >
                     {#if originalName}
                         <Button type="button" onclick={handleDelete}
-                            >Delete</Button
+                            >{$t("common.delete")}</Button
                         >
                     {/if}
                 </footer>
             {:else}
                 <div class="empty-canvas">
-                    <span class="eyebrow">Theme Editor</span>
-                    <h4>Pick a theme on the left, or start fresh.</h4>
+                    <span class="eyebrow">{$t("theme.editorTitle")}</span>
+                    <h4>{$t("theme.emptyCanvas")}</h4>
                 </div>
             {/if}
         </main>

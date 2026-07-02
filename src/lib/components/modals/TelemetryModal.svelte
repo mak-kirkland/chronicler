@@ -10,6 +10,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import { setTelemetryEnabled } from "$lib/commands";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -19,49 +20,48 @@
         } catch (e) {
             // A persistence failure shouldn't block the user. The default
             // stays "no ping", and they can try again via Settings.
-            log.error("Failed to save telemetry preference", e, "TelemetryModal");
+            log.error(
+                "Failed to save telemetry preference",
+                e,
+                "TelemetryModal",
+            );
         }
         onClose();
     }
 </script>
 
-<Modal title="Help Chronicler Grow" showCloseButton={false} onClose={() => {}}>
+<Modal title={$t("telemetry.title")} showCloseButton={false} onClose={() => {}}>
     <div class="consent-content">
         <p>
-            Hi, I'm Michael, the developer. Chronicler is a solo project, and
-            knowing roughly how many people are using it helps me justify the
-            time I spend maintaining and improving it.
+            {$t("telemetry.intro")}
         </p>
 
         <div class="info-box">
-            <h4>What gets sent</h4>
+            <h4>{$t("telemetry.whatSent")}</h4>
             <ul>
-                <li>
-                    A <strong>salted one-way hash</strong> of your machine ID (not
-                    reversible)
-                </li>
-                <li>The app version and your OS family</li>
+                <li>{$t("telemetry.sentHash")}</li>
+                <li>{$t("telemetry.sentVersion")}</li>
             </ul>
 
-            <h4>What is never sent</h4>
+            <h4>{$t("telemetry.whatNever")}</h4>
             <ul>
-                <li>Your name, email, vault contents, or filenames</li>
-                <li>Your IP address is not stored on the server</li>
-                <li>No tracking, no profiling, no third parties</li>
+                <li>{$t("telemetry.neverIdentity")}</li>
+                <li>{$t("telemetry.neverIp")}</li>
+                <li>{$t("telemetry.neverTracking")}</li>
             </ul>
 
             <p class="note">
-                You can change your mind anytime in
-                <strong>Settings → Privacy</strong>.
+                {$t("telemetry.notePre")}
+                <strong>{$t("telemetry.notePath")}</strong>.
             </p>
         </div>
 
         <div class="button-group">
             <Button variant="ghost" onclick={() => handleChoice(false)}>
-                No Thanks
+                {$t("telemetry.decline")}
             </Button>
             <Button variant="primary" onclick={() => handleChoice(true)}>
-                Sure, Count Me In
+                {$t("telemetry.accept")}
             </Button>
         </div>
     </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
     import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
+    import { t } from "$lib/i18n";
 
     let { keys = $bindable(), allFields } = $props<{
         keys?: string[];
@@ -42,7 +43,7 @@
     </div>
     <div class="smart-input-container">
         <AutocompleteInput
-            placeholder="Add field to column..."
+            placeholder={$t("infobox.addFieldToColumn")}
             options={allFields}
             bind:value={inputValue}
             onEnter={addKey}
@@ -51,7 +52,7 @@
     </div>
 </div>
 {#if !keys || keys.length === 0}
-    <small class="helper-text">Select fields to group in this row.</small>
+    <small class="helper-text">{$t("infobox.columnHelper")}</small>
 {/if}
 
 <style>

@@ -22,6 +22,7 @@
         createSelectContext,
         type SelectOption,
     } from "$lib/SelectController.svelte";
+    import { t } from "$lib/i18n";
 
     interface SelectGroup {
         label: string;
@@ -32,7 +33,7 @@
         options = [],
         groups = undefined,
         value = $bindable(),
-        placeholder = "Select...",
+        placeholder = undefined,
         formatLabel = undefined,
         onSelect = undefined,
     } = $props<{
@@ -63,7 +64,7 @@
         const match = flatOptions.find(
             (o: SelectOption<string>) => o.value === value,
         );
-        if (!match) return placeholder;
+        if (!match) return placeholder ?? $t("select.placeholder");
         return formatLabel ? formatLabel(match.label) : match.label;
     });
 

@@ -14,6 +14,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Preview from "$lib/components/views/Preview.svelte";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     let { update, installType, onClose } = $props<{
         update: Update;
@@ -46,7 +47,11 @@
                 renderedChangelog = await renderMarkdown(markdownContent);
             }
         } catch (e) {
-            log.error("Failed to get app version or render changelog", e, "UpdateModal");
+            log.error(
+                "Failed to get app version or render changelog",
+                e,
+                "UpdateModal",
+            );
         }
     });
 
@@ -58,19 +63,19 @@
             // On success, the app will relaunch, so no need to set isUpdating = false.
         } catch (error) {
             log.error("Failed to install update", error, "UpdateModal");
-            installError =
-                "Update failed. Please try again or visit the downloads page to update manually.";
+            installError = $t("update.failedBody");
             isUpdating = false; // Only reset on error
         }
     }
 </script>
 
-<Modal title="Update Available!" {onClose}>
+<Modal title={$t("update.title")} {onClose}>
     <p>
-        A new version of Chronicler is available: <strong
-            >{update.version}</strong
-        >
-        {#if currentVersion}(you have {currentVersion}){/if}.
+        {$t("update.available")}
+        <strong>{update.version}</strong>
+        {#if currentVersion}{$t("update.youHave", {
+                version: currentVersion,
+            })}{/if}.
     </p>
 
     {#if renderedChangelog}
@@ -81,41 +86,40 @@
 
     {#if manualUpdateRequired}
         <div class="manual-update-notice">
-            <p><strong>Manual Update Required</strong></p>
+            <p><strong>{$t("update.manualRequired")}</strong></p>
             {#if installType === "flatpak"}
                 <p class="text-sm">
-                    You're running the Flatpak version of Chronicler. To
-                    update, run this in a terminal:
+                    {$t("update.flatpakBody")}
                 </p>
-                <pre
-                    class="update-command"><code>flatpak update pro.chronicler.Chronicler</code></pre>
+                <pre class="update-command"><code
+                        >flatpak update pro.chronicler.Chronicler</code
+                    ></pre>
                 <p class="text-sm">
-                    Or open your software center (GNOME Software, KDE
-                    Discover) — it will show the update once it refreshes the
-                    Chronicler remote.
+                    {$t("update.flatpakSoftwareCenter")}
                 </p>
             {:else}
                 <p class="text-sm">
-                    Since you installed via a system package manager (.deb or .rpm),
-                    please download the latest version from our releases page.
+                    {$t("update.packageManagerBody")}
                 </p>
             {/if}
         </div>
         <div class="button-group">
-            <Button onclick={onClose}>Later</Button>
+            <Button onclick={onClose}>{$t("update.later")}</Button>
             {#if installType !== "flatpak"}
-                <Button onclick={openReleasePage}>Go to Downloads</Button>
+                <Button onclick={openReleasePage}
+                    >{$t("update.goToDownloads")}</Button
+                >
             {/if}
         </div>
     {:else}
         {#if installError}
-            <ErrorBox title="Update Failed">{installError}</ErrorBox>
+            <ErrorBox title={$t("update.failedTitle")}>{installError}</ErrorBox>
         {/if}
         <div class="button-group">
             <Button
                 class="button-secondary"
                 onclick={onClose}
-                disabled={isUpdating}>Later</Button
+                disabled={isUpdating}>{$t("update.later")}</Button
             >
             <Button
                 class="button-primary"
@@ -123,9 +127,9 @@
                 disabled={isUpdating}
             >
                 {#if isUpdating}
-                    <span>Updating...</span>
+                    <span>{$t("update.updating")}</span>
                 {:else}
-                    <span>Install & Relaunch</span>
+                    <span>{$t("update.install")}</span>
                 {/if}
             </Button>
         </div>

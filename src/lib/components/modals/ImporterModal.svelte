@@ -11,6 +11,7 @@
     import { log } from "$lib/logger";
     import Button from "$lib/components/ui/Button.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
+    import { t } from "$lib/i18n";
 
     // The `onClose` function is passed as a prop to allow this modal to be closed from its parent.
     let { onClose = () => {} } = $props<{ onClose?: () => void }>();
@@ -27,7 +28,11 @@
                 pandocInstalled = installed;
             })
             .catch((err) => {
-                log.error("Failed to check pandoc status", err, "ImporterModal");
+                log.error(
+                    "Failed to check pandoc status",
+                    err,
+                    "ImporterModal",
+                );
                 pandocInstalled = false;
             });
     });
@@ -36,24 +41,19 @@
      * Downloads and installs Pandoc if the user confirms.
      */
     async function installPandoc() {
-        if (
-            !window.confirm(
-                "This feature requires Pandoc, a universal document converter. Allow Chronicler to download it? (This is a one-time download of approx. 200MB).",
-            )
-        ) {
+        if (!window.confirm($t("importer.pandocConfirm"))) {
             return;
         }
 
         isProcessing = true;
-        importMessage = "Downloading and setting up Pandoc...";
+        importMessage = $t("importer.pandocDownloading");
         try {
             await downloadPandoc();
             pandocInstalled = true;
-            importMessage =
-                "Pandoc installed successfully! You can now import files.";
+            importMessage = $t("importer.pandocInstalled");
         } catch (e) {
             log.error("Pandoc installation failed", e, "ImporterModal");
-            importMessage = `Failed to install Pandoc: ${e}`;
+            importMessage = $t("importer.pandocFailed", { error: String(e) });
         } finally {
             isProcessing = false;
         }
@@ -68,9 +68,9 @@
         // 1. Set the initial state and message so the user sees immediate feedback.
         isProcessing = true;
         if (Array.isArray(paths)) {
-            importMessage = `Preparing to import ${paths.length} file(s)...`;
+            importMessage = $t("importer.preparing", { count: paths.length });
         } else {
-            importMessage = `Scanning folder...`;
+            importMessage = $t("importer.scanningFolder");
         }
 
         // 2. Wait for the next "tick" of the JavaScript event loop.
@@ -88,19 +88,21 @@
             }
 
             if (importedPaths.length === 0) {
-                alert("No .docx files were found to import.");
+                alert($t("importer.noDocxFound"));
                 importMessage = null;
                 return;
             }
 
             // After a successful import, refresh the world state to show the new files.
             await world.initialize();
-            alert(`${importedPaths.length} file(s) imported successfully!`);
+            alert(
+                $t("importer.filesImported", { count: importedPaths.length }),
+            );
             onClose(); // Close the modal on success
         } catch (e) {
             log.error("Import failed", e, "ImporterModal");
-            alert(`Import failed: ${e}`);
-            importMessage = `Import failed: ${e}`;
+            alert($t("importer.failed", { error: String(e) }));
+            importMessage = $t("importer.failed", { error: String(e) });
         } finally {
             isProcessing = false;
         }
@@ -139,7 +141,7 @@
             const selected = await open({
                 directory: true,
                 multiple: false,
-                title: "Select a folder to import .docx files from",
+                title: $t("importer.selectFolderTitle"),
             });
             if (typeof selected === "string") {
                 await handleDocxImport(selected);
@@ -155,25 +157,29 @@
      */
     async function handleMediawikiImport(path: string) {
         isProcessing = true;
-        importMessage = "Processing MediaWiki XML dump...";
+        importMessage = $t("importer.processingMediawiki");
 
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         try {
             const importedPaths = await importMediawikiDump(path);
             if (importedPaths.length === 0) {
-                alert("No pages were found to import from the XML file.");
+                alert($t("importer.noPagesFound"));
                 importMessage = null;
                 return;
             }
 
             await world.initialize();
-            alert(`${importedPaths.length} page(s) imported successfully!`);
+            alert(
+                $t("importer.pagesImported", { count: importedPaths.length }),
+            );
             onClose();
         } catch (e) {
             log.error("MediaWiki import failed", e, "ImporterModal");
-            alert(`MediaWiki import failed: ${e}`);
-            importMessage = `MediaWiki import failed: ${e}`;
+            alert($t("importer.mediawikiFailed", { error: String(e) }));
+            importMessage = $t("importer.mediawikiFailed", {
+                error: String(e),
+            });
         } finally {
             isProcessing = false;
         }
@@ -201,64 +207,60 @@
     }
 </script>
 
-<Modal title="Import Documents" {onClose}>
+<Modal title={$t("importer.title")} {onClose}>
     <div class="modal-body-content">
         <div class="setting-item">
-            <h4>Import from MediaWiki</h4>
+            <h4>{$t("importer.mediawikiTitle")}</h4>
             <p>
-                Import a MediaWiki XML dump file. This will convert pages,
-                download images, and create tag indexes.
+                {$t("importer.mediawikiDescription")}
             </p>
             {#if !pandocInstalled}
                 <p class="pandoc-warning">
-                    This feature requires <strong>Pandoc</strong>. Click the
-                    button below to download and install it automatically.
+                    {$t("importer.pandocRequired")}
                 </p>
             {/if}
             <div class="button-group">
                 <Button onclick={selectMediawikiDump} disabled={isProcessing}>
                     {#if isProcessing && !pandocInstalled}
-                        Installing Pandoc...
+                        {$t("importer.installingPandoc")}
                     {:else if isProcessing}
-                        Importing...
+                        {$t("importer.importing")}
                     {:else}
-                        Select XML File
+                        {$t("importer.selectXml")}
                     {/if}
                 </Button>
             </div>
         </div>
 
         <div class="setting-item">
-            <h4>Import from .docx</h4>
+            <h4>{$t("importer.docxTitle")}</h4>
             <p>
-                Import .docx files as new Markdown pages in your vault's root
-                directory.
+                {$t("importer.docxDescription")}
             </p>
             {#if !pandocInstalled}
                 <p class="pandoc-warning">
-                    This feature requires <strong>Pandoc</strong>. Click a
-                    button below to download and install it automatically.
+                    {$t("importer.pandocRequired")}
                 </p>
             {/if}
 
             <div class="button-group">
                 <Button onclick={selectDocxFiles} disabled={isProcessing}>
                     {#if isProcessing && !pandocInstalled}
-                        Installing Pandoc...
+                        {$t("importer.installingPandoc")}
                     {:else if isProcessing}
-                        Importing...
+                        {$t("importer.importing")}
                     {:else}
-                        Select Files
+                        {$t("importer.selectFiles")}
                     {/if}
                 </Button>
 
                 <Button onclick={selectDocxFolder} disabled={isProcessing}>
                     {#if isProcessing && !pandocInstalled}
-                        Installing Pandoc...
+                        {$t("importer.installingPandoc")}
                     {:else if isProcessing}
-                        Importing...
+                        {$t("importer.importing")}
                     {:else}
-                        Select Folder
+                        {$t("importer.selectFolder")}
                     {/if}
                 </Button>
             </div>

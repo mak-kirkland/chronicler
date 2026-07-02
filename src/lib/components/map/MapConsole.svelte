@@ -19,6 +19,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
     import SearchInput from "$lib/components/ui/SearchInput.svelte";
+    import { t } from "$lib/i18n";
 
     let {
         mapConfig,
@@ -94,13 +95,13 @@
 
 <div class="map-console">
     <div class="console-header">
-        <h3>Map Console</h3>
+        <h3>{$t("map.consoleTitle")}</h3>
         <div class="console-controls">
             <Button
                 variant="ghost"
                 size="small"
                 onclick={openSettings}
-                title="Map Settings"
+                title={$t("map.settingsButton")}
             >
                 <Icon type="settings" />
             </Button>
@@ -109,16 +110,21 @@
     </div>
 
     <div class="search-container">
-        <SearchInput bind:value={searchTerm} placeholder="Search items..." />
+        <SearchInput
+            bind:value={searchTerm}
+            placeholder={$t("map.searchItems")}
+        />
     </div>
 
     <div class="console-content">
         <!-- PINS SECTION -->
         <div class="section">
-            <h4>Pins ({pins.length})</h4>
+            <h4>{$t("map.pinsCount", { count: pins.length })}</h4>
             {#if pins.length === 0}
                 <p class="empty-state">
-                    {searchTerm ? "No matching pins." : "No visible pins."}
+                    {searchTerm
+                        ? $t("map.noMatchingPins")
+                        : $t("map.noVisiblePins")}
                 </p>
             {:else}
                 <ul class="item-list">
@@ -135,7 +141,7 @@
                                 >
                                     {#if pin.invisible}
                                         <!-- Ghost indicator for invisible pins -->
-                                        <span title="Invisible Pin"
+                                        <span title={$t("map.invisiblePin")}
                                             >{GHOST_ICON}</span
                                         >
                                     {:else}
@@ -143,19 +149,19 @@
                                     {/if}
                                 </span>
                                 <span class="item-label" title={pin.label}
-                                    >{pin.label || "Unnamed Pin"}</span
+                                    >{pin.label || $t("map.unnamedPin")}</span
                                 >
                             </div>
                             <div class="item-actions">
                                 <button
                                     class="action-btn edit"
                                     onclick={() => handleEditPin(pin)}
-                                    title="Edit">✎</button
+                                    title={$t("common.edit")}>✎</button
                                 >
                                 <button
                                     class="action-btn delete"
                                     onclick={() => handleDeletePin(pin.id)}
-                                    title="Delete">🗑️</button
+                                    title={$t("common.delete")}>🗑️</button
                                 >
                             </div>
                         </li>
@@ -166,12 +172,12 @@
 
         <!-- REGIONS SECTION -->
         <div class="section">
-            <h4>Regions ({regions.length})</h4>
+            <h4>{$t("map.regionsCount", { count: regions.length })}</h4>
             {#if regions.length === 0}
                 <p class="empty-state">
                     {searchTerm
-                        ? "No matching regions."
-                        : "No visible regions."}
+                        ? $t("map.noMatchingRegions")
+                        : $t("map.noVisibleRegions")}
                 </p>
             {:else}
                 <ul class="item-list">
@@ -194,20 +200,21 @@
                                     {/if}
                                 </span>
                                 <span class="item-label" title={region.label}
-                                    >{region.label || "Unnamed Region"}</span
+                                    >{region.label ||
+                                        $t("map.unnamedRegion")}</span
                                 >
                             </div>
                             <div class="item-actions">
                                 <button
                                     class="action-btn edit"
                                     onclick={() => handleEditRegion(region)}
-                                    title="Edit">✎</button
+                                    title={$t("common.edit")}>✎</button
                                 >
                                 <button
                                     class="action-btn delete"
                                     onclick={() =>
                                         handleDeleteRegion(region.id)}
-                                    title="Delete">🗑️</button
+                                    title={$t("common.delete")}>🗑️</button
                                 >
                             </div>
                         </li>

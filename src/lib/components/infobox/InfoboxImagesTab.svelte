@@ -2,6 +2,7 @@
     import { reorderArrayItem, type ImageEntry } from "$lib/infobox";
     import InfoboxImageRow from "$lib/components/infobox/InfoboxImageRow.svelte";
     import Button from "$lib/components/ui/Button.svelte";
+    import { t } from "$lib/i18n";
 
     let {
         images = $bindable(),
@@ -24,11 +25,13 @@
 
 <div class="form-section">
     <div class="custom-fields-header">
-        <h4>Images</h4>
-        <Button size="small" onclick={onAddImage}>+ Add Image</Button>
+        <h4>{$t("infobox.imagesTitle")}</h4>
+        <Button size="small" onclick={onAddImage}
+            >{$t("infobox.addImage")}</Button
+        >
     </div>
     <p class="helper-text" style="margin-top: -0.5rem;">
-        Add multiple images to create a carousel.
+        {$t("infobox.imagesDescription")}
     </p>
 
     {#each images as img, i (img.id)}
@@ -45,7 +48,9 @@
     <!-- Add Image Button at Bottom (Only if items exist) -->
     {#if images.length > 0}
         <div class="bottom-add-container">
-            <Button size="small" onclick={onAddImage}>+ Add Image</Button>
+            <Button size="small" onclick={onAddImage}
+                >{$t("infobox.addImage")}</Button
+            >
         </div>
     {/if}
 </div>

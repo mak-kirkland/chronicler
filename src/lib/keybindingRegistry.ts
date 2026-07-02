@@ -27,16 +27,16 @@ export type EditorCommandId =
 export interface BindingDef {
     /** Stable identifier, also the key used in the persisted overrides map. */
     id: string;
-    /** Human-readable action name shown in the UI. */
+    /** i18n key of the action name shown in the UI (translate with `$t`). */
     label: string;
-    /** Optional one-line explanation. */
+    /** Optional i18n key of a one-line explanation. */
     description?: string;
     category: BindingCategory;
     /** Canonical combo strings (see keybindingUtils). May be empty. */
     defaultKeys: string[];
     /** Whether the user may rebind this. Built-ins are display-only. */
     editable: boolean;
-    /** Extra hint shown beside the chip, e.g. alternate inputs. */
+    /** Optional i18n key of an extra hint shown beside the chip. */
     note?: string;
 }
 
@@ -52,52 +52,52 @@ export const KEYBINDING_REGISTRY: BindingDef[] = [
     // --- Navigation & tabs (editable) ---
     {
         id: "navigateBack",
-        label: "Navigate back",
+        label: "keybindings.action.navigateBack",
         category: "navigation",
         defaultKeys: IS_MAC ? ["Meta+["] : ["Alt+ArrowLeft"],
         editable: true,
-        note: "Also: mouse back button",
+        note: "keybindings.note.navigateBack",
     },
     {
         id: "navigateForward",
-        label: "Navigate forward",
+        label: "keybindings.action.navigateForward",
         category: "navigation",
         defaultKeys: IS_MAC ? ["Meta+]"] : ["Alt+ArrowRight"],
         editable: true,
-        note: "Also: mouse forward button",
+        note: "keybindings.note.navigateForward",
     },
     {
         id: "newTab",
-        label: "New tab",
+        label: "keybindings.action.newTab",
         category: "navigation",
         defaultKeys: IS_MAC ? ["Meta+t"] : ["Control+t"],
         editable: true,
     },
     {
         id: "closeTab",
-        label: "Close tab",
+        label: "keybindings.action.closeTab",
         category: "navigation",
         defaultKeys: IS_MAC ? ["Meta+w"] : ["Control+w"],
         editable: true,
     },
     {
         id: "nextTab",
-        label: "Next tab",
+        label: "keybindings.action.nextTab",
         category: "navigation",
         defaultKeys: ["Control+Tab"],
         editable: true,
     },
     {
         id: "prevTab",
-        label: "Previous tab",
+        label: "keybindings.action.prevTab",
         category: "navigation",
         defaultKeys: ["Control+Shift+Tab"],
         editable: true,
     },
     {
         id: "jumpToTab",
-        label: "Jump to tab 1–9",
-        description: "9 jumps to the last tab.",
+        label: "keybindings.action.jumpToTab",
+        description: "keybindings.desc.jumpToTab",
         category: "navigation",
         // A numeric range, not a single combo — shown for reference only.
         defaultKeys: IS_MAC ? ["Meta+1…9"] : ["Control+1…9"],
@@ -107,28 +107,28 @@ export const KEYBINDING_REGISTRY: BindingDef[] = [
     // --- Editor commands (editable) ---
     {
         id: "editorBold",
-        label: "Bold",
+        label: "keybindings.action.editorBold",
         category: "editor",
         defaultKeys: IS_MAC ? ["Meta+b"] : ["Control+b"],
         editable: true,
     },
     {
         id: "editorItalic",
-        label: "Italic",
+        label: "keybindings.action.editorItalic",
         category: "editor",
         defaultKeys: IS_MAC ? ["Meta+i"] : ["Control+i"],
         editable: true,
     },
     {
         id: "editorForceWikilink",
-        label: "Complete wikilink / exit brackets",
+        label: "keybindings.action.editorForceWikilink",
         category: "editor",
         defaultKeys: ["Shift+Enter"],
         editable: true,
     },
     {
         id: "editorAcceptCompletion",
-        label: "Accept autocomplete suggestion",
+        label: "keybindings.action.editorAcceptCompletion",
         category: "editor",
         defaultKeys: ["Tab"],
         editable: true,
@@ -137,56 +137,56 @@ export const KEYBINDING_REGISTRY: BindingDef[] = [
     // --- CodeMirror built-ins (read-only reference) ---
     {
         id: "builtinUndo",
-        label: "Undo",
+        label: "keybindings.action.builtinUndo",
         category: "editor-builtin",
         defaultKeys: IS_MAC ? ["Meta+z"] : ["Control+z"],
         editable: false,
     },
     {
         id: "builtinRedo",
-        label: "Redo",
+        label: "keybindings.action.builtinRedo",
         category: "editor-builtin",
         defaultKeys: IS_MAC ? ["Meta+Shift+z"] : ["Control+Shift+z"],
         editable: false,
     },
     {
         id: "builtinSelectAll",
-        label: "Select all",
+        label: "keybindings.action.builtinSelectAll",
         category: "editor-builtin",
         defaultKeys: IS_MAC ? ["Meta+a"] : ["Control+a"],
         editable: false,
     },
     {
         id: "builtinDeleteLine",
-        label: "Delete line",
+        label: "keybindings.action.builtinDeleteLine",
         category: "editor-builtin",
         defaultKeys: IS_MAC ? ["Meta+Shift+k"] : ["Control+Shift+k"],
         editable: false,
     },
     {
         id: "builtinMoveLineUp",
-        label: "Move line up",
+        label: "keybindings.action.builtinMoveLineUp",
         category: "editor-builtin",
         defaultKeys: ["Alt+ArrowUp"],
         editable: false,
     },
     {
         id: "builtinMoveLineDown",
-        label: "Move line down",
+        label: "keybindings.action.builtinMoveLineDown",
         category: "editor-builtin",
         defaultKeys: ["Alt+ArrowDown"],
         editable: false,
     },
     {
         id: "builtinIndentLess",
-        label: "Indent less",
+        label: "keybindings.action.builtinIndentLess",
         category: "editor-builtin",
         defaultKeys: IS_MAC ? ["Meta+["] : ["Control+["],
         editable: false,
     },
     {
         id: "builtinIndentMore",
-        label: "Indent more",
+        label: "keybindings.action.builtinIndentMore",
         category: "editor-builtin",
         defaultKeys: IS_MAC ? ["Meta+]"] : ["Control+]"],
         editable: false,

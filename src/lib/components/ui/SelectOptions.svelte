@@ -6,6 +6,7 @@
      * Renders a <ul> of options with highlighting, selection marks,
      * and mouse-move guard integration via the controller.
      */
+    import { t } from "$lib/i18n";
     import type {
         SelectController,
         SelectOption,
@@ -47,12 +48,12 @@
             >
                 {getLabel(opt)}
                 {#if opt.disabled}
-                    <span class="disabled-badge">(Locked)</span>
+                    <span class="disabled-badge">{$t("select.locked")}</span>
                 {/if}
             </button>
         </li>
     {:else}
-        <li class="no-results">No options available</li>
+        <li class="no-results">{$t("select.noOptions")}</li>
     {/each}
 </ul>
 

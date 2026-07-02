@@ -4,6 +4,7 @@
     import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
     import type { ImageEntry } from "$lib/infobox";
+    import { t } from "$lib/i18n";
 
     let {
         image = $bindable(),
@@ -66,7 +67,7 @@
 
     <div class="image-details">
         <div class="autocomplete-wrapper">
-            <label for="img-src-{image.id}">Source</label>
+            <label for="img-src-{image.id}">{$t("infobox.imageSource")}</label>
             <AutocompleteInput
                 bind:value={image.src}
                 options={allImageFiles}
@@ -76,14 +77,15 @@
         </div>
 
         <label for="img-cap-{image.id}"
-            >Caption <span class="sub-label">(Optional)</span></label
+            >{$t("infobox.imageCaption")}
+            <span class="sub-label">{$t("infobox.optional")}</span></label
         >
         <input
             id="img-cap-{image.id}"
             type="text"
             class="form-input"
             bind:value={image.caption}
-            placeholder="Caption..."
+            placeholder={$t("infobox.captionPlaceholder")}
         />
     </div>
 

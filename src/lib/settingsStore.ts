@@ -20,6 +20,7 @@ import {
     deleteThemeFromDisk,
 } from "$lib/commands";
 import { log } from "$lib/logger";
+import { languagePreference, SYSTEM_LOCALE } from "$lib/i18n";
 import {
     BUILT_IN_THEME_FONTS,
     BUILT_IN_THEME_MODES,
@@ -41,6 +42,12 @@ interface GlobalSettings {
      * immediately on startup, before any vault-specific settings are loaded.
      */
     lastActiveTheme?: ThemeName;
+    /**
+     * The UI language preference: `"system"` (follow the OS language) or an
+     * explicit locale code like `"pl"`. Global — a user's language doesn't
+     * change per vault.
+     */
+    language?: string;
 }
 
 /** Legacy shape kept just long enough to migrate older settings files. */
@@ -231,6 +238,7 @@ async function saveGlobalSettings() {
     if (!globalSettingsFile) return;
     const settings: GlobalSettings = {
         lastActiveTheme: get(activeTheme),
+        language: get(languagePreference),
     };
     await globalSettingsFile.set("globalSettings", settings);
     await globalSettingsFile.save();
@@ -323,9 +331,14 @@ export async function loadGlobalSettings() {
         activeTheme.set(settings.lastActiveTheme ?? "light");
     }
 
+    // Apply the saved language preference ("system" resolves against the
+    // OS locale inside the i18n module).
+    languagePreference.set(settings?.language ?? SYSTEM_LOCALE);
+
     // Subscribe the activeTheme to the global saver. This is the key
     // to persisting the theme when it's changed.
     globalUnsubscribers.push(activeTheme.subscribe(debouncedGlobalSave));
+    globalUnsubscribers.push(languagePreference.subscribe(debouncedGlobalSave));
 }
 
 /**

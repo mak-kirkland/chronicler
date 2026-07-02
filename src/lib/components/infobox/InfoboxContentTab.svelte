@@ -4,6 +4,7 @@
     import AutocompleteInput from "$lib/components/ui/AutocompleteInput.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import { tags as worldTags } from "$lib/worldStore";
+    import { t } from "$lib/i18n";
 
     let {
         title = $bindable(),
@@ -44,35 +45,39 @@
     }
 
     function handleMove(index: number, direction: number) {
-        customFields = reorderArrayItem(customFields, index, direction as -1 | 1);
+        customFields = reorderArrayItem(
+            customFields,
+            index,
+            direction as -1 | 1,
+        );
     }
 </script>
 
 <div class="form-section">
     <div class="form-group">
-        <label for="field-title">Title</label>
+        <label for="field-title">{$t("infobox.titleLabel")}</label>
         <input
             id="field-title"
             type="text"
             bind:value={title}
-            placeholder="Title override (leave blank to use file name)"
+            placeholder={$t("infobox.titlePlaceholder")}
             class="form-input"
         />
     </div>
     <div class="form-group">
-        <label for="field-subtitle">Subtitle (Optional)</label>
+        <label for="field-subtitle">{$t("infobox.subtitleLabel")}</label>
         <input
             id="field-subtitle"
             type="text"
             bind:value={subtitle}
-            placeholder="Subtitle"
+            placeholder={$t("infobox.subtitlePlaceholder")}
             class="form-input"
         />
     </div>
 
     <!-- Tag Manager -->
     <div class="form-group">
-        <label for="field-tags">Tags</label>
+        <label for="field-tags">{$t("infobox.tagsLabel")}</label>
         <div class="tag-input-container">
             <div class="tag-list">
                 {#each tags as tag}
@@ -87,7 +92,7 @@
             </div>
             <div class="smart-input-container">
                 <AutocompleteInput
-                    placeholder="Add tag..."
+                    placeholder={$t("infobox.addTagPlaceholder")}
                     options={$worldTags.map((t) => t[0])}
                     onEnter={handleTagEnter}
                     bind:value={tagInputValue}
@@ -101,8 +106,10 @@
 
     <!-- Custom Fields -->
     <div class="custom-fields-header">
-        <h4>Custom Fields</h4>
-        <Button size="small" onclick={onAddField}>+ Add Field</Button>
+        <h4>{$t("infobox.customFields")}</h4>
+        <Button size="small" onclick={onAddField}
+            >{$t("infobox.addField")}</Button
+        >
     </div>
 
     <div class="fields-list">
@@ -117,14 +124,16 @@
             />
         {/each}
         {#if customFields.length === 0}
-            <div class="empty-state">No custom fields added yet.</div>
+            <div class="empty-state">{$t("infobox.noCustomFields")}</div>
         {/if}
     </div>
 
     <!-- Add Field Button at Bottom (Only if items exist) -->
     {#if customFields.length > 0}
         <div class="bottom-add-container">
-            <Button size="small" onclick={onAddField}>+ Add Field</Button>
+            <Button size="small" onclick={onAddField}
+                >{$t("infobox.addField")}</Button
+            >
         </div>
     {/if}
 </div>

@@ -17,6 +17,7 @@
     import { log } from "$lib/logger";
 
     import type { MapConfig, MapLayer } from "$lib/mapModels";
+    import { t } from "$lib/i18n";
 
     let { onClose, mapPath, mapConfig } = $props<{
         onClose: () => void;
@@ -128,7 +129,7 @@
 
     function removeLayer(index: number) {
         if (layers.length <= 1) {
-            alert("Map must have at least one layer.");
+            alert($t("map.atLeastOneLayer"));
             return;
         }
         layers.splice(index, 1);
@@ -167,7 +168,7 @@
 
         // Basic Validation
         if (layers.some((l) => !l.image)) {
-            alert("All layers must have an image selected.");
+            alert($t("map.allLayersNeedImage"));
             return;
         }
 
@@ -195,19 +196,21 @@
             onClose();
         } catch (e) {
             log.error("Failed to save map settings", e, "MapSettingsModal");
-            alert("Failed to save map settings.");
+            alert($t("map.saveSettingsFailed"));
         } finally {
             isSaving = false;
         }
     }
 </script>
 
-<Modal title="Map Layers & Settings" {onClose}>
+<Modal title={$t("map.settingsTitle")} {onClose}>
     <div class="settings-container">
         <div class="layer-manager">
             <div class="header-row">
-                <h3>Layers</h3>
-                <Button size="small" onclick={addLayer}>+ Add Layer</Button>
+                <h3>{$t("map.layers")}</h3>
+                <Button size="small" onclick={addLayer}
+                    >{$t("map.addLayer")}</Button
+                >
             </div>
 
             <div class="layer-list">
@@ -219,13 +222,13 @@
                                 class="icon-btn"
                                 onclick={() => moveLayer(i, "up")}
                                 disabled={i === 0}
-                                title="Move Up">▲</button
+                                title={$t("map.moveUp")}>▲</button
                             >
                             <button
                                 class="icon-btn"
                                 onclick={() => moveLayer(i, "down")}
                                 disabled={i === layers.length - 1}
-                                title="Move Down">▼</button
+                                title={$t("map.moveDown")}>▼</button
                             >
                         </div>
 
@@ -236,13 +239,13 @@
                                         type="text"
                                         class="layer-name-input"
                                         bind:value={layer.name}
-                                        placeholder="Layer Name"
+                                        placeholder={$t("map.layerName")}
                                     />
                                     <div class="image-select-wrapper">
                                         <SearchableSelect
                                             options={$allImageFiles}
                                             bind:value={layer.image}
-                                            placeholder="Select Image..."
+                                            placeholder={$t("map.selectImage")}
                                         />
                                     </div>
                                 </div>
@@ -250,7 +253,7 @@
                                 <button
                                     type="button"
                                     class="icon-btn danger"
-                                    title="Delete Layer"
+                                    title={$t("map.deleteLayer")}
                                     onclick={() => removeLayer(i)}
                                 >
                                     <Icon type="close" />
@@ -264,17 +267,17 @@
 
         <!-- Hover Preview Settings -->
         <div class="preview-settings">
-            <h3>Hover Previews</h3>
+            <h3>{$t("map.hoverPreviews")}</h3>
             <ToggleSwitch
                 id="link-previews"
-                label="Link Previews"
-                description="Show page infobox when hovering over pins and regions."
+                label={$t("map.linkPreviews")}
+                description={$t("map.linkPreviewsDescription")}
                 bind:checked={$areLinkPreviewsEnabled}
             />
             <ToggleSwitch
                 id="map-previews"
-                label="Map Previews"
-                description="Show map thumbnail when hovering over map links."
+                label={$t("map.mapPreviews")}
+                description={$t("map.mapPreviewsDescription")}
                 bind:checked={$areMapPreviewsEnabled}
             />
         </div>
@@ -289,14 +292,14 @@
 
         <div class="modal-actions">
             <Button type="button" variant="ghost" onclick={onClose}
-                >Cancel</Button
+                >{$t("common.cancel")}</Button
             >
             <Button
                 type="submit"
                 onclick={handleSave}
                 disabled={isSaving || !!error}
             >
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? $t("save.saving") : $t("map.saveChanges")}
             </Button>
         </div>
     </div>

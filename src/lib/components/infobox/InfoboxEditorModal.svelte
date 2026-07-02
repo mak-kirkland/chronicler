@@ -23,6 +23,7 @@
     } from "$lib/infobox";
     import { buildPageView } from "$lib/commands";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     let { onClose, initialContent, onSave } = $props<{
         onClose: () => void;
@@ -161,12 +162,7 @@
     // --- Actions: Template ---
     async function applyTemplate() {
         if (!selectedTemplatePath) return;
-        if (
-            !confirm(
-                "Merge template fields? Existing values may be overwritten.",
-            )
-        )
-            return;
+        if (!confirm($t("infobox.mergeTemplateConfirm"))) return;
 
         try {
             // Fetch the raw content string of the template
@@ -188,7 +184,7 @@
             activeTab = "content"; // Switch back to see changes
         } catch (e) {
             log.error("Failed to load template", e, "InfoboxEditorModal");
-            alert("Failed to load template.");
+            alert($t("infobox.loadTemplateFailed"));
         }
     }
 
@@ -196,7 +192,7 @@
 
     function handleSave(shouldClose: boolean) {
         if (duplicateKeys.size > 0) {
-            alert("Please resolve duplicate keys before saving.");
+            alert($t("infobox.duplicateKeys"));
             return;
         }
 
@@ -224,24 +220,28 @@
             if (shouldClose) onClose();
         } catch (e) {
             log.error("Failed to save infobox", e, "InfoboxEditorModal");
-            alert(`Failed to save: ${e instanceof Error ? e.message : e}`);
+            alert(
+                $t("infobox.saveFailed", {
+                    error: e instanceof Error ? e.message : String(e),
+                }),
+            );
         } finally {
             isSaving = false;
         }
     }
 </script>
 
-<Modal title="Infobox Editor" {onClose}>
+<Modal title={$t("infobox.editorTitle")} {onClose}>
     {#if isLoading}
         <div class="loading-state">
             <div class="spinner"></div>
-            <p>Loading...</p>
+            <p>{$t("common.loading")}</p>
         </div>
     {:else}
         <div class="editor-container">
             <!-- Tabs -->
             <div class="tabs-header">
-                {#each [{ id: "content", icon: "file", label: "Content" }, { id: "images", icon: "image", label: "Images" }, { id: "layout", icon: "split", label: "Layout" }, { id: "templates", icon: "settings", label: "Templates" }] as tab}
+                {#each [{ id: "content", icon: "file", label: $t("infobox.tabContent") }, { id: "images", icon: "image", label: $t("infobox.tabImages") }, { id: "layout", icon: "split", label: $t("infobox.tabLayout") }, { id: "templates", icon: "settings", label: $t("infobox.tabTemplates") }] as tab}
                     <button
                         class:active={activeTab === tab.id}
                         onclick={() => (activeTab = tab.id as TabId)}
@@ -281,15 +281,15 @@
                 {:else if activeTab === "templates"}
                     <div class="form-section">
                         <div class="template-selector-box">
-                            <h4>Inherit Template</h4>
+                            <h4>{$t("infobox.inheritTemplate")}</h4>
                             <p class="helper-text">
-                                Merge fields from an existing template.
+                                {$t("infobox.inheritTemplateDescription")}
                             </p>
                             <div class="split-row">
                                 <label
                                     for="template-select"
                                     class="visually-hidden"
-                                    >Select Template</label
+                                    >{$t("infobox.selectTemplate")}</label
                                 >
                                 <div style="flex-grow: 1;">
                                     <SearchableSelect
@@ -297,7 +297,9 @@
                                             (t) => t.path,
                                         )}
                                         bind:value={selectedTemplatePath}
-                                        placeholder="Select a template..."
+                                        placeholder={$t(
+                                            "infobox.selectTemplatePlaceholder",
+                                        )}
                                         formatLabel={(path) =>
                                             availableTemplates.find(
                                                 (t) => t.path === path,
@@ -307,7 +309,7 @@
                                 <Button
                                     onclick={applyTemplate}
                                     disabled={!selectedTemplatePath}
-                                    >Apply</Button
+                                    >{$t("common.apply")}</Button
                                 >
                             </div>
                         </div>
@@ -316,19 +318,19 @@
             </div>
 
             <div class="editor-footer">
-                <Button onclick={onClose}>Cancel</Button>
+                <Button onclick={onClose}>{$t("common.cancel")}</Button>
                 <div class="save-group">
                     <Button
                         variant="primary"
                         onclick={() => handleSave(false)}
                         disabled={isSaving || duplicateKeys.size > 0}
-                        >Apply</Button
+                        >{$t("common.apply")}</Button
                     >
                     <Button
                         variant="primary"
                         onclick={() => handleSave(true)}
                         disabled={isSaving || duplicateKeys.size > 0}
-                        >Save & Close</Button
+                        >{$t("infobox.saveAndClose")}</Button
                     >
                 </div>
             </div>

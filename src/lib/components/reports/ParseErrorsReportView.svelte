@@ -2,12 +2,13 @@
     import { parseErrors } from "$lib/worldStore";
     import { navigateToPage } from "$lib/actions";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
+    import { t } from "$lib/i18n";
 </script>
 
 <div class="report-view-wrapper">
     <ViewHeader>
         <div slot="left">
-            <h2>Report: Parse Errors</h2>
+            <h2>{$t("reports.parseErrorsTitle")}</h2>
         </div>
     </ViewHeader>
 
@@ -19,7 +20,9 @@
                         <button
                             class="page-button"
                             onclick={() => navigateToPage(item.page)}
-                            title="Go to '{item.page.title}' to fix"
+                            title={$t("reports.goToFix", {
+                                name: item.page.title,
+                            })}
                         >
                             {item.page.title}
                         </button>
@@ -29,7 +32,7 @@
             </ul>
         {:else}
             <p class="text-muted text-center">
-                No pages with parsing errors found. Well done!
+                {$t("reports.noParseErrors")}
             </p>
         {/if}
     </div>

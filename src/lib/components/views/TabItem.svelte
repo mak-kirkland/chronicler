@@ -1,8 +1,9 @@
 <script module lang="ts">
+    /** i18n keys per report view name (translate with `$t`). */
     const REPORT_LABELS: Record<string, string> = {
-        "broken-links": "Broken Links",
-        "broken-images": "Broken Images",
-        "parse-errors": "Parse Errors",
+        "broken-links": "reports.brokenLinks",
+        "broken-images": "reports.brokenImages",
+        "parse-errors": "reports.parseErrors",
     };
 </script>
 
@@ -11,6 +12,7 @@
     import { currentViewOf } from "$lib/tabs";
     import Icon from "$lib/components/ui/Icon.svelte";
     import type { IconType } from "$lib/icons";
+    import { t } from "$lib/i18n";
 
     let {
         tab,
@@ -39,13 +41,15 @@
             case "file":
             case "image":
             case "map":
-                return v.data?.title ?? "Untitled";
+                return v.data?.title ?? $t("tabs.untitled");
             case "tag":
                 return `#${v.tagName}`;
-            case "report":
-                return REPORT_LABELS[v.name] ?? v.name;
+            case "report": {
+                const key = REPORT_LABELS[v.name];
+                return key ? $t(key) : v.name;
+            }
             default:
-                return "Welcome";
+                return $t("tabs.welcome");
         }
     });
 
@@ -94,11 +98,11 @@
     <Icon type={icon} />
     <span class="tab-title">{title}</span>
     {#if dirty}
-        <span class="dirty-dot" title="Unsaved changes"></span>
+        <span class="dirty-dot" title={$t("save.unsaved")}></span>
     {/if}
     <button
         class="close-btn"
-        title="Close tab"
+        title={$t("tabs.closeTab")}
         onclick={(e) => {
             e.stopPropagation();
             onClose();

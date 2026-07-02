@@ -1,5 +1,6 @@
 <script lang="ts">
     import { allImages } from "$lib/worldStore";
+    import { t } from "$lib/i18n";
     import { currentView } from "$lib/viewStores";
     import { navigateToImage } from "$lib/actions";
     import { infiniteScroll } from "$lib/domActions";
@@ -111,7 +112,7 @@
             style="height: 20px; width: 100%;"
         ></div>
     {:else}
-        <p class="text-muted text-center">No images found.</p>
+        <p class="text-muted text-center">{$t("sidebar.noImages")}</p>
     {/if}
 </div>
 

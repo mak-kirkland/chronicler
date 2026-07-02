@@ -10,6 +10,7 @@
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { handleContentClick } from "$lib/actions";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     let { onClose } = $props<{ onClose: () => void }>();
 
@@ -24,22 +25,22 @@
             renderedData = await renderMarkdown(markdownContent);
         } catch (e: any) {
             log.error("Failed to load help content", e, "HelpModal");
-            error = `Could not load help file: ${e.message}`;
+            error = $t("help.loadFailed", { error: e.message });
         } finally {
             isLoading = false;
         }
     });
 </script>
 
-<Modal title="Help" {onClose}>
+<Modal title={$t("help.title")} {onClose}>
     {#if isLoading}
-        <p>Loading help...</p>
+        <p>{$t("help.loading")}</p>
     {:else if error}
         <ErrorBox>{error}</ErrorBox>
     {:else if renderedData}
         <Button
             onclick={() => openUrl("https://chronicler.pro/getting-started")}
-            >Open in Browser</Button
+            >{$t("help.openInBrowser")}</Button
         >
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div onclick={handleContentClick} onkeydown={handleContentClick}>
