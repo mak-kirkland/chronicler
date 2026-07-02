@@ -28,6 +28,7 @@
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { initializeKeybindings } from "$lib/keybindings";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     // Import UI Components
     import VaultSelector from "$lib/components/views/VaultSelector.svelte";
@@ -248,13 +249,15 @@
                 alt="Chronicler Logo"
                 class="welcome-icon animate-spin"
             />
-            <h1 class="welcome-title">Opening Vault...</h1>
+            <h1 class="welcome-title">{$t("layout.openingVault")}</h1>
         </div>
     {:else if $appStatus.state === "error"}
         <div class="loading-screen">
-            <h1 class="welcome-title">Error</h1>
+            <h1 class="welcome-title">{$t("layout.error")}</h1>
             <ErrorBox>{$appStatus.message}</ErrorBox>
-            <Button onclick={handleTryAgain}>Select a Different Folder</Button>
+            <Button onclick={handleTryAgain}
+                >{$t("layout.selectDifferentFolder")}</Button
+            >
         </div>
     {:else if $appStatus.state === "ready"}
         {#if $isSidebarVisible}
@@ -269,7 +272,7 @@
                 onkeydown={handleKeyResize}
                 role="slider"
                 tabindex="0"
-                aria-label="Resize sidebar"
+                aria-label={$t("layout.resizeSidebar")}
                 aria-orientation="vertical"
                 aria-valuenow={$sidebarWidth}
                 aria-valuemin={dynamicMinWidth}

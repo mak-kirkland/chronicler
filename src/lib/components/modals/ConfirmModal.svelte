@@ -1,9 +1,10 @@
 <script lang="ts">
     import Modal from "$lib/components/modals/Modal.svelte";
     import Button from "$lib/components/ui/Button.svelte";
+    import { t } from "$lib/i18n";
 
     let {
-        title = "Are you sure?",
+        title = undefined,
         message,
         onClose,
         onConfirm,
@@ -15,11 +16,11 @@
     }>();
 </script>
 
-<Modal {title} {onClose}>
+<Modal title={title ?? $t("common.areYouSure")} {onClose}>
     <p>{message}</p>
     <div class="modal-actions">
-        <Button variant="ghost" onclick={onClose}>Cancel</Button>
-        <Button onclick={onConfirm}>Confirm</Button>
+        <Button variant="ghost" onclick={onClose}>{$t("common.cancel")}</Button>
+        <Button onclick={onConfirm}>{$t("common.confirm")}</Button>
     </div>
 </Modal>
 

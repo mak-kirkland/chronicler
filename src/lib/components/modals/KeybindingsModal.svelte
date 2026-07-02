@@ -32,17 +32,18 @@
         isModifierOnly,
         formatCombo,
     } from "$lib/keybindingUtils";
+    import { t } from "$lib/i18n";
 
     let { onClose = () => {} } = $props<{ onClose?: () => void }>();
 
-    const GROUPS: { category: BindingCategory; title: string }[] = [
-        { category: "navigation", title: "Navigation & Tabs" },
-        { category: "editor", title: "Editor" },
+    const GROUPS = $derived<{ category: BindingCategory; title: string }[]>([
+        { category: "navigation", title: $t("keybindings.groupNavigation") },
+        { category: "editor", title: $t("keybindings.groupEditor") },
         {
             category: "editor-builtin",
-            title: "Built-in editor keys (read-only)",
+            title: $t("keybindings.groupEditorBuiltin"),
         },
-    ];
+    ]);
 
     let search = $state("");
     let recordingId = $state<string | null>(null);
@@ -64,7 +65,11 @@
         return KEYBINDING_REGISTRY.filter(
             (d) =>
                 d.category === category &&
-                matchesSearch(d.label, d.note ?? "", eff[d.id] ?? []),
+                matchesSearch(
+                    $t(d.label),
+                    d.note ? $t(d.note) : "",
+                    eff[d.id] ?? [],
+                ),
         );
     }
 
@@ -85,14 +90,19 @@
         const conflict = findConflict(combo, recordingId);
         if (conflict) {
             // Block: keep recording until the user picks a free combo or bails.
-            conflictMsg = `Already used by “${conflict.label}”`;
+            conflictMsg = $t("keybindings.alreadyUsedBy", {
+                label: $t(conflict.label),
+            });
             return;
         }
 
         const clash = findBuiltinClash(combo);
         const id = recordingId;
         if (clash) {
-            warnings = { ...warnings, [id]: `Normally “${clash.label}”` };
+            warnings = {
+                ...warnings,
+                [id]: $t("keybindings.normally", { label: $t(clash.label) }),
+            };
         } else {
             clearWarning(id);
         }
@@ -145,12 +155,12 @@
     });
 </script>
 
-<Modal title="Keyboard Shortcuts" {onClose} wide>
+<Modal title={$t("settings.shortcuts.title")} {onClose} wide>
     <div class="kb-body">
         <input
             class="kb-search"
             type="text"
-            placeholder="Search shortcuts…"
+            placeholder={$t("keybindings.searchPlaceholder")}
             bind:value={search}
         />
 
@@ -178,8 +188,7 @@
         {/each}
 
         <p class="kb-footnote">
-            Mouse back/forward buttons and tab-jump (1–9) aren't rebindable.
-            Press Esc while recording to cancel.
+            {$t("keybindings.footnote")}
         </p>
     </div>
 
@@ -189,7 +198,7 @@
             onclick={handleResetAll}
             disabled={!hasOverrides}
         >
-            Reset all to defaults
+            {$t("keybindings.resetAll")}
         </Button>
     </div>
 </Modal>

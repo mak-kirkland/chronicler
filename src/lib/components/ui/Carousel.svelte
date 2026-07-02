@@ -1,6 +1,7 @@
 <script lang="ts">
     import Icon from "$lib/components/ui/Icon.svelte";
     import { supportsTransparency } from "$lib/utils";
+    import { t } from "$lib/i18n";
 
     let {
         images,
@@ -103,14 +104,14 @@
             <button
                 class="carousel-button prev"
                 onclick={prevImage}
-                aria-label="Previous image"
+                aria-label={$t("carousel.previousImage")}
             >
                 <Icon type="back" />
             </button>
             <button
                 class="carousel-button next"
                 onclick={nextImage}
-                aria-label="Next image"
+                aria-label={$t("carousel.nextImage")}
             >
                 <Icon type="forward" />
             </button>
@@ -126,7 +127,9 @@
                                 e.stopPropagation();
                                 currentImageIndex = i;
                             }}
-                            aria-label="Go to image {i + 1}"
+                            aria-label={$t("carousel.goToImage", {
+                                number: i + 1,
+                            })}
                         ></button>
                     {/each}
                 </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { MapLayer } from "$lib/mapModels";
+    import { t } from "$lib/i18n";
 
     let { layers, onToggle, onOpacityChange } = $props<{
         layers: MapLayer[];
@@ -81,21 +82,21 @@
                     class="nav-btn"
                     disabled={!canGoUp}
                     onclick={() => handleNavigate("up")}
-                    title="Go up a layer">▲</button
+                    title={$t("map.goUpLayer")}>▲</button
                 >
                 <button
                     class="nav-btn"
                     disabled={!canGoDown}
                     onclick={() => handleNavigate("down")}
-                    title="Go down a layer">▼</button
+                    title={$t("map.goDownLayer")}>▼</button
                 >
             </div>
 
             <button
                 class="layer-toggle-btn"
                 onclick={() => (isOpen = !isOpen)}
-                title="Manage Layers"
-                aria-label="Toggle Layer List"
+                title={$t("map.manageLayers")}
+                aria-label={$t("map.toggleLayerList")}
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"

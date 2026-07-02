@@ -23,6 +23,7 @@ import {
     showExternalFiles,
 } from "$lib/explorerStore";
 import { hasMapsEntitlement } from "$lib/licenseStore";
+import { translate } from "$lib/i18n";
 
 // Import modal components that can be triggered from the context menu
 import TextInputModal from "./components/modals/TextInputModal.svelte";
@@ -52,18 +53,20 @@ export function getContextMenuActions(
     if (!isRoot) {
         actions.push(
             {
-                label: "Rename",
+                label: translate("contextMenu.rename"),
                 handler: () => {
                     openModal({
                         component: TextInputModal,
                         props: {
-                            title: `Rename ${isDir ? "Folder" : "File"}`,
-                            label: "Enter new name:",
+                            title: isDir
+                                ? translate("contextMenu.renameFolder")
+                                : translate("contextMenu.renameFile"),
+                            label: translate("contextMenu.enterNewName"),
                             // For files, we pre-fill the name without the extension for convenience.
                             initialValue: isDir
                                 ? node.name
                                 : fileStemString(node.path),
-                            buttonText: "Rename",
+                            buttonText: translate("contextMenu.rename"),
                             onClose: closeModal,
                             onSubmit: (newName: string) => {
                                 renamePath(node.path, newName);
@@ -74,13 +77,17 @@ export function getContextMenuActions(
                 },
             },
             {
-                label: "Delete",
+                label: translate("common.delete"),
                 handler: () => {
                     openModal({
                         component: ConfirmModal,
                         props: {
-                            title: `Delete ${isDir ? "Folder" : "File"}`,
-                            message: `Are you sure you want to delete '${node.name}'? This action cannot be undone.`,
+                            title: isDir
+                                ? translate("contextMenu.deleteFolder")
+                                : translate("contextMenu.deleteFile"),
+                            message: translate("contextMenu.deleteConfirm", {
+                                name: node.name,
+                            }),
                             onClose: closeModal,
                             onConfirm: () => {
                                 deletePath(node.path);
@@ -97,7 +104,7 @@ export function getContextMenuActions(
     // Add "Duplicate" action only for Markdown files.
     if (isMarkdown(node)) {
         actions.push({
-            label: "Duplicate",
+            label: translate("contextMenu.duplicate"),
             handler: () => duplicatePage(node.path),
         });
     }
@@ -111,14 +118,14 @@ export function getContextMenuActions(
         }
 
         actions.push({
-            label: "New Page...",
+            label: translate("contextMenu.newPage"),
             handler: () => promptAndCreateItem("file", node.path),
         });
 
         // Only show if the user has the maps entitlement
-      if (get(hasMapsEntitlement)) {
+        if (get(hasMapsEntitlement)) {
             actions.push({
-                label: "New Map...",
+                label: translate("contextMenu.newMap"),
                 handler: () => {
                     openModal({
                         component: NewMapModal,
@@ -131,12 +138,12 @@ export function getContextMenuActions(
         }
 
         actions.push({
-            label: "New Folder...",
+            label: translate("contextMenu.newFolder"),
             handler: () => promptAndCreateItem("folder", node.path),
         });
         actions.push({ isSeparator: true });
         actions.push({
-            label: "Open in Explorer",
+            label: translate("contextMenu.openInExplorer"),
             handler: () => openInExplorer(node.path),
         });
     }
@@ -145,18 +152,18 @@ export function getContextMenuActions(
     actions.push({ isSeparator: true });
 
     actions.push({
-        label: "Collapse All Folders",
+        label: translate("contextMenu.collapseAll"),
         handler: () => manuallyExpandedPaths.collapseAll(),
     });
 
     actions.push({
-        label: "Show Images",
+        label: translate("contextMenu.showImages"),
         checked: get(showImages),
         handler: () => showImages.update((v) => !v),
     });
 
     actions.push({
-        label: "Show External Files",
+        label: translate("contextMenu.showExternalFiles"),
         checked: get(showExternalFiles),
         handler: () => showExternalFiles.update((v) => !v),
     });

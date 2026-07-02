@@ -1,7 +1,8 @@
 <script lang="ts">
     import { onDestroy } from "svelte";
+    import { t } from "$lib/i18n";
 
-    let { value = $bindable(), placeholder = "Search..." } = $props<{
+    let { value = $bindable(), placeholder = undefined } = $props<{
         value?: string;
         placeholder?: string;
     }>();
@@ -33,7 +34,7 @@
         type="search"
         value={inputValue}
         oninput={handleInput}
-        {placeholder}
+        placeholder={placeholder ?? $t("common.searchPlaceholder")}
         class="search-input"
     />
 </div>

@@ -6,6 +6,7 @@
      * is often an existing entity.
      */
     import FloatingMenu from "$lib/components/ui/FloatingMenu.svelte";
+    import { t } from "$lib/i18n";
     import {
         ListNavigator,
         handleListNavigation,
@@ -146,7 +147,7 @@
             {/each}
         </ul>
         <div class="autocomplete-hint">
-            Enter to select · Shift+Enter to use typed text
+            {$t("autocomplete.hint")}
         </div>
     </FloatingMenu>
 </div>

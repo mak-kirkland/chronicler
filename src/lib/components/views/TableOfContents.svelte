@@ -1,18 +1,19 @@
 <script lang="ts">
     import type { TocEntry } from "$lib/bindings";
     import { isTocVisible } from "$lib/settingsStore";
+    import { t } from "$lib/i18n";
 
     let { toc } = $props<{ toc: TocEntry[] }>();
 </script>
 
 <div class="toc-container">
     <div class="toc-header">
-        <h4 class="toc-title">Contents</h4>
+        <h4 class="toc-title">{$t("fileView.contents")}</h4>
         <button
             class="toc-toggle"
             onclick={() => ($isTocVisible = !$isTocVisible)}
         >
-            [{$isTocVisible ? "hide" : "show"}]
+            [{$isTocVisible ? $t("toc.hide") : $t("toc.show")}]
         </button>
     </div>
     {#if $isTocVisible}

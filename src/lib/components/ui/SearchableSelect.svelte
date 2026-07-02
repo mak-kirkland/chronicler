@@ -12,6 +12,7 @@
     import FloatingMenu from "$lib/components/ui/FloatingMenu.svelte";
     import SelectTrigger from "$lib/components/ui/SelectTrigger.svelte";
     import SelectOptions from "$lib/components/ui/SelectOptions.svelte";
+    import { t } from "$lib/i18n";
     import {
         createSelectContext,
         type SelectOption,
@@ -85,7 +86,7 @@
             type="text"
             class="form-input dropdown-search"
             bind:value={searchQuery}
-            placeholder="Filter..."
+            placeholder={$t("select.filter")}
             use:autofocus
             onclick={(e) => e.stopPropagation()}
             onkeydown={ctrl.handleKeydown}
@@ -99,7 +100,7 @@
                 {formatLabel}
             />
         {:else}
-            <div class="no-results">No results found</div>
+            <div class="no-results">{$t("select.noResults")}</div>
         {/if}
     </FloatingMenu>
 </div>

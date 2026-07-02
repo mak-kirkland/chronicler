@@ -33,6 +33,7 @@
     import type { EditorCommandId } from "$lib/keybindingRegistry";
     import { pasteImageFromClipboard } from "$lib/imageInsert";
     import EditorToolbar from "$lib/components/views/EditorToolbar.svelte";
+    import { t as tr } from "$lib/i18n";
     import { openModal, closeModal } from "$lib/modalStore";
     import InfoboxEditorModal from "$lib/components/infobox/InfoboxEditorModal.svelte";
 
@@ -163,7 +164,9 @@
                     options: [
                         {
                             label: rawQuery,
-                            displayLabel: `Create "${rawQuery}"`,
+                            displayLabel: $tr("editor.createOption", {
+                                name: rawQuery,
+                            }),
                             type: "keyword",
                             apply: applyLink,
                         },
@@ -522,7 +525,7 @@
             on:ready={(e) => (editor = e.detail)}
             bind:value={content}
             {extensions}
-            placeholder="Let your story unfold..."
+            placeholder={$tr("editor.placeholder")}
             nodebounce={true}
         />
     </div>

@@ -3,6 +3,7 @@
     import type { Snippet } from "svelte";
     import { modalStackDepth, closeModal, popModal } from "$lib/modalStore";
     import Icon from "$lib/components/ui/Icon.svelte";
+    import { t } from "$lib/i18n";
 
     let {
         children,
@@ -85,7 +86,7 @@
                     <button
                         class="back-btn"
                         onclick={handleBack}
-                        aria-label="Go back"
+                        aria-label={$t("common.goBack")}
                     >
                         <Icon type="back" />
                     </button>
@@ -96,7 +97,7 @@
                 <button
                     class="close-btn"
                     onclick={onClose}
-                    aria-label="Close modal"
+                    aria-label={$t("common.close")}
                 >
                     <Icon type="close" />
                 </button>

@@ -2,6 +2,7 @@
     import { licenseStore } from "$lib/licenseStore";
     import { handleContentClick } from "$lib/actions";
     import { log } from "$lib/logger";
+    import { t } from "$lib/i18n";
 
     let videoReady = false;
     let videoError = false;
@@ -49,8 +50,7 @@
                 <div class="hero-overlay">
                     <h1 class="welcome-title">Chronicler</h1>
                     <p class="welcome-text">
-                        Your digital scriptorium — where knowledge links
-                        together.
+                        {$t("vaultSelector.tagline")}
                     </p>
                 </div>
             {/if}
@@ -60,25 +60,26 @@
     {#if $licenseStore.status !== "licensed"}
         <div class="welcome-footer">
             <p>
-                🧙‍♂️ Chronicler is in active development. Thank you for trying it
-                out!
+                {$t("welcome.activeDevelopment")}
             </p>
             <p>
-                ❤️ If you find this app useful, please consider
+                {$t("welcome.supportPre")}
                 <a
                     href="https://chronicler.pro/#support"
-                    onclick={handleContentClick}>supporting its development</a
-                >. Thanks! :)
+                    onclick={handleContentClick}>{$t("welcome.supportLink")}</a
+                >. {$t("welcome.supportPost")}
             </p>
             <p>
-                💬 Join the community on <a
+                {$t("welcome.discordPre")}
+                <a
                     href="https://discord.gg/cXJwcbe2b7"
                     onclick={handleContentClick}>Discord</a
-                > to ask questions and share your work.
+                >
+                {$t("welcome.discordPost")}
             </p>
             <p>
-                🐞 Found a bug? Have a feature request? Please create a thread
-                in the relevant forum on <a
+                {$t("welcome.bugsPre")}
+                <a
                     href="https://discord.gg/cXJwcbe2b7"
                     onclick={handleContentClick}>Discord.</a
                 >

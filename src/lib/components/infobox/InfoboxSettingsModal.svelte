@@ -5,20 +5,21 @@
     } from "$lib/settingsStore";
     import Modal from "$lib/components/modals/Modal.svelte";
     import ToggleSwitch from "$lib/components/ui/ToggleSwitch.svelte";
+    import { t } from "$lib/i18n";
 
     let { onClose } = $props<{ onClose: () => void }>();
 </script>
 
-<Modal title="Infobox Settings" {onClose}>
+<Modal title={$t("infobox.settingsTitle")} {onClose}>
     <div class="modal-body-content">
         <ToggleSwitch
             id="show-tags"
-            label="Show Tags in Infobox"
+            label={$t("infobox.showTagsInInfobox")}
             bind:checked={$areInfoboxTagsVisible}
         />
         <ToggleSwitch
             id="show-footer-tags"
-            label="Show Tags in Footer"
+            label={$t("infobox.showTagsInFooter")}
             bind:checked={$areFooterTagsVisible}
         />
     </div>

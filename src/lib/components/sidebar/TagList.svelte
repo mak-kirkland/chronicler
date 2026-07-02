@@ -1,5 +1,6 @@
 <script lang="ts">
     import { navigateToTag } from "$lib/actions";
+    import { t } from "$lib/i18n";
     import type { TagMap } from "$lib/bindings";
 
     let { tags } = $props<{ tags: TagMap }>();
@@ -21,7 +22,7 @@
             </div>
         {/each}
     {:else}
-        <p class="text-muted text-center">No tags found.</p>
+        <p class="text-muted text-center">{$t("sidebar.noTags")}</p>
     {/if}
 </div>
 

@@ -5,6 +5,7 @@
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { closeModal } from "$lib/modalStore";
     import { DONATE_URL } from "$lib/config";
+    import { t } from "$lib/i18n";
 
     let { daysUsed } = $props<{ daysUsed: number }>();
 
@@ -34,28 +35,20 @@
     }
 </script>
 
-<Modal
-    title="Support Chronicler's Development"
-    showCloseButton={false}
-    onClose={() => {}}
->
+<Modal title={$t("nag.title")} showCloseButton={false} onClose={() => {}}>
     <div class="nag-content">
         <p>
-            You have been using Chronicler for
-            <strong>{daysUsed}</strong> days!
+            {$t("nag.usingFor", { days: daysUsed })}
         </p>
         <p>
-            This app is developed and maintained by a single person (hi, I'm
-            Michael!). If you find it valuable, please consider supporting its
-            future and <strong>keeping the project alive</strong>.
+            {$t("nag.body")}
         </p>
         <p>
-            Supporters are given a Community License to disable all donation
-            prompts :)
+            {$t("nag.community")}
         </p>
         <div class="button-group">
             <Button variant="primary" size="large" onclick={handlePurchase}>
-                ❤️ Support
+                {$t("nag.support")}
             </Button>
             <Button
                 variant="primary"
@@ -64,9 +57,9 @@
                 disabled={continueDisabled}
             >
                 {#if continueDisabled}
-                    Continue ({countdown})
+                    {$t("nag.continueCountdown", { seconds: countdown })}
                 {:else}
-                    Continue
+                    {$t("nag.continue")}
                 {/if}
             </Button>
         </div>

@@ -2,12 +2,13 @@
     import Modal from "$lib/components/modals/Modal.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import { autofocus } from "$lib/domActions";
+    import { t } from "$lib/i18n";
 
     let {
         title,
         label,
         initialValue = "",
-        buttonText = "Submit",
+        buttonText = undefined,
         onClose,
         onSubmit,
     } = $props<{
@@ -40,7 +41,7 @@
             class="text-input"
         />
         <div class="modal-actions">
-            <Button type="submit">{buttonText}</Button>
+            <Button type="submit">{buttonText ?? $t("common.submit")}</Button>
         </div>
     </form>
 </Modal>

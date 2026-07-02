@@ -8,22 +8,24 @@ import { coreIcons, fantasyIcons, type IconPack } from "./icons";
 
 export interface AtmospherePack {
     id: string;
+    /** i18n key of the pack's display name (translate with `$t`). */
     name: string;
+    /** i18n key of the pack's one-line description (translate with `$t`). */
     description: string;
     iconSet: IconPack;
 }
 
 export const coreAtmosphere: AtmospherePack = {
     id: "core",
-    name: "Standard",
-    description: "Clean, modern SVG icons with accent color theming.",
+    name: "atmosphere.pack.core.name",
+    description: "atmosphere.pack.core.description",
     iconSet: coreIcons,
 };
 
 export const fantasyAtmosphere: AtmospherePack = {
     id: "fantasy-pack",
-    name: "High Fantasy",
-    description: "Parchment, wax seals, and ancient chests.",
+    name: "atmosphere.pack.fantasy.name",
+    description: "atmosphere.pack.fantasy.description",
     iconSet: fantasyIcons,
 };
 

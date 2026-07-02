@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { t } from "$lib/i18n";
+
     // A type alias for the possible states the save process can be in.
     type SaveStatusType = "idle" | "dirty" | "saving" | "error";
 
@@ -25,13 +27,13 @@
 {#if status !== "idle" || lastSaveTime}
     <span class="save-status {status}">
         {#if status === "saving"}
-            Saving...
+            {$t("save.saving")}
         {:else if status === "error"}
-            Save failed
+            {$t("save.failed")}
         {:else if status === "dirty"}
-            Unsaved changes
+            {$t("save.unsaved")}
         {:else if lastSaveTime}
-            Last saved at: {formatTime(lastSaveTime)}
+            {$t("save.lastSavedAt", { time: formatTime(lastSaveTime) })}
         {/if}
     </span>
 {/if}

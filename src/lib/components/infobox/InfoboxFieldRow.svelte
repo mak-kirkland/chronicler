@@ -4,6 +4,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import SmartInput from "$lib/components/ui/SmartInput.svelte";
     import SearchableSelect from "$lib/components/ui/SearchableSelect.svelte";
+    import { t } from "$lib/i18n";
 
     let {
         field = $bindable(),
@@ -75,11 +76,11 @@
                     class="key-input"
                     class:input-error={isDuplicateKey}
                     bind:value={field.key}
-                    placeholder="Field Name"
-                    aria-label="Field Name"
+                    placeholder={$t("infobox.fieldName")}
+                    aria-label={$t("infobox.fieldName")}
                 />
                 {#if isDuplicateKey}
-                    <span class="error-text">Duplicate Key</span>
+                    <span class="error-text">{$t("infobox.duplicateKey")}</span>
                 {/if}
             </div>
 
@@ -88,7 +89,7 @@
                     options={typeOptions}
                     bind:value={field.type}
                     onSelect={handleTypeChange}
-                    placeholder="Type"
+                    placeholder={$t("infobox.fieldType")}
                     formatLabel={(s) => s.charAt(0).toUpperCase() + s.slice(1)}
                 />
             </div>
@@ -96,7 +97,7 @@
             <button
                 class="icon-btn danger"
                 onclick={onDelete}
-                title="Remove Field"
+                title={$t("infobox.removeField")}
             >
                 <Icon type="close" />
             </button>
@@ -110,19 +111,19 @@
                             <SmartInput
                                 multiline={true}
                                 bind:value={field.value[i]}
-                                placeholder="Value (supports [[links]])..."
+                                placeholder={$t("infobox.valuePlaceholder")}
                             />
                             <button
                                 class="icon-btn danger"
                                 onclick={() => removeListItem(i)}
-                                title="Remove Item"
+                                title={$t("infobox.removeItem")}
                             >
                                 <Icon type="close" />
                             </button>
                         </div>
                     {/each}
                     <Button size="small" onclick={addListItem}
-                        >+ Add Item</Button
+                        >{$t("infobox.addItem")}</Button
                     >
                 </div>
             {:else}
@@ -133,7 +134,7 @@
                 <SmartInput
                     multiline={true}
                     bind:value={field.value}
-                    placeholder="Value (supports [[links]])..."
+                    placeholder={$t("infobox.valuePlaceholder")}
                 />
             {/if}
         </div>

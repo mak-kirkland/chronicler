@@ -21,6 +21,7 @@
     import Button from "$lib/components/ui/Button.svelte";
     import TextInputModal from "$lib/components/modals/TextInputModal.svelte";
     import ConfirmModal from "$lib/components/modals/ConfirmModal.svelte";
+    import { t } from "$lib/i18n";
 
     let { onClose } = $props<{
         onClose: () => void;
@@ -87,7 +88,7 @@
             await world.initialize(); // Refresh the file tree
         } catch (e: any) {
             if (!e.toString().includes("exists")) {
-                alert(`Failed to create folder structure: ${e}`);
+                alert($t("templates.createFolderFailed", { error: String(e) }));
             } else {
                 await world.initialize();
             }
@@ -120,7 +121,7 @@
             // Navigate to the new template *after* everything is done
             openPageForEditing(newTemplate);
         } catch (e: any) {
-            alert(`Failed to create template: ${e}`);
+            alert($t("templates.createFailed", { error: String(e) }));
             if (newTemplate) {
                 await deletePath(newTemplate.path);
             }
@@ -136,9 +137,9 @@
         openModal({
             component: TextInputModal,
             props: {
-                title: "New Template",
-                label: "Enter the name for the new template:",
-                buttonText: "Create",
+                title: $t("templates.newTitle"),
+                label: $t("templates.newLabel"),
+                buttonText: $t("common.create"),
                 onClose: closeModal,
                 onSubmit: (name: string) => {
                     closeModal();
@@ -163,15 +164,19 @@
         openModal({
             component: ConfirmModal,
             props: {
-                title: "Delete Template",
-                message: `Are you sure you want to delete "${template.title}"?`,
+                title: $t("templates.deleteTitle"),
+                message: $t("templates.deleteConfirm", {
+                    name: template.title,
+                }),
                 onClose: closeModal,
                 onConfirm: async () => {
                     closeModal();
                     try {
                         await deletePath(template.path);
                     } catch (e: any) {
-                        alert(`Failed to delete template: ${e}`);
+                        alert(
+                            $t("templates.deleteFailed", { error: String(e) }),
+                        );
                     }
                 },
             },
@@ -179,17 +184,16 @@
     }
 </script>
 
-<Modal title="Template Manager" {onClose}>
+<Modal title={$t("templates.managerTitle")} {onClose}>
     <div class="template-manager-container">
         {#if templateFolderNode}
             <p class="description">
-                Manage templates from your vault's
-                <code>{TEMPLATE_FOLDER_PATH}</code> folder.
+                {$t("templates.managerDescription")}
+                <code>{TEMPLATE_FOLDER_PATH}</code>
             </p>
             <p class="description-tip">
-                <strong>Tip:</strong> Create a template named
-                <code>{DEFAULT_TEMPLATE_NAME}</code>
-                to override the default blank page format.
+                <strong>{$t("templates.tipLabel")}</strong>
+                {$t("templates.tipBody", { name: DEFAULT_TEMPLATE_NAME })}
             </p>
             <ul class="template-list">
                 {#each templateFiles as template (template.path)}
@@ -199,12 +203,12 @@
                             <Button
                                 size="small"
                                 onclick={() => handleEdit(template)}
-                                >Edit</Button
+                                >{$t("common.edit")}</Button
                             >
                             <Button
                                 size="small"
                                 onclick={() => handleDelete(template)}
-                                >Delete</Button
+                                >{$t("common.delete")}</Button
                             >
                         </div>
                     </li>
@@ -212,18 +216,20 @@
             </ul>
             {#if templateFiles.length === 0}
                 <p class="no-templates-message">
-                    No templates found in your
-                    <code>{TEMPLATE_FOLDER_PATH}</code> folder.
+                    {$t("templates.noneFound")}
+                    <code>{TEMPLATE_FOLDER_PATH}</code>
                 </p>
             {/if}
-            <Button onclick={promptForNewTemplate}>+ New Template</Button>
+            <Button onclick={promptForNewTemplate}>{$t("templates.new")}</Button
+            >
         {:else}
             <p>
-                The <code>{TEMPLATE_FOLDER_PATH}</code> folder structure could not
-                be found or is being created.
+                {$t("templates.folderMissing", {
+                    path: TEMPLATE_FOLDER_PATH,
+                })}
             </p>
             <Button onclick={handleCreateTemplateFolder}
-                >Create Folder Structure</Button
+                >{$t("templates.createFolder")}</Button
             >
         {/if}
     </div>

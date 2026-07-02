@@ -2,6 +2,7 @@
     import { brokenLinks, vaultPath } from "$lib/worldStore";
     import { navigateToPage, promptAndCreateItem } from "$lib/actions";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
+    import { t } from "$lib/i18n";
 
     /**
      * Handles the click event on a broken link target.
@@ -18,7 +19,7 @@
 <div class="report-view-wrapper">
     <ViewHeader>
         <div slot="left">
-            <h2>Report: Broken Links</h2>
+            <h2>{$t("reports.brokenLinksTitle")}</h2>
         </div>
     </ViewHeader>
 
@@ -30,7 +31,9 @@
                         <button
                             class="target-button"
                             onclick={() => handleFixLink(link.target)}
-                            title="Create page '{link.target}'"
+                            title={$t("reports.createPage", {
+                                name: link.target,
+                            })}
                         >
                             {link.target}
                         </button>
@@ -40,7 +43,9 @@
                                     <button
                                         class="source-button"
                                         onclick={() => navigateToPage(source)}
-                                        title="Go to '{source.title}'"
+                                        title={$t("reports.goTo", {
+                                            name: source.title,
+                                        })}
                                     >
                                         {source.title}
                                     </button>
@@ -52,7 +57,7 @@
             </ul>
         {:else}
             <p class="text-muted text-center">
-                No broken links found. Good job!
+                {$t("reports.noBrokenLinks")}
             </p>
         {/if}
     </div>

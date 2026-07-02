@@ -11,6 +11,7 @@
         renderMath,
     } from "$lib/domActions";
     import { navigateToTag } from "$lib/actions";
+    import { t } from "$lib/i18n";
     import { hasInfoboxContent, type InfoboxFrontmatter } from "$lib/infobox";
 
     let {
@@ -119,7 +120,7 @@
 
             {#if showFooterTags && infoboxData?.tags}
                 <footer class="page-footer">
-                    <span class="footer-label">Tags:</span>
+                    <span class="footer-label">{$t("preview.tagsLabel")}</span>
                     <div class="footer-tags">
                         {#each infoboxData.tags as tag}
                             <button

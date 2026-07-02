@@ -2,6 +2,7 @@
     import { navigation } from "$lib/viewStores";
     import Button from "$lib/components/ui/Button.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
+    import { t } from "$lib/i18n";
 </script>
 
 <div class="view-header">
@@ -10,7 +11,7 @@
             <Button
                 variant="ghost"
                 size="small"
-                title="Back"
+                title={$t("nav.back")}
                 disabled={!$navigation.canGoBack}
                 onclick={navigation.back}
             >
@@ -19,7 +20,7 @@
             <Button
                 variant="ghost"
                 size="small"
-                title="Forward"
+                title={$t("nav.forward")}
                 disabled={!$navigation.canGoForward}
                 onclick={navigation.forward}
             >
