@@ -2,6 +2,15 @@
 
 ---
 
+## [v0.55.2-alpha] - 2026-07-03
+
+### 🐞 Fixed
+
+- **Fonts**: Fixed custom fonts silently failing to load on Windows, causing the application to fall back to the default font.
+- **Infoboxes**: Fixed a bug where saving an infobox with long field values could produce invalid YAML, corrupting the page's frontmatter. Also added a clear error message when an infobox detects existing malformed frontmatter on save, instead of crashing.
+
+---
+
 ## [v0.55.1-alpha] - 2026-06-29
 
 ### 🚀 Performance
