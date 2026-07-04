@@ -2,13 +2,13 @@
     /**
      * LinkPreview.svelte
      *
-     * A component that displays a hovering preview of a page's infobox.
-     *
+     * A component that displays a hovering preview of a page: its infobox,
+     * or the lead paragraph(s) for pages without one.
      */
     import { buildPageView } from "$lib/commands";
     import { hasInfoboxContent, type InfoboxFrontmatter } from "$lib/infobox";
     import { fileStemString } from "$lib/utils";
-    import Infobox from "$lib/components/infobox/Infobox.svelte";
+    import PagePreviewContent from "$lib/components/ui/PagePreviewContent.svelte";
     import HoverPreview from "$lib/components/ui/HoverPreview.svelte";
 
     let {
@@ -24,6 +24,7 @@
     }>();
 
     let infoboxData = $state<InfoboxFrontmatter | null>(null);
+    let fallbackHtml = $state("");
     let isVisible = $state(false);
 
     // Derive a human-readable title from the file path (strip directory + extension)
@@ -37,6 +38,7 @@
         if (!targetPath || !anchorEl || targetPath === "#") {
             isVisible = false;
             infoboxData = null;
+            fallbackHtml = "";
             return;
         }
 
@@ -51,9 +53,18 @@
                     if (hasInfoboxContent(frontmatter)) {
                         // We strictly hide tags in the popup to keep it compact
                         infoboxData = { ...frontmatter, tags: [] };
+                        fallbackHtml = "";
                         isVisible = true;
                     } else {
-                        isVisible = false;
+                        // No infobox: fall back to the lead paragraph(s) — the
+                        // rendered HTML before the first heading. Empty for
+                        // pages that start with a heading, in which case the
+                        // popup stays hidden as before.
+                        infoboxData = null;
+                        fallbackHtml = (
+                            data.rendered_page?.html_before_toc ?? ""
+                        ).trim();
+                        isVisible = fallbackHtml.length > 0;
                     }
                 })
                 .catch(() => {
@@ -66,25 +77,7 @@
 </script>
 
 <HoverPreview {anchorEl} {isVisible} width={380} {preferredSide} {positionToken}>
-    {#if infoboxData}
-        <div class="infobox-container">
-            <Infobox data={infoboxData} onEdit={undefined} {fallbackTitle} />
-        </div>
+    {#if infoboxData || fallbackHtml}
+        <PagePreviewContent infobox={infoboxData} {fallbackHtml} {fallbackTitle} />
     {/if}
 </HoverPreview>
-
-<style>
-    /* Infobox Styling Overrides for Preview Context */
-    .infobox-container :global(.infobox) {
-        border: none;
-        background: var(--color-background-primary);
-        padding: var(--space-sm);
-        margin: 0;
-        position: relative;
-        z-index: 1;
-        border-radius: var(--radius-base);
-
-        /* Ensure the infobox consumes height but doesn't force scroll */
-        max-height: 100%;
-    }
-</style>
