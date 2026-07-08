@@ -2,6 +2,20 @@
 
 ---
 
+## [v0.56.0-alpha] - 2026-07-08
+
+### ✨ Added
+
+- **Editor**: You can now paste images directly into the editor from your clipboard - both screenshots and images copied from your file manager are supported.
+- **Editor**: Added an "Insert Image" toolbar button that opens a file picker, copies the chosen image into your vault, and inserts it at the cursor.
+- **Settings**: Added an Images section to vault settings for controlling where pasted and imported images are saved (a fixed folder or next to the current page) and whether you are prompted to name them on import.
+
+### 🐞 Fixed
+
+- **Settings**: Fixed the layout of toggle switches so that the switch stays aligned to the title and no longer gets crowded when the description text wraps onto multiple lines.
+
+---
+
 ## [v0.55.2-alpha] - 2026-07-03
 
 ### 🐞 Fixed
