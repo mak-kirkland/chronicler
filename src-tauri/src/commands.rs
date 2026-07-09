@@ -98,10 +98,17 @@ pub fn import_image_file(
 /// Whether the OS clipboard currently holds raw image data (a bitmap). Lets the
 /// editor decide whether to prompt for a filename before pasting, without
 /// prompting on ordinary text pastes.
+///
+/// Async so the clipboard read runs off the main thread: reading the OS
+/// clipboard blocks until the clipboard's owner responds, and when the copy was
+/// made inside Chronicler the owner is our own webview, which answers from the
+/// (then-blocked) main thread - a self-deadlock that froze the app on paste.
 #[command]
 #[instrument(skip(app_handle))]
-pub fn clipboard_has_image(app_handle: AppHandle) -> bool {
-    app_handle.clipboard().read_image().is_ok()
+pub async fn clipboard_has_image(app_handle: AppHandle) -> bool {
+    tokio::task::spawn_blocking(move || app_handle.clipboard().read_image().is_ok())
+        .await
+        .unwrap_or(false)
 }
 
 /// Imports image(s) from the OS clipboard into `dir` (a vault-relative
@@ -116,45 +123,61 @@ pub fn clipboard_has_image(app_handle: AppHandle) -> bool {
 ///     `<page_name>-<timestamp>.png`;
 ///   * file(s) copied in a file manager arrive as a `file://` path list and are
 ///     imported from disk under their original names.
+///
+/// Async so the clipboard reads run off the main thread: each read blocks until
+/// the clipboard's owner responds, and when the copy was made inside Chronicler
+/// the owner is our own webview, which answers from the (then-blocked) main
+/// thread - a self-deadlock that froze the app on any in-app copy → paste.
 #[command]
 #[instrument(skip(app_handle, world), err(Debug))]
-pub fn import_image_from_clipboard(
+pub async fn import_image_from_clipboard(
     app_handle: AppHandle,
-    world: State<World>,
+    world: State<'_, World>,
     page_name: String,
     dir: String,
     name_override: Option<String>,
 ) -> Result<Vec<ImportedImage>> {
-    // Case 1: a raw bitmap (screenshot, "Copy Image" from a browser/viewer).
-    if let Ok(image) = app_handle.clipboard().read_image() {
-        let vault_root = vault_root(&world)?;
-        let png = crate::images::encode_rgba_png(image.width(), image.height(), image.rgba())?;
-        // A user-supplied name (from the prompt) is authoritative; otherwise
-        // fall back to `<page>-<timestamp>.png`.
-        let name = name_override.unwrap_or_else(|| {
-            let base = match page_name.trim() {
-                "" => "image",
-                s => s,
-            };
-            format!("{base}-{}.png", Local::now().format("%Y%m%d-%H%M%S"))
-        });
-        let imported = crate::images::write_image_into_vault(&vault_root, &png, &name, &dir)?;
-        return Ok(vec![imported]);
-    }
+    // Snapshot before moving into the blocking task. A missing vault only
+    // matters once the clipboard actually yields an image, so the error is
+    // deferred to the point of use and a plain text paste still returns Ok.
+    let root = world.root_path.read().clone();
 
-    // Case 2: file(s) copied in a file manager arrive as a `file://` path list.
-    if let Ok(text) = app_handle.clipboard().read_text() {
-        let paths = crate::images::image_paths_from_clipboard_text(&text);
-        if !paths.is_empty() {
-            let vault_root = vault_root(&world)?;
-            return paths
-                .iter()
-                .map(|p| crate::images::import_image_from_path(&vault_root, p, &dir, None))
-                .collect();
+    tokio::task::spawn_blocking(move || {
+        let vault_root = || root.clone().ok_or(ChroniclerError::VaultNotInitialized);
+
+        // Case 1: a raw bitmap (screenshot, "Copy Image" from a browser/viewer).
+        if let Ok(image) = app_handle.clipboard().read_image() {
+            let vault_root = vault_root()?;
+            let png = crate::images::encode_rgba_png(image.width(), image.height(), image.rgba())?;
+            // A user-supplied name (from the prompt) is authoritative; otherwise
+            // fall back to `<page>-<timestamp>.png`.
+            let name = name_override.unwrap_or_else(|| {
+                let base = match page_name.trim() {
+                    "" => "image",
+                    s => s,
+                };
+                format!("{base}-{}.png", Local::now().format("%Y%m%d-%H%M%S"))
+            });
+            let imported = crate::images::write_image_into_vault(&vault_root, &png, &name, &dir)?;
+            return Ok(vec![imported]);
         }
-    }
 
-    Ok(Vec::new())
+        // Case 2: file(s) copied in a file manager arrive as a `file://` path list.
+        if let Ok(text) = app_handle.clipboard().read_text() {
+            let paths = crate::images::image_paths_from_clipboard_text(&text);
+            if !paths.is_empty() {
+                let vault_root = vault_root()?;
+                return paths
+                    .iter()
+                    .map(|p| crate::images::import_image_from_path(&vault_root, p, &dir, None))
+                    .collect();
+            }
+        }
+
+        Ok(Vec::new())
+    })
+    .await
+    .map_err(|e| ChroniclerError::ImageImport(format!("Task join error: {e}")))?
 }
 
 // --- Data Retrieval ---
