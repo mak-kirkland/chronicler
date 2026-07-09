@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.56.1-alpha] - 2026-07-09
+
+### 🐞 Fixed
+
+- **Editor**: Fixed a deadlock where pasting an image copied from within Chronicler itself would freeze the entire application.
+
+---
+
 ## [v0.56.0-alpha] - 2026-07-08
 
 ### ✨ Added
