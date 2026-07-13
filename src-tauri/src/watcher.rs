@@ -10,6 +10,7 @@ use crate::{
     events::FileEvent,
     utils::{
         is_canvas_file, is_external_file, is_image_file, is_map_file, is_markdown_file,
+        is_timeline_file,
         is_under_hidden_subdir,
     },
 };
@@ -238,6 +239,7 @@ fn has_tracked_extension(path: &Path) -> bool {
         || is_image_file(path)
         || is_map_file(path)
         || is_canvas_file(path)
+        || is_timeline_file(path)
         || is_external_file(path)
 }
 
@@ -281,5 +283,12 @@ mod tests {
     fn canvas_creation_publishes_created_event() {
         let ev = classify_appearance(Path::new("/vault/Ideas.canvas"), Path::new("/vault"));
         assert!(matches!(ev, Some(FileEvent::Created(_))));
+    }
+
+    #[test]
+    fn timeline_files_are_tracked() {
+        // Regression: the watcher must forward .timeline events, otherwise a
+        // newly created timeline never reaches the indexer or the file tree.
+        assert!(has_tracked_extension(Path::new("History.timeline")));
     }
 }

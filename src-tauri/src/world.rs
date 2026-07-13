@@ -24,7 +24,7 @@ use crate::{
     },
     renderer::Renderer,
     snippets::{start_snippet_watcher, SnippetWatcher},
-    utils::{is_image_file, is_map_file, is_markdown_file},
+    utils::{is_image_file, is_map_file, is_markdown_file, is_timeline_file},
     watcher::{is_tracked_path, Watcher},
     writer::{RenameRefs, Writer},
 };
@@ -95,7 +95,7 @@ pub struct IndexUpdatePayload {
 /// What a rename or move of `path` may have to rewrite, gathered from the
 /// index before it changes. None before a vault is open.
 fn rename_refs(index: &Indexer, path: &Path) -> Option<RenameRefs> {
-    let backlinks = index
+    let mut backlinks = index
         .assets
         .get(path)
         .and_then(|asset| match asset {
@@ -103,6 +103,10 @@ fn rename_refs(index: &Indexer, path: &Path) -> Option<RenameRefs> {
             _ => None,
         })
         .unwrap_or_default();
+    // Timelines that reference the page must be rewritten too.
+    if let Some(timelines) = index.timeline_backlinks.get(path) {
+        backlinks.extend(timelines.iter().cloned());
+    }
     // Canvases point at files by vault-relative path rather than by link, so
     // they aren't in the backlink graph: every one is checked.
     let canvases = index
@@ -137,6 +141,10 @@ fn compute_update_payload(events: &[FileEvent]) -> IndexUpdatePayload {
         } else if is_map_file(path) {
             // Map config changes can break pin/shape targets, which feed
             // broken-link checks via the page graph.
+            payload.pages_changed = true;
+        } else if is_timeline_file(path) {
+            // Timeline events link to pages; content edits can change the
+            // backlink set, which feeds broken-link checks.
             payload.pages_changed = true;
         }
         if is_structural {
@@ -535,6 +543,11 @@ impl World {
     /// Reads a `.canvas` file from the vault and returns its raw JSON content.
     pub fn get_canvas_data(&self, path: &str) -> Result<String> {
         self.indexer.read().get_canvas_data(path)
+    }
+
+    /// Returns the raw JSON of a `.timeline` file. The frontend parses once.
+    pub fn get_timeline_data(&self, path: &str) -> Result<String> {
+        self.indexer.read().get_timeline_data(path)
     }
 
     /// Returns cached tile info for a map layer image, or `None` if no

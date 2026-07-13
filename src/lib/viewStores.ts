@@ -8,10 +8,10 @@
  */
 import { writable, derived, type Readable } from "svelte/store";
 import * as T from "./tabs";
-import type { TabsState, ViewState, OpenOptions } from "./tabs";
+import type { TabsState, ViewState, OpenOptions, PathViewKind } from "./tabs";
 
 // Re-export the shared types so existing `$lib/viewStores` type imports keep working.
-export type { ViewState, Tab, FileViewMode } from "./tabs";
+export type { ViewState, Tab, FileViewMode, PathViewKind } from "./tabs";
 export type SaveStatus = "idle" | "dirty" | "saving" | "error";
 
 let idCounter = 0;
@@ -48,7 +48,7 @@ function createTabsStore() {
             oldPath: string,
             newPath: string,
             newTitle: string,
-            kindOf: (p: string) => "file" | "image" | "map" | "canvas",
+            kindOf: (p: string) => PathViewKind,
         ) =>
             update((s) => T.applyRename(s, oldPath, newPath, newTitle, kindOf)),
         applyDelete: (path: string) =>
@@ -70,10 +70,7 @@ export const activeTabId: Readable<string> = derived(tabs, (s) =>
 );
 
 /** The 1 or 2 displayed tab ids, left→right. Length 2 means the view is split. */
-export const displayedPanes: Readable<string[]> = derived(
-    tabs,
-    (s) => s.panes,
-);
+export const displayedPanes: Readable<string[]> = derived(tabs, (s) => s.panes);
 
 /** Index into `displayedPanes` of the focused pane. */
 export const focusedPaneIndex: Readable<number> = derived(

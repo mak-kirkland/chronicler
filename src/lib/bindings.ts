@@ -16,6 +16,7 @@ export type FileType =
     | "Image"
     | "Map"
     | "Canvas"
+    | "Timeline"
     | "External";
 
 /**
