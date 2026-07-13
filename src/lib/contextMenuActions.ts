@@ -22,7 +22,7 @@ import {
     showImages,
     showExternalFiles,
 } from "$lib/explorerStore";
-import { hasMapsEntitlement } from "$lib/licenseStore";
+import { hasMapsEntitlement, hasTimelinesEntitlement } from "$lib/licenseStore";
 import { translate } from "$lib/i18n";
 
 // Import modal components that can be triggered from the context menu
@@ -30,6 +30,7 @@ import TextInputModal from "./components/modals/TextInputModal.svelte";
 import ConfirmModal from "./components/modals/ConfirmModal.svelte";
 import NewMapModal from "./components/map/NewMapModal.svelte";
 import NewCanvasModal from "./components/modals/NewCanvasModal.svelte";
+import NewTimelineModal from "./components/timeline/NewTimelineModal.svelte";
 
 /**
  * This function dynamically builds the list of actions for the context menu
@@ -143,6 +144,19 @@ export function getContextMenuActions(
                         props: {
                             onClose: closeModal,
                         },
+                    });
+                },
+            });
+        }
+
+        // Only show if the user has the timelines entitlement
+        if (get(hasTimelinesEntitlement)) {
+            actions.push({
+                label: translate("contextMenu.newTimeline"),
+                handler: () => {
+                    openModal({
+                        component: NewTimelineModal,
+                        props: { parentDir: node.path, onClose: closeModal },
                     });
                 },
             });

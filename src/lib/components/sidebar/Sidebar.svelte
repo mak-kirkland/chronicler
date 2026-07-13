@@ -2,7 +2,10 @@
     import { tags, vaultPath } from "$lib/worldStore";
     import { promptAndCreateItem } from "$lib/actions";
     import { openModal, closeModal } from "$lib/modalStore";
-    import { hasMapsEntitlement } from "$lib/licenseStore";
+    import {
+        hasMapsEntitlement,
+        hasTimelinesEntitlement,
+    } from "$lib/licenseStore";
     import { fontSize } from "$lib/settingsStore";
     import FileExplorer from "$lib/components/sidebar/FileExplorer.svelte";
     import TagList from "$lib/components/sidebar/TagList.svelte";
@@ -16,6 +19,7 @@
     import Icon from "$lib/components/ui/Icon.svelte";
     import NewMapModal from "$lib/components/map/NewMapModal.svelte";
     import NewCanvasModal from "$lib/components/modals/NewCanvasModal.svelte";
+    import NewTimelineModal from "$lib/components/timeline/NewTimelineModal.svelte";
     import { t } from "$lib/i18n";
 
     let { width = $bindable(), minWidth = $bindable(200) } = $props();
@@ -87,6 +91,16 @@
         if (!$vaultPath) return;
         openModal({
             component: NewMapModal,
+            props: {
+                onClose: closeModal,
+            },
+        });
+    }
+
+    function showCreateTimeline() {
+        if (!$vaultPath) return;
+        openModal({
+            component: NewTimelineModal,
             props: {
                 onClose: closeModal,
             },
@@ -219,6 +233,16 @@
                     + <Icon type="map" />
                 </Button>
             {/if}
+            {#if $hasTimelinesEntitlement}
+                <Button
+                    size="small"
+                    class="new-path-button"
+                    title={$t("sidebar.newTimeline")}
+                    onclick={showCreateTimeline}
+                >
+                    + <Icon type="timeline" />
+                </Button>
+            {/if}
         </div>
 
         <!--
@@ -236,6 +260,9 @@
             <Button size="small">+ <Icon type="canvas" /></Button>
             {#if $hasMapsEntitlement}
                 <Button size="small">+ <Icon type="map" /></Button>
+            {/if}
+            {#if $hasTimelinesEntitlement}
+                <Button size="small">+ <Icon type="timeline" /></Button>
             {/if}
         </div>
 

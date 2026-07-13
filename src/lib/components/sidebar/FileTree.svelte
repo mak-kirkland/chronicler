@@ -10,6 +10,7 @@
         navigateToImage,
         navigateToMap,
         navigateToCanvas,
+        navigateToTimeline,
     } from "$lib/actions";
     import { draggable, droppable } from "$lib/domActions";
     import { openPath } from "@tauri-apps/plugin-opener";
@@ -23,6 +24,7 @@
         isMarkdown,
         isMap,
         isCanvas,
+        isTimeline,
         getDisplayName,
     } from "$lib/utils";
     import { log } from "$lib/logger";
@@ -62,6 +64,8 @@
             navigateToMap({ title: node.name, path: node.path }, newTab);
         } else if (isCanvas(node)) {
             navigateToCanvas({ title: node.name, path: node.path }, newTab);
+        } else if (isTimeline(node)) {
+            navigateToTimeline({ title: node.name, path: node.path }, newTab);
         } else if (isExternal(node)) {
             // Hand off to the OS default application (PDF viewer, Excel, etc.)
             openPath(node.path).catch((err) => {
@@ -172,6 +176,8 @@
                 <Icon type="globe" />
             {:else if isCanvas(node)}
                 <Icon type="canvas" />
+            {:else if isTimeline(node)}
+                <Icon type="timeline" />
             {:else}
                 <Icon type="file" />
             {/if}
