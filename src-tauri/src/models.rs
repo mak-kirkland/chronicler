@@ -44,6 +44,27 @@ pub struct MapConfig {
     pub shapes: Option<Vec<MapRegion>>,
 }
 
+/// Partial representation of one timeline event, for indexing purposes.
+/// Only the link-bearing fields are extracted; everything else in the JSON
+/// is opaque to the backend (the frontend owns the full schema — see
+/// src/lib/timelineModels.ts).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimelineEventLinks {
+    #[serde(rename = "pageLink")]
+    pub page_link: Option<String>,
+    pub description: Option<String>,
+}
+
+/// Partial representation of a `.timeline` file. Used to extract wikilinks
+/// without loading the full event data into the index (the `MapConfig`
+/// pattern).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimelineConfig {
+    #[serde(default)]
+    pub title: String,
+    pub events: Option<Vec<TimelineEventLinks>>,
+}
+
 /// Represents any uniquely identifiable asset within the vault.
 /// This enum is the core of the unified indexing strategy, allowing the indexer
 /// to treat all file types generically while still storing specific data where needed.
@@ -65,6 +86,9 @@ pub enum VaultAsset {
     /// A brainstorming canvas file (.canvas). Phase 1 does not parse its
     /// contents into the index (unlike Map); the frontend reads it on demand.
     Canvas,
+    /// An interactive timeline file (.timeline). Stores a partial parse of
+    /// the config (link-bearing fields only) for backlink calculations.
+    Timeline(Box<TimelineConfig>),
     /// A non-indexed file (e.g. PDF, spreadsheet) shown in the explorer
     /// but opened in the OS default application on click.
     External,
@@ -141,6 +165,8 @@ pub enum FileType {
     Map,
     /// A brainstorming canvas (`.canvas`, JSON Canvas format).
     Canvas,
+    /// An interactive timeline (`.timeline`).
+    Timeline,
     /// A non-indexed file opened in the OS default application (e.g., `.pdf`, `.xlsx`).
     External,
 }

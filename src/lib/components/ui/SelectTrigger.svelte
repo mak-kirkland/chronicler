@@ -14,10 +14,16 @@
         controller,
         label,
         isPlaceholder = false,
+        ariaLabel = undefined,
     } = $props<{
         controller: SelectController<any>;
         label: string;
         isPlaceholder?: boolean;
+        /**
+         * Accessible name for a select with no visible <label>. Needed because
+         * this deliberately takes no `id`, so `<label for>` can't name it.
+         */
+        ariaLabel?: string;
     }>();
 </script>
 
@@ -28,6 +34,7 @@
     onkeydown={controller.handleKeydown}
     type="button"
     aria-haspopup="listbox"
+    aria-label={ariaLabel}
     aria-expanded={controller.isOpen}
 >
     <span class="select-trigger-label" class:placeholder={isPlaceholder}>

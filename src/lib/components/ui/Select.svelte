@@ -36,6 +36,7 @@
         placeholder = undefined,
         formatLabel = undefined,
         onSelect = undefined,
+        ariaLabel = undefined,
     } = $props<{
         options?: SelectOption<string>[];
         groups?: SelectGroup[];
@@ -43,6 +44,8 @@
         placeholder?: string;
         formatLabel?: (label: string) => string;
         onSelect?: (value: string) => void;
+        /** Accessible name, for a select with no visible <label>. */
+        ariaLabel?: string;
     }>();
 
     // Flatten groups into a single list when groups are provided
@@ -74,7 +77,12 @@
 </script>
 
 <div class="select-wrapper">
-    <SelectTrigger controller={ctrl} label={displayLabel} {isPlaceholder} />
+    <SelectTrigger
+        controller={ctrl}
+        label={displayLabel}
+        {isPlaceholder}
+        {ariaLabel}
+    />
 
     <FloatingMenu
         isOpen={ctrl.isOpen}

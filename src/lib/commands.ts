@@ -22,6 +22,7 @@ import type {
 } from "./bindings";
 import type { MapConfig, TileSetInfo } from "./mapModels";
 import type { CanvasData } from "$lib/canvasModels";
+import { parseTimelineData, type TimelineData } from "./timelineModels";
 
 /**
  * Thin wrapper around Tauri's `invoke` that funnels every backend call
@@ -297,6 +298,25 @@ export const getCanvasData = async (path: string): Promise<CanvasData> => {
     const parsed = (JSON.parse(json) ?? {}) as Partial<CanvasData>;
     return { ...parsed, nodes: parsed.nodes ?? [], edges: parsed.edges ?? [] };
 };
+
+/**
+ * Reads and parses a `.timeline` file from within the vault.
+ * The backend returns the raw JSON string; parseTimelineData normalizes
+ * every field (same rationale as getCanvasData).
+ */
+export const getTimelineData = async (path: string): Promise<TimelineData> => {
+    const json = await invoke<string>("get_timeline_data", { path });
+    return parseTimelineData(json);
+};
+
+/** Raw JSON strings of every calendar in `.chronicler/calendars/`. */
+export const listCalendars = (): Promise<string[]> => invoke("list_calendars");
+
+export const saveCalendar = (id: string, json: string): Promise<void> =>
+    invoke("save_calendar", { id, json });
+
+export const deleteCalendar = (id: string): Promise<void> =>
+    invoke("delete_calendar", { id });
 
 /**
  * Returns cached tile info if a complete pyramid is already on disk for

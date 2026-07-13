@@ -47,6 +47,11 @@
                     v.data?.title.replace(/\.canvas$/i, "") ??
                     $t("tabs.untitled")
                 );
+            case "timeline":
+                return (
+                    v.data?.title.replace(/\.timeline$/i, "") ??
+                    $t("tabs.untitled")
+                );
             case "tag":
                 return `#${v.tagName}`;
             case "report": {
@@ -66,6 +71,8 @@
                 return "globe";
             case "canvas":
                 return "canvas";
+            case "timeline":
+                return "timeline";
             case "tag":
                 return "tags";
             case "report":

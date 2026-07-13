@@ -75,3 +75,6 @@ export const MAX_CACHED_MAPS = 32;
 
 /** How many parsed canvases to keep in the in-memory LRU cache. */
 export const MAX_CACHED_CANVASES = 8;
+
+/** How many parsed timelines to keep in the in-memory LRU cache. */
+export const MAX_CACHED_TIMELINES = 8;

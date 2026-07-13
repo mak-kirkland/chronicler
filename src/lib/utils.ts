@@ -19,7 +19,10 @@ import { log } from "./logger";
  * any handler that constructs editor rows.
  */
 export function uuid(): string {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    if (
+        typeof crypto !== "undefined" &&
+        typeof crypto.randomUUID === "function"
+    ) {
         return crypto.randomUUID();
     }
     return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -77,6 +80,15 @@ export function isCanvas(node: FileNode): boolean {
 }
 
 /**
+ * A helper function to check if a FileNode is a Timeline file.
+ * @param node The FileNode to check.
+ * @returns True if the node's file_type is 'Timeline'
+ */
+export function isTimeline(node: FileNode): boolean {
+    return node.file_type === "Timeline";
+}
+
+/**
  * A helper function to check if a FileNode is an external file
  * (e.g. PDF, spreadsheet) that should be opened in the OS default app.
  * @param node The FileNode to check.
@@ -98,6 +110,9 @@ export function getDisplayName(node: FileNode): string {
     }
     if (isCanvas(node)) {
         return node.name.replace(/\.canvas$/i, "");
+    }
+    if (isTimeline(node)) {
+        return node.name.replace(/\.timeline$/i, "");
     }
     return node.name;
 }
@@ -137,6 +152,14 @@ export function isMapFile(path: string): boolean {
  */
 export function isCanvasFile(path: string): boolean {
     return path.toLowerCase().endsWith(".canvas");
+}
+
+/**
+ * Checks if a given path string points to a timeline file.
+ * @returns True if the path ends with .timeline (case-insensitive)
+ */
+export function isTimelineFile(path: string): boolean {
+    return path.toLowerCase().endsWith(".timeline");
 }
 
 /**
@@ -556,7 +579,10 @@ export function debounce<T extends (...args: any[]) => any>(
  * @param fn The function to throttle.
  * @param ms The minimum interval between invocations in milliseconds.
  */
-export function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
+export function throttle<T extends (...args: any[]) => void>(
+    fn: T,
+    ms: number,
+): T {
     let lastCall = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -565,7 +591,10 @@ export function throttle<T extends (...args: any[]) => void>(fn: T, ms: number):
         const remaining = ms - (now - lastCall);
 
         if (remaining <= 0) {
-            if (timer) { clearTimeout(timer); timer = null; }
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
             lastCall = now;
             fn(...args);
         } else if (!timer) {

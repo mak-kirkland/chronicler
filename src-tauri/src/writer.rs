@@ -7,7 +7,7 @@
 use crate::{
     error::{ChroniclerError, Result},
     models::PageHeader,
-    utils::{file_stem_string, is_markdown_file},
+    utils::{file_stem_string, is_markdown_file, is_timeline_file},
     wikilink::WIKILINK_RE,
 };
 use regex::{Captures, Regex};
@@ -33,7 +33,7 @@ struct BacklinkUpdate {
 
 /// Files other than the renamed one that a rename or move may have to rewrite.
 pub struct RenameRefs {
-    /// Pages that link to a renamed page by name.
+    /// Pages and timelines that link to a renamed page by name.
     pub backlinks: HashSet<PathBuf>,
     /// Every canvas in the vault. They point at files by vault-relative path
     /// rather than by link, so any of them may reference the renamed file, or
@@ -218,6 +218,40 @@ fn replace_insert_in_content(content: &str, old_stem: &str, new_stem: &str) -> O
     }
 }
 
+/// Rewrites page references inside a `.timeline` file's JSON when a page is
+/// renamed: `events[].pageLink` matching the old page stem (case-insensitive,
+/// same folding as the link resolver) and `[[wikilinks]]` inside
+/// `events[].description`. Value-based so unknown fields round-trip
+/// untouched. Returns None when nothing changed or the JSON is malformed
+/// (a malformed timeline must not abort the rename transaction).
+fn rewrite_timeline_links(content: &str, old_stem: &str, new_stem: &str) -> Option<String> {
+    let mut value: serde_json::Value = serde_json::from_str(content).ok()?;
+    let mut changed = false;
+    let old_lower = old_stem.to_lowercase();
+
+    if let Some(events) = value.get_mut("events").and_then(|e| e.as_array_mut()) {
+        for event in events {
+            if let Some(link) = event.get("pageLink").and_then(|l| l.as_str()) {
+                if link.to_lowercase() == old_lower {
+                    event["pageLink"] = serde_json::Value::String(new_stem.to_string());
+                    changed = true;
+                }
+            }
+            if let Some(desc) = event.get("description").and_then(|d| d.as_str()) {
+                if let Some(new_desc) = replace_wikilink_in_content(desc, old_stem, new_stem) {
+                    event["description"] = serde_json::Value::String(new_desc);
+                    changed = true;
+                }
+            }
+        }
+    }
+    if changed {
+        serde_json::to_string_pretty(&value).ok()
+    } else {
+        None
+    }
+}
+
 /// Points `[[wikilinks]]` and `{{insert:}}`s at a renamed page. Returns None
 /// when nothing changed.
 fn rewrite_page_refs(text: &str, old_stem: &str, new_stem: &str) -> Option<String> {
@@ -320,7 +354,7 @@ fn prepare_update(
 }
 
 /// Link rewrites for a renamed page: `[[wikilinks]]` and inserts in markdown
-/// backlinks.
+/// backlinks, value-based rewrites in timeline backlinks.
 fn prepare_link_updates(
     old_path: &Path,
     new_path: &Path,
@@ -332,7 +366,12 @@ fn prepare_link_updates(
         .iter()
         .filter_map(|path| {
             prepare_update(path.clone(), |content| {
-                rewrite_page_refs(content, &old_stem, &new_stem)
+                // Timeline backlinks are JSON files: rewrite them value-based.
+                if is_timeline_file(path) {
+                    rewrite_timeline_links(content, &old_stem, &new_stem)
+                } else {
+                    rewrite_page_refs(content, &old_stem, &new_stem)
+                }
             })
         })
         .collect()
@@ -831,6 +870,78 @@ mod tests {
         let page2_content = fs::read_to_string(&page2_path).unwrap();
         assert!(page2_content.contains("[[First Chapter]]"));
         assert!(!page2_content.contains("[[Page One]]"));
+    }
+
+    #[test]
+    fn rewrite_timeline_links_updates_pagelink_and_description() {
+        let content = r#"{
+  "version": 1,
+  "title": "History",
+  "futureField": {"keep": "me"},
+  "events": [
+    {"id": "e1", "pageLink": "Old Name", "description": "See [[Old Name]] and [[Other]]."},
+    {"id": "e2", "pageLink": "other page", "description": ""}
+  ]
+}"#;
+        let result = rewrite_timeline_links(content, "Old Name", "New Name").unwrap();
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["events"][0]["pageLink"], "New Name");
+        assert!(value["events"][0]["description"]
+            .as_str()
+            .unwrap()
+            .contains("[[New Name]]"));
+        assert!(value["events"][0]["description"]
+            .as_str()
+            .unwrap()
+            .contains("[[Other]]"));
+        // Unknown fields survive a rewrite untouched.
+        assert_eq!(value["futureField"]["keep"], "me");
+        // Unrelated links untouched.
+        assert_eq!(value["events"][1]["pageLink"], "other page");
+    }
+
+    #[test]
+    fn rewrite_timeline_links_matches_pagelink_case_insensitively() {
+        let content = r#"{"events":[{"pageLink":"old name"}]}"#;
+        let result = rewrite_timeline_links(content, "Old Name", "New").unwrap();
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["events"][0]["pageLink"], "New");
+    }
+
+    #[test]
+    fn rewrite_timeline_links_returns_none_when_nothing_matches() {
+        let content = r#"{"events":[{"pageLink":"Unrelated"}]}"#;
+        assert!(rewrite_timeline_links(content, "Old Name", "New").is_none());
+    }
+
+    #[test]
+    fn rewrite_timeline_links_returns_none_on_malformed_json() {
+        assert!(rewrite_timeline_links("{ nope", "Old", "New").is_none());
+    }
+
+    #[test]
+    fn rename_updates_timeline_backlink_files() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let old_page = root.join("Old Name.md");
+        let new_page = root.join("New Name.md");
+        fs::write(&old_page, "# Old").unwrap();
+        let timeline = root.join("H.timeline");
+        fs::write(
+            &timeline,
+            r#"{"events":[{"pageLink":"Old Name","description":"[[Old Name]]"}]}"#,
+        )
+        .unwrap();
+
+        let writer = Writer::new();
+        let backlinks = HashSet::from([timeline.clone()]);
+        writer
+            .update_backlinks_for_rename(&old_page, &new_page, &link_refs(backlinks))
+            .unwrap();
+
+        let rewritten = fs::read_to_string(&timeline).unwrap();
+        assert!(rewritten.contains("\"New Name\""));
+        assert!(rewritten.contains("[[New Name]]"));
     }
 
     #[test]
