@@ -8,12 +8,12 @@ use crate::{
     events::FileEvent,
     models::{
         BrokenImage, BrokenLink, FileNode, FileType, Link, MapConfig, Page, PageHeader, ParseError,
-        VaultAsset,
+        TimelineConfig, VaultAsset,
     },
     parser,
     utils::{
         file_stem_string, is_canvas_file, is_external_file, is_hidden_path, is_image_file,
-        is_map_file, is_markdown_file,
+        is_map_file, is_markdown_file, is_timeline_file,
     },
 };
 use natord::compare_ignore_case as nat_compare;
@@ -57,6 +57,11 @@ pub struct Indexer {
     /// Stores the reverse index for Maps: Page Path -> Set of Map Paths that link to it.
     /// Used to populate the "Associated Maps" list in the file view.
     pub map_backlinks: HashMap<PathBuf, HashSet<PathBuf>>,
+
+    /// Maps a page path to the set of `.timeline` files whose events link to
+    /// it (via `pageLink` or description wikilinks). Used to rewrite those
+    /// timelines when the page is renamed.
+    pub timeline_backlinks: HashMap<PathBuf, HashSet<PathBuf>>,
 }
 
 /// Helper struct to hold the result of processing a single file during scan.
@@ -207,6 +212,26 @@ impl Indexer {
                 asset: Some(VaultAsset::Canvas),
                 error: None,
             }
+        } else if is_timeline_file(&canonical_path) {
+            match fs::read_to_string(&canonical_path) {
+                Ok(content) => match serde_json::from_str::<TimelineConfig>(&content) {
+                    Ok(config) => ScanResult {
+                        path: canonical_path,
+                        asset: Some(VaultAsset::Timeline(Box::new(config))),
+                        error: None,
+                    },
+                    Err(e) => ScanResult {
+                        path: canonical_path,
+                        asset: None,
+                        error: Some(format!("Timeline parse error: {}", e)),
+                    },
+                },
+                Err(e) => ScanResult {
+                    path: canonical_path,
+                    asset: None,
+                    error: Some(format!("Could not read timeline file: {}", e)),
+                },
+            }
         } else if is_external_file(&canonical_path) {
             ScanResult {
                 path: canonical_path,
@@ -256,6 +281,7 @@ impl Indexer {
         self.media_resolver.clear();
         self.link_graph.clear();
         self.map_backlinks.clear();
+        self.timeline_backlinks.clear();
 
         // 1. Collect all paths (files AND directories) first.
         // Use a single WalkDir iterator for efficiency.
@@ -305,6 +331,7 @@ impl Indexer {
                     VaultAsset::Image => (p, i + 1, m, d, x),
                     VaultAsset::Map(_) => (p, i, m + 1, d, x),
                     VaultAsset::Canvas => (p, i, m, d, x),
+                    VaultAsset::Timeline(_) => (p, i, m, d, x),
                     VaultAsset::Directory => (p, i, m, d + 1, x),
                     VaultAsset::External => (p, i, m, d, x + 1),
                 });
@@ -528,6 +555,7 @@ impl Indexer {
         let mut new_link_graph: HashMap<PathBuf, HashMap<PathBuf, Vec<Link>>> = HashMap::new();
         let mut new_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
         let mut new_map_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
+        let mut new_timeline_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
 
         // --- PASS 1: Build resolver maps ---
         // This pass ensures that all potential link targets are known before we process any links.
@@ -623,6 +651,34 @@ impl Indexer {
                         }
                     }
                 }
+                VaultAsset::Timeline(config) => {
+                    if let Some(events) = &config.events {
+                        for event in events {
+                            if let Some(target) = &event.page_link {
+                                if let Some(target_path) =
+                                    new_link_resolver.get(&target.to_lowercase())
+                                {
+                                    new_timeline_backlinks
+                                        .entry(target_path.clone())
+                                        .or_default()
+                                        .insert(path.clone());
+                                }
+                            }
+                            if let Some(desc) = &event.description {
+                                for link in crate::wikilink::extract_wikilinks(desc) {
+                                    if let Some(target_path) =
+                                        new_link_resolver.get(&link.target.to_lowercase())
+                                    {
+                                        new_timeline_backlinks
+                                            .entry(target_path.clone())
+                                            .or_default()
+                                            .insert(path.clone());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -640,6 +696,7 @@ impl Indexer {
         self.tags = new_tags;
         self.link_graph = new_link_graph;
         self.map_backlinks = new_map_backlinks;
+        self.timeline_backlinks = new_timeline_backlinks;
     }
 
     /// Resolves a wikilink to an absolute file path using the resolver map.
@@ -725,6 +782,7 @@ impl Indexer {
             Some(VaultAsset::Image) => FileType::Image,
             Some(VaultAsset::Map(_)) => FileType::Map,
             Some(VaultAsset::Canvas) => FileType::Canvas,
+            Some(VaultAsset::Timeline(_)) => FileType::Timeline,
             Some(VaultAsset::External) => FileType::External,
             None => {
                 // This is the root directory case (root itself isn't in assets with this key)
@@ -948,6 +1006,18 @@ impl Indexer {
     /// (file must be a known indexed asset) guarantees we only read inside the
     /// vault root.
     pub fn get_canvas_data(&self, path: &str) -> Result<String> {
+        let path_buf = PathBuf::from(path);
+        if !self.assets.contains_key(&path_buf) {
+            return Err(ChroniclerError::FileNotFound(path_buf));
+        }
+        Ok(fs::read_to_string(&path_buf)?)
+    }
+
+    /// Reads a `.timeline` file from the vault and returns its raw JSON
+    /// content. Mirrors `get_canvas_data`: the frontend parses once; the
+    /// security check (file must be a known indexed asset) guarantees we
+    /// only read inside the vault root.
+    pub fn get_timeline_data(&self, path: &str) -> Result<String> {
         let path_buf = PathBuf::from(path);
         if !self.assets.contains_key(&path_buf) {
             return Err(ChroniclerError::FileNotFound(path_buf));
@@ -1264,5 +1334,114 @@ Now I link to [[Page Two]]!
             .get_canvas_data(canonical.to_str().unwrap())
             .unwrap();
         assert_eq!(out, body);
+    }
+
+    #[test]
+    fn indexes_timeline_files_as_timeline_asset() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let timeline_path = root.join("History.timeline");
+        fs::write(
+            &timeline_path,
+            r#"{"version":1,"title":"History","calendarId":"gregorian","lanes":[],"events":[]}"#,
+        )
+        .unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        let canonical = fs::canonicalize(&timeline_path).unwrap();
+        assert!(matches!(
+            indexer.assets.get(&canonical),
+            Some(VaultAsset::Timeline(_))
+        ));
+    }
+
+    #[test]
+    fn malformed_timeline_records_error_without_breaking_indexing() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("Broken.timeline"), "{ not json").unwrap();
+        fs::write(root.join("Fine.md"), "# Fine").unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        // The good page still indexed…
+        let md = fs::canonicalize(root.join("Fine.md")).unwrap();
+        assert!(indexer.assets.contains_key(&md));
+        // …and the parse failure is recorded, not fatal.
+        assert!(indexer
+            .parse_errors
+            .keys()
+            .any(|p| p.to_string_lossy().contains("Broken.timeline")));
+    }
+
+    #[test]
+    fn timeline_events_feed_timeline_backlinks() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("Battle.md"), "# Battle").unwrap();
+        fs::write(root.join("King.md"), "# King").unwrap();
+        fs::write(
+            root.join("History.timeline"),
+            r#"{
+                "version": 1,
+                "title": "History",
+                "calendarId": "gregorian",
+                "lanes": [{"id": "l1", "name": "Events"}],
+                "events": [
+                    {"id": "e1", "laneId": "l1", "title": "The Battle",
+                     "start": {"year": 312}, "pageLink": "Battle",
+                     "description": "Where [[King]] fell."}
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        let battle = fs::canonicalize(root.join("Battle.md")).unwrap();
+        let king = fs::canonicalize(root.join("King.md")).unwrap();
+        let timeline = fs::canonicalize(root.join("History.timeline")).unwrap();
+
+        // pageLink target gets a timeline backlink…
+        assert!(indexer.timeline_backlinks[&battle].contains(&timeline));
+        // …and so does a [[wikilink]] inside a description.
+        assert!(indexer.timeline_backlinks[&king].contains(&timeline));
+    }
+
+    #[test]
+    fn timeline_backlinks_ignore_unresolvable_targets() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        fs::write(
+            root.join("H.timeline"),
+            r#"{"title":"H","events":[{"pageLink":"No Such Page"}]}"#,
+        )
+        .unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+        assert!(indexer.timeline_backlinks.is_empty());
+    }
+
+    #[test]
+    fn get_timeline_data_returns_raw_json() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let body = r#"{"version":1,"title":"T","calendarId":"g","lanes":[],"events":[]}"#;
+        let timeline_path = root.join("T.timeline");
+        fs::write(&timeline_path, body).unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        let canonical = fs::canonicalize(&timeline_path).unwrap();
+        let json = indexer
+            .get_timeline_data(&canonical.to_string_lossy())
+            .unwrap();
+        assert_eq!(json, body);
     }
 }

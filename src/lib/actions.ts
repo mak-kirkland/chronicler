@@ -15,6 +15,7 @@ import {
     isCanvasFile,
     isImageFile,
     isMarkdownFile,
+    isTimelineFile,
 } from "./utils";
 import { world, pagePathLookup, mapPathLookup } from "./worldStore";
 import NewPageModal from "./components/modals/NewPageModal.svelte";
@@ -27,10 +28,13 @@ import { log } from "./logger";
 import { translate } from "./i18n";
 
 /** Classifies a path into the view type used to display it. */
-function kindOf(path: string): "file" | "image" | "map" | "canvas" {
+function kindOf(
+    path: string,
+): "file" | "image" | "map" | "canvas" | "timeline" {
     if (isMarkdownFile(path)) return "file";
     if (isImageFile(path)) return "image";
     if (isCanvasFile(path)) return "canvas";
+    if (isTimelineFile(path)) return "timeline";
     return "map";
 }
 
@@ -249,6 +253,15 @@ export function navigateToMap(page: PageHeader, newTab = false) {
  */
 export function navigateToCanvas(page: PageHeader, newTab = false) {
     navigate({ type: "canvas", data: page }, newTab);
+}
+
+/**
+ * Navigates the main view to display an interactive timeline.
+ * @param page The header of the timeline to navigate to (path + title).
+ * @param newTab If true, opens in a new tab instead of the current one.
+ */
+export function navigateToTimeline(page: PageHeader, newTab = false) {
+    navigate({ type: "timeline", data: page }, newTab);
 }
 
 /**

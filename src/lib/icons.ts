@@ -21,6 +21,7 @@ export interface IconPack {
         map: string;
         globe: string;
         canvas: string;
+        timeline: string;
 
         // Navigation & Sidebar
         tags: string;
@@ -75,6 +76,8 @@ export const coreIcons: IconPack = {
         map: "/icons/default/Icons_Map.svg",
         globe: "/icons/default/Icons_Globe.svg",
         canvas: "/icons/default/Icons_Canvas.svg",
+        // TODO(art): dedicated timeline icon
+        timeline: "/icons/default/Icons_Globe.svg",
 
         // Navigation & Sidebar
         tags: "/icons/default/Icons_Tags.svg",
@@ -126,6 +129,8 @@ export const legacyIcons: IconPack = {
         map: "🗺",
         globe: "🌍",
         canvas: "▦",
+        // TODO(art): dedicated timeline icon
+        timeline: "🌍",
         tags: "#",
         gallery: "🖼️",
         reports: "📈",
@@ -167,6 +172,8 @@ export const professionalPack: IconPack = {
         map: `<path d="M20.5 3l-6 2-6-2-5.5 1.83c-.55.18-.9.71-.9 1.29v14.47c0 .76.81 1.27 1.5 1.04l5.4-1.8 6 2 5.5-1.83c.55-.18.9-.71.9-1.29V4.29c0-.76-.81-1.27-1.5-1.04l-5.4 1.8zM15 19l-6-2.11V5l6 2.11V19z"/>`,
         globe: `<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-1.07 3.97-2.9 5.4z"/>`,
         canvas: `<rect x="3" y="3" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="15" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 6 h4 a2 2 0 0 1 2 2 v7" fill="none" stroke="currentColor" stroke-width="2"/>`,
+        // TODO(art): dedicated timeline icon
+        timeline: `<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-1.07 3.97-2.9 5.4z"/>`,
 
         // Navigation
         tags: `<path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/>`,
@@ -242,6 +249,13 @@ export const fantasyIcons: IconPack = {
 
         // Canvas (neutral until themed art exists)
         canvas: `<rect x="3" y="3" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="15" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 6 h4 a2 2 0 0 1 2 2 v7" fill="none" stroke="currentColor" stroke-width="2"/>`,
+
+        // TODO(art): dedicated timeline icon (crystal-ball globe stand-in)
+        timeline: `<circle cx="12" cy="11" r="7" fill="#E0FFFF" opacity="0.4"/>
+                <circle cx="12" cy="11" r="7" stroke="#DAA520" stroke-width="0.5" fill="none"/>
+                <ellipse cx="12" cy="11" rx="4" ry="1.5" fill="#FFFFFF" opacity="0.4" transform="rotate(-30 12 11)"/>
+                <path d="M8 17l1 3h6l1-3H8z" fill="#8B4513"/>
+                <path d="M7 20h10v2H7z" fill="#DAA520"/>`,
 
         // Navigation - Golden Compass
         tags: `<path d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" fill="#B8860B"/>
@@ -353,6 +367,12 @@ export const sciFiIcons: IconPack = {
 
         // Canvas (neutral until themed art exists)
         canvas: `<rect x="3" y="3" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="15" width="8" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 6 h4 a2 2 0 0 1 2 2 v7" fill="none" stroke="currentColor" stroke-width="2"/>`,
+
+        // TODO(art): dedicated timeline icon (holo-planet globe stand-in)
+        timeline: `<circle cx="12" cy="12" r="8" fill="none" stroke="#0ff" stroke-width="1.5"/>
+                <ellipse cx="12" cy="12" rx="8" ry="3" fill="none" stroke="#0ff" opacity="0.7"/>
+                <ellipse cx="12" cy="12" rx="3" ry="8" fill="none" stroke="#0ff" opacity="0.7"/>
+                <circle cx="12" cy="12" r="2" fill="#0ff" opacity="0.3"/>`,
 
         // Navigation - Circuit / Node
         tags: `<circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>

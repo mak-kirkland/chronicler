@@ -9,7 +9,7 @@ use crate::models::{
     BrokenImage, BrokenLink, FullPageData, ImportedImage, PageHeader, ParseError, Snippet,
 };
 use crate::{
-    config,
+    calendars, config,
     error::{ChroniclerError, Result},
     fonts, importer,
     models::{FileNode, RenderedPage},
@@ -357,6 +357,13 @@ pub fn get_canvas_data(path: String, world: State<World>) -> Result<String> {
     world.get_canvas_data(&path)
 }
 
+/// Reads a `.timeline` file and returns its raw JSON. Frontend parses once.
+#[command]
+#[instrument(skip(world), err(Debug))]
+pub fn get_timeline_data(path: String, world: State<World>) -> Result<String> {
+    world.get_timeline_data(&path)
+}
+
 /// Returns cached tile info for a map layer image, or `None` if no pyramid
 /// is on disk. Pure read — never triggers generation. Frontend awaits this
 /// before mounting a layer to avoid loading the original image when tiles
@@ -697,4 +704,30 @@ pub fn open_snippets_dir(world: State<World>, app_handle: AppHandle) -> Result<(
         .opener()
         .open_path(dir.to_string_lossy(), None::<&str>)?;
     Ok(())
+}
+
+/// Lists the raw JSON of every calendar in the vault's
+/// `.chronicler/calendars/` directory. The frontend parses and validates.
+#[command]
+#[instrument(skip(world), err(Debug))]
+pub fn list_calendars(world: State<World>) -> Result<Vec<String>> {
+    let root = vault_root(&world)?;
+    calendars::list_calendar_jsons(&root)
+}
+
+/// Saves one calendar's JSON under its id (path-traversal guarded).
+#[command]
+#[instrument(skip(world, json), err(Debug))]
+pub fn save_calendar(world: State<World>, id: String, json: String) -> Result<()> {
+    let root = vault_root(&world)?;
+    calendars::save_calendar_json(&root, &id, &json)
+}
+
+/// Deletes a calendar by id. Timelines referencing it fall back to the
+/// built-in Gregorian preset with a visible warning (frontend behavior).
+#[command]
+#[instrument(skip(world), err(Debug))]
+pub fn delete_calendar(world: State<World>, id: String) -> Result<()> {
+    let root = vault_root(&world)?;
+    calendars::delete_calendar_file(&root, &id)
 }

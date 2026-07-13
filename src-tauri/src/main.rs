@@ -16,6 +16,7 @@ use tracing_subscriber::{
 };
 use world::World;
 
+mod calendars;
 mod commands;
 mod config;
 mod error;
@@ -159,6 +160,7 @@ fn main() {
             commands::open_in_explorer,
             commands::get_map_config,
             commands::get_canvas_data,
+            commands::get_timeline_data,
             commands::lookup_layer_tile_info,
             commands::ensure_layer_tiles,
             commands::get_all_directory_paths,
@@ -196,6 +198,9 @@ fn main() {
             commands::read_snippet,
             commands::set_snippet_enabled,
             commands::open_snippets_dir,
+            commands::list_calendars,
+            commands::save_calendar,
+            commands::delete_calendar,
         ])
         .run(tauri::generate_context!())
         .expect(r#"error while running tauri application"#);

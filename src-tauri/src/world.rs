@@ -24,7 +24,7 @@ use crate::{
     },
     renderer::Renderer,
     snippets::SnippetWatcher,
-    utils::{is_image_file, is_map_file, is_markdown_file},
+    utils::{is_image_file, is_map_file, is_markdown_file, is_timeline_file},
     watcher::Watcher,
     writer::Writer,
 };
@@ -111,6 +111,10 @@ fn compute_update_payload(events: &[FileEvent]) -> IndexUpdatePayload {
         } else if is_map_file(path) {
             // Map config changes can break pin/shape targets, which feed
             // broken-link checks via the page graph.
+            payload.pages_changed = true;
+        } else if is_timeline_file(path) {
+            // Timeline events link to pages; content edits can change the
+            // backlink set, which feeds broken-link checks.
             payload.pages_changed = true;
         }
         if is_structural {
@@ -392,14 +396,19 @@ impl World {
                             // Get the backlinks from the index *before* it's updated.
                             let backlinks = {
                                 let index = indexer.read();
-                                index
+                                let mut set = index
                                     .assets
                                     .get(from)
                                     .and_then(|asset| match asset {
                                         VaultAsset::Page(p) => Some(p.backlinks.clone()),
                                         _ => None,
                                     })
-                                    .unwrap_or_default()
+                                    .unwrap_or_default();
+                                // Timelines that reference the page must be rewritten too.
+                                if let Some(timelines) = index.timeline_backlinks.get(from) {
+                                    set.extend(timelines.iter().cloned());
+                                }
+                                set
                             };
 
                             if !backlinks.is_empty() {
@@ -505,6 +514,11 @@ impl World {
     /// Reads a `.canvas` file from the vault and returns its raw JSON content.
     pub fn get_canvas_data(&self, path: &str) -> Result<String> {
         self.indexer.read().get_canvas_data(path)
+    }
+
+    /// Returns the raw JSON of a `.timeline` file. The frontend parses once.
+    pub fn get_timeline_data(&self, path: &str) -> Result<String> {
+        self.indexer.read().get_timeline_data(path)
     }
 
     /// Returns cached tile info for a map layer image, or `None` if no
@@ -625,14 +639,19 @@ impl World {
         // Get necessary info from the indexer before performing the operation.
         let backlinks = {
             let index = self.indexer.read();
-            index
+            let mut set = index
                 .assets
                 .get(&path)
                 .and_then(|asset| match asset {
                     VaultAsset::Page(p) => Some(p.backlinks.clone()),
                     _ => None,
                 })
-                .unwrap_or_default()
+                .unwrap_or_default();
+            // Timelines that reference the page must be rewritten too.
+            if let Some(timelines) = index.timeline_backlinks.get(&path) {
+                set.extend(timelines.iter().cloned());
+            }
+            set
         };
 
         let new_path = self.with_writer(|w| w.rename_path(&path, &new_name, &backlinks))?;

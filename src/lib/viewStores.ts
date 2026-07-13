@@ -48,7 +48,9 @@ function createTabsStore() {
             oldPath: string,
             newPath: string,
             newTitle: string,
-            kindOf: (p: string) => "file" | "image" | "map" | "canvas",
+            kindOf: (
+                p: string,
+            ) => "file" | "image" | "map" | "canvas" | "timeline",
         ) =>
             update((s) => T.applyRename(s, oldPath, newPath, newTitle, kindOf)),
         applyDelete: (path: string) =>
@@ -70,10 +72,7 @@ export const activeTabId: Readable<string> = derived(tabs, (s) =>
 );
 
 /** The 1 or 2 displayed tab ids, left→right. Length 2 means the view is split. */
-export const displayedPanes: Readable<string[]> = derived(
-    tabs,
-    (s) => s.panes,
-);
+export const displayedPanes: Readable<string[]> = derived(tabs, (s) => s.panes);
 
 /** Index into `displayedPanes` of the focused pane. */
 export const focusedPaneIndex: Readable<number> = derived(

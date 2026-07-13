@@ -38,6 +38,14 @@ export const hasMapsEntitlement = derived(store, ($state) => {
 });
 
 /**
+ * Derived store that returns true if the current license permits Timeline
+ * usage. Useful for feature gating UI elements.
+ */
+export const hasTimelinesEntitlement = derived(store, ($state) => {
+    return $state.license?.entitlements.includes("timelines") ?? false;
+});
+
+/**
  * Attempts to verify a new license key with the backend.
  * Updates the store with the result.
  * @param licenseKey The raw string content of the license file.

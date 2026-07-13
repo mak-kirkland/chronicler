@@ -68,6 +68,12 @@ pub fn is_canvas_file(path: &Path) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("canvas"))
 }
 
+/// Checks if a path points to a timeline file (.timeline).
+pub fn is_timeline_file(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("timeline"))
+}
+
 /// Extracts the file stem from a path and returns it as a clean String.
 /// Returns an empty string if the path has no file stem.
 pub fn file_stem_string(path: &Path) -> String {
@@ -205,6 +211,19 @@ mod tests {
         assert!(!is_canvas_file(Path::new("/v/world.cmap")));
         assert!(!is_canvas_file(Path::new("/v/note.md")));
         assert!(!is_canvas_file(Path::new("/v/no_extension")));
+    }
+
+    #[test]
+    fn timeline_file_recognises_extension() {
+        assert!(is_timeline_file(Path::new("/v/History.timeline")));
+        assert!(is_timeline_file(Path::new("/v/My Epic.TIMELINE")));
+    }
+
+    #[test]
+    fn timeline_file_rejects_others() {
+        assert!(!is_timeline_file(Path::new("/v/History.md")));
+        assert!(!is_timeline_file(Path::new("/v/History.cmap")));
+        assert!(!is_timeline_file(Path::new("/v/timeline")));
     }
 
     #[test]
