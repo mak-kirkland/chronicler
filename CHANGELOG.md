@@ -2,6 +2,15 @@
 
 ---
 
+## [v0.56.2-alpha] - 2026-07-10
+
+### 🐞 Fixed
+
+- **Explorer**: Fixed an issue where renaming a file to only change its capitalisation (e.g. `Notes.md` → `notes.md`) would fail with a "file already exists" error.
+- **Changelog**: Fixed a double scrollbar appearing in the Changelog modal.
+
+---
+
 ## [v0.56.1-alpha] - 2026-07-09
 
 ### 🐞 Fixed
