@@ -2,7 +2,15 @@
 
 ---
 
-## [v0.56.2-alpha] - 2026-07-10
+## [v0.56.3-alpha] - 2026-07-19
+
+### ✨ Added
+
+- **Mascots**: Added a startup splash celebrating the community mascot contest! On each launch you'll see a randomly chosen community-designed mascot with a link to vote for your favourite on the website.
+
+---
+
+## [v0.56.2-alpha] - 2026-07-15
 
 ### 🐞 Fixed
 
