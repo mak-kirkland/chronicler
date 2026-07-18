@@ -25,6 +25,7 @@ import { get } from "svelte/store";
 import { openModal, closeModal } from "./modalStore";
 import NagScreenModal from "./components/modals/NagScreenModal.svelte";
 import TelemetryModal from "./components/modals/TelemetryModal.svelte";
+import { showContestAnnouncement } from "./contestAnnouncement";
 import { log } from "./logger";
 
 /**
@@ -91,11 +92,17 @@ export async function initializeApp() {
         getTelemetryEnabled()
             .then((value) => {
                 if (value === null) {
+                    // Brand-new user: ask for telemetry consent first, and hold
+                    // the contest announcement until a later launch so we don't
+                    // stack modals on the very first run.
                     openModal({
                         component: TelemetryModal,
                         props: { onClose: closeModal },
                     });
+                    return;
                 }
+                // Returning user: announce the community mascot contest.
+                showContestAnnouncement();
             })
             .catch((e) =>
                 log.error("Telemetry consent check failed", e, "startup"),
@@ -103,7 +110,13 @@ export async function initializeApp() {
 
         // Defer the non-critical "nag screen" check. We wrap it in an async
         // IIFE (Immediately Invoked Function Expression) to "fire-and-forget".
+        //
+        // Temporarily disabled while the mascot-contest splash is running so
+        // that announcement isn't gated behind the nag's countdown. Flip
+        // NAG_SCREEN_ENABLED back to true to restore it.
+        const NAG_SCREEN_ENABLED: boolean = false;
         (async () => {
+            if (!NAG_SCREEN_ENABLED) return;
             const license = get(licenseStore);
             if (license.status !== "licensed") {
                 const daysUsed = await getAppUsageDays();
