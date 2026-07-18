@@ -10,6 +10,7 @@ import { getTimelineData, writePageContent } from "$lib/commands";
 import { normalizePath, LRUCache } from "$lib/utils";
 import { MAX_CACHED_TIMELINES } from "$lib/config";
 import { log } from "$lib/logger";
+import { createEchoGuard } from "$lib/externalRefresh";
 import type { TimelineData } from "$lib/timelineModels";
 
 export interface CachedTimeline {
@@ -32,6 +33,46 @@ function syncStoreFromCache(): void {
 }
 
 const fileWriteQueues = new Map<string, Promise<void>>();
+
+const echoGuard = createEchoGuard();
+
+/** path → count of completed external reloads; views watch this to clear
+ *  their undo history (undoing across an external edit would resurrect a
+ *  stale tree). */
+export const externalReloads = writable<Map<string, number>>(new Map());
+
+/**
+ * Called from worldStore when the watcher reports changed .timeline files.
+ * Reloads any that are open, unless the change is an echo of our own write.
+ * The reload is itself registered in the write queue, so any concurrent
+ * `updateTimeline` call chains behind it instead of racing its cache commit.
+ */
+export function handleExternalChanges(paths: string[]): void {
+    for (const p of paths) {
+        const normalizedPath = normalizePath(p);
+        if (!timelineCache.get(normalizedPath)) continue; // not open
+        if (fileWriteQueues.has(normalizedPath)) continue; // our write in flight
+        if (echoGuard.isEcho(normalizedPath)) continue; // our own echo
+        const reloadTask = loadTimelineData(normalizedPath, true)
+            .then((data) => {
+                if (data === null) return; // load failure already logged
+                externalReloads.update((m) => {
+                    const next = new Map(m);
+                    next.set(
+                        normalizedPath,
+                        (next.get(normalizedPath) ?? 0) + 1,
+                    );
+                    return next;
+                });
+            })
+            .finally(() => {
+                if (fileWriteQueues.get(normalizedPath) === reloadTask) {
+                    fileWriteQueues.delete(normalizedPath);
+                }
+            });
+        fileWriteQueues.set(normalizedPath, reloadTask);
+    }
+}
 
 export async function loadTimelineData(
     path: string,
@@ -107,6 +148,7 @@ export async function updateTimeline(
                     normalizedPath,
                     JSON.stringify(next, null, 2),
                 );
+                echoGuard.expectEcho(normalizedPath);
             } catch (e) {
                 log.error(
                     `Write failed for ${normalizedPath}, rolling back.`,

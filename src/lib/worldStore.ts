@@ -22,9 +22,17 @@ import {
     getAllParseErrors,
     getAllBrokenImages,
 } from "./commands";
-import { isMarkdown, isImage, debounce } from "./utils";
+import {
+    isMarkdown,
+    isImage,
+    isTimelineFile,
+    isCanvasFile,
+    debounce,
+} from "./utils";
 import { WORLD_UPDATE_DEBOUNCE_MS } from "./config";
 import { log } from "./logger";
+import { handleExternalChanges as handleTimelineChanges } from "$lib/timelineStore";
+import { handleExternalChanges as handleCanvasChanges } from "$lib/canvasStore";
 import type {
     FileNode,
     TagMap,
@@ -81,6 +89,10 @@ const EMPTY_REFRESH: PendingRefresh = {
     media: false,
 };
 
+/** Bumped whenever page data refreshes; views that derive from page content
+ *  (e.g. dated pages on a timeline) can use this to know when to re-fetch. */
+export const pagesVersion = writable(0);
+
 function createWorldStore() {
     const { subscribe, set, update } = writable<WorldState>(initialState);
     let unlisten: (() => void) | null = null;
@@ -122,9 +134,7 @@ function createWorldStore() {
                 fetchBrokenImages
                     ? getAllBrokenImages()
                     : Promise.resolve(null),
-                fetchParseErrors
-                    ? getAllParseErrors()
-                    : Promise.resolve(null),
+                fetchParseErrors ? getAllParseErrors() : Promise.resolve(null),
                 fetchTree ? getFileTree() : Promise.resolve(null),
                 // The vault path is fixed for the session, so only fetch it
                 // once on the initial load.
@@ -147,6 +157,10 @@ function createWorldStore() {
 
                 return newState;
             });
+
+            if (initial || refresh.pages) {
+                pagesVersion.update((n) => n + 1);
+            }
         } catch (e: any) {
             log.error("Failed to load world data", e, "worldStore");
             update((s) => ({
@@ -189,6 +203,10 @@ function createWorldStore() {
                     if (event.payload.structure_changed) pending.tree = true;
                     if (event.payload.pages_changed) pending.pages = true;
                     if (event.payload.media_changed) pending.media = true;
+
+                    const changed = event.payload.changed_files ?? [];
+                    handleTimelineChanges(changed.filter(isTimelineFile));
+                    handleCanvasChanges(changed.filter(isCanvasFile));
 
                     console.log(
                         `Index update received (structure=${event.payload.structure_changed}, pages=${event.payload.pages_changed}, media=${event.payload.media_changed}), scheduling refresh...`,

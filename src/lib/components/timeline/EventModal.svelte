@@ -4,6 +4,7 @@
     import SearchableSelect from "$lib/components/ui/SearchableSelect.svelte";
     import DatePicker from "./DatePicker.svelte";
     import ColorSwatchRow from "./ColorSwatchRow.svelte";
+    import WikilinkTextarea from "./WikilinkTextarea.svelte";
     import type { CompiledCalendar } from "$lib/calendar";
     import type { TimelineData, TimelineEvent } from "$lib/timelineModels";
     import { genId } from "$lib/timelineModels";
@@ -125,11 +126,11 @@
         </label>
         <label>
             {$t("timeline.descriptionLabel")}
-            <textarea
-                rows="4"
+            <WikilinkTextarea
                 bind:value={draft.description}
+                rows={4}
                 placeholder={$t("timeline.descriptionPlaceholder")}
-            ></textarea>
+            />
         </label>
         <label>
             {$t("timeline.pageLinkLabel")}
@@ -192,8 +193,7 @@
         gap: 0.5rem;
     }
     input,
-    select,
-    textarea {
+    select {
         padding: 0.4rem 0.6rem;
         border-radius: 4px;
         border: 1px solid var(--color-border-primary);

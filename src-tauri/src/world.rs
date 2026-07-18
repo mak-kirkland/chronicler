@@ -19,12 +19,15 @@ use crate::{
     indexer::Indexer,
     mediawiki_importer,
     models::{
-        BrokenImage, BrokenLink, FileNode, FullPageData, PageHeader, ParseError, RenderedPage,
-        VaultAsset,
+        BrokenImage, BrokenLink, DatedPageInfo, FileNode, FullPageData, PageHeader, ParseError,
+        RenderedPage, VaultAsset,
     },
     renderer::Renderer,
     snippets::SnippetWatcher,
-    utils::{is_image_file, is_map_file, is_markdown_file, is_timeline_file},
+    utils::{
+        is_canvas_file, is_image_file, is_map_file, is_markdown_file, is_timeline_file,
+        serialize_pathbufs_as_web_strs,
+    },
     watcher::Watcher,
     writer::Writer,
 };
@@ -77,7 +80,7 @@ pub fn configure_vault_scope(app_handle: &AppHandle, vault_path: &Path) {
 ///
 /// Each flag lets the frontend skip an otherwise-expensive refetch when the
 /// underlying data can't have changed.
-#[derive(Debug, Clone, Copy, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct IndexUpdatePayload {
     /// File tree structure changed (file/folder added, removed, or renamed).
     /// Gates `getFileTree`.
@@ -90,6 +93,10 @@ pub struct IndexUpdatePayload {
     /// content modifications don't count - the filename key is unchanged).
     /// Gates `getAllBrokenImages`.
     pub media_changed: bool,
+    /// Timeline/canvas files created, modified, or renamed in this batch —
+    /// consumed by the frontend stores for live refresh of open views.
+    #[serde(serialize_with = "serialize_pathbufs_as_web_strs")]
+    pub changed_files: Vec<PathBuf>,
 }
 
 /// Inspects a batch of file events and returns a payload describing which
@@ -116,6 +123,15 @@ fn compute_update_payload(events: &[FileEvent]) -> IndexUpdatePayload {
             // Timeline events link to pages; content edits can change the
             // backlink set, which feeds broken-link checks.
             payload.pages_changed = true;
+        }
+        // Canvas files don't feed backlinks, so they don't set
+        // `pages_changed` — but both timeline and canvas files are tracked
+        // here so the frontend stores can live-refresh exactly the open
+        // files that changed.
+        if (is_timeline_file(path) || is_canvas_file(path))
+            && !payload.changed_files.iter().any(|p| p == path)
+        {
+            payload.changed_files.push(path.to_path_buf());
         }
         if is_structural {
             payload.structure_changed = true;
@@ -521,6 +537,11 @@ impl World {
         self.indexer.read().get_timeline_data(path)
     }
 
+    /// Every page with a `date:` frontmatter field, for timeline ingestion.
+    pub fn get_dated_pages(&self) -> Vec<DatedPageInfo> {
+        self.indexer.read().get_dated_pages()
+    }
+
     /// Returns cached tile info for a map layer image, or `None` if no
     /// pyramid is on disk. Pure read — never triggers generation.
     ///
@@ -786,5 +807,34 @@ impl World {
 impl Default for World {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn payload_collects_changed_timeline_and_canvas_paths() {
+        let events = vec![
+            FileEvent::Modified(PathBuf::from("/v/history.timeline")),
+            FileEvent::Modified(PathBuf::from("/v/notes.md")),
+            FileEvent::Renamed {
+                from: PathBuf::from("/v/a.canvas"),
+                to: PathBuf::from("/v/b.canvas"),
+            },
+            FileEvent::Modified(PathBuf::from("/v/history.timeline")), // duplicate
+        ];
+        let payload = compute_update_payload(&events);
+        assert_eq!(
+            payload.changed_files,
+            vec![
+                PathBuf::from("/v/history.timeline"),
+                PathBuf::from("/v/a.canvas"),
+                PathBuf::from("/v/b.canvas"),
+            ]
+        );
+        // Markdown files don't enter changed_files (no store consumes them).
+        assert!(payload.pages_changed);
     }
 }

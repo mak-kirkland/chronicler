@@ -7,8 +7,8 @@ use crate::{
     error::{ChroniclerError, Result},
     events::FileEvent,
     models::{
-        BrokenImage, BrokenLink, FileNode, FileType, Link, MapConfig, Page, PageHeader, ParseError,
-        TimelineConfig, VaultAsset,
+        BrokenImage, BrokenLink, DatedPageInfo, FileNode, FileType, Link, MapConfig, Page,
+        PageHeader, ParseError, TimelineConfig, VaultAsset,
     },
     parser,
     utils::{
@@ -1024,6 +1024,33 @@ impl Indexer {
         }
         Ok(fs::read_to_string(&path_buf)?)
     }
+
+    /// Every page with a `date:` frontmatter field, for timeline ingestion.
+    pub fn get_dated_pages(&self) -> Vec<DatedPageInfo> {
+        let mut dated: Vec<DatedPageInfo> = self
+            .assets
+            .values()
+            .filter_map(|asset| match asset {
+                VaultAsset::Page(page) => Some(page),
+                _ => None,
+            })
+            .filter_map(|page| {
+                let date = page.date.clone()?;
+                let mut tags: Vec<String> = page.tags.iter().cloned().collect();
+                tags.sort();
+                Some(DatedPageInfo {
+                    title: page.title.clone(),
+                    path: page.path.clone(),
+                    tags,
+                    date,
+                    date_end: page.date_end.clone(),
+                    calendar: page.date_calendar.clone(),
+                })
+            })
+            .collect();
+        dated.sort_by(|a, b| a.path.cmp(&b.path));
+        dated
+    }
 }
 
 #[cfg(test)]
@@ -1443,5 +1470,29 @@ Now I link to [[Page Two]]!
             .get_timeline_data(&canonical.to_string_lossy())
             .unwrap();
         assert_eq!(json, body);
+    }
+
+    #[test]
+    fn get_dated_pages_returns_only_dated_pages() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        fs::write(
+            root.join("battle.md"),
+            "---\ntitle: Battle of Redford\ndate: 1042-03-12\ndate-end: 1042-04-02\ncalendar: valdrun\ntags: [history/battles]\n---\nBody",
+        )
+        .unwrap();
+        fs::write(root.join("undated.md"), "---\ntitle: No Date\n---\nBody").unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        let dated = indexer.get_dated_pages();
+        assert_eq!(dated.len(), 1);
+        let d = &dated[0];
+        assert_eq!(d.title, "Battle of Redford");
+        assert_eq!(d.date, "1042-03-12");
+        assert_eq!(d.date_end.as_deref(), Some("1042-04-02"));
+        assert_eq!(d.calendar.as_deref(), Some("valdrun"));
+        assert!(d.tags.contains(&"history/battles".to_string()));
     }
 }

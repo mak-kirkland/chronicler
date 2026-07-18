@@ -2,9 +2,9 @@
 //!
 //! Common helpers used across modules.
 
-use serde::Serializer;
+use serde::{Serialize, Serializer};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 /// A list of common image file extensions.
@@ -30,6 +30,29 @@ where
     #[cfg(not(windows))]
     let web_path = path_str;
     serializer.serialize_str(&web_path)
+}
+
+/// Serializes a list of paths with forward slashes, matching
+/// `serialize_pathbuf_as_web_str` element-wise.
+pub fn serialize_pathbufs_as_web_strs<S>(
+    paths: &[PathBuf],
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let strs: Vec<String> = paths
+        .iter()
+        .map(|p| {
+            let path_str = p.to_string_lossy().to_string();
+            #[cfg(windows)]
+            let web_path = path_str.replace('\\', "/");
+            #[cfg(not(windows))]
+            let web_path = path_str;
+            web_path
+        })
+        .collect();
+    strs.serialize(serializer)
 }
 
 /// Helper function to check if a path points to a Markdown file.

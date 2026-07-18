@@ -24,6 +24,34 @@
         if (!cal.def.hasYearZero && year === 0) year = 1;
         onChange({ ...value, year });
     }
+    /** "" = absolute-year entry; otherwise the era index as a string. */
+    let eraMode = $state<string>(initialEraMode());
+    function initialEraMode(): string {
+        const resolved = cal.eraOf(value.year);
+        if (!resolved) return "";
+        return String(cal.def.eras.indexOf(resolved.era));
+    }
+    const eraYear = $derived(cal.eraOf(value.year)?.eraYear ?? value.year);
+
+    function setEraMode(raw: string) {
+        eraMode = raw;
+        if (raw === "") return; // absolute entry keeps the current year
+        const idx = Number(raw);
+        const resolved = cal.eraOf(value.year);
+        // Keep the year if it's already inside the chosen era; otherwise
+        // jump to that era's year 1 so the field shows something sane.
+        if (!resolved || cal.def.eras.indexOf(resolved.era) !== idx) {
+            onChange({ ...value, year: cal.absoluteYearFromEra(idx, 1) });
+        }
+    }
+    function setEraYear(raw: number) {
+        if (eraMode === "") return;
+        const n = Math.max(1, Math.round(raw) || 1);
+        onChange({
+            ...value,
+            year: cal.absoluteYearFromEra(Number(eraMode), n),
+        });
+    }
     function setMonth(raw: string) {
         if (raw === "") {
             onChange({ year: value.year });
@@ -55,14 +83,40 @@
 </script>
 
 <div class="picker">
-    <label>
-        {$t("timeline.yearLabel")}
-        <input
-            type="number"
-            value={value.year}
-            onchange={(e) => setYear(Number(e.currentTarget.value))}
-        />
-    </label>
+    {#if cal.def.eras.length > 0}
+        <label>
+            {$t("timeline.eraLabel")}
+            <select
+                value={eraMode}
+                onchange={(e) => setEraMode(e.currentTarget.value)}
+            >
+                <option value="">{$t("timeline.eraAbsolute")}</option>
+                {#each cal.def.eras as era, i (i)}
+                    <option value={String(i)}>{era.name}</option>
+                {/each}
+            </select>
+        </label>
+    {/if}
+    {#if eraMode === ""}
+        <label>
+            {$t("timeline.yearLabel")}
+            <input
+                type="number"
+                value={value.year}
+                onchange={(e) => setYear(Number(e.currentTarget.value))}
+            />
+        </label>
+    {:else}
+        <label>
+            {$t("timeline.yearLabel")}
+            <input
+                type="number"
+                min="1"
+                value={eraYear}
+                onchange={(e) => setEraYear(Number(e.currentTarget.value))}
+            />
+        </label>
+    {/if}
     <label>
         {$t("timeline.monthLabel")}
         <select

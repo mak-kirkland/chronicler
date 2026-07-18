@@ -6,7 +6,8 @@
 use crate::licensing;
 use crate::licensing::License;
 use crate::models::{
-    BrokenImage, BrokenLink, FullPageData, ImportedImage, PageHeader, ParseError, Snippet,
+    BrokenImage, BrokenLink, DatedPageInfo, FullPageData, ImportedImage, PageHeader, ParseError,
+    Snippet,
 };
 use crate::{
     calendars, config,
@@ -362,6 +363,14 @@ pub fn get_canvas_data(path: String, world: State<World>) -> Result<String> {
 #[instrument(skip(world), err(Debug))]
 pub fn get_timeline_data(path: String, world: State<World>) -> Result<String> {
     world.get_timeline_data(&path)
+}
+
+/// Every page carrying a `date:` frontmatter field. Raw strings — the
+/// frontend calendar engine parses and validates them per timeline.
+#[command]
+#[instrument(skip(world))]
+pub fn get_dated_pages(world: State<World>) -> Vec<DatedPageInfo> {
+    world.get_dated_pages()
 }
 
 /// Returns cached tile info for a map layer image, or `None` if no pyramid

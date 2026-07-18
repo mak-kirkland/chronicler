@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { PageHeader } from "$lib/bindings";
+    import type { PageHeader, DatedPageInfo } from "$lib/bindings";
     import type {
         TimelineData,
         TimelineViewportState,
@@ -8,6 +8,7 @@
         loadTimelineData,
         loadedTimelines,
         updateTimeline,
+        externalReloads,
     } from "$lib/timelineStore";
     import { loadVaultCalendars, resolveCalendar } from "$lib/calendarStore";
     import { compileCalendar, type CompiledCalendar } from "$lib/calendar";
@@ -23,15 +24,27 @@
     import * as M from "$lib/timelineMutations";
     import type { TimelineEvent } from "$lib/timelineModels";
     import { navigateToPageByTitle } from "$lib/actions";
-    import { pagePathLookup } from "$lib/worldStore";
+    import { getDatedPages } from "$lib/commands";
+    import {
+        collectDirectories,
+        ingestEvents,
+        type IngestionResult,
+    } from "$lib/timelineIngestion";
+    import type { LaneSource } from "$lib/timelineModels";
+    import {
+        files,
+        pagePathLookup,
+        pagesVersion,
+        tags,
+        vaultPath,
+    } from "$lib/worldStore";
     import { areLinkPreviewsEnabled } from "$lib/settingsStore";
     import TimelineAxis from "./TimelineAxis.svelte";
     import TimelineLanes from "./TimelineLanes.svelte";
     import EventModal from "./EventModal.svelte";
     import CalendarEditorModal from "./CalendarEditorModal.svelte";
+    import LaneModal from "./LaneModal.svelte";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
-    import TextInputModal from "$lib/components/modals/TextInputModal.svelte";
-    import ColorSwatchRow from "./ColorSwatchRow.svelte";
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import ContextMenu from "$lib/components/ui/ContextMenu.svelte";
@@ -84,6 +97,30 @@
         return { cal: compileCalendar(GREGORIAN), fallback: true };
     });
 
+    let datedPages = $state<DatedPageInfo[]>([]);
+    // Refresh candidates whenever page data changes (worldStore bumps
+    // pagesVersion on every pages refresh) — this is what makes ingested
+    // chips follow frontmatter edits live.
+    $effect(() => {
+        void $pagesVersion;
+        if (!isActive) return;
+        getDatedPages()
+            .then((pages) => (datedPages = pages))
+            .catch((e) =>
+                log.error("Failed to load dated pages", e, "TimelineView"),
+            );
+    });
+
+    const ingestion = $derived.by<IngestionResult | null>(() => {
+        if (!timeline || !compiled) return null;
+        return ingestEvents(
+            compiled.cal,
+            timeline,
+            datedPages,
+            $vaultPath ?? "",
+        );
+    });
+
     // Load calendars once per view instance.
     $effect(() => {
         loadVaultCalendars().finally(() => (calendarsLoaded = true));
@@ -109,6 +146,17 @@
         history.clear();
         loadError = null;
         initializedPath = "";
+    });
+
+    // An external edit replaced the data; undoing across it would restore
+    // a stale tree, so drop local history.
+    let lastExternalReload = 0;
+    $effect(() => {
+        const n = $externalReloads.get(path) ?? 0;
+        if (n !== lastExternalReload) {
+            lastExternalReload = n;
+            history.clear();
+        }
     });
 
     // Initialize the viewport once per file: saved viewport, else fit.
@@ -224,16 +272,10 @@
         });
     }
 
-    // --- Lane management (add / rename / reorder / color / delete) ---
+    // --- Lane management (add / edit / reorder / delete) ---
     let laneMenu = $state<{ x: number; y: number; laneId: string } | null>(
         null,
     );
-    /** Floating swatch palette opened from the lane menu's "Set color…". */
-    let lanePalette = $state<{
-        x: number;
-        y: number;
-        laneId: string;
-    } | null>(null);
 
     function onLaneContextMenu(e: MouseEvent, laneId: string) {
         e.preventDefault();
@@ -241,38 +283,50 @@
         laneMenu = { x: e.clientX, y: e.clientY, laneId };
     }
 
-    function promptAddLane() {
-        openModal({
-            component: TextInputModal,
-            props: {
-                title: translate("timeline.addLane"),
-                label: translate("timeline.laneNameLabel"),
-                initialValue: "",
-                buttonText: translate("timeline.addLane"),
-                onClose: closeModal,
-                onSubmit: (name: string) => {
-                    mutate((t) => M.addLane(t, name));
-                    closeModal();
-                },
-            },
-        });
+    /** Tag/folder pickers for the lane sources editor. */
+    function laneSourceOptions() {
+        return {
+            // tags store: [name, PageHeader[]] pairs.
+            tagOptions: $tags.map((entry) => entry[0]),
+            folderOptions: collectDirectories(
+                $files?.children ?? [],
+                $vaultPath ?? "",
+            ),
+        };
     }
 
-    function promptRenameLane(laneId: string) {
-        const lane = timeline?.lanes.find((l) => l.id === laneId);
-        if (!lane) return;
+    /** One modal for lanes: laneId = null creates, otherwise edits
+     *  name + color + sources together. */
+    function openLaneModal(laneId: string | null) {
+        const lane =
+            laneId === null
+                ? null
+                : (timeline?.lanes.find((l) => l.id === laneId) ?? null);
+        if (laneId !== null && !lane) return;
         openModal({
-            component: TextInputModal,
+            component: LaneModal,
             props: {
-                title: translate("timeline.renameLane"),
-                label: translate("timeline.laneNameLabel"),
-                initialValue: lane.name,
-                buttonText: translate("timeline.renameLane"),
+                lane,
+                ...laneSourceOptions(),
+                onSave: (
+                    name: string,
+                    color: string | null,
+                    sources: LaneSource[],
+                ) =>
+                    mutate((t) =>
+                        lane === null
+                            ? M.addLane(t, name, sources, color)
+                            : M.setLaneSources(
+                                  M.setLaneColor(
+                                      M.renameLane(t, lane.id, name),
+                                      lane.id,
+                                      color,
+                                  ),
+                                  lane.id,
+                                  sources,
+                              ),
+                    ),
                 onClose: closeModal,
-                onSubmit: (name: string) => {
-                    mutate((t) => M.renameLane(t, laneId, name));
-                    closeModal();
-                },
             },
         });
     }
@@ -310,7 +364,9 @@
     );
 
     function onChipHover(id: string, anchorEl: HTMLElement) {
-        const event = timeline?.events.find((ev) => ev.id === id);
+        const event =
+            timeline?.events.find((ev) => ev.id === id) ??
+            ingestion?.events.find((ev) => ev.id === id);
         hoveredPageLink = event?.pageLink ?? null;
         hoverAnchor = anchorEl;
     }
@@ -321,7 +377,9 @@
 
     /** Single click on a linked chip opens its page (map-pin convention). */
     function onChipOpenPage(id: string) {
-        const event = timeline?.events.find((ev) => ev.id === id);
+        const event =
+            timeline?.events.find((ev) => ev.id === id) ??
+            ingestion?.events.find((ev) => ev.id === id);
         if (event?.pageLink) navigateToPageByTitle(event.pageLink);
     }
 
@@ -330,7 +388,11 @@
     function onPointerDown(e: PointerEvent) {
         contextMenu = null;
         laneMenu = null;
-        lanePalette = null;
+        // Pan is primary-button only. Capturing the pointer on a right
+        // press makes WebKit retarget the follow-up contextmenu event to
+        // the capture element, so descendant contextmenu handlers (lane
+        // labels) never fire.
+        if (e.button !== 0) return;
         // Only start a pan on the background; event chips stop propagation.
         panning = true;
         lastPanX = e.clientX;
@@ -354,7 +416,6 @@
         if (e.key === "Escape") {
             contextMenu = null;
             laneMenu = null;
-            lanePalette = null;
             return;
         }
         const el = e.target as HTMLElement | null;
@@ -372,7 +433,12 @@
             if (e.shiftKey) redo();
             else undo();
         }
-        if (e.key === "Delete" && selectedId && timeline) {
+        if (
+            e.key === "Delete" &&
+            selectedId &&
+            !selectedId.startsWith("page:") &&
+            timeline
+        ) {
             mutate((t) => M.deleteEvent(t, selectedId!));
             selectedId = null;
         }
@@ -390,6 +456,16 @@
         </div>
         <div slot="right">
             {#if $hasTimelinesEntitlement && timeline && compiled}
+                {#if ingestion && ingestion.skippedPaths.length > 0}
+                    <span
+                        class="skipped-notes"
+                        title={ingestion.skippedPaths.join("\n")}
+                    >
+                        {translate("timeline.skippedNotes", {
+                            count: String(ingestion.skippedPaths.length),
+                        })}
+                    </span>
+                {/if}
                 <Button size="small" onclick={addEventAtCenter}>
                     {$t("timeline.addEvent")}
                 </Button>
@@ -420,7 +496,10 @@
             onmousedown={(e) => {
                 // user-select:none isn't enough in WebKit: the drag still
                 // starts a selection that highlights text outside this view.
-                e.preventDefault();
+                // Primary button only — in WebKit the contextmenu event is
+                // part of the right-button default action, so preventing it
+                // here would suppress every context menu in the view.
+                if (e.button === 0) e.preventDefault();
             }}
             onpointerdown={onPointerDown}
             onpointermove={onPointerMove}
@@ -449,6 +528,7 @@
                 {viewport}
                 widthPx={trackWidth}
                 {selectedId}
+                ingestedEvents={ingestion?.events ?? []}
                 onSelect={(id) => (selectedId = id)}
                 onEditEvent={openEditModal}
                 onOpenEventPage={onChipOpenPage}
@@ -457,42 +537,53 @@
                 onEventHover={onChipHover}
                 onEventHoverEnd={onChipHoverEnd}
                 {onLaneContextMenu}
-                onAddLane={promptAddLane}
+                onAddLane={() => openLaneModal(null)}
             />
-            {#if timeline.events.length === 0}
+            {#if timeline.events.length === 0 && (ingestion?.events.length ?? 0) === 0}
                 <div class="empty-hint">{$t("timeline.emptyHint")}</div>
             {/if}
         </div>
         {#if contextMenu}
-            {@const ctxEvent = timeline.events.find(
-                (ev) => ev.id === contextMenu!.id,
-            )}
+            {@const ctxEvent = [
+                ...timeline.events,
+                ...(ingestion?.events ?? []),
+            ].find((ev) => ev.id === contextMenu!.id)}
             <ContextMenu
                 x={contextMenu.x}
                 y={contextMenu.y}
                 onClose={() => (contextMenu = null)}
-                actions={[
-                    {
-                        label: $t("timeline.editEvent"),
-                        handler: () => openEditModal(contextMenu!.id),
-                    },
-                    ...(ctxEvent?.pageLink
-                        ? [
-                              {
-                                  label: $t("timeline.openPage"),
-                                  handler: () =>
-                                      navigateToPageByTitle(ctxEvent.pageLink!),
+                actions={ctxEvent?.ingested
+                    ? [
+                          {
+                              label: $t("timeline.openNote"),
+                              handler: () =>
+                                  navigateToPageByTitle(ctxEvent.pageLink!),
+                          },
+                      ]
+                    : [
+                          {
+                              label: $t("timeline.editEvent"),
+                              handler: () => openEditModal(contextMenu!.id),
+                          },
+                          ...(ctxEvent?.pageLink
+                              ? [
+                                    {
+                                        label: $t("timeline.openPage"),
+                                        handler: () =>
+                                            navigateToPageByTitle(
+                                                ctxEvent.pageLink!,
+                                            ),
+                                    },
+                                ]
+                              : []),
+                          {
+                              label: $t("timeline.deleteEvent"),
+                              handler: () => {
+                                  const id = contextMenu!.id;
+                                  mutate((t) => M.deleteEvent(t, id));
                               },
-                          ]
-                        : []),
-                    {
-                        label: $t("timeline.deleteEvent"),
-                        handler: () => {
-                            const id = contextMenu!.id;
-                            mutate((t) => M.deleteEvent(t, id));
-                        },
-                    },
-                ]}
+                          },
+                      ]}
             />
         {/if}
         {#if laneMenu}
@@ -502,18 +593,8 @@
                 onClose={() => (laneMenu = null)}
                 actions={[
                     {
-                        label: $t("timeline.renameLane"),
-                        handler: () => promptRenameLane(laneMenu!.laneId),
-                    },
-                    {
-                        label: $t("timeline.setColor"),
-                        handler: () => {
-                            lanePalette = {
-                                x: laneMenu!.x,
-                                y: laneMenu!.y,
-                                laneId: laneMenu!.laneId,
-                            };
-                        },
+                        label: $t("timeline.editLane"),
+                        handler: () => openLaneModal(laneMenu!.laneId),
                     },
                     {
                         label: $t("timeline.moveLaneUp"),
@@ -541,27 +622,6 @@
                         : []),
                 ]}
             />
-        {/if}
-        {#if lanePalette}
-            <div
-                class="lane-palette"
-                style:left="{lanePalette.x}px"
-                style:top="{lanePalette.y}px"
-                onpointerdown={(e) => e.stopPropagation()}
-                role="menu"
-                tabindex="-1"
-            >
-                <ColorSwatchRow
-                    value={timeline.lanes.find(
-                        (l) => l.id === lanePalette!.laneId,
-                    )?.color ?? null}
-                    onChange={(c) => {
-                        const id = lanePalette!.laneId;
-                        mutate((t) => M.setLaneColor(t, id, c));
-                        lanePalette = null;
-                    }}
-                />
-            </div>
         {/if}
         {#if $areLinkPreviewsEnabled}
             <LinkPreview anchorEl={hoverAnchor} targetPath={hoveredPagePath} />
@@ -611,15 +671,6 @@
         pointer-events: none;
         user-select: none;
     }
-    .lane-palette {
-        position: fixed;
-        z-index: 30;
-        padding: 6px;
-        background: var(--color-background-tertiary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    }
     .timeline-body:active {
         cursor: grabbing;
     }
@@ -640,5 +691,14 @@
         justify-content: center;
         flex: 1;
         color: var(--color-text-secondary);
+    }
+    .skipped-notes {
+        font-size: 0.75rem;
+        color: var(--color-text-secondary);
+        border: 1px solid var(--color-border-primary);
+        border-radius: 10px;
+        padding: 0.1rem 0.5rem;
+        cursor: help;
+        align-self: center;
     }
 </style>

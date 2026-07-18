@@ -39,6 +39,20 @@ describe("timelineMutations", () => {
         expect(M.deleteEvent(M.addEvent(t, e), e.id).events).toHaveLength(0);
     });
 
+    it("addLane accepts initial sources and color", () => {
+        const t = M.addLane(
+            emptyTimeline("T", "g"),
+            "Wars",
+            [{ tag: "history", folder: null }],
+            "#ff0000",
+        );
+        expect(t.lanes[1].sources).toEqual([{ tag: "history", folder: null }]);
+        expect(t.lanes[1].color).toBe("#ff0000");
+        // Omitting the optional args still yields defaults.
+        expect(M.addLane(t, "Kings").lanes[2].sources).toEqual([]);
+        expect(M.addLane(t, "Kings").lanes[2].color).toBeNull();
+    });
+
     it("addLane / renameLane / moveLane", () => {
         let t = emptyTimeline("T", "g");
         t = M.addLane(t, "Wars");
@@ -65,5 +79,27 @@ describe("timelineMutations", () => {
     it("deleteLane refuses to remove the last lane", () => {
         const t = emptyTimeline("T", "g");
         expect(M.deleteLane(t, t.lanes[0].id)).toBe(t);
+    });
+
+    describe("setLaneSources", () => {
+        it("replaces a lane's sources immutably", () => {
+            const t = emptyTimeline("t", "gregorian");
+            const laneId = t.lanes[0].id;
+            const next = M.setLaneSources(t, laneId, [
+                { tag: "history", folder: null },
+            ]);
+            expect(next.lanes[0].sources).toEqual([
+                { tag: "history", folder: null },
+            ]);
+            expect(t.lanes[0].sources).toEqual([]); // original untouched
+        });
+
+        it("is a no-op for unknown lanes", () => {
+            const t = emptyTimeline("t", "gregorian");
+            const next = M.setLaneSources(t, "nope", [
+                { tag: "x", folder: null },
+            ]);
+            expect(next.lanes[0].sources).toEqual([]);
+        });
     });
 });

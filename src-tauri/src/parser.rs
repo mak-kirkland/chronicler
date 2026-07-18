@@ -51,6 +51,11 @@ pub fn parse_file(path: &Path) -> Result<Page> {
     // Extract insert targets
     let inserts = extract_inserts(&content);
 
+    // Extract date fields
+    let date = extract_date_string(&frontmatter, "date");
+    let date_end = extract_date_string(&frontmatter, "date-end");
+    let date_calendar = extract_date_string(&frontmatter, "calendar");
+
     Ok(Page {
         path: path.to_path_buf(),
         title,
@@ -60,6 +65,9 @@ pub fn parse_file(path: &Path) -> Result<Page> {
         inserts,
         backlinks: HashSet::new(),
         frontmatter,
+        date,
+        date_end,
+        date_calendar,
     })
 }
 
@@ -139,6 +147,27 @@ fn extract_tags_from_frontmatter(frontmatter: &serde_json::Value) -> HashSet<Str
         .filter_map(|tag| tag.as_str())
         .map(String::from)
         .collect()
+}
+
+/// Extracts a scalar frontmatter value as a trimmed string. YAML numbers
+/// (a bare `date: 1042`) coerce to their string form; arrays/objects and
+/// whitespace-only strings yield `None`.
+pub(crate) fn extract_date_string(
+    frontmatter: &serde_json::Value,
+    key: &str,
+) -> Option<String> {
+    match frontmatter.get(key)? {
+        serde_json::Value::String(s) => {
+            let t = s.trim();
+            if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            }
+        }
+        serde_json::Value::Number(n) => Some(n.to_string()),
+        _ => None,
+    }
 }
 
 /// Determines the page title from frontmatter or filename.
@@ -566,5 +595,32 @@ Also a normal [[wikilink]] and {{insert: Third Page | title="Custom"}}.
 
         let page = parse_file(&file_path).unwrap();
         assert!(page.inserts.is_empty());
+    }
+
+    #[test]
+    fn extract_date_string_reads_strings_and_numbers() {
+        let fm: serde_json::Value =
+            serde_json::json!({ "date": "1042-03-12", "date-end": 1042, "calendar": "valdrun" });
+        assert_eq!(
+            extract_date_string(&fm, "date"),
+            Some("1042-03-12".to_string())
+        );
+        // YAML/JSON numbers coerce to their string form.
+        assert_eq!(extract_date_string(&fm, "date-end"), Some("1042".to_string()));
+        assert_eq!(
+            extract_date_string(&fm, "calendar"),
+            Some("valdrun".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_date_string_rejects_missing_empty_and_non_scalar() {
+        let fm: serde_json::Value =
+            serde_json::json!({ "date": "  ", "calendar": ["a"], "obj": {"x": 1} });
+        assert_eq!(extract_date_string(&fm, "date"), None); // whitespace-only
+        assert_eq!(extract_date_string(&fm, "calendar"), None); // array
+        assert_eq!(extract_date_string(&fm, "obj"), None); // object
+        assert_eq!(extract_date_string(&fm, "missing"), None);
+        assert_eq!(extract_date_string(&serde_json::Value::Null, "date"), None);
     }
 }

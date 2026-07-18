@@ -1,27 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { validateCalendar, compileCalendar } from "./calendar";
-import type { CalendarDef } from "./calendarModels";
-
-/** Minimal valid two-month calendar used across the engine tests. */
-export function tinyCalendar(
-    overrides: Partial<CalendarDef> = {},
-): CalendarDef {
-    return {
-        version: 1,
-        id: "tiny",
-        name: "Tiny",
-        months: [
-            { name: "First", days: 10 },
-            { name: "Second", days: 20 },
-        ],
-        leapRules: [],
-        eras: [],
-        weekdays: [],
-        weekdayAnchor: 0,
-        hasYearZero: false,
-        ...overrides,
-    };
-}
+import { GREGORIAN } from "./calendarPresets";
+import { tinyCalendar } from "./calendarTestHelpers";
 
 describe("validateCalendar", () => {
     it("accepts a minimal valid calendar", () => {
@@ -414,5 +394,63 @@ describe("format", () => {
             }),
         );
         expect(cal.format({ year: -10 }, "short")).toBe("10 BF");
+    });
+});
+
+describe("absoluteYearFromEra", () => {
+    const cal = compileCalendar(GREGORIAN); // BCE (direction -1, open start), CE (direction 1, open end), no year zero
+
+    it("round-trips with eraOf across both Gregorian eras", () => {
+        for (const year of [-500, -1, 1, 1042, 2026]) {
+            const resolved = cal.eraOf(year)!;
+            const eraIndex = cal.def.eras.indexOf(resolved.era);
+            expect(cal.absoluteYearFromEra(eraIndex, resolved.eraYear)).toBe(
+                year,
+            );
+        }
+    });
+
+    it("maps CE year 1 and BCE year 1 correctly around the missing year zero", () => {
+        const bce = cal.def.eras.findIndex((e) => e.direction === -1);
+        const ce = cal.def.eras.findIndex((e) => e.direction === 1);
+        expect(cal.absoluteYearFromEra(ce, 1)).toBe(1);
+        expect(cal.absoluteYearFromEra(bce, 1)).toBe(-1);
+        expect(cal.absoluteYearFromEra(bce, 44)).toBe(-44);
+    });
+
+    it("handles year-zero calendars", () => {
+        const def = structuredClone(GREGORIAN);
+        def.id = "astro";
+        def.hasYearZero = true;
+        const astro = compileCalendar(def);
+        const bce = astro.def.eras.findIndex((e) => e.direction === -1);
+        const resolved = astro.eraOf(astro.absoluteYearFromEra(bce, 10))!;
+        expect(resolved.eraYear).toBe(10);
+    });
+
+    it("steps past the missing year zero when the correction crosses it", () => {
+        const def = structuredClone(GREGORIAN);
+        def.id = "exotic";
+        def.eras = [
+            {
+                name: "Test Era",
+                abbreviation: "TE",
+                startYear: -99,
+                endYear: null,
+                direction: 1,
+            },
+        ];
+        expect(compileCalendar(def).absoluteYearFromEra(0, 100)).toBe(1);
+
+        def.eras = [
+            {
+                name: "Test Era",
+                abbreviation: "TE",
+                startYear: null,
+                endYear: 99,
+                direction: -1,
+            },
+        ];
+        expect(compileCalendar(def).absoluteYearFromEra(0, 100)).toBe(-1);
     });
 });

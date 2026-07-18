@@ -161,6 +161,7 @@ fn main() {
             commands::get_map_config,
             commands::get_canvas_data,
             commands::get_timeline_data,
+            commands::get_dated_pages,
             commands::lookup_layer_tile_info,
             commands::ensure_layer_tiles,
             commands::get_all_directory_paths,

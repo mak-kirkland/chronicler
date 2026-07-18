@@ -145,6 +145,8 @@ export interface CompiledCalendar {
     diffDays(a: TimelineDate, b: TimelineDate): number;
     weekdayOf(serial: number): number | null;
     eraOf(year: number): { era: CalendarEra; eraYear: number } | null;
+    /** Inverse of eraOf: absolute year for "year N of era at index i". */
+    absoluteYearFromEra(eraIndex: number, eraYear: number): number;
     format(date: TimelineDate, style?: "long" | "short" | "numeric"): string;
     yearLabel(year: number, style: "long" | "short" | "numeric"): string;
 }
@@ -349,6 +351,30 @@ export function compileCalendar(def: CalendarDef): CompiledCalendar {
         return null;
     }
 
+    /**
+     * Inverse of eraOf: the absolute year for "year N of era E". Computes
+     * the naive candidate from the era's reference bound, then corrects by
+     * round-tripping through eraOf, which owns the year-zero straddle
+     * rules — the two stay consistent by construction. The correction itself
+     * may cross year 0 in a no-year-zero calendar, so the result is re-checked.
+     */
+    function absoluteYearFromEra(eraIndex: number, eraYear: number): number {
+        const era = def.eras[eraIndex];
+        let year =
+            era.direction === 1
+                ? (era.startYear ?? 1) + eraYear - 1
+                : (era.endYear ?? -1) - eraYear + 1;
+        if (!def.hasYearZero && year === 0) {
+            year = era.direction === 1 ? -1 : 1;
+        }
+        const check = eraOf(year);
+        if (check && check.era === era && check.eraYear !== eraYear) {
+            year += era.direction * (eraYear - check.eraYear);
+            if (!def.hasYearZero && year === 0) year += era.direction;
+        }
+        return year;
+    }
+
     function yearLabel(
         year: number,
         style: "long" | "short" | "numeric",
@@ -406,6 +432,7 @@ export function compileCalendar(def: CalendarDef): CompiledCalendar {
         diffDays,
         weekdayOf,
         eraOf,
+        absoluteYearFromEra,
         format,
         yearLabel,
     };

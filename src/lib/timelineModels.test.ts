@@ -65,4 +65,44 @@ describe("timelineModels", () => {
         expect(() => parseTimelineData('"just a string"')).toThrow();
         expect(() => parseTimelineData('{"events": 42}')).toThrow();
     });
+
+    it("normalizes lane sources, dropping junk rows", () => {
+        const data = parseTimelineData(
+            JSON.stringify({
+                version: 1,
+                title: "t",
+                calendarId: "gregorian",
+                lanes: [
+                    {
+                        id: "l1",
+                        name: "Battles",
+                        sources: [
+                            { tag: "history/battles", folder: "" },
+                            { tag: "", folder: "Characters" },
+                            { tag: "", folder: "" }, // junk: both empty
+                            "nonsense",
+                        ],
+                    },
+                ],
+                events: [],
+            }),
+        );
+        expect(data.lanes[0].sources).toEqual([
+            { tag: "history/battles", folder: null },
+            { tag: null, folder: "Characters" },
+        ]);
+    });
+
+    it("defaults sources to an empty array", () => {
+        const data = parseTimelineData(
+            JSON.stringify({
+                version: 1,
+                title: "t",
+                calendarId: "g",
+                lanes: [{ id: "l1", name: "A" }],
+                events: [],
+            }),
+        );
+        expect(data.lanes[0].sources).toEqual([]);
+    });
 });

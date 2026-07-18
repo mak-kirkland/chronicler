@@ -8,11 +8,19 @@
  */
 import type { TimelineDate } from "./calendarModels";
 
+/** A per-lane ingestion filter. Within a row, all present conditions must
+ *  match (AND); rows are OR'd. */
+export interface LaneSource {
+    tag: string | null;
+    folder: string | null;
+}
+
 export interface TimelineLane {
     id: string;
     name: string;
     color: string | null;
     collapsed: boolean;
+    sources: LaneSource[];
 }
 
 export interface TimelineEvent {
@@ -28,6 +36,9 @@ export interface TimelineEvent {
     /** Optional wikilink target (a page title). */
     pageLink: string | null;
     color: string | null;
+    /** Render-only marker for frontmatter-ingested events; never persisted
+     *  (ingested events are derived per render, not stored). */
+    ingested?: true;
 }
 
 export interface TimelineViewportState {
@@ -53,7 +64,15 @@ export function emptyTimeline(title: string, calendarId: string): TimelineData {
         version: 1,
         title,
         calendarId,
-        lanes: [{ id: genId(), name: "Events", color: null, collapsed: false }],
+        lanes: [
+            {
+                id: genId(),
+                name: "Events",
+                color: null,
+                collapsed: false,
+                sources: [],
+            },
+        ],
         events: [],
         viewport: null,
     };
@@ -89,6 +108,24 @@ export function parseTimelineData(json: string): TimelineData {
             name: typeof l.name === "string" ? l.name : "",
             color: typeof l.color === "string" ? l.color : null,
             collapsed: l.collapsed === true,
+            sources: Array.isArray(l.sources)
+                ? (l.sources as unknown[])
+                      .filter(
+                          (s): s is Record<string, unknown> =>
+                              typeof s === "object" && s !== null,
+                      )
+                      .map((s) => ({
+                          tag:
+                              typeof s.tag === "string" && s.tag !== ""
+                                  ? s.tag
+                                  : null,
+                          folder:
+                              typeof s.folder === "string" && s.folder !== ""
+                                  ? s.folder
+                                  : null,
+                      }))
+                      .filter((s) => s.tag !== null || s.folder !== null)
+                : [],
         }),
     );
     if (lanes.length === 0) {
@@ -97,6 +134,7 @@ export function parseTimelineData(json: string): TimelineData {
             name: "Events",
             color: null,
             collapsed: false,
+            sources: [],
         });
     }
 

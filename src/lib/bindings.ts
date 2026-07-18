@@ -200,6 +200,8 @@ export interface IndexUpdatePayload {
     pages_changed: boolean;
     /** An image file was added, renamed, or removed (not just content-modified). */
     media_changed: boolean;
+    /** Timeline/canvas files created, modified, or renamed in this batch. */
+    changed_files: string[];
 }
 
 /**
@@ -213,4 +215,15 @@ export interface ImportedImage {
     relative_path: string;
     /** True if an identical existing file was reused instead of writing a copy. */
     reused: boolean;
+}
+
+/** A page with a `date:` frontmatter field — timeline-ingestion candidate. */
+export interface DatedPageInfo {
+    title: string;
+    path: string;
+    tags: string[];
+    /** Raw frontmatter strings; parsed by the TS calendar engine. */
+    date: string;
+    dateEnd: string | null;
+    calendar: string | null;
 }

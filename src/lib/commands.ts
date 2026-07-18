@@ -8,6 +8,7 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { log } from "./logger";
 import type {
+    DatedPageInfo,
     FileNode,
     FullPageData,
     License,
@@ -307,6 +308,10 @@ export const getCanvasData = async (path: string): Promise<CanvasData> => {
 export const getTimelineData = async (path: string): Promise<TimelineData> => {
     const json = await invoke<string>("get_timeline_data", { path });
     return parseTimelineData(json);
+};
+
+export const getDatedPages = async (): Promise<DatedPageInfo[]> => {
+    return await invoke("get_dated_pages");
 };
 
 /** Raw JSON strings of every calendar in `.chronicler/calendars/`. */

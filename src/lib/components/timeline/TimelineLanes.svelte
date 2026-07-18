@@ -2,6 +2,7 @@
     import type { CompiledCalendar } from "$lib/calendar";
     import type {
         TimelineData,
+        TimelineEvent,
         TimelineViewportState,
     } from "$lib/timelineModels";
     import {
@@ -10,6 +11,7 @@
         LANE_GUTTER_PX,
         type PlacedEvent,
     } from "$lib/timelineLayout";
+    import { createLabelMeasurer } from "$lib/timelineTextMeasure";
     import { xToSerial } from "$lib/timelineViewport";
     import TimelineEventChip from "./TimelineEventChip.svelte";
     import { t } from "$lib/i18n";
@@ -20,6 +22,7 @@
         viewport,
         widthPx,
         selectedId,
+        ingestedEvents,
         onSelect,
         onEditEvent,
         onOpenEventPage,
@@ -35,6 +38,7 @@
         viewport: TimelineViewportState;
         widthPx: number;
         selectedId: string | null;
+        ingestedEvents: TimelineEvent[];
         onSelect: (id: string | null) => void;
         onEditEvent: (id: string) => void;
         onOpenEventPage: (id: string) => void;
@@ -48,8 +52,6 @@
 
     const ROW_HEIGHT = 28;
     const LANE_MIN_HEIGHT = 40;
-    /** Days a point marker's label occupies at this zoom, for row stacking. */
-    const minGapDays = $derived(viewport.daysPerPixel * 120);
 
     interface LaidOutLane {
         lane: TimelineData["lanes"][number];
@@ -57,18 +59,28 @@
         height: number;
     }
 
+    // The full label string the chip paints — affixes included — so the
+    // measured width matches what actually renders (else inside/outside and
+    // stacking decisions come out short and the label truncates).
+    const labelText = (e: TimelineEvent) =>
+        (e.circa ? "~" : "") + (e.ingested ? "↗" : "") + e.title;
+
     const lanes = $derived.by<LaidOutLane[]>(() => {
+        // One measurer per pass captures the current chip font.
+        const labelWidthPx = createLabelMeasurer();
         // Virtualization: only place events overlapping the view (+20% each side).
         const viewStart = xToSerial(viewport, widthPx, -0.2 * widthPx);
         const viewEnd = xToSerial(viewport, widthPx, 1.2 * widthPx);
         return timeline.lanes.map((lane: TimelineData["lanes"][number]) => {
-            const events = timeline.events.filter(
+            const events = [...timeline.events, ...ingestedEvents].filter(
                 (e: TimelineData["events"][number]) => e.laneId === lane.id,
             );
-            const placed = layoutLane(cal, events, minGapDays).filter(
+            const placed = layoutLane(cal, events, viewport.daysPerPixel, (e) =>
+                labelWidthPx(labelText(e)),
+            ).filter(
                 (p) =>
-                    Math.max(p.endSerial, p.startSerial + minGapDays) >=
-                        viewStart && p.startSerial <= viewEnd,
+                    p.occupiedEndSerial >= viewStart &&
+                    p.startSerial <= viewEnd,
             );
             const height = lane.collapsed
                 ? LANE_MIN_HEIGHT
