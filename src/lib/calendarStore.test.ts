@@ -15,7 +15,7 @@ import {
     saveVaultCalendar,
 } from "./calendarStore";
 import { GREGORIAN, VALDRUN } from "./calendarPresets";
-import { tinyCalendar } from "./calendar.test";
+import { tinyCalendar } from "./calendarTestHelpers";
 
 beforeEach(() => {
     vaultCalendars.set(new Map());

@@ -147,6 +147,13 @@ pub struct Page {
     /// `serde_json::Value` is used to allow for flexible, unstructured data,
     /// which is perfect for user-defined infoboxes.
     pub frontmatter: serde_json::Value,
+    /// Raw `date:` frontmatter string, if present (timeline ingestion).
+    /// The backend never parses dates — the TS calendar engine does.
+    pub date: Option<String>,
+    /// Raw `date-end:` frontmatter string, if present.
+    pub date_end: Option<String>,
+    /// Raw `calendar:` frontmatter string, if present.
+    pub date_calendar: Option<String>,
 }
 
 /// Represents the category of a node in the file system tree.
@@ -219,6 +226,20 @@ pub struct PageHeader {
     pub title: String,
     #[serde(serialize_with = "serialize_pathbuf_as_web_str")]
     pub path: PathBuf,
+}
+
+/// A page carrying a `date:` frontmatter field — a timeline-ingestion
+/// candidate. Date strings are raw; the TS calendar engine parses them.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatedPageInfo {
+    pub title: String,
+    #[serde(serialize_with = "serialize_pathbuf_as_web_str")]
+    pub path: PathBuf,
+    pub tags: Vec<String>,
+    pub date: String,
+    pub date_end: Option<String>,
+    pub calendar: Option<String>,
 }
 
 /// A lightweight representation of a map, used for the "associated maps" list.
