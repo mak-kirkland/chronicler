@@ -647,6 +647,62 @@ $$
 
 ---
 
+### 🕰️ Timelines
+
+Timelines plot your world's events along a pannable, zoomable axis - perfect for charting histories, dynasties, character arcs, or the ages of the world.
+
+**To create one**, right-click a folder in the file explorer (or use **New Timeline** in the sidebar), give it a name, and choose a **calendar** - the built-in Gregorian one, or a custom calendar you design for your world (with its own months, eras, and leap-year rules). Your timeline is saved as a `.timeline` file in your vault.
+
+Once it's open:
+
+- 🖱️ **Drag** the background to pan, and **scroll** to zoom in and out.
+- ➕ **Double-click** an empty spot in a lane to add an event there.
+- 🛤️ Group events into horizontal **lanes** - for example, one per kingdom, character, or theme.
+
+#### 📌 Events
+
+An event can be a single moment or a span of time. Each has a title, a start date, an optional **end date** (which turns it into a duration bar), an optional colour, and an optional link to a page in your vault. Dates you aren't sure about can be marked **approximate** (*circa*), which renders them with a `c.` prefix and softened edges.
+
+A linked event behaves like a wikilink - double-clicking it opens its page.
+
+#### 🗓️ Ingesting Dates from Your Notes
+
+Here's the powerful part: rather than adding every event by hand, a lane can **automatically gather your dated notes**. Any page with a `date` in its frontmatter can appear on the timeline as a read-only event, so your character and history pages populate it for you and stay in sync as you edit them.
+
+Just add these fields to a page's frontmatter:
+
+```yaml
+---
+title: The Sundering
+date: 1042-03-12
+date-end: 1044-11-01
+tags: [history/wars]
+---
+```
+
+| Field | Description |
+|-------|-------------|
+| `date` | **Required** for a note to be picked up. Write it as `1042` (year only), `1042-03` (year and month), or `1042-03-12` (full date). Use a negative year for BCE, e.g. `-44`. |
+| `date-end` | *Optional.* An end date, which turns the event into a duration **span**. |
+| `calendar` | *Optional.* The ID of a custom calendar. A note is only ingested by timelines that use the same calendar, so dates from different worlds never mix. |
+
+#### 🎯 Telling a Lane What to Collect
+
+Each lane decides which notes to gather through its **sources**. Open a lane's settings and add one or more source rows, each filtering by:
+
+- 🏷️ **Tag** - matches notes carrying that tag. Matching is hierarchical, so a `history` filter also catches `history/wars`, `history/rulers`, and so on.
+- 📂 **Folder** - matches notes inside that folder.
+
+Within a single row, *every* condition you fill in must match (tag **and** folder). Multiple rows are combined with **or** (a note joins the lane if it matches *any* row).
+
+> 💡 **Manual events win.** If you've hand-placed an event and linked it to a page, that page won't *also* be pulled in automatically, so you can always override the ingested version when you want finer control.
+
+#### ⏭️ Skipped Notes
+
+If a note matches a lane but its `date` can't be understood, it's quietly left off the timeline. The lane shows a small **"_N_ skipped"** badge so you know some notes need a look. Fix the date and the event appears.
+
+---
+
 ### 📥 Importing Word Docs
 
 You can import `.docx` files from Microsoft Word directly into your vault.
