@@ -3,7 +3,7 @@
  * canvasMutations.ts. Every function returns a new object (structural
  * sharing where unchanged) so undo history can hold snapshots.
  */
-import type { TimelineData, TimelineEvent } from "./timelineModels";
+import type { LaneSource, TimelineData, TimelineEvent } from "./timelineModels";
 import { genId } from "./timelineModels";
 
 export function addEvent(
@@ -30,12 +30,17 @@ export function deleteEvent(data: TimelineData, id: string): TimelineData {
     return { ...data, events: data.events.filter((e) => e.id !== id) };
 }
 
-export function addLane(data: TimelineData, name: string): TimelineData {
+export function addLane(
+    data: TimelineData,
+    name: string,
+    sources: LaneSource[] = [],
+    color: string | null = null,
+): TimelineData {
     return {
         ...data,
         lanes: [
             ...data.lanes,
-            { id: genId(), name, color: null, collapsed: false },
+            { id: genId(), name, color, collapsed: false, sources },
         ],
     };
 }
@@ -59,6 +64,17 @@ export function setLaneColor(
     return {
         ...data,
         lanes: data.lanes.map((l) => (l.id === id ? { ...l, color } : l)),
+    };
+}
+
+export function setLaneSources(
+    t: TimelineData,
+    laneId: string,
+    sources: LaneSource[],
+): TimelineData {
+    return {
+        ...t,
+        lanes: t.lanes.map((l) => (l.id === laneId ? { ...l, sources } : l)),
     };
 }
 
