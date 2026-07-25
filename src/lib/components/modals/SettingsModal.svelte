@@ -15,7 +15,9 @@
         imageImportLocation,
         imageImportDir,
         promptForImageName,
+        welcomeBanner,
         type ImageImportLocation,
+        type WelcomeBanner,
     } from "$lib/settingsStore";
     import { AVAILABLE_FONTS } from "$lib/themeRegistry";
     import { loadAllUserFonts } from "$lib/fonts";
@@ -378,6 +380,31 @@
                             >{$t("settings.appearance.manageThemes")}</Button
                         >
                     </div>
+                </div>
+
+                <!-- Welcome Banner -->
+                <div class="form-group">
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
+                    <label>{$t("settings.appearance.welcomeBanner")}</label>
+                    <Select
+                        options={[
+                            {
+                                value: "default",
+                                label: $t(
+                                    "settings.appearance.welcomeBannerDefault",
+                                ),
+                            },
+                            {
+                                value: "scifi",
+                                label: $t(
+                                    "settings.appearance.welcomeBannerScifi",
+                                ),
+                            },
+                        ]}
+                        value={$welcomeBanner}
+                        onSelect={(val) =>
+                            ($welcomeBanner = val as WelcomeBanner)}
+                    />
                 </div>
 
                 <!-- World Atmosphere -->
