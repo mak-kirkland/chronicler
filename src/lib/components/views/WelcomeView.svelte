@@ -1,5 +1,6 @@
 <script lang="ts">
     import { licenseStore } from "$lib/licenseStore";
+    import { welcomeBanner } from "$lib/settingsStore";
     import { handleContentClick } from "$lib/actions";
     import { log } from "$lib/logger";
     import { t } from "$lib/i18n";
@@ -19,6 +20,10 @@
     const isLinux =
         typeof navigator !== "undefined" &&
         navigator.userAgent.includes("Linux");
+
+    // Which static hero image to use when the video isn't shown.
+    $: bannerSrc =
+        $welcomeBanner === "scifi" ? "/scifi-banner.png" : "/banner.png";
 </script>
 
 <div class="welcome-container">
@@ -30,7 +35,7 @@
                1. User is licensed
                2. AND User is NOT on Linux (to prevent crashes)
             -->
-            {#if $licenseStore.status === "licensed" && !videoError && !isLinux}
+            {#if $licenseStore.status === "licensed" && !videoError && !isLinux && $welcomeBanner !== "scifi"}
                 <video
                     src="/background.webm"
                     width="100%"
@@ -45,8 +50,9 @@
                 >
                 </video>
             {:else}
-                <!-- Fallback for Unlicensed OR Linux users -->
-                <img src="/banner.png" alt="Chronicler Banner" />
+                <!-- Fallback for Unlicensed OR Linux users, or when the
+                     Sci-Fi banner is selected. -->
+                <img src={bannerSrc} alt="Chronicler Banner" />
                 <div class="hero-overlay">
                     <h1 class="welcome-title">Chronicler</h1>
                     <p class="welcome-text">

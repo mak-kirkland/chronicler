@@ -93,6 +93,7 @@ interface VaultSettings {
     imageImportLocation: ImageImportLocation;
     imageImportDir: string;
     promptForImageName: boolean;
+    welcomeBanner: WelcomeBanner;
 }
 
 export type ThemeName = string;
@@ -170,6 +171,16 @@ export const imageImportLocation = writable<ImageImportLocation>("folder");
 export const imageImportDir = writable<string>("images");
 /** When true, prompt for a filename on single-image paste/import. */
 export const promptForImageName = writable<boolean>(false);
+
+// --- Welcome banner ---
+/** Which hero image the welcome page shows. */
+export type WelcomeBanner = "default" | "scifi";
+/**
+ * `default`: the classic `banner.png` (and, for licensed non-Linux users, the
+ * video background). `scifi`: forces the static `scifi-banner.png`, replacing
+ * the video too.
+ */
+export const welcomeBanner = writable<WelcomeBanner>("default");
 
 // --- Helper: Migration Logic ---
 
@@ -267,6 +278,7 @@ async function saveVaultSettings() {
         imageImportLocation: get(imageImportLocation),
         imageImportDir: get(imageImportDir),
         promptForImageName: get(promptForImageName),
+        welcomeBanner: get(welcomeBanner),
     };
     await vaultSettingsFile.set("vaultSettings", settings);
     await vaultSettingsFile.save();
@@ -380,6 +392,7 @@ export async function initializeVaultSettings(vaultPath: string) {
         imageImportLocation.set(settings.imageImportLocation ?? "folder");
         imageImportDir.set(settings.imageImportDir ?? "images");
         promptForImageName.set(settings.promptForImageName ?? false);
+        welcomeBanner.set(settings.welcomeBanner ?? "default");
     } else {
         // If the vault has no settings file, it should adopt the current theme.
         // We immediately save the current settings to create the vault file,
@@ -406,6 +419,7 @@ export async function initializeVaultSettings(vaultPath: string) {
         imageImportLocation.subscribe(debouncedVaultSave),
         imageImportDir.subscribe(debouncedVaultSave),
         promptForImageName.subscribe(debouncedVaultSave),
+        welcomeBanner.subscribe(debouncedVaultSave),
     ];
 }
 
@@ -435,6 +449,7 @@ export function destroyVaultSettings() {
     imageImportLocation.set("folder");
     imageImportDir.set("images");
     promptForImageName.set(false);
+    welcomeBanner.set("default");
 
     // Reset atmosphere to defaults so next vault starts fresh if unconfigured
     atmosphere.set(defaultAtmosphere);
