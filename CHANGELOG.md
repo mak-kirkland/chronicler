@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.57.0-alpha] - 2026-07-29
+
+### ✨ Added
+
+- **Tabs**: You can now open multiple files, maps, images, and other views in tabs. Each tab preserves its own scroll position, cursor, editor state, and navigation history when you switch between them. Open a link in a new tab with Ctrl/Cmd+Click or middle-click, and manage tabs with a right-click menu or keyboard shortcuts (Ctrl/Cmd+T to open, Ctrl/Cmd+W to close, Ctrl+Tab to cycle, Ctrl/Cmd+1–9 to jump).
+
+---
+
 ## [v0.56.3-alpha] - 2026-07-19
 
 ### ✨ Added
