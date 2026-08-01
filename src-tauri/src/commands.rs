@@ -96,20 +96,86 @@ pub fn import_image_file(
     )
 }
 
+/// Everything the paste path needs from the OS clipboard, read in one pass.
+struct ClipboardContents {
+    /// Raw RGBA pixels and their dimensions: a screenshot or "Copy Image".
+    bitmap: Option<(Vec<u8>, u32, u32)>,
+    /// Plain text; for a copy made in a file manager this is a `file://` list.
+    text: Option<String>,
+}
+
+/// Reads both clipboard forms, copying out owned data and nothing more.
+///
+/// Must only be called via [`read_clipboard`], which puts it on the thread the
+/// platform requires. Decoding, encoding and disk writes stay out of here so
+/// they never land on macOS's main thread.
+fn read_clipboard_contents(app: &AppHandle) -> ClipboardContents {
+    let clipboard = app.clipboard();
+    ClipboardContents {
+        // The `Image` borrows the clipboard, so the pixels must be copied out
+        // before this returns.
+        bitmap: clipboard
+            .read_image()
+            .ok()
+            .map(|image| (image.rgba().to_vec(), image.width(), image.height())),
+        text: clipboard.read_text().ok(),
+    }
+}
+
+/// Reads the OS clipboard on whichever thread the current platform requires.
+///
+/// The two desktop platforms have *opposite* requirements here, and violating
+/// either is fatal rather than merely wrong - so both halves are deliberately
+/// kept side by side. Deleting one of them reintroduces a shipped bug:
+///
+///   * GTK/WebKitGTK (Linux): the read must **not** run on the main thread.
+///     Reading the OS clipboard blocks until the clipboard's owner responds,
+///     and after a copy made inside Chronicler the owner is our own webview,
+///     which answers selection requests from that same (now blocked) main loop
+///     - a self-deadlock that froze the whole app on paste.
+///   * AppKit (macOS): the read must run **only** on the main thread.
+///     `NSPasteboard` is not thread-safe, but `arboard` asserts `Send`/`Sync`
+///     on it regardless, so nothing stops a worker thread from racing WebKit's
+///     own main-thread pasteboard access during the same Cmd+V. The loser
+///     corrupts the pasteboard's internal type cache and the next `objc_msgSend`
+///     dereferences garbage, segfaulting the app on every paste.
+///
+/// Note that the plugin's own docs state only the Linux half, so following them
+/// is what produced the macOS crash.
+///
+/// Callers stay `async` on both paths, so awaiting the result never blocks the
+/// main thread and the Linux freeze cannot return through the macOS branch.
+async fn read_clipboard(app_handle: AppHandle) -> Result<ClipboardContents> {
+    // `cfg!` rather than `#[cfg]`: both APIs exist on every platform, so this
+    // keeps the two rules in one place where the contrast is visible.
+    if cfg!(target_os = "macos") {
+        // `run_on_main_thread` hands the closure to the event loop and returns
+        // immediately, so a one-shot channel carries the result back.
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let handle = app_handle.clone();
+        app_handle.run_on_main_thread(move || {
+            // A send error only means the command future was dropped.
+            let _ = tx.send(read_clipboard_contents(&handle));
+        })?;
+        rx.await.map_err(|_| {
+            ChroniclerError::ImageImport("Clipboard read did not complete".to_string())
+        })
+    } else {
+        tokio::task::spawn_blocking(move || read_clipboard_contents(&app_handle))
+            .await
+            .map_err(|e| ChroniclerError::ImageImport(format!("Task join error: {e}")))
+    }
+}
+
 /// Whether the OS clipboard currently holds raw image data (a bitmap). Lets the
 /// editor decide whether to prompt for a filename before pasting, without
 /// prompting on ordinary text pastes.
-///
-/// Async so the clipboard read runs off the main thread: reading the OS
-/// clipboard blocks until the clipboard's owner responds, and when the copy was
-/// made inside Chronicler the owner is our own webview, which answers from the
-/// (then-blocked) main thread - a self-deadlock that froze the app on paste.
 #[command]
 #[instrument(skip(app_handle))]
 pub async fn clipboard_has_image(app_handle: AppHandle) -> bool {
-    tokio::task::spawn_blocking(move || app_handle.clipboard().read_image().is_ok())
+    read_clipboard(app_handle)
         .await
-        .unwrap_or(false)
+        .is_ok_and(|contents| contents.bitmap.is_some())
 }
 
 /// Imports image(s) from the OS clipboard into `dir` (a vault-relative
@@ -125,10 +191,10 @@ pub async fn clipboard_has_image(app_handle: AppHandle) -> bool {
 ///   * file(s) copied in a file manager arrive as a `file://` path list and are
 ///     imported from disk under their original names.
 ///
-/// Async so the clipboard reads run off the main thread: each read blocks until
-/// the clipboard's owner responds, and when the copy was made inside Chronicler
-/// the owner is our own webview, which answers from the (then-blocked) main
-/// thread - a self-deadlock that froze the app on any in-app copy → paste.
+/// The clipboard is read once up front, on the thread [`read_clipboard`] picks
+/// for the platform; the rest runs in `spawn_blocking` because encoding a
+/// full-screen screenshot to PNG would otherwise stall an async worker for
+/// hundreds of milliseconds.
 #[command]
 #[instrument(skip(app_handle, world), err(Debug))]
 pub async fn import_image_from_clipboard(
@@ -138,18 +204,19 @@ pub async fn import_image_from_clipboard(
     dir: String,
     name_override: Option<String>,
 ) -> Result<Vec<ImportedImage>> {
-    // Snapshot before moving into the blocking task. A missing vault only
-    // matters once the clipboard actually yields an image, so the error is
-    // deferred to the point of use and a plain text paste still returns Ok.
+    // Snapshot before the clipboard read. A missing vault only matters once the
+    // clipboard actually yields an image, so the error is deferred to the point
+    // of use and a plain text paste still returns Ok.
     let root = world.root_path.read().clone();
+    let contents = read_clipboard(app_handle).await?;
 
     tokio::task::spawn_blocking(move || {
         let vault_root = || root.clone().ok_or(ChroniclerError::VaultNotInitialized);
 
         // Case 1: a raw bitmap (screenshot, "Copy Image" from a browser/viewer).
-        if let Ok(image) = app_handle.clipboard().read_image() {
+        if let Some((rgba, width, height)) = contents.bitmap {
             let vault_root = vault_root()?;
-            let png = crate::images::encode_rgba_png(image.width(), image.height(), image.rgba())?;
+            let png = crate::images::encode_rgba_png(width, height, &rgba)?;
             // A user-supplied name (from the prompt) is authoritative; otherwise
             // fall back to `<page>-<timestamp>.png`.
             let name = name_override.unwrap_or_else(|| {
@@ -164,7 +231,7 @@ pub async fn import_image_from_clipboard(
         }
 
         // Case 2: file(s) copied in a file manager arrive as a `file://` path list.
-        if let Ok(text) = app_handle.clipboard().read_text() {
+        if let Some(text) = contents.text {
             let paths = crate::images::image_paths_from_clipboard_text(&text);
             if !paths.is_empty() {
                 let vault_root = vault_root()?;
