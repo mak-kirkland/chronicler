@@ -18,6 +18,13 @@
         tileInfoStore,
     } from "$lib/mapStore";
     import type { TileSetInfo } from "$lib/mapModels";
+    import {
+        tileMaxZoomFor,
+        densityOffset,
+        tileSizeForOffset,
+        maxGridZoom,
+        gridZoomFor,
+    } from "$lib/mapTiles";
     import ProgressBar from "$lib/components/ui/ProgressBar.svelte";
     import {
         addPin,
@@ -78,22 +85,29 @@
     // Each instance is given its own `tileDir` and `tileExt` via options.
     // Because we use a custom Y-down CRS (see `initializeMap`), Leaflet's
     // tile coordinates map directly to the tiler's column/row indices — no
-    // Y-flip math required. `coords.z` is the pyramid zoom level;
-    // `coords.x`/`coords.y` index into the file path
+    // Y-flip math required. `coords.x`/`coords.y` index into the file path
     // `{tileDir}/{z}/{x}_{y}.{tileExt}` (jpg for opaque sources, png for
     // sources with an alpha channel).
+    //
+    // `coords.z` is the *grid* zoom, which is `levelOffset` levels shallower
+    // than the pyramid level we fetch — see `densityOffset` in mapTiles.ts.
     // -------------------------------------------------------------------------
     const TileGridLayer = L.GridLayer.extend({
         createTile(
             this: L.GridLayer & {
-                options: { tileDir: string; tileExt: string };
+                options: {
+                    tileDir: string;
+                    tileExt: string;
+                    levelOffset: number;
+                };
             },
             coords: L.Coords,
             done: (err: Error | null, tile: HTMLElement) => void,
         ): HTMLElement {
             const tile = document.createElement("img");
             tile.setAttribute("role", "presentation");
-            const tilePath = `${this.options.tileDir}/${coords.z}/${coords.x}_${coords.y}.${this.options.tileExt}`;
+            const level = coords.z + this.options.levelOffset;
+            const tilePath = `${this.options.tileDir}/${level}/${coords.x}_${coords.y}.${this.options.tileExt}`;
             tile.src = convertFileSrc(tilePath);
             tile.onload = () => done(null, tile);
             tile.onerror = () => {
@@ -102,29 +116,62 @@
             };
             return tile;
         },
+
+        // Which pyramid level to draw.
+        //
+        // Leaflet picks the level in `GridLayer._setView` with a hardcoded
+        // `Math.round(zoom)`. No option changes that — `zoomOffset`,
+        // `zoomReverse` and `min`/`maxNativeZoom` all shift *which* level a
+        // number maps to, none of them changes how the number is produced.
+        // `_clampZoom` is the last call `_setView` makes before committing the
+        // level, so it is the only seam there is. We replace the base
+        // implementation rather than delegate to it: its only job is the
+        // native-zoom clamp, which `gridZoomFor` reapplies.
+        //
+        // Rounding is a sound default for a scrolling world map, where a
+        // fractional zoom only exists mid-gesture and rounding down costs a
+        // brief softness instead of 4× the tiles. It is wrong here because
+        // `initializeMap` pins both the opening view and `minZoom` to the
+        // fractional "image fills the pane" zoom, making that view a resting
+        // state rather than a transient one — the first thing every user sees,
+        // and the one they can never zoom out of. See `gridZoomFor`.
+        //
+        // Leaflet hands us the already-rounded zoom, so the fraction we need is
+        // gone and we go back to the map for it. During a zoom animation the
+        // map still reports the zoom being *left*, which would draw the
+        // destination at the old resolution until the animation lands;
+        // `_animateToZoom` is the target. This is the same expression
+        // `GridLayer._getTiledPixelBounds` uses internally, for the same reason.
+        //
+        // `_clampZoom` and the `_map` fields below are private Leaflet API (the
+        // leading underscore). An upgrade could rename them and this adjustment
+        // would silently stop happening; mapTiles.test.ts covers the arithmetic
+        // but cannot cover the wiring.
+        _clampZoom(
+            this: L.GridLayer & {
+                _map:
+                    | (L.Map & {
+                          _animatingZoom?: boolean;
+                          _animateToZoom?: number;
+                      })
+                    | null;
+                options: { pyramidMaxZoom: number; dpr: number };
+            },
+            zoom: number,
+        ): number {
+            const map = this._map;
+            const exact = !map
+                ? zoom
+                : map._animatingZoom
+                  ? Math.max(map._animateToZoom ?? -Infinity, map.getZoom())
+                  : map.getZoom();
+            return gridZoomFor(
+                exact,
+                this.options.pyramidMaxZoom,
+                this.options.dpr,
+            );
+        },
     });
-
-    /**
-     * Tile pixel size. **MUST match `TILE_SIZE` in `src-tauri/src/tiler.rs`**
-     * — used in the max-zoom formula and as the `tileSize` option on every
-     * `L.GridLayer` we mount. A mismatch makes Leaflet request tiles that
-     * don't exist (or misalign existing ones).
-     */
-    const TILE_SIZE = 512;
-
-    /**
-     * Compute the max zoom level of the tile pyramid for an image of the
-     * given dimensions.
-     *
-     * **This formula MUST stay in sync with `calculate_max_zoom` in
-     * `src-tauri/src/tiler.rs`.** Both must produce the same number for the
-     * same image dimensions, or Leaflet will request tiles that don't exist.
-     *
-     * For an 8640×5400 image with TILE_SIZE=512: ceil(log2(8640/512)) = 5.
-     */
-    function tileMaxZoomFor(width: number, height: number): number {
-        return Math.ceil(Math.log2(Math.max(width, height) / TILE_SIZE));
-    }
 
     // --- Core Leaflet State ---
 
@@ -930,7 +977,7 @@
         ];
 
         // The tile pyramid's max zoom level. This MUST match the formula used
-        // by the Rust tiler — see `tileMaxZoomFor` near the top of this script.
+        // by the Rust tiler — see `tileMaxZoomFor` in mapTiles.ts.
         const tileMaxZoom = tileMaxZoomFor(w, h);
 
         // Custom CRS for image tile maps. Two key differences from CRS.Simple:
@@ -939,9 +986,9 @@
         //    tiler's row ordering. This means no Y-flip math required.
         //
         // 2. Coefficient = 1/2^maxZoom scales the coordinate space so that at
-        //    Leaflet zoom 0, a single 256×256 tile covers the entire image
+        //    Leaflet zoom 0, a single 512×512 tile covers the entire image
         //    coordinate range (the overview tile). At Leaflet zoom = maxZoom,
-        //    one tile covers exactly 256 coordinate units = 256 image pixels
+        //    one tile covers exactly 512 coordinate units = 512 image pixels
         //    (native resolution). This ensures Leaflet's tile coordinate
         //    requests align perfectly with the tiler's output at every zoom.
         //
@@ -999,6 +1046,11 @@
         // fitZoom is the Leaflet zoom level at which the image fills the
         // viewport. We use this as both the initial view and the minimum zoom
         // so users can't zoom out into empty space around the image.
+        //
+        // It is fractional (`zoomSnap: 0` above), and pinning minZoom to it
+        // makes it a resting view rather than a passing one — which is why
+        // `TileGridLayer._clampZoom` has to override how Leaflet rounds a zoom
+        // to a tile level. Changing either line has consequences up there.
         const fitZoom = map.getBoundsZoom(bounds);
 
         // Set the initial view to the calculated fit zoom level
@@ -1490,18 +1542,32 @@
         opacity: number,
         zIndex: number,
     ): L.GridLayer {
+        // On a high-density display a tile drawn into a same-sized CSS box is
+        // stretched across 2× (or more) device pixels. Fetch that many levels
+        // deeper and draw each tile into a proportionally smaller CSS box, so
+        // one source pixel lands on one device pixel.
+        const dpr = window.devicePixelRatio;
+        const levelOffset = densityOffset(dpr, tileInfo.max_zoom);
+
         return new (TileGridLayer as any)({
             tileDir: tileInfo.tile_dir,
             tileExt: tileInfo.tile_ext,
+            levelOffset,
+            // `_clampZoom` re-derives the density adjustment per view.
+            pyramidMaxZoom: tileInfo.max_zoom,
+            dpr,
             bounds,
-            // Native zoom range = the actual tile files on disk.
-            // Leaflet will request tiles at these zoom levels and scale them
-            // for any over-zoom (between maxNativeZoom and maxZoom).
+            // Native zoom range = the grid zooms that map onto tile files that
+            // actually exist. `createTile` fetches `coords.z + levelOffset`, so
+            // the grid stops that many levels short of the pyramid's own max.
+            // Leaflet scales tiles for any over-zoom past this.
             minNativeZoom: 0,
-            maxNativeZoom: tileInfo.max_zoom,
+            maxNativeZoom: maxGridZoom(tileInfo.max_zoom, levelOffset),
             minZoom: 0,
             maxZoom: tileInfo.max_zoom + 1,
-            tileSize: TILE_SIZE,
+            // Must be TILE_SIZE / 2^levelOffset — anything else (TILE_SIZE/dpr
+            // in particular) desynchronises grid cells from tile boundaries.
+            tileSize: tileSizeForOffset(levelOffset),
             noWrap: true,
             opacity,
             zIndex,

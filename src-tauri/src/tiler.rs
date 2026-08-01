@@ -10,7 +10,7 @@
 //! and 512px tiles cut request count 4× for the same viewport coverage.
 //! Mapbox/ESRI ship 512px by default for the same reason.
 //!
-//! `max_zoom = ceil(log2(max(width, height) / 256))`; lower zooms are
+//! `max_zoom = ceil(log2(max(width, height) / 512))`; lower zooms are
 //! proportionally-resized copies sliced the same way. Edge tiles are
 //! partial: the available content goes in the top-left and the rest is
 //! padded out. The frontend is given the true source dimensions and
@@ -33,7 +33,7 @@
 //!
 //! ```text
 //! {vault}/.chronicler-cache/tiles/{cache_key}/
-//!   .complete            ← marker; contents = "max_zoom,w,h,ext"
+//!   .complete            ← marker; contents = "max_zoom,w,h,ext,version"
 //!   {z}/{x}_{y}.{ext}    ← one file per tile (ext = "jpg" or "png")
 //! ```
 
@@ -50,12 +50,28 @@ use tauri::{AppHandle, Emitter};
 use tracing::{info, instrument};
 
 /// Each tile is 512×512 pixels. **Must stay in sync with `TILE_SIZE` in
-/// `MapView.svelte`** — the frontend hardcodes the same value when computing
-/// max zoom and configuring `L.GridLayer`'s `tileSize` option.
+/// `src/lib/mapTiles.ts`** — the frontend uses the same value to compute max
+/// zoom and to derive `L.GridLayer`'s `tileSize` option.
 const TILE_SIZE: u32 = 512;
 
 /// JPEG quality. 85 = good balance. At 512×512 each tile is ~50–100 KB.
 const JPEG_QUALITY: u8 = 85;
+
+/// Generation stamp written into `.complete`, and required to read it back.
+///
+/// The cache key is derived from the source file's size and mtime, so it never
+/// changes when *our* output changes — without this stamp a fix to tile
+/// encoding would only reach users who re-import their images. Bump it
+/// whenever generated tiles change in a way existing caches should not keep
+/// serving; every vault then re-tiles once, behind the usual progress bar.
+///
+/// - `v2`: all pyramid levels resample with Lanczos3 (was bilinear above
+///   2048 px, which left the levels used at the opening view visibly soft).
+///
+/// The stamp is compared for equality, not ordering, so downgrading to an
+/// older build re-tiles at that build's generation and upgrading re-tiles
+/// again. That is the intended trade: a stale cache is never served.
+const TILE_FORMAT_VERSION: &str = "v2";
 
 /// Subdirectory for tile pyramids inside the shared vault cache dir.
 const TILES_SUBDIR: &str = "tiles";
@@ -121,9 +137,15 @@ struct TileProgressPayload {
 /// Max zoom level: the smallest `z` where each tile covers ≤TILE_SIZE source pixels.
 ///
 /// For 8192×6000 with TILE_SIZE=512: ceil(log2(8192 / 512)) = ceil(4.0) = 4.
+///
+/// Floored at zero: an image smaller than a single tile gives a negative
+/// logarithm, and such a pyramid still has its one level 0. The floor is
+/// explicit rather than left to the `as u32` cast's saturation, because
+/// `tileMaxZoomFor` in `src/lib/mapTiles.ts` mirrors this function and has to
+/// mirror a stated rule, not an incidental cast.
 fn calculate_max_zoom(width: u32, height: u32) -> u32 {
     let max_dim = width.max(height) as f64;
-    (max_dim / TILE_SIZE as f64).log2().ceil() as u32
+    (max_dim / TILE_SIZE as f64).log2().ceil().max(0.0) as u32
 }
 
 /// How many tiles along one axis at zoom `z`.
@@ -244,10 +266,16 @@ pub fn generate_tiles(
     // proportional dimensions for that level, then slice it into tiles.
     //
     // We resize from the original (not chain from the previous level) to
-    // avoid cumulative quality loss from repeated resampling. This is more
-    // CPU work than chaining, but the larger zoom levels use bilinear
-    // filtering (fast) and only the smaller thumbnail levels use the
-    // higher-quality Lanczos3 filter, so the total cost is reasonable.
+    // avoid cumulative quality loss from repeated resampling.
+    //
+    // Every level is resampled with Lanczos3. An earlier version used
+    // bilinear (`Triangle`) for levels over 2048 px on the theory that the
+    // difference was imperceptible — it isn't. Those are precisely the levels
+    // a map is *viewed* at when it first opens (the frontend picks the level
+    // that covers the viewport at device resolution), and bilinear measures at
+    // ~47% of Lanczos3's retained detail: soft coastlines and mushy label
+    // text. Tiling is a one-time, cached, progress-barred operation, so the
+    // extra CPU is the right trade.
 
     let mut completed: u32 = 0;
 
@@ -263,20 +291,12 @@ pub fn generate_tiles(
         let exact_h = (src_h as f64 / scale_factor).round() as u32;
 
         // At max zoom we slice the source directly; lower zooms get a
-        // proportionally-resized copy. Lanczos3 is sharper but slow on large
-        // images, so use it only when both axes fit ≤ 2048 px (≈ small
-        // thumbnail levels); larger levels fall back to bilinear, where the
-        // quality difference is imperceptible at 256px tiles.
+        // proportionally-resized copy.
         if z == max_zoom {
             slice_tiles_parallel(&img, cols, rows, z, &tile_dir, format)?;
         } else {
-            let filter = if exact_w <= 2048 && exact_h <= 2048 {
-                FilterType::Lanczos3
-            } else {
-                FilterType::Triangle
-            };
             // .max(1) guards against degenerate dimensions for tiny images.
-            let working = img.resize_exact(exact_w.max(1), exact_h.max(1), filter);
+            let working = img.resize_exact(exact_w.max(1), exact_h.max(1), FilterType::Lanczos3);
             slice_tiles_parallel(&working, cols, rows, z, &tile_dir, format)?;
         }
 
@@ -287,7 +307,14 @@ pub fn generate_tiles(
     // ── Write completion marker ──────────────────────────────────────────
     fs::write(
         &marker,
-        format!("{},{},{},{}", max_zoom, src_w, src_h, format.ext()),
+        format!(
+            "{},{},{},{},{}",
+            max_zoom,
+            src_w,
+            src_h,
+            format.ext(),
+            TILE_FORMAT_VERSION
+        ),
     )?;
     info!("Tile generation complete for {}", image_path.display());
 
@@ -346,11 +373,11 @@ pub async fn generate_tiles_async(
 fn read_marker(marker: &Path, tile_dir: &Path) -> Option<TileSetInfo> {
     let text = fs::read_to_string(marker).ok()?;
     let p: Vec<&str> = text.split(',').collect();
-    // Pre-alpha caches wrote 3 fields and always served JPEG, including for
-    // sources with an alpha channel — losing transparency. Treating them as
-    // stale (refusing to read 3-field markers) forces a one-time regen so
-    // any previously-tiled overlay layer recovers its alpha.
-    if p.len() != 4 {
+    // Older markers are treated as stale, which forces a one-time regen:
+    //   3 fields — pre-alpha, always served JPEG even for sources with an
+    //     alpha channel, so overlay layers lost their transparency.
+    //   4 fields — pre-`TILE_FORMAT_VERSION`, bilinear-resampled upper levels.
+    if p.len() != 5 || p[4].trim() != TILE_FORMAT_VERSION {
         return None;
     }
     let max_zoom: u32 = p[0].parse().ok()?;
@@ -383,7 +410,7 @@ fn read_marker(marker: &Path, tile_dir: &Path) -> Option<TileSetInfo> {
 
 /// Slices a pre-scaled image into tiles using rayon for parallel encoding.
 ///
-/// Each tile is an independent unit of work: crop 256×256 pixels, encode,
+/// Each tile is an independent unit of work: crop TILE_SIZE pixels, encode,
 /// write to disk. These are CPU-bound and embarrassingly parallel — rayon
 /// splits them across all available CPU cores.
 ///
@@ -498,7 +525,11 @@ fn slice_tiles_parallel(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
+    /// Must stay identical to the table in `tileMaxZoomFor`'s test in
+    /// `src/lib/mapTiles.ts` — the two implementations have to agree for
+    /// Leaflet to request levels that exist.
     #[test]
     fn test_calculate_max_zoom() {
         // With TILE_SIZE=512:
@@ -507,6 +538,10 @@ mod tests {
         assert_eq!(calculate_max_zoom(2048, 2048), 2);
         assert_eq!(calculate_max_zoom(8192, 6000), 4);
         assert_eq!(calculate_max_zoom(4096, 512), 3);
+        assert_eq!(calculate_max_zoom(8640, 5400), 5);
+        // Smaller than one tile: still a single level 0, not a negative zoom.
+        assert_eq!(calculate_max_zoom(100, 80), 0);
+        assert_eq!(calculate_max_zoom(400, 300), 0);
     }
 
     #[test]
@@ -518,5 +553,88 @@ mod tests {
         assert_eq!(tiles_for_axis(6000, 3, 4), 6);
         assert_eq!(tiles_for_axis(8192, 0, 4), 1);
         assert_eq!(tiles_for_axis(6000, 0, 4), 1);
+    }
+
+    /// Writes the overview tile `read_marker` sanity-checks for.
+    fn seed_overview(tile_dir: &Path, ext: &str) {
+        fs::create_dir_all(tile_dir.join("0")).unwrap();
+        fs::write(tile_dir.join("0").join(format!("0_0.{ext}")), b"tile").unwrap();
+    }
+
+    #[test]
+    fn reads_a_current_generation_marker() {
+        let dir = tempdir().unwrap();
+        seed_overview(dir.path(), "png");
+        let marker = dir.path().join(".complete");
+        fs::write(&marker, format!("5,8640,5400,png,{TILE_FORMAT_VERSION}")).unwrap();
+
+        let info = read_marker(&marker, dir.path()).expect("current marker should parse");
+        assert_eq!(info.max_zoom, 5);
+        assert_eq!(info.width, 8640);
+        assert_eq!(info.height, 5400);
+        assert_eq!(info.tile_ext, "png");
+    }
+
+    #[test]
+    fn rejects_stale_marker_generations() {
+        let dir = tempdir().unwrap();
+        seed_overview(dir.path(), "png");
+        let marker = dir.path().join(".complete");
+
+        // Each of these is a cache written by an older build. The source file
+        // is untouched, so the cache key still matches — only the marker tells
+        // us the tiles inside are the wrong generation.
+        for stale in [
+            "5,8640,5400",        // pre-alpha: JPEG even for RGBA sources
+            "5,8640,5400,png",    // pre-version: bilinear upper levels
+            "5,8640,5400,png,v1", // some future/rolled-back generation
+        ] {
+            fs::write(&marker, stale).unwrap();
+            assert!(
+                read_marker(&marker, dir.path()).is_none(),
+                "marker {stale:?} should be treated as stale so tiles regenerate"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_marker_when_overview_tile_is_gone() {
+        let dir = tempdir().unwrap();
+        let marker = dir.path().join(".complete");
+        fs::write(&marker, format!("5,8640,5400,png,{TILE_FORMAT_VERSION}")).unwrap();
+        // No 0/0_0.png — a partially deleted cache (sync conflict, cleanup).
+        assert!(read_marker(&marker, dir.path()).is_none());
+    }
+
+    #[test]
+    fn generates_every_level_the_frontend_will_request() {
+        let vault = tempdir().unwrap();
+        let src = vault.path().join("map.png");
+        // 1600×900 → max_zoom = ceil(log2(1600/512)) = 2.
+        DynamicImage::ImageRgb8(RgbImage::from_pixel(1600, 900, Rgb([120, 90, 60])))
+            .save(&src)
+            .unwrap();
+
+        let info = generate_tiles(vault.path(), &src, None).unwrap();
+        assert_eq!(info.max_zoom, 2);
+        assert_eq!((info.width, info.height), (1600, 900));
+        assert_eq!(info.tile_ext, "jpg"); // no alpha channel
+
+        // Every tile the frontend's grid math can ask for must exist on disk,
+        // at every level — a missing one renders as a hole in the map.
+        let tile_dir = Path::new(&info.tile_dir);
+        for z in 0..=info.max_zoom {
+            for x in 0..tiles_for_axis(info.width, z, info.max_zoom) {
+                for y in 0..tiles_for_axis(info.height, z, info.max_zoom) {
+                    let tile = tile_dir.join(z.to_string()).join(format!("{x}_{y}.jpg"));
+                    assert!(tile.exists(), "missing tile {}", tile.display());
+                }
+            }
+        }
+
+        // Second call must hit the cache rather than re-slice.
+        let cached = lookup_tile_info(vault.path(), &src).expect("marker should be readable back");
+        assert_eq!(cached.max_zoom, info.max_zoom);
+        assert_eq!(cached.tile_ext, info.tile_ext);
     }
 }
