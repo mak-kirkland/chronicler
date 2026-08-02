@@ -2,7 +2,11 @@
     import type { InfoboxFrontmatter } from "$lib/infobox";
     import Infobox from "$lib/components/infobox/Infobox.svelte";
 
-    let { infobox = null, fallbackHtml = "", fallbackTitle = "" } = $props<{
+    let {
+        infobox = null,
+        fallbackHtml = "",
+        fallbackTitle = "",
+    } = $props<{
         infobox?: InfoboxFrontmatter | null;
         /** Backend-sanitized HTML shown when the page has no infobox. */
         fallbackHtml?: string;
@@ -51,5 +55,13 @@
     }
     .fallback :global(p:last-child) {
         margin-bottom: 0;
+    }
+
+    /* Concealed spoilers hide text with `color: transparent`, which leaves it
+       selectable - a drag-select highlight would read it straight out. */
+    .fallback :global(span.spoiler:not(.revealed)),
+    .infobox-container :global(span.spoiler:not(.revealed)) {
+        -webkit-user-select: none;
+        user-select: none;
     }
 </style>
