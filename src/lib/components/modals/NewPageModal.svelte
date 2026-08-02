@@ -30,9 +30,11 @@
 
     // --- State ---
     let allDirs = $state<string[]>([]);
+    // svelte-ignore state_referenced_locally
     let pageName = $state(initialName);
     // We use an empty string to represent "Default Page" for the Select component
     let selectedTemplatePath = $state<string>("");
+    // svelte-ignore state_referenced_locally
     let selectedParentDir = $state(normalizePath(parentDir));
 
     // --- Derived State for Templates ---

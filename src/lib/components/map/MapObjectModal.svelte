@@ -39,7 +39,14 @@
         };
     }>();
 
-    const isEditing = !!initialData.id;
+    // `initialData` is read once, at mount. This is an edit form: re-deriving
+    // the fields from the prop would throw away whatever the user has typed.
+    // Snapshotting it here keeps that intent in one place, rather than
+    // repeating an ignore comment on every field below.
+    // svelte-ignore state_referenced_locally
+    const seed = initialData;
+
+    const isEditing = !!seed.id;
     const title = $derived(
         mode === "pin"
             ? isEditing
@@ -51,15 +58,15 @@
     );
 
     // Initialize state
-    let selectedPage = $state(initialData.targetPage || "");
-    let selectedMap = $state(initialData.targetMap || "");
-    let label = $state(initialData.label || "");
-    let selectedColor = $state(initialData.color || DEFAULT_SHAPE_COLOR);
-    let selectedLayerId = $state(initialData.layerId || "");
+    let selectedPage = $state(seed.targetPage || "");
+    let selectedMap = $state(seed.targetMap || "");
+    let label = $state(seed.label || "");
+    let selectedColor = $state(seed.color || DEFAULT_SHAPE_COLOR);
+    let selectedLayerId = $state(seed.layerId || "");
 
     // Pin-specific state
-    let selectedIcon = $state(initialData.icon || DEFAULT_PIN_ICON);
-    let isInvisible = $state(initialData.invisible || false);
+    let selectedIcon = $state(seed.icon || DEFAULT_PIN_ICON);
+    let isInvisible = $state(seed.invisible || false);
 
     let isSaving = $state(false);
 
