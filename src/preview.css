@@ -1,5 +1,7 @@
 /* This file contains all styles related to the rendered content (Markdown preview).
     It is scoped to the .chronicler-content class to prevent leaking into the App Shell.
+    The one exception is the spoiler block, which must also cover rendered HTML shown
+    outside the page view (hover previews, canvas cards) — see the note there.
 */
 
 /* --- Base Container --- */
@@ -135,7 +137,15 @@
 }
 
 /* --- Spoilers --- */
-.chronicler-content span.spoiler {
+/*
+ * Deliberately NOT scoped to .chronicler-content, unlike the rest of this file.
+ * Concealment is a content-safety property, not page-view styling: rendered HTML
+ * also appears outside the page view (hover previews, canvas file cards), and a
+ * spoiler that only hides inside .chronicler-content leaks everywhere else.
+ * `span.spoiler` is emitted solely by the Rust renderer, so a bare selector
+ * cannot reach the app shell.
+ */
+span.spoiler {
     background-color: var(--color-overlay-dark);
     color: transparent;
     cursor: pointer;
@@ -146,29 +156,29 @@
         color 0.1s ease-in-out;
 }
 
-.chronicler-content span.spoiler:hover {
+span.spoiler:hover {
     background-color: var(--color-overlay-medium);
 }
 
-.chronicler-content span.spoiler.revealed {
+span.spoiler.revealed {
     background-color: transparent;
     color: inherit;
     cursor: text;
 }
 
 /* Target links inside hidden spoilers to make them transparent */
-.chronicler-content span.spoiler a.internal-link,
-.chronicler-content span.spoiler a.internal-link.broken {
+span.spoiler a.internal-link,
+span.spoiler a.internal-link.broken {
     color: transparent;
     border-bottom-color: transparent;
 }
 
 /* Restore link colors when spoiler is revealed */
-.chronicler-content span.spoiler.revealed a.internal-link {
+span.spoiler.revealed a.internal-link {
     color: var(--color-text-link);
     border-bottom-color: var(--color-text-link);
 }
-.chronicler-content span.spoiler.revealed a.internal-link.broken {
+span.spoiler.revealed a.internal-link.broken {
     color: var(--color-text-link-broken);
     border-bottom-color: var(--color-text-link-broken);
 }
@@ -435,6 +445,7 @@
 
 /* Universal Spoiler Fix: Completely hide links inside hidden spoilers */
 /* visibility: hidden keeps the space but prevents rendering of color, shadows, and borders */
-.chronicler-content span.spoiler:not(.revealed) a {
+/* Unscoped for the same reason as the main spoiler block above. */
+span.spoiler:not(.revealed) a {
     visibility: hidden;
 }
