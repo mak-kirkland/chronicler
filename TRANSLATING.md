@@ -57,3 +57,64 @@ Polish needs `one`/`few`/`many`, and so on:
 ```
 
 `other` is the universal fallback; if a category is missing, `other` is used.
+
+## Submitting your translation
+
+Email your `<code>.json` file to **<michael@chronicler.pro>**.
+
+Please include:
+
+- The language and its code - for example, "German - `de.json`".
+- The name or handle you would like to be credited under.
+- This line, so that the permission is on record:
+
+    > I wrote this translation myself and I agree to the translation terms in
+    > TRANSLATING.md, including that Chronicler may include it in paid versions.
+
+I will add the file to the app, credit you in
+[TRANSLATORS.md](TRANSLATORS.md) and in the app's About screen.
+
+
+## Translation terms
+
+_Version 1.0 — 2 August 2026_
+
+The short version: your translation stays yours, I need permission to ship it,
+and you get credited.
+
+Chronicler is free today, and a paid version may exist one day. A translation
+is only useful to the project if it can be shipped in both. So by sending me a
+translation, you agree to the following.
+
+**What you are giving me.** You give me, Michael Kirkland, permission to use
+your translation in Chronicler: to reproduce it, distribute it, communicate it
+publicly, and to transform, adapt, translate and correct it - worldwide, for
+the full duration of copyright, free of charge, and irrevocably. This
+permission can be sub-licensed and transferred, which means I may include your
+translation in versions of Chronicler that are sold, and in a company set up to
+publish Chronicler later.
+
+**What stays yours.** You keep the copyright in your translation. This is
+permission, not a transfer of ownership - you remain free to do whatever else
+you like with your own work. Your moral rights as its author are yours and stay
+yours. You are simply agreeing not to object to Chronicler editing, correcting,
+shortening or combining your translation as the app changes, and to being
+credited in a credits list rather than inside the file itself.
+
+**What you are confirming.** That you wrote it. That you are free to give this
+permission - if an employment contract assigns your copyright to an employer,
+you have their agreement. That you have not copied it from another product's
+translations. And that you are 18 or over, or have a parent or guardian's
+permission.
+
+**What you are not getting.** No payment: translations are voluntary and
+unpaid, and you are not expecting a fee now or in future. No guarantee that I
+will use your file, keep it, or leave it unedited.
+
+**Credit.** You will be credited in [TRANSLATORS.md](TRANSLATORS.md) and in the
+app's About screen, under whatever name or handle you ask for. If you would
+rather not be named at all, say so and I will leave you out.
+
+**Law.** These terms are governed by the law of Spain. If you are a consumer
+resident elsewhere in the EU, the mandatory protections of your own country
+continue to apply to you.
