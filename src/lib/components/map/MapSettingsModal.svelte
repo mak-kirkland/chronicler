@@ -26,6 +26,7 @@
     }>();
 
     // Deep clone initial layers to local state for editing
+    // svelte-ignore state_referenced_locally
     let layers = $state<MapLayer[]>(
         JSON.parse(JSON.stringify(mapConfig.layers)),
     );
