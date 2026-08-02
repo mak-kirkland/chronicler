@@ -20,6 +20,7 @@
         onSubmit: (value: string) => void;
     }>();
 
+    // svelte-ignore state_referenced_locally
     let value = $state(initialValue);
 
     function handleSubmit(event: SubmitEvent) {
