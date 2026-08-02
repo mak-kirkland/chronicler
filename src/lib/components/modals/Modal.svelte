@@ -1,7 +1,13 @@
 <script lang="ts">
-    import { onMount, onDestroy } from "svelte";
+    import { onMount, onDestroy, getContext } from "svelte";
     import type { Snippet } from "svelte";
-    import { modalStackDepth, closeModal, popModal } from "$lib/modalStore";
+    import {
+        modalStackDepth,
+        closeModal,
+        popModal,
+        MODAL_IS_TOP,
+        type ModalTopState,
+    } from "$lib/modalStore";
     import Icon from "$lib/components/ui/Icon.svelte";
     import { t } from "$lib/i18n";
 
@@ -19,7 +25,14 @@
         wide?: boolean;
     }>();
 
-    let modalElement: HTMLDivElement;
+    let modalElement = $state<HTMLDivElement | null>(null);
+
+    // Provided by ModalStackEntry. Modals underneath the topmost one stay
+    // mounted, so each has to know whether it is the one the user is actually
+    // looking at. A Modal rendered outside the stack gets no context and
+    // treats itself as topmost.
+    const topState = getContext<ModalTopState | undefined>(MODAL_IS_TOP);
+    const isTop = $derived(topState?.current ?? true);
 
     // Track where the click started
     let mouseDownTarget: EventTarget | null = null;
@@ -46,22 +59,27 @@
     }
 
     function handleKeydown(event: KeyboardEvent) {
-        if (event.key === "Escape") {
-            // Escape always closes all modals
+        // Every modal on the stack stays mounted and listens on `window`, so
+        // without this guard a single Escape would fire every stacked modal's
+        // handler at once.
+        if (event.key === "Escape" && isTop) {
             onClose();
         }
     }
 
     onMount(() => {
         window.addEventListener("keydown", handleKeydown);
-        // Focus the modal itself when it's mounted
-        if (modalElement) {
-            modalElement.focus();
-        }
     });
 
     onDestroy(() => {
         window.removeEventListener("keydown", handleKeydown);
+    });
+
+    // Focus on mount, and again whenever this modal is uncovered, so that
+    // going back moves keyboard focus with the user instead of stranding it
+    // on the modal that just closed.
+    $effect(() => {
+        if (isTop) modalElement?.focus();
     });
 </script>
 
