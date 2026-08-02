@@ -134,6 +134,17 @@ Your financial support directly funds development time, helping to build new fea
 
 ---
 
+## 🌍 Translations
+
+Chronicler's interface is translated by its community, and I would love to have
+your language. Translations are plain JSON files.
+
+-   📘 **[→ How to translate Chronicler](TRANSLATING.md)**
+
+-   🙏 **[→ Translators](TRANSLATORS.md)**
+
+---
+
 ## 🛠️ Tech Stack
 
 -   **Frontend**: Svelte 5
