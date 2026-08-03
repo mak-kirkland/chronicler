@@ -132,7 +132,7 @@
     const isVaultCalendar = $derived(get(vaultCalendars).has(def.id));
 </script>
 
-<Modal title={$t("timeline.calendarEditorTitle")} {onClose} wide>
+<Modal title={$t("timeline.calendarEditorTitle")} {onClose} size="wide">
     <div class="editor">
         <div class="identity-grid">
             <label>

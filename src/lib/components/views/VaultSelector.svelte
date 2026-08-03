@@ -3,8 +3,10 @@
     import Button from "$lib/components/ui/Button.svelte";
     import Icon from "$lib/components/ui/Icon.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
+    import { getVersion } from "@tauri-apps/api/app";
     import { getRecentVaults, removeRecentVault } from "$lib/commands";
     import { log } from "$lib/logger";
+    import { vaultDisplayName } from "$lib/utils";
     import { t } from "$lib/i18n";
 
     let { onVaultSelected = (_path: string) => {} } = $props<{
@@ -12,6 +14,7 @@
     }>();
 
     let recentVaults = $state<string[]>([]);
+    let appVersion = $state("");
 
     async function refreshRecentVaults() {
         try {
@@ -23,8 +26,18 @@
 
     onMount(() => {
         refreshRecentVaults();
+        getVersion()
+            .then((v) => (appVersion = v))
+            .catch((e) =>
+                log.error("Failed to get app version", e, "VaultSelector"),
+            );
     });
 
+    /**
+     * Opens the folder picker. There is only one way in: the OS dialog can
+     * create a folder as well as pick one, so a separate "new vault" entry
+     * point would have opened the identical dialog under a different name.
+     */
     async function selectVault() {
         try {
             const selected = await open({
@@ -61,97 +74,97 @@
             log.error("Failed to remove recent vault", err, "VaultSelector");
         }
     }
-
-    // Helper to extract the folder name from the full path
-    function getVaultName(path: string): string {
-        // Handle both Windows (\) and Unix (/) separators
-        const parts = path.split(/[\\/]/);
-        return parts.pop() || path;
-    }
 </script>
 
+<!--
+  Two columns rather than one tall stack. The old layout put a 150px logo, a
+  5rem title and a tagline above a scrolling list, which is why it needed four
+  max-height media queries to survive a laptop screen at 150% scaling: identity
+  and action were fighting for the same vertical space. Side by side, each gets
+  its own axis and the height problem disappears.
+-->
 <div class="selector-container">
     <div class="hero-banner">
-        <img src="/banner.png" alt="Chronicler Banner" />
+        <img src="/banner.png" alt="" />
         <div class="hero-overlay"></div>
     </div>
 
     <div class="selector-content">
-        <div class="brand-header">
-            <img src="/logo.png" alt="Chronicler Logo" class="brand-logo" />
-            <div class="brand-text-wrapper">
-                <h1 class="brand-title">Chronicler</h1>
-                <p class="brand-tagline">
-                    {$t("vaultSelector.tagline")}
-                </p>
-            </div>
-        </div>
+        <section class="brand-column">
+            <img src="/logo.png" alt="" class="brand-logo" />
+            <h1 class="brand-title">Chronicler</h1>
+            <div class="ornament-rule"><span aria-hidden="true">◆</span></div>
+            <p class="brand-tagline">{$t("vaultSelector.tagline")}</p>
+            <p class="brand-promises eyebrow">
+                {$t("vaultSelector.promises")}
+            </p>
+        </section>
 
-        <div class="vault-switcher">
+        <section class="vault-card">
             {#if recentVaults.length > 0}
-                <div class="recent-list-section">
-                    <h3>{$t("vaultSelector.openRecent")}</h3>
-                    <div class="recent-list-scroll-area">
-                        <div class="recent-list">
-                            {#each recentVaults as path (path)}
-                                <div
-                                    class="recent-item"
-                                    role="button"
-                                    tabindex="0"
-                                    onclick={() => handleRecentClick(path)}
-                                    onkeydown={(e) => handleKeydown(e, path)}
-                                >
-                                    <div class="vault-icon">
-                                        <Icon type="folder" />
-                                    </div>
-                                    <div class="vault-info">
-                                        <span class="vault-name"
-                                            >{getVaultName(path)}</span
-                                        >
-                                        <span class="vault-path" title={path}
-                                            >{path}</span
-                                        >
-                                    </div>
-                                    <button
-                                        class="remove-btn"
-                                        onclick={(e) =>
-                                            handleRemoveRecent(e, path)}
-                                        title={$t(
-                                            "vaultSelector.removeFromHistory",
-                                        )}
-                                    >
-                                        <Icon type="close" />
-                                    </button>
+                <header class="card-heading">
+                    <span class="eyebrow">{$t("vaultSelector.openRecent")}</span
+                    >
+                    <span class="count">{recentVaults.length}</span>
+                </header>
+
+                <div class="recent-list-scroll-area">
+                    <div class="recent-list">
+                        {#each recentVaults as path (path)}
+                            <div
+                                class="recent-item"
+                                role="button"
+                                tabindex="0"
+                                onclick={() => handleRecentClick(path)}
+                                onkeydown={(e) => handleKeydown(e, path)}
+                            >
+                                <div class="vault-icon">
+                                    <Icon type="folder" />
                                 </div>
-                            {/each}
-                        </div>
+                                <div class="vault-info">
+                                    <span class="vault-name"
+                                        >{vaultDisplayName(path)}</span
+                                    >
+                                    <span class="vault-path" title={path}
+                                        >{path}</span
+                                    >
+                                </div>
+                                <button
+                                    class="remove-btn"
+                                    onclick={(e) => handleRemoveRecent(e, path)}
+                                    title={$t(
+                                        "vaultSelector.removeFromHistory",
+                                    )}
+                                >
+                                    <Icon type="close" />
+                                </button>
+                            </div>
+                        {/each}
                     </div>
                 </div>
+
+                <div class="divider"><span>{$t("vaultSelector.or")}</span></div>
             {/if}
 
-            <div class="action-section">
-                {#if recentVaults.length > 0}
-                    <div class="divider">
-                        <span>{$t("vaultSelector.or")}</span>
-                    </div>
-                {/if}
-
-                <div class="open-action-card">
-                    <Button size="large" onclick={selectVault}
-                        >{$t("vaultSelector.openFolder")}</Button
-                    >
-                </div>
+            <div class="card-actions">
+                <Button variant="accent" size="large" onclick={selectVault}>
+                    {$t("vaultSelector.openFolder")}
+                </Button>
             </div>
-        </div>
+
+            <p class="card-footnote">
+                {$t("vaultSelector.obsidianNote")}
+                {#if appVersion}· v{appVersion}{/if}
+            </p>
+        </section>
     </div>
 </div>
 
 <style>
     .selector-container {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        justify-content: center; /* Center content vertically */
+        justify-content: center;
         height: 100vh;
         width: 100vw;
         color: var(--color-text-primary);
@@ -163,10 +176,7 @@
     /* --- Banner Background --- */
     .hero-banner {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        inset: 0;
         z-index: 0;
     }
 
@@ -178,10 +188,12 @@
         object-position: center right;
     }
 
+    /* The horizontal gradient now fades left→right instead of hugging both
+       edges: the brand column lives on the left and needs a solid backdrop,
+       while the artwork stays visible behind the card on the right. */
     .hero-overlay {
         position: absolute;
         inset: 0;
-        /* Gradient logic similar to WelcomeView for consistency */
         background:
             linear-gradient(
                 to bottom,
@@ -191,8 +203,8 @@
             linear-gradient(
                 to right,
                 var(--color-background-primary) 0%,
-                transparent 50%,
-                var(--color-background-primary) 100%
+                var(--color-background-primary) 22%,
+                transparent 75%
             );
     }
 
@@ -201,146 +213,94 @@
         position: relative;
         z-index: 1;
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        /* Change from center to flex-start to prevent overlap */
-        justify-content: flex-start;
-        padding-top: 5vh; /* Dynamic top padding */
-        width: 100%;
-        height: 100vh;
-        overflow: hidden;
-        padding: 2rem;
-        box-sizing: border-box;
-        gap: 2rem; /* Consistent spacing between brand and list */
-    }
-
-    /* --- Branding --- */
-    .brand-header {
-        text-align: center;
-        /* Allow shrinking! */
-        flex-shrink: 1;
-        display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        transition: all 0.3s ease;
-        min-height: 0; /* Important for flex shrinking */
+        gap: 4rem;
+        width: 100%;
+        max-width: 1100px;
+        padding: 2rem;
+        box-sizing: border-box;
+        /* Wrap to a stack before anything overflows, so a narrow or heavily
+           scaled window degrades instead of clipping. */
+        flex-wrap: wrap;
+    }
+
+    /* --- Left: identity --- */
+    .brand-column {
+        flex: 1 1 320px;
+        min-width: 0;
+        max-width: 440px;
     }
 
     .brand-logo {
-        width: 150px;
-        height: 150px;
-        margin-bottom: 2rem;
+        width: 84px;
+        height: 84px;
         object-fit: contain;
-        transition: all 0.3s ease;
     }
 
     .brand-title {
         font-family: var(--font-family-heading);
-        font-size: 5rem;
-        margin: 0 0 1rem 0;
+        font-size: 3.6rem;
+        margin: 1rem 0 0;
         color: var(--color-text-heading);
-        text-shadow: 0 4px 12px var(--color-background-primary);
-        line-height: 1.1;
-        transition: font-size 0.3s ease;
+        line-height: 1.05;
     }
 
     .brand-tagline {
-        font-size: 1.6rem;
+        font-size: 1.35rem;
         color: var(--color-text-primary);
-        text-shadow: 0 2px 6px var(--color-background-primary);
         margin: 0;
         opacity: 0.9;
-        transition:
-            opacity 0.2s ease,
-            height 0.3s ease;
+        line-height: 1.5;
     }
 
-    /* --- Responsive Branding Logic (The Fix for 150% Scale) --- */
-
-    /* Moderate height restriction (e.g. standard laptops or mild scaling) */
-    @media (max-height: 850px) {
-        .selector-content {
-            padding-top: 1rem;
-            gap: 1rem;
-        }
-        .brand-logo {
-            width: 100px;
-            height: 100px;
-            margin-bottom: 1rem;
-        }
-        .brand-title {
-            font-size: 3.5rem;
-            margin-bottom: 0.5rem;
-        }
-        .brand-tagline {
-            font-size: 1.2rem;
-        }
+    /* This screen is the app's first impression on a full window, not a
+       cramped sidebar — the shared chrome sizes (--label-size at 0.6rem, and
+       the 0.7–0.85rem support text below) read as fine print here. Everything
+       on it steps up a notch. */
+    .brand-promises {
+        margin: 1.6rem 0 0;
+        font-size: 0.74rem;
+        /* Wider tracking than the shared .eyebrow: this is a standalone strip,
+           not a heading over something. */
+        letter-spacing: 0.2em;
+        line-height: 1.8;
     }
 
-    /* Strict height restriction (High scaling or small windows) */
-    @media (max-height: 650px) {
-        .brand-logo {
-            width: 60px;
-            height: 60px;
-            margin-bottom: 0.5rem;
-        }
-        .brand-title {
-            font-size: 2.5rem;
-            margin-bottom: 0;
-        }
-        .brand-tagline {
-            display: none;
-        } /* Hide tagline completely */
-    }
-
-    /* Extreme height restriction (Landscape tablets or very high scaling) */
-    @media (max-height: 500px) {
-        .brand-header {
-            display: none;
-        } /* Hide entire header to show UI */
-        .selector-content {
-            justify-content: center;
-            padding-top: 0;
-        }
-    }
-
-    /* --- Vault Switcher Area --- */
-    .vault-switcher {
-        width: 100%;
-        max-width: 550px;
+    /* --- Right: the actual choice --- */
+    .vault-card {
+        flex: 0 1 456px;
+        min-width: 0;
+        box-sizing: border-box;
         display: flex;
         flex-direction: column;
         gap: 1rem;
-
-        /* This is crucial: take remaining space */
-        flex: 1;
-        min-height: 0;
-    }
-
-    .recent-list-section {
+        max-height: 74vh;
         background-color: var(--color-background-primary);
         border: 1px solid var(--color-border-primary);
         border-radius: 12px;
         padding: 1.5rem;
         box-shadow: 0 4px 20px var(--color-overlay-subtle);
-
-        /* Make this section fill the flexible space */
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 0; /* Allows the child to scroll */
     }
 
-    h3 {
-        margin: 0 0 1rem 0;
-        font-size: 1rem;
-        color: var(--color-text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        padding-bottom: 0.5rem;
+    .card-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding-bottom: 0.6rem;
         border-bottom: 1px solid var(--color-border-primary);
         flex-shrink: 0;
+    }
+
+    .card-heading .eyebrow {
+        font-size: 0.74rem;
+    }
+
+    .count {
+        font-size: 0.85rem;
+        color: var(--color-text-secondary);
+        opacity: 0.7;
     }
 
     /* --- Recent List Scroll Management --- */
@@ -349,7 +309,6 @@
         overflow-y: auto;
         min-height: 0;
         padding-right: 0.5rem;
-        /* Scrollbar styling for Webkit */
         scrollbar-width: thin;
         scrollbar-color: var(--color-border-primary) transparent;
     }
@@ -363,12 +322,12 @@
     .recent-item {
         display: flex;
         align-items: center;
-        padding: 0.75rem 1rem;
+        padding: 0.6rem 0.8rem;
         background-color: var(--color-background-secondary);
         border: 1px solid transparent;
         border-radius: 8px;
         cursor: pointer;
-        gap: 1rem;
+        gap: 0.8rem;
         flex-shrink: 0;
         transition:
             background-color 0.2s ease,
@@ -386,7 +345,7 @@
     }
 
     .vault-icon {
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         color: var(--color-text-secondary);
         display: flex;
         align-items: center;
@@ -404,15 +363,15 @@
     }
 
     .vault-name {
-        font-weight: bold;
-        font-size: 1.1rem;
+        font-family: var(--font-family-heading);
+        font-size: 1.08rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
     .vault-path {
-        font-size: 0.85rem;
+        font-size: 0.86rem;
         color: var(--color-text-secondary);
         white-space: nowrap;
         overflow: hidden;
@@ -427,7 +386,7 @@
         color: var(--color-text-secondary);
         opacity: 0;
         cursor: pointer;
-        padding: 0.5rem;
+        padding: 0.4rem;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -447,46 +406,49 @@
     }
 
     /* --- Action Area --- */
-    .action-section {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1rem;
-        width: 100%;
-        flex-shrink: 0; /* Keep this always visible */
-        padding-top: 0.5rem;
-    }
-
     .divider {
-        width: 100%;
         display: flex;
         align-items: center;
-        color: var(--color-text-primary);
-        font-size: 1.1rem;
-        font-weight: bold;
-        text-shadow: 0 1px 2px var(--color-background-primary);
+        color: var(--color-text-secondary);
+        font-size: 0.78rem;
+        letter-spacing: var(--label-tracking);
+        flex-shrink: 0;
     }
 
     .divider::before,
     .divider::after {
         content: "";
         flex: 1;
-        border-bottom: 2px solid var(--color-border-primary);
+        border-bottom: 1px solid var(--color-border-primary);
     }
 
     .divider span {
-        padding: 0 1rem;
+        padding: 0 0.8rem;
         text-transform: uppercase;
     }
 
-    .open-action-card {
-        text-align: center;
+    .card-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    /* The accent button is the one call to action on this screen; everything
+       else on the card defers to it. */
+    .card-actions :global(.btn.accent) {
         width: 100%;
-        box-sizing: border-box;
-        background-color: var(--color-background-primary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 20px var(--color-overlay-subtle);
+        justify-content: center;
+    }
+
+    .card-footnote {
+        margin: 0;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--color-border-primary);
+        font-size: 0.84rem;
+        color: var(--color-text-secondary);
+        text-align: center;
+        flex-shrink: 0;
     }
 </style>

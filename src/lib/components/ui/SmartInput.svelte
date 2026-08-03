@@ -109,7 +109,8 @@
         handleListNavigation(e, {
             isOpen,
             nav,
-            listContainer,
+            getItemEl: (i: number) =>
+                listContainer?.children[i] as HTMLElement | undefined,
             onSelect: confirmSuggestion,
             onClose: () => (isOpen = false),
             triggerElement: inputEl,

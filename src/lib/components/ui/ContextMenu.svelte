@@ -1,6 +1,14 @@
 <script lang="ts">
+    /**
+     * ContextMenu.svelte
+     *
+     * A right-click menu: `MenuList` positioned at raw coordinates instead of
+     * anchored to a control. Everything else — rows, icons, checkmarks,
+     * keyboard navigation, Escape — lives in MenuList, shared with the
+     * sidebar's menus.
+     */
     import type { ContextMenuItem } from "$lib/types";
-    import FloatingMenu from "$lib/components/ui/FloatingMenu.svelte";
+    import MenuList from "$lib/components/ui/MenuList.svelte";
 
     let { x, y, actions, onClose } = $props<{
         x: number;
@@ -8,93 +16,6 @@
         actions: ContextMenuItem[];
         onClose: () => void;
     }>();
-
-    // ContextMenu mainly acts as a wrapper around FloatingMenu now.
-    // FloatingMenu handles the 'click outside', escape key (via global logic potentially,
-    // or we add it here), and positioning logic including boundary checks.
-
-    function handleKeydown(event: KeyboardEvent) {
-        if (event.key === "Escape") {
-            onClose();
-        }
-    }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
-
-<!--
-    We pass a style string to override FloatingMenu's calculated fixed width.
-    width: auto + min-width restores the original behavior of growing with content.
--->
-<FloatingMenu
-    isOpen={true}
-    {x}
-    {y}
-    {onClose}
-    className="context-menu"
-    style="width: auto; min-width: 180px;"
->
-    {#each actions as action}
-        {#if action.isSeparator}
-            <hr />
-        {:else}
-            <button
-                class="menu-item"
-                class:toggleable={action.checked !== undefined}
-                onclick={() => {
-                    action.handler();
-                    onClose();
-                }}
-            >
-                {#if action.checked !== undefined}
-                    <span class="check" aria-hidden="true">
-                        {action.checked ? "✓" : ""}
-                    </span>
-                {/if}
-                <span class="label">{action.label}</span>
-            </button>
-        {/if}
-    {/each}
-</FloatingMenu>
-
-<style>
-    /* We use :global(.context-menu) to target the div rendered by FloatingMenu.
-    */
-    :global(.context-menu) {
-        background-color: var(--color-background-primary) !important;
-        border: 1px solid var(--color-border-primary) !important;
-        border-radius: 6px;
-        box-shadow: 0 4px 12px var(--color-overlay-subtle) !important;
-        padding: 0.5rem !important;
-    }
-
-    .menu-item {
-        display: block;
-        width: 100%;
-        padding: 0.5rem 1rem;
-        border: none;
-        background: none;
-        text-align: left;
-        cursor: pointer;
-        border-radius: 4px;
-        color: var(--color-text-primary);
-        font-size: 0.8rem; /* Reduced from 1rem to match standard dropdowns */
-        line-height: normal; /* Removed 1.5 line-height to reduce vertical bulk */
-    }
-    .menu-item.toggleable {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .check {
-        /* Reserve a fixed-width column so toggleable items stay aligned
-           whether the checkmark is visible or not. */
-        width: 0.9rem;
-        flex-shrink: 0;
-        text-align: center;
-    }
-    .menu-item:hover {
-        background-color: var(--color-background-tertiary);
-        color: var(--color-text-primary);
-    }
-</style>
+<MenuList isOpen={true} items={actions} {x} {y} {onClose} />

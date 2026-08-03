@@ -1,9 +1,8 @@
 <script lang="ts">
     import type { RenderedPage } from "$lib/bindings";
     import Infobox from "$lib/components/infobox/Infobox.svelte";
-    import TableOfContents from "$lib/components/views/TableOfContents.svelte";
     import LinkPreview from "$lib/components/ui/LinkPreview.svelte"; // Import the new component
-    import { isTocVisible, areFooterTagsVisible } from "$lib/settingsStore";
+    import { areFooterTagsVisible } from "$lib/settingsStore";
     import {
         tablesort,
         hydrateCarousels,
@@ -106,15 +105,15 @@
 
     {#if renderedData}
         <div class="main-content-wrapper">
+            <!--
+                The two halves are rendered back to back. The split point used
+                to host an inline table of contents, which interrupted the
+                article mid-read; contents now live in the context rail beside
+                it. The backend still splits the HTML, so the seam stays here
+                for anything that wants to insert at the first heading.
+            -->
             <div class="main-content">
                 {@html renderedData.html_before_toc}
-
-                {#if renderedData.toc.length > 0 && $isTocVisible}
-                    <aside class="toc-wrapper">
-                        <TableOfContents toc={renderedData.toc} />
-                    </aside>
-                {/if}
-
                 {@html renderedData.html_after_toc}
             </div>
 
@@ -163,14 +162,8 @@
         margin-bottom: 1rem;
     }
 
-    /* The TOC behaves as a block element */
-    .preview-container.mode-unified .toc-wrapper {
-        width: clamp(20rem, 22cqi, 28rem);
-    }
-
     /* --- Layout for Split Mode (Infobox on top) --- */
-    .preview-container.mode-split .infobox-wrapper,
-    .preview-container.mode-split .toc-wrapper {
+    .preview-container.mode-split .infobox-wrapper {
         width: 100%;
         margin-bottom: 2rem;
         clear: both; /* Forces elements to drop below the floated intro images */
@@ -178,12 +171,11 @@
 
     /* --- Responsive Overrides --- */
     /* When the preview pane itself (not the viewport) is narrow, the floated
-       infobox and the TOC can no longer sit side by side without overlapping,
-       so drop the float and stack them. Keyed to the container width so it
-       works even when Chronicler is half-screen or the sidebar is wide. */
+       infobox leaves too little room for the text to wrap beside it, so drop
+       the float and stack. Keyed to the container width so it works even when
+       Chronicler is half-screen or the sidebar is wide. */
     @container preview-pane (max-width: 800px) {
-        .preview-container.mode-unified .infobox-wrapper,
-        .preview-container.mode-unified .toc-wrapper {
+        .preview-container.mode-unified .infobox-wrapper {
             float: none;
             width: 100%;
             margin-left: 0;

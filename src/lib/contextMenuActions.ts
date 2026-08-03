@@ -56,6 +56,7 @@ export function getContextMenuActions(
         actions.push(
             {
                 label: translate("contextMenu.rename"),
+                icon: "edit",
                 handler: () => {
                     openModal({
                         component: TextInputModal,
@@ -80,6 +81,7 @@ export function getContextMenuActions(
             },
             {
                 label: translate("common.delete"),
+                icon: "close",
                 handler: () => {
                     openModal({
                         component: ConfirmModal,
@@ -107,6 +109,7 @@ export function getContextMenuActions(
     if (isMarkdown(node)) {
         actions.push({
             label: translate("contextMenu.duplicate"),
+            icon: "file",
             handler: () => duplicatePage(node.path),
         });
     }
@@ -121,11 +124,13 @@ export function getContextMenuActions(
 
         actions.push({
             label: translate("contextMenu.newPage"),
+            icon: "newFile",
             handler: () => promptAndCreateItem("file", node.path),
         });
 
         actions.push({
             label: translate("contextMenu.newCanvas"),
+            icon: "canvas",
             handler: () => {
                 openModal({
                     component: NewCanvasModal,
@@ -138,6 +143,7 @@ export function getContextMenuActions(
         if (get(hasMapsEntitlement)) {
             actions.push({
                 label: translate("contextMenu.newMap"),
+                icon: "map",
                 handler: () => {
                     openModal({
                         component: NewMapModal,
@@ -153,6 +159,7 @@ export function getContextMenuActions(
         if (get(hasTimelinesEntitlement)) {
             actions.push({
                 label: translate("contextMenu.newTimeline"),
+                icon: "timeline",
                 handler: () => {
                     openModal({
                         component: NewTimelineModal,
@@ -164,11 +171,13 @@ export function getContextMenuActions(
 
         actions.push({
             label: translate("contextMenu.newFolder"),
+            icon: "newFolder",
             handler: () => promptAndCreateItem("folder", node.path),
         });
         actions.push({ isSeparator: true });
         actions.push({
             label: translate("contextMenu.openInExplorer"),
+            icon: "folderOpen",
             handler: () => openInExplorer(node.path),
         });
     }
@@ -178,6 +187,7 @@ export function getContextMenuActions(
 
     actions.push({
         label: translate("contextMenu.collapseAll"),
+        icon: "contents",
         handler: () => manuallyExpandedPaths.collapseAll(),
     });
 

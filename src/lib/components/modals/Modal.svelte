@@ -16,13 +16,25 @@
         title = "Modal Title",
         onClose = closeModal,
         showCloseButton = true,
-        wide = false,
+        size = "normal",
+        flushBody = false,
     } = $props<{
         children: Snippet;
         title?: string;
         onClose?: () => void;
         showCloseButton?: boolean;
-        wide?: boolean;
+        /**
+         * Width tier. `normal` (600) suits a form; `settings` (820) fits a
+         * two-pane layout; `wide` (1060) is for editors that need a canvas and
+         * a preview side by side.
+         */
+        size?: "normal" | "settings" | "wide";
+
+        /**
+         * Drops the body's scroll padding and gap. Use when the modal's content
+         * manages its own panes and needs to reach the modal's edges.
+         */
+        flushBody?: boolean;
     }>();
 
     let modalElement = $state<HTMLDivElement | null>(null);
@@ -91,8 +103,7 @@
 >
     <div
         bind:this={modalElement}
-        class="modal-content"
-        class:wide
+        class="modal-content size-{size}"
         role="dialog"
         aria-modal="true"
         tabindex="-1"
@@ -121,7 +132,7 @@
                 </button>
             {/if}
         </div>
-        <div class="modal-body">
+        <div class="modal-body" class:flush={flushBody}>
             <div class="modal-body-wrapper">
                 {@render children()}
             </div>
@@ -151,8 +162,11 @@
         box-shadow: 0 5px 15px var(--color-overlay-light);
         color: var(--color-text-primary);
     }
-    .modal-content.wide {
-        max-width: 960px;
+    .modal-content.size-settings {
+        max-width: 820px;
+    }
+    .modal-content.size-wide {
+        max-width: 1060px;
     }
     .modal-header {
         display: flex;
@@ -208,5 +222,16 @@
     .modal-body-wrapper {
         /* Add padding so content doesn't get clipped by the scroll container */
         padding: 1rem 1rem 1rem 0.5rem;
+    }
+
+    /* Content that lays out its own panes needs the full box: no outer scroll,
+       no padding, no gap between it and the modal's edges. */
+    .modal-body.flush {
+        overflow: visible;
+        max-height: none;
+        gap: 0;
+    }
+    .modal-body.flush .modal-body-wrapper {
+        padding: 0;
     }
 </style>

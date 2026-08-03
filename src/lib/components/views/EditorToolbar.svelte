@@ -28,45 +28,52 @@
         iconType: IconType;
     }
 
-    // Define all toolbar actions in an array
-    const toolbarActions = $derived<ToolbarAction[]>([
-        {
-            title: $t("editor.bold"),
-            action: toggleBold,
-            iconType: "bold",
-        },
-        {
-            title: $t("editor.italic"),
-            action: toggleItalic,
-            iconType: "italic",
-        },
-        {
-            title: $t("editor.strikethrough"),
-            action: toggleStrikethrough,
-            iconType: "strikethrough",
-        },
-        {
-            title: $t("editor.heading1"),
-            action: (v: EditorView) => addHeading(v, 1),
-            iconType: "heading1",
-        },
-        {
-            title: $t("editor.heading2"),
-            action: (v: EditorView) => addHeading(v, 2),
-            iconType: "heading2",
-        },
-        {
-            title: $t("editor.heading3"),
-            action: (v: EditorView) => addHeading(v, 3),
-            iconType: "heading3",
-        },
-        {
-            title: $t("editor.insertImage"),
-            action: (v: EditorView) => {
-                void pickAndInsertImages(v, pagePath);
+    // Actions in groups, so the toolbar reads as "inline emphasis | structure |
+    // insert" rather than one undifferentiated row of nine glyphs.
+    const toolbarGroups = $derived<ToolbarAction[][]>([
+        [
+            {
+                title: $t("editor.bold"),
+                action: toggleBold,
+                iconType: "bold",
             },
-            iconType: "image",
-        },
+            {
+                title: $t("editor.italic"),
+                action: toggleItalic,
+                iconType: "italic",
+            },
+            {
+                title: $t("editor.strikethrough"),
+                action: toggleStrikethrough,
+                iconType: "strikethrough",
+            },
+        ],
+        [
+            {
+                title: $t("editor.heading1"),
+                action: (v: EditorView) => addHeading(v, 1),
+                iconType: "heading1",
+            },
+            {
+                title: $t("editor.heading2"),
+                action: (v: EditorView) => addHeading(v, 2),
+                iconType: "heading2",
+            },
+            {
+                title: $t("editor.heading3"),
+                action: (v: EditorView) => addHeading(v, 3),
+                iconType: "heading3",
+            },
+        ],
+        [
+            {
+                title: $t("editor.insertImage"),
+                action: (v: EditorView) => {
+                    void pickAndInsertImages(v, pagePath);
+                },
+                iconType: "image",
+            },
+        ],
     ]);
 
     function handleAction(action: (view: EditorView) => void) {
@@ -78,16 +85,19 @@
 </script>
 
 <div class="editor-toolbar">
-    {#each toolbarActions as { title, action, iconType }}
-        <button {title} onclick={() => handleAction(action)}>
-            <Icon type={iconType} />
-        </button>
+    {#each toolbarGroups as group, i}
+        {#if i > 0}
+            <div class="separator"></div>
+        {/if}
+        {#each group as { title, action, iconType }}
+            <button {title} onclick={() => handleAction(action)}>
+                <Icon type={iconType} />
+            </button>
+        {/each}
     {/each}
 
-    <!-- Separator -->
-    <div class="separator"></div>
-
-    <!-- Infobox Button -->
+    <!-- The infobox belongs with insert actions: it adds structured fields to
+         the page rather than formatting what's already there. -->
     <button title={$t("editor.editInfobox")} onclick={onInfoboxClick}>
         <Icon type="edit" />
     </button>
@@ -98,9 +108,11 @@
         display: flex;
         align-items: center;
         gap: 0.25rem;
-        padding: 0.5rem 2rem;
+        height: 40px;
+        box-sizing: border-box;
+        padding: 0 16px;
         border-bottom: 1px solid var(--color-border-primary);
-        background-color: var(--color-background-primary);
+        background-color: var(--color-overlay-subtle);
         flex-shrink: 0;
     }
     button {
@@ -108,8 +120,9 @@
         border: 1px solid transparent;
         color: var(--color-text-secondary);
         font-size: 1rem;
-        width: 32px;
-        height: 32px;
+        width: 30px;
+        height: 30px;
+        flex-shrink: 0;
         border-radius: 4px;
         cursor: pointer;
         transition: background-color 0.2s;
@@ -126,8 +139,9 @@
 
     .separator {
         width: 1px;
-        height: 20px;
+        height: 18px;
+        flex-shrink: 0;
         background-color: var(--color-border-primary);
-        margin: 0 0.5rem;
+        margin: 0 0.4rem;
     }
 </style>

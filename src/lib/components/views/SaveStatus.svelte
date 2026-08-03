@@ -24,34 +24,67 @@
     }
 </script>
 
+<!--
+  A chip rather than a line of text: at a glance the dot's colour carries the
+  state, so the wording only has to confirm it. Short enough that the label
+  changing ("Unsaved" → "Saved 14:02") doesn't shove the breadcrumb around,
+  which is why the old fixed-width wrapper is gone.
+-->
 {#if status !== "idle" || lastSaveTime}
     <span class="save-status {status}">
-        {#if status === "saving"}
-            {$t("save.saving")}
-        {:else if status === "error"}
-            {$t("save.failed")}
-        {:else if status === "dirty"}
-            {$t("save.unsaved")}
-        {:else if lastSaveTime}
-            {$t("save.lastSavedAt", { time: formatTime(lastSaveTime) })}
-        {/if}
+        <span class="dot" aria-hidden="true"></span>
+        <span class="label">
+            {#if status === "saving"}
+                {$t("save.saving")}
+            {:else if status === "error"}
+                {$t("save.failed")}
+            {:else if status === "dirty"}
+                {$t("save.unsaved")}
+            {:else if lastSaveTime}
+                {$t("save.savedAt", { time: formatTime(lastSaveTime) })}
+            {/if}
+        </span>
     </span>
 {/if}
 
 <style>
     .save-status {
-        font-size: 0.85rem;
-        color: var(--color-text-secondary);
-        transition: opacity 0.3s ease-in-out;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 9px;
+        border-radius: 99px;
+        font-size: 0.72rem;
         white-space: nowrap;
+        color: var(--color-text-secondary);
+        background: var(--color-overlay-medium);
+        transition:
+            background-color 0.2s ease-in-out,
+            color 0.2s ease-in-out;
+    }
+
+    .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: currentColor;
+    }
+
+    /* Unsaved and in-flight share one look — both mean "not on disk yet". */
+    .save-status.dirty,
+    .save-status.saving {
+        color: var(--color-accent-primary);
+        background: color-mix(
+            in srgb,
+            var(--color-accent-primary) 14%,
+            transparent
+        );
     }
 
     .save-status.error {
         color: var(--color-text-error);
+        background: var(--color-background-error);
         font-weight: bold;
-    }
-
-    .save-status.dirty {
-        font-style: italic;
     }
 </style>

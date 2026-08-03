@@ -260,9 +260,10 @@
         gap: 0.25rem;
     }
 
+    /* SearchInput carries its own inset now, so this only adds the gap before
+       the console list; the panel behind it is already background-secondary. */
     .search-container {
-        padding: 0.25rem;
-        background: var(--color-background-secondary);
+        padding-bottom: 0.5rem;
     }
 
     .console-content {

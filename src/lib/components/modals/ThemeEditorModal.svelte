@@ -453,8 +453,8 @@
     }
 </script>
 
-<Modal title={$t("theme.editorTitle")} {onClose} wide>
-    <div class="editor">
+<Modal title={$t("theme.editorTitle")} {onClose} size="wide">
+    <div class="editor" class:no-specimen={!currentTheme}>
         <aside class="sidebar">
             <header class="sidebar-header">
                 <span class="eyebrow">{$t("theme.library")}</span>
@@ -533,7 +533,9 @@
                 </header>
 
                 <section class="canvas-section">
-                    <h5 class="section-title">{$t("theme.typography")}</h5>
+                    <h5 class="eyebrow section-title">
+                        {$t("theme.typography")}
+                    </h5>
                     <div class="font-row">
                         <div class="font-field">
                             <span class="field-label"
@@ -558,7 +560,7 @@
 
                 {#each COLOR_SUBGROUPS as group (group.title)}
                     <section class="canvas-section">
-                        <h5 class="section-title">{group.title}</h5>
+                        <h5 class="eyebrow section-title">{group.title}</h5>
                         <div class="swatch-grid">
                             {#each group.keys as key (key)}
                                 <div class="swatch">
@@ -596,15 +598,19 @@
                 {/each}
 
                 <footer class="canvas-actions">
-                    <Button type="button" onclick={handleSave}
+                    <Button type="button" variant="accent" onclick={handleSave}
                         >{$t("theme.save")}</Button
                     >
                     <Button type="button" onclick={handleExport}
                         >{$t("theme.export")}</Button
                     >
                     {#if originalName}
-                        <Button type="button" onclick={handleDelete}
-                            >{$t("common.delete")}</Button
+                        <!-- Pushed away from Save so a mis-click can't destroy
+                             the theme you were about to keep. -->
+                        <Button
+                            type="button"
+                            class="delete-action"
+                            onclick={handleDelete}>{$t("common.delete")}</Button
                         >
                     {/if}
                 </footer>
@@ -615,17 +621,86 @@
                 </div>
             {/if}
         </main>
+
+        <!--
+            Fifteen palette keys judged one hex field at a time tells you
+            nothing about whether they work together. This card is the only
+            place they all appear at once, painted with the theme being edited
+            — the live-preview effect above has already applied it to the
+            document, so these plain var() references resolve to the in-progress
+            palette without any extra wiring.
+        -->
+        {#if currentTheme}
+            <aside class="specimen">
+                <span class="eyebrow">{$t("theme.specimen")}</span>
+
+                <div class="specimen-card">
+                    <div class="specimen-band">
+                        {$t("theme.specimenHeading")}
+                    </div>
+                    <div class="specimen-body">
+                        <p>
+                            {$t("theme.specimenBody")}
+                            <a
+                                href="#specimen"
+                                onclick={(e) => e.preventDefault()}
+                                >{$t("theme.specimenLink")}</a
+                            >
+                            {$t("theme.specimenAnd")}
+                            <span class="broken-link"
+                                >{$t("theme.specimenBrokenLink")}</span
+                            >.
+                        </p>
+
+                        <!--
+                            The prose above is translated; the sample data from
+                            here down deliberately isn't. These are colour
+                            swatches that happen to contain text — the point is
+                            the tag pill's fill and the YAML syntax colours, not
+                            the words. Keying them would put "Aurelia Venn" in
+                            front of every volunteer translator for no gain.
+                        -->
+                        <div class="specimen-tags">
+                            <span class="tag-pill">places/cities</span>
+                            <span class="tag-pill">era/third-age</span>
+                        </div>
+
+                        <pre class="specimen-code"><span class="code-tag"
+                                >ruler</span
+                            ><span class="code-punct">:</span>
+<span class="code-attribute">  name</span><span class="code-punct"
+                                >: </span><span class="code-string"
+                                >"Aurelia Venn"</span
+                            ></pre>
+
+                        <p class="specimen-error">
+                            {$t("theme.specimenError")}
+                        </p>
+                    </div>
+                </div>
+
+                <p class="specimen-caption">{$t("theme.specimenCaption")}</p>
+            </aside>
+        {/if}
     </div>
 </Modal>
 
 <style>
+    /* Library · editor · specimen. The specimen is a fixed column rather than
+       part of the scrolling canvas so it stays in view while you work down the
+       palette. */
     .editor {
         display: grid;
-        grid-template-columns: 260px 1fr;
-        gap: 1.75rem;
+        grid-template-columns: 240px minmax(0, 1fr) 262px;
+        gap: 1.25rem;
         height: 65vh;
         min-height: 480px;
         max-height: 640px;
+    }
+    /* With no theme picked there's nothing to specimen, so drop the track
+       rather than leaving 262px of empty modal beside the prompt. */
+    .editor.no-specimen {
+        grid-template-columns: 240px minmax(0, 1fr);
     }
 
     /* ---- Sidebar ---- */
@@ -633,7 +708,7 @@
         display: flex;
         flex-direction: column;
         border-right: 1px solid var(--color-border-primary);
-        padding-right: 1.5rem;
+        padding-right: 1.25rem;
         min-height: 0;
     }
     .sidebar-header {
@@ -642,13 +717,8 @@
         justify-content: space-between;
         margin-bottom: 0.75rem;
     }
-    .eyebrow {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.18em;
-        color: var(--color-text-secondary);
-        font-weight: 600;
-    }
+    /* .eyebrow now lives in app.css — this component's version was the
+       prototype for it. */
     .count {
         font-size: 0.85rem;
         color: var(--color-text-secondary);
@@ -761,28 +831,26 @@
         flex-direction: column;
         gap: 0.75rem;
     }
+    /* Type comes from .eyebrow in app.css; only the rule beneath is local. */
     .section-title {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.2em;
-        color: var(--color-text-secondary);
-        margin: 0;
-        padding-bottom: 0.5rem;
+        margin: 0 0 0.6rem;
+        padding-bottom: 0.35rem;
         border-bottom: 1px solid var(--color-border-primary);
-        font-weight: 600;
     }
 
     /* ---- Swatches ---- */
+    /* Exactly three columns: every subgroup holds three keys, so each group
+       lands on one row and all five fit without scrolling. */
     .swatch-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 0.65rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
     }
     .swatch {
         display: flex;
         align-items: center;
-        gap: 0.65rem;
-        padding: 0.45rem 0.55rem;
+        gap: 0.5rem;
+        padding: 0.4rem 0.45rem;
         border: 1px solid var(--color-border-primary);
         border-radius: 6px;
         background: var(--color-background-secondary);
@@ -790,8 +858,8 @@
     }
     .swatch-chip {
         position: relative;
-        width: 40px;
-        height: 40px;
+        width: 32px;
+        height: 32px;
         border-radius: 4px;
         flex-shrink: 0;
         box-shadow: inset 0 0 0 1px var(--color-overlay-light);
@@ -860,6 +928,7 @@
     /* ---- Sticky actions ---- */
     .canvas-actions {
         display: flex;
+        align-items: center;
         gap: 0.5rem;
         position: sticky;
         bottom: 0;
@@ -869,6 +938,95 @@
         padding-left: 0.25rem;
         padding-right: 0.75rem;
         border-top: 1px solid var(--color-border-primary);
+    }
+    .canvas-actions :global(.delete-action) {
+        margin-left: auto;
+        color: var(--color-text-error);
+    }
+    .canvas-actions :global(.delete-action:hover:not(:disabled)) {
+        background-color: var(--color-background-error);
+    }
+
+    /* ---- Specimen ---- */
+    .specimen {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        min-height: 0;
+        overflow-y: auto;
+        border-left: 1px solid var(--color-border-primary);
+        padding-left: 1.25rem;
+    }
+    .specimen-card {
+        border: 1px solid var(--color-border-primary);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--color-background-primary);
+    }
+    .specimen-band {
+        background: var(--color-background-secondary);
+        color: var(--color-text-heading);
+        font-family: var(--font-family-heading);
+        font-size: 1rem;
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid var(--color-border-primary);
+    }
+    .specimen-body {
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        font-family: var(--font-family-body);
+        font-size: 0.82rem;
+        line-height: 1.55;
+        color: var(--color-text-primary);
+    }
+    .specimen-body p {
+        margin: 0;
+    }
+    .broken-link {
+        color: var(--color-text-link-broken);
+        text-decoration: underline;
+    }
+    .specimen-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .specimen-tags :global(.tag-pill) {
+        font-size: 0.72rem;
+    }
+    .specimen-code {
+        margin: 0;
+        padding: 0.5rem 0.6rem;
+        border-radius: 4px;
+        background: var(--color-background-tertiary);
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        line-height: 1.5;
+        overflow-x: auto;
+    }
+    .code-tag {
+        color: var(--code-tag);
+    }
+    .code-attribute {
+        color: var(--code-attribute);
+    }
+    .code-string {
+        color: var(--code-string);
+    }
+    .code-punct {
+        color: var(--color-text-secondary);
+    }
+    .specimen-error {
+        color: var(--color-text-error);
+        font-size: 0.75rem;
+    }
+    .specimen-caption {
+        margin: 0;
+        font-size: 0.72rem;
+        font-style: italic;
+        color: var(--color-text-secondary);
     }
 
     /* ---- Empty canvas ---- */

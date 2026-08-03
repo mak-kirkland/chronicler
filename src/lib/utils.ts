@@ -233,6 +233,55 @@ export function fileStemString(path: string): string {
 }
 
 /**
+ * Names the folder a file sits in, for the page-bar breadcrumb.
+ *
+ * Only the immediate parent is returned — the breadcrumb is an orientation cue,
+ * not a full path. Files directly inside the vault root return "" so the
+ * breadcrumb shows just the title rather than repeating the vault name, which
+ * the sidebar's vault chip already displays.
+ *
+ * @param path The file's absolute path.
+ * @param vaultPath The absolute path of the open vault, if known.
+ * @returns The parent folder's name, or "" at the vault root.
+ */
+export function parentFolderName(
+    path: string,
+    vaultPath: string | null,
+): string {
+    const segments = normalizePath(path).split("/").filter(Boolean);
+    // Drop the filename; whatever precedes it is the parent.
+    const parent = segments[segments.length - 2];
+    if (!parent) return "";
+
+    if (vaultPath) {
+        const vaultSegments = normalizePath(vaultPath)
+            .split("/")
+            .filter(Boolean);
+        // The file is a direct child of the vault root when removing its name
+        // leaves exactly the vault's own path.
+        if (segments.length - 1 === vaultSegments.length) return "";
+    }
+
+    return parent;
+}
+
+/**
+ * Names a vault by its folder — what the user calls it, as opposed to the
+ * absolute path they never chose.
+ *
+ * Trailing separators are tolerated so a path stored as `/vaults/Aetheria/`
+ * doesn't come back empty. A path with no segments at all (a drive root) falls
+ * back to the raw path, since something is better than a blank chip.
+ *
+ * @param path The vault's absolute path.
+ * @returns The vault folder's name, or the raw path if it has no segments.
+ */
+export function vaultDisplayName(path: string): string {
+    const segments = normalizePath(path).split("/").filter(Boolean);
+    return segments[segments.length - 1] ?? path;
+}
+
+/**
  * Recursively searches the file tree for a node with a matching path.
  * @param node The root FileNode to start searching from.
  * @param path The file path to search for.

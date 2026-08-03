@@ -1,6 +1,7 @@
 <script lang="ts">
     import { brokenLinks, parseErrors, brokenImages } from "$lib/worldStore";
     import { navigateToReport } from "$lib/actions";
+    import Icon from "$lib/components/ui/Icon.svelte";
     import { t } from "$lib/i18n";
 </script>
 
@@ -8,45 +9,48 @@
     <!-- Broken Links Report Item -->
     {#if $brokenLinks.length > 0}
         <div
-            class="report-item"
+            class="sidebar-row"
             onclick={() => navigateToReport("broken-links")}
             onkeydown={(e) =>
                 e.key === "Enter" && navigateToReport("broken-links")}
             role="button"
             tabindex="0"
         >
+            <Icon type="reports" />
             <span class="report-name">{$t("reports.brokenLinks")}</span>
-            <span class="report-count">({$brokenLinks.length})</span>
+            <span class="row-count">{$brokenLinks.length}</span>
         </div>
     {/if}
 
     <!-- Broken Images Report Item -->
     {#if $brokenImages.length > 0}
         <div
-            class="report-item"
+            class="sidebar-row"
             onclick={() => navigateToReport("broken-images")}
             onkeydown={(e) =>
                 e.key === "Enter" && navigateToReport("broken-images")}
             role="button"
             tabindex="0"
         >
+            <Icon type="reports" />
             <span class="report-name">{$t("reports.brokenImages")}</span>
-            <span class="report-count">({$brokenImages.length})</span>
+            <span class="row-count">{$brokenImages.length}</span>
         </div>
     {/if}
 
     <!-- Parse Errors Report Item -->
     {#if $parseErrors.length > 0}
         <div
-            class="report-item"
+            class="sidebar-row"
             onclick={() => navigateToReport("parse-errors")}
             onkeydown={(e) =>
                 e.key === "Enter" && navigateToReport("parse-errors")}
             role="button"
             tabindex="0"
         >
+            <Icon type="reports" />
             <span class="report-name">{$t("reports.parseErrors")}</span>
-            <span class="report-count">({$parseErrors.length})</span>
+            <span class="row-count">{$parseErrors.length}</span>
         </div>
     {/if}
 
@@ -59,28 +63,15 @@
     .report-list {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-    }
-    .report-item {
-        padding: 0.3rem 0.6rem;
-        border-radius: 4px;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-    }
-    .report-item:hover,
-    .report-item:focus {
-        background-color: var(--color-background-secondary);
-        outline: none;
+        font-size: 0.95rem;
     }
     .report-name {
-        font-weight: bold;
+        flex-grow: 1;
+        min-width: 0;
         color: var(--color-text-primary);
-    }
-    .report-count {
-        color: var(--color-text-secondary);
-        font-size: 0.9em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .text-muted.text-center {
         margin-top: 1rem;

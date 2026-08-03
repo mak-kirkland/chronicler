@@ -120,6 +120,13 @@
                 <span class="arrow-icon">{expanded ? "▼" : "►"}</span>
                 <Icon type={expanded ? "folderOpen" : "folder"} />
                 <span class="node-name-text">{node.name}</span>
+                <!-- How much is in here, without expanding it. Hidden on hover
+                     so it doesn't collide with the quick actions. -->
+                {#if node.children && node.children.length > 0}
+                    <span class="row-count child-count"
+                        >{node.children.length}</span
+                    >
+                {/if}
             </div>
             <div class="quick-actions">
                 <Button
@@ -192,7 +199,7 @@
     }
     .directory,
     .file {
-        padding: 0.25rem 0.6rem;
+        padding: 0.24rem 0.5rem;
         cursor: pointer;
         border-radius: 4px;
         display: flex;
@@ -214,8 +221,12 @@
            dropdowns/effects from being clipped or overlapped */
         z-index: 10;
     }
+    /* A marker on the leading edge rather than a full slab of fill. In a long
+       tree the old solid row was the loudest thing on screen; this says "you
+       are here" without redrawing the whole row. */
     .file.active {
-        background-color: var(--color-background-tertiary);
+        background-color: var(--color-background-secondary);
+        box-shadow: inset 2px 0 0 var(--color-accent-primary);
         color: var(--color-text-primary);
     }
     /* The class is applied by the "droppable" action, not the component,
@@ -226,10 +237,13 @@
         transform: scale(1.02);
         z-index: 10;
     }
+    /* The guide line traces the nesting without drawing attention to itself —
+       at full border strength a deep tree turns into a ladder. */
     .children {
-        padding-left: 1rem;
-        border-left: 1px solid var(--color-border-primary);
-        margin-left: 0.5rem;
+        padding-left: 11px;
+        margin-left: 15px;
+        border-left: 1px solid
+            color-mix(in srgb, var(--color-border-primary) 55%, transparent);
     }
     .arrow-icon {
         opacity: 0.7;
@@ -253,6 +267,15 @@
     .file .node-name-text {
         /* Remove text-align right to align nicely with the icon on the left */
         text-align: left;
+    }
+
+    /* Everything but the fade-out on hover comes from .row-count in app.css;
+       the file tree swaps the tally for its quick-action buttons. */
+    .child-count {
+        transition: opacity 0.2s ease-in-out;
+    }
+    .directory:hover .child-count {
+        opacity: 0;
     }
 
     .quick-actions {

@@ -27,7 +27,7 @@
         allImageFiles,
         tags as worldTags,
     } from "$lib/worldStore";
-    import { toggleBold, toggleItalic } from "$lib/editor";
+    import { toggleBold, toggleItalic, frontmatterBlock } from "$lib/editor";
     import { effectiveBindings } from "$lib/keybindingStore";
     import { comboToCodeMirror } from "$lib/keybindingUtils";
     import type { EditorCommandId } from "$lib/keybindingRegistry";
@@ -493,6 +493,14 @@
 
         keybindingCompartment.of(buildKeymap(get(effectiveBindings))),
         EditorView.lineWrapping,
+
+        // Draws the leading YAML as an infobox card. Built once with the
+        // language active at mount, like the rest of this extension list.
+        frontmatterBlock({
+            label: get(tr)("editor.infoboxFields"),
+            actionLabel: get(tr)("editor.editAsForm"),
+            onEditAsForm: handleInfoboxClick,
+        }),
 
         // Paste an image from the clipboard. Reads the OS clipboard via the
         // backend (WebKitGTK leaves the paste event's clipboardData empty for
