@@ -52,7 +52,7 @@
         {/each}
     </div>
     <button
-        class="split-btn"
+        class="icon-btn split-btn"
         title={$isViewSplit ? $t("tabs.alreadySplit") : $t("tabs.splitView")}
         aria-label={$t("tabs.splitView")}
         disabled={$isViewSplit}
@@ -61,7 +61,7 @@
         <Icon type="split" />
     </button>
     <button
-        class="new-tab-btn"
+        class="icon-btn new-tab-btn"
         title={$t("tabs.newTab")}
         onclick={() => tabs.newBlankTab()}
     >
@@ -89,7 +89,7 @@
     .tab-bar {
         display: flex;
         align-items: stretch;
-        height: 38px;
+        height: var(--chrome-tab-bar-height);
         box-sizing: border-box;
         flex-shrink: 0;
         border-bottom: 1px solid var(--color-border-primary);
@@ -107,34 +107,45 @@
         display: flex;
         align-items: stretch;
     }
-    .new-tab-btn,
-    .split-btn,
+    /* The sidebar toggle isn't an .icon-btn: it keeps the full-height hit area
+       and the rule that walls it off from the tab strip. */
     .sidebar-toggle-btn {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 38px;
         flex-shrink: 0;
         background: none;
         border: none;
-        border-left: 1px solid var(--color-border-primary);
         color: var(--color-text-secondary);
         cursor: pointer;
     }
+    /* The sidebar toggle is chrome for the whole window, so it keeps its rule
+       and full-height hit area. */
     .sidebar-toggle-btn {
-        border-left: none;
+        width: 38px;
         border-right: 1px solid var(--color-border-primary);
         font-size: 1.1rem;
         line-height: 1;
+    }
+    /* These two act on the tab strip, so they sit inside it as quiet ghost
+       buttons rather than being walled off behind dividers. */
+    .new-tab-btn,
+    .split-btn {
+        width: 30px;
+        height: 30px;
+        flex-shrink: 0;
+        align-self: center;
+        margin: 0 2px;
     }
     .new-tab-btn:hover,
     .split-btn:hover:not(:disabled),
     .sidebar-toggle-btn:hover {
         background: var(--color-background-tertiary);
         color: var(--color-text-primary);
+        opacity: 1;
     }
     .split-btn:disabled {
-        opacity: 0.4;
+        opacity: 0.3;
         cursor: default;
     }
 </style>

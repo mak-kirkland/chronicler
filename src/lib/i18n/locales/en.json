@@ -7,9 +7,6 @@
     "settings.language.system": "System default ({name})",
     "settings.appearance.title": "Appearance",
     "settings.appearance.description": "Change the colors, fonts, and text size of the application.",
-    "settings.appearance.theme": "Theme",
-    "settings.appearance.builtInThemes": "Built-in Themes",
-    "settings.appearance.yourThemes": "Your Themes",
     "settings.appearance.manageThemes": "Manage Themes",
     "settings.appearance.welcomeBanner": "Welcome Banner",
     "settings.appearance.welcomeBannerDefault": "Fantasy",
@@ -29,6 +26,11 @@
     },
     "settings.fonts.addedPartial": "Added {installed} of {total} fonts. {failed} could not be read.",
     "settings.fonts.addFailed": "Failed to add font.",
+    "settings.typography.title": "Typography",
+    "settings.typography.preview": "Preview",
+    "settings.typography.previewHeading": "The Fall of Cantathaer",
+    "settings.typography.previewBody": "Two rivers met beneath the old walls, and the city grew where they crossed. See also",
+    "settings.typography.previewLink": "the siege of the eastern gate",
     "settings.templates.title": "Templates",
     "settings.templates.description": "Manage your custom page templates.",
     "settings.templates.manage": "Manage Templates",
@@ -296,6 +298,14 @@
     "theme.fontDefault": "Default",
     "theme.save": "Save theme",
     "theme.export": "Export…",
+    "theme.specimen": "Specimen",
+    "theme.specimenHeading": "The Fall of Cantathaer",
+    "theme.specimenBody": "Two rivers met beneath the old walls. See",
+    "theme.specimenLink": "the eastern gate",
+    "theme.specimenAnd": "and",
+    "theme.specimenBrokenLink": "the drowned quarter",
+    "theme.specimenError": "Could not read file: permission denied",
+    "theme.specimenCaption": "Every change previews live in the app behind this window.",
     "theme.emptyCanvas": "Pick a theme on the left, or start fresh.",
     "theme.newThemeName": "My New Theme",
     "theme.copyName": "{name} Copy",
@@ -342,20 +352,17 @@
     "vaultSelector.openRecent": "Open Recent",
     "vaultSelector.removeFromHistory": "Remove from history",
     "vaultSelector.or": "or",
-    "vaultSelector.openFolder": "Open Folder...",
+    "vaultSelector.openFolder": "Open a Folder...",
+    "vaultSelector.promises": "100% offline · Plain Markdown · No account",
+    "vaultSelector.obsidianNote": "Obsidian vaults open directly",
 
-    "welcome.activeDevelopment": "🧙‍♂️ Chronicler is in active development. Thank you for trying it out!",
-    "welcome.supportPre": "❤️ If you find this app useful, please consider",
-    "welcome.supportLink": "supporting its development",
-    "welcome.supportPost": "Thanks! :)",
-    "welcome.discordPre": "💬 Join the community on",
-    "welcome.discordPost": "to ask questions and share your work.",
-    "welcome.bugsPre": "🐞 Found a bug? Have a feature request? Please create a thread in the relevant forum on",
+    "welcome.builtBy": "Chronicler is built by one person, funded by the community.",
+    "welcome.donate": "Donate",
 
     "save.saving": "Saving...",
     "save.failed": "Save failed",
-    "save.unsaved": "Unsaved changes",
-    "save.lastSavedAt": "Last saved at: {time}",
+    "save.unsaved": "Unsaved",
+    "save.savedAt": "Saved {time}",
 
     "fileView.loadFailed": "Could not load file: {error}",
     "fileView.errorTitle": "File Error",
@@ -369,6 +376,9 @@
     "fileView.editorOnly": "Editor Only",
     "fileView.previewOnly": "Preview Only",
     "fileView.splitView": "Split View",
+    "fileView.read": "Read",
+    "fileView.split": "Split",
+    "fileView.write": "Write",
 
     "editor.placeholder": "Let your story unfold...",
     "editor.createOption": "Create \"{name}\"",
@@ -380,6 +390,8 @@
     "editor.heading3": "Heading 3",
     "editor.insertImage": "Insert Image",
     "editor.editInfobox": "Edit Infobox",
+    "editor.infoboxFields": "Infobox fields",
+    "editor.editAsForm": "Edit as form",
 
     "imageView.loadFailed": "Could not load image: {error}",
     "imageView.errorTitle": "Image Error",
@@ -402,7 +414,6 @@
     "nav.forward": "Forward",
 
     "backlinks.title": "Backlinks",
-    "backlinks.none": "No backlinks found for this page.",
 
     "reports.brokenLinks": "Broken Links",
     "reports.brokenImages": "Broken Images",
@@ -457,6 +468,15 @@
     "sidebar.newMap": "New Map",
     "sidebar.newCanvas": "New Canvas",
     "sidebar.newTimeline": "New Timeline",
+    "sidebar.createMore": "More ways to create",
+    "sidebar.pageCount": {
+        "one": "{count} page",
+        "other": "{count} pages"
+    },
+    "sidebar.folderCount": {
+        "one": "{count} folder",
+        "other": "{count} folders"
+    },
     "sidebar.about": "About",
 
     "explorer.noFiles": "No files found.",
@@ -788,7 +808,5 @@
     "imageInsert.insertFailed": "Could not insert image: {error}",
     "imageInsert.pasteFailed": "Could not paste image: {error}",
 
-    "tags.indexFor": "Index for",
-    "toc.hide": "hide",
-    "toc.show": "show"
+    "tags.indexFor": "Index for"
 }

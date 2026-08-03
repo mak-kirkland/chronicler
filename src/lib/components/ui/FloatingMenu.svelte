@@ -18,6 +18,7 @@
         x = 0,
         y = 0,
         width = undefined, // Optional override
+        align = "start",
         onClose,
         children,
         className = "",
@@ -29,6 +30,14 @@
         x?: number; // If anchorEl is missing, uses this x
         y?: number; // If anchorEl is missing, uses this y
         width?: number; // Optional manual width
+        /**
+         * Which edge of the menu lines up with the anchor. `start` (default)
+         * aligns the left edges. Use `end` when the trigger is a small control
+         * at the right of a wider group — a chevron on a split button, say —
+         * so the menu opens under the thing you actually clicked instead of
+         * making you drag the pointer back across the group.
+         */
+        align?: "start" | "end";
         onClose: () => void;
         children: any;
         className?: string;
@@ -43,25 +52,27 @@
 
         let top = 0;
         let left = 0;
-        let finalWidth = 0;
+        // Only set when a width is actually known. In coordinate mode there is
+        // nothing to measure against, so the menu sizes to its content and
+        // callers don't have to undo a made-up pixel width.
+        let finalWidth: number | null = null;
 
         // Scenario A: Anchor to an Element (Dropdowns)
-        if (anchorEl) {
-            const rect = anchorEl.getBoundingClientRect();
-            top = rect.bottom + 4; // 4px gap
-            left = rect.left;
-            finalWidth = width || rect.width;
+        const anchorRect = anchorEl?.getBoundingClientRect() ?? null;
+        if (anchorRect) {
+            const w = width ?? anchorRect.width;
+            top = anchorRect.bottom + 4; // 4px gap
+            finalWidth = w;
+            left = align === "end" ? anchorRect.right - w : anchorRect.left;
         }
         // Scenario B: Raw Coordinates (Context Menu)
         else {
             top = y;
             left = x;
-            finalWidth = width || 180; // Default min-width for context menus
+            finalWidth = width ?? null;
         }
 
-        // --- Boundary Checks (Basic) ---
-        // We do this after render if possible, but for now we do a simple check
-        // using window dimensions.
+        // --- Boundary Checks ---
         const { innerWidth, innerHeight } = window;
 
         // If we have the menu element, we can prevent overflow
@@ -71,22 +82,62 @@
             if (left + menuRect.width > innerWidth) {
                 left = innerWidth - menuRect.width - 10;
             }
+            // End-aligned menus, and narrow windows generally, can push the
+            // left edge off-screen — clamp after the right-edge check so the
+            // menu stays reachable either way.
+            if (left < 10) {
+                left = 10;
+            }
 
             if (top + menuRect.height > innerHeight) {
-                // Flip upwards if not enough space below
-                top = innerHeight - menuRect.height - 10;
+                // Not enough room below. For an anchored menu, flip it above
+                // the anchor so it still reads as belonging to that control —
+                // a trigger near the bottom of the window (the sidebar's New
+                // Page button, say) would otherwise pin its menu to the foot of
+                // the screen, covering the very button that opened it.
+                const flipped = anchorRect
+                    ? anchorRect.top - menuRect.height - 4
+                    : y - menuRect.height;
+
+                // Only flip if the menu actually fits above; otherwise clamp
+                // into the viewport as before.
+                top =
+                    flipped >= 10
+                        ? flipped
+                        : Math.max(10, innerHeight - menuRect.height - 10);
             }
         }
 
-        calculatedStyle = `top: ${top}px; left: ${left}px; width: ${finalWidth}px;`;
+        calculatedStyle =
+            `top: ${top}px; left: ${left}px; ` +
+            (finalWidth !== null
+                ? `width: ${finalWidth}px;`
+                : "min-width: 180px;");
     }
 
-    // Update position when props change or when opened
+    // Reposition when opened *or* when any positioning input changes. The
+    // reads have to happen synchronously here to be tracked — updatePosition
+    // runs in a microtask, outside the effect's dependency capture — so a
+    // menu whose anchor or alignment moves doesn't keep a stale position.
     $effect(() => {
-        if (isOpen) {
-            // Tick ensures the element renders before we measure it for boundary checks
-            tick().then(updatePosition);
-        }
+        if (!isOpen) return;
+        void anchorEl;
+        void x;
+        void y;
+        void width;
+        void align;
+        // Tick ensures the element renders before we measure it for boundary checks
+        tick().then(updatePosition);
+    });
+
+    // Content can arrive after the menu opens — the vault switcher loads its
+    // recent list asynchronously — which changes the height the flip and the
+    // bottom clamp were computed against. Re-measure when the box changes.
+    $effect(() => {
+        if (!isOpen || !menuEl) return;
+        const ro = new ResizeObserver(() => updatePosition());
+        ro.observe(menuEl);
+        return () => ro.disconnect();
     });
 
     // --- Global Event Listeners ---

@@ -155,7 +155,7 @@
     });
 </script>
 
-<Modal title={$t("settings.shortcuts.title")} {onClose} wide>
+<Modal title={$t("settings.shortcuts.title")} {onClose} size="wide">
     <div class="kb-body">
         <input
             class="kb-search"

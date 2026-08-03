@@ -170,6 +170,9 @@
         background: var(--color-accent-primary);
         flex-shrink: 0;
     }
+    /* Hidden until you're actually pointed at the tab, or it's the one you're
+       working in. A row of X's is visual noise you never asked for. Kept in
+       the layout (not display:none) so revealing it doesn't shift the title. */
     .close-btn {
         display: flex;
         align-items: center;
@@ -179,8 +182,14 @@
         cursor: pointer;
         padding: 2px;
         border-radius: 3px;
-        opacity: 0.6;
+        opacity: 0;
         flex-shrink: 0;
+        transition: opacity 0.15s;
+    }
+    .tab:hover .close-btn,
+    .tab.active .close-btn,
+    .close-btn:focus-visible {
+        opacity: 0.7;
     }
     .close-btn:hover {
         opacity: 1;

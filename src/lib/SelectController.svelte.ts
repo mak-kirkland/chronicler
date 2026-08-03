@@ -13,10 +13,7 @@
  */
 
 import { onDestroy } from "svelte";
-import {
-    ListNavigator,
-    handleListNavigation,
-} from "$lib/ListNavigator.svelte";
+import { ListNavigator, handleListNavigation } from "$lib/ListNavigator.svelte";
 
 // --- Singleton Registry ---
 // Tracks which controller is currently open. Opening one closes others.
@@ -139,7 +136,8 @@ export class SelectController<T> {
         const handled = handleListNavigation(e, {
             isOpen: this.isOpen,
             nav: this.nav,
-            listContainer: this.listEl,
+            getItemEl: (i: number) =>
+                this.listEl?.children[i] as HTMLElement | undefined,
             onSelect: (item: SelectOption<T>) => this.selectOption(item),
             onClose: () => {
                 this.close();

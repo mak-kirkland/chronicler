@@ -28,6 +28,10 @@
             </Button>
         </div>
 
+        <!-- Separates navigation from identity: the arrows act on history,
+             everything right of the rule describes the current page. -->
+        <span class="header-divider" aria-hidden="true"></span>
+
         <!-- Slot for title and other left-aligned items -->
         <slot name="left" />
     </div>
@@ -43,10 +47,10 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0 2rem;
+        padding: 0 22px;
         border-bottom: 1px solid var(--color-border-primary);
         z-index: 20;
-        height: 60px;
+        height: var(--chrome-page-bar-height);
         box-sizing: border-box;
         flex-shrink: 0;
     }
@@ -61,9 +65,37 @@
         display: flex;
         flex-shrink: 0; /* Prevents arrows from being squished */
     }
+    /* The arrows are the only oversized ghost buttons left in the chrome;
+       size them for a 50px bar rather than the old 60px one. */
+    .navigation-arrows :global(.btn.ghost) {
+        padding: 6px;
+        font-size: 1.2rem;
+    }
+    .header-divider {
+        width: 1px;
+        height: 20px;
+        flex-shrink: 0;
+        background: var(--color-border-primary);
+        margin: 0 0.25rem;
+    }
     .view-actions {
         display: flex;
+        align-items: center;
         gap: 0.5rem;
         flex-shrink: 0;
+    }
+
+    /* Every view puts its title in the left slot as an <h2>. The bar is now
+       50px, so normalise them here instead of leaving each view to discover
+       that browser default margins no longer fit. FileView opts out by
+       supplying a breadcrumb instead of a heading. */
+    .header-left :global(h2) {
+        margin: 0;
+        font-family: var(--font-family-heading);
+        font-size: 1.05rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 </style>

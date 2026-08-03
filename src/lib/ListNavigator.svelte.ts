@@ -48,11 +48,24 @@ export class ListNavigator<T> {
 export interface NavigationContext {
     isOpen: boolean;
     nav: ListNavigator<any>; // Accepts any generic navigator
-    listContainer: HTMLElement | null | undefined;
+    /**
+     * Resolves the DOM element for an option index, so the highlighted one can
+     * be scrolled into view. A callback rather than a container because the
+     * options don't always map 1:1 onto the container's children — a menu with
+     * separators and headings interleaves non-options among them.
+     */
+    getItemEl?: (index: number) => HTMLElement | null | undefined;
     onSelect: (item: any) => void;
     onClose: () => void;
     onOpen?: () => void;
     triggerElement?: HTMLElement | null;
+    /**
+     * Whether Tab commits the highlighted item, as it does in a completion
+     * popup. Menus want the opposite: they open with row 0 already
+     * highlighted, so Tab-to-select would fire the first action — Rename, on
+     * the file tree's context menu — instead of moving focus.
+     */
+    selectOnTab?: boolean;
 }
 
 /**
@@ -89,7 +102,7 @@ export function handleListNavigation(
     if (e.key === "ArrowDown") {
         e.preventDefault();
         ctx.nav.next();
-        scrollToHighlighted(ctx.listContainer, ctx.nav.index);
+        ctx.getItemEl?.(ctx.nav.index)?.scrollIntoView({ block: "nearest" });
         return true;
     }
 
@@ -97,11 +110,15 @@ export function handleListNavigation(
     if (e.key === "ArrowUp") {
         e.preventDefault();
         ctx.nav.prev();
-        scrollToHighlighted(ctx.listContainer, ctx.nav.index);
+        ctx.getItemEl?.(ctx.nav.index)?.scrollIntoView({ block: "nearest" });
         return true;
     }
 
     // 5. Selection
+    if (e.key === "Tab" && ctx.selectOnTab === false) {
+        ctx.onClose();
+        return false; // Let focus move on naturally.
+    }
     if (e.key === "Enter" || e.key === "Tab") {
         // Shift+Enter usually means "create new line" or "force submit", so we ignore it here
         if (!e.shiftKey) {
@@ -116,18 +133,4 @@ export function handleListNavigation(
     }
 
     return false;
-}
-
-/**
- * Internal Helper: Scrolls the container to the active item.
- */
-function scrollToHighlighted(
-    container: HTMLElement | null | undefined,
-    index: number,
-) {
-    if (!container) return;
-    const item = container.children[index] as HTMLElement;
-    if (item) {
-        item.scrollIntoView({ block: "nearest" });
-    }
 }

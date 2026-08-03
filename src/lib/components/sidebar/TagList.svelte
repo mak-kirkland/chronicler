@@ -1,6 +1,7 @@
 <script lang="ts">
     import { navigateToTag } from "$lib/actions";
     import { t } from "$lib/i18n";
+    import Icon from "$lib/components/ui/Icon.svelte";
     import type { TagMap } from "$lib/bindings";
 
     let { tags } = $props<{ tags: TagMap }>();
@@ -11,14 +12,15 @@
         <!-- The #each block iterates over the 'tags' prop passed from the parent -->
         {#each tags as [tag, pages] (tag)}
             <div
-                class="tag-group"
+                class="sidebar-row"
                 onclick={() => navigateToTag(tag)}
                 onkeydown={(e) => e.key === "Enter" && navigateToTag(tag)}
                 role="button"
                 tabindex="0"
             >
-                <span class="tag-name">#{tag}</span>
-                <span class="tag-count">({pages.length})</span>
+                <Icon type="tags" />
+                <span class="tag-name">{tag}</span>
+                <span class="row-count">{pages.length}</span>
             </div>
         {/each}
     {:else}
@@ -30,25 +32,14 @@
     .tag-list {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-    }
-    .tag-group {
-        padding: 0.3rem 0.6rem;
-        border-radius: 4px;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-    }
-    .tag-group:hover,
-    .tag-group:focus {
-        background-color: var(--color-background-secondary);
-        outline: none;
+        font-size: 0.95rem;
     }
     .tag-name {
-        font-weight: bold;
+        flex-grow: 1;
+        min-width: 0;
         color: var(--color-text-primary);
-    }
-    .tag-count {
-        color: var(--color-text-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 </style>

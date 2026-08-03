@@ -19,7 +19,7 @@
         type ImageImportLocation,
         type WelcomeBanner,
     } from "$lib/settingsStore";
-    import { AVAILABLE_FONTS } from "$lib/themeRegistry";
+    import { AVAILABLE_FONTS, BUILT_IN_THEMES } from "$lib/themeRegistry";
     import { loadAllUserFonts } from "$lib/fonts";
     import { open } from "@tauri-apps/plugin-dialog";
     import { installUserFont } from "$lib/commands";
@@ -55,6 +55,65 @@
     let { onClose = () => {} } = $props<{
         onClose?: () => void;
     }>();
+
+    // One scroll of eight headings made everything equally findable, which is
+    // to say not findable at all. A rail turns the list into a map: you see
+    // every area at once and only the one you picked is on screen.
+    type SectionId =
+        | "language"
+        | "appearance"
+        | "templates"
+        | "snippets"
+        | "shortcuts"
+        | "images"
+        | "vault"
+        | "import"
+        | "privacy"
+        | "license";
+
+    const sections = $derived<{ id: SectionId; label: string }[]>([
+        { id: "language", label: $t("settings.language.title") },
+        { id: "appearance", label: $t("settings.appearance.title") },
+        { id: "templates", label: $t("settings.templates.title") },
+        { id: "snippets", label: $t("settings.snippets.title") },
+        { id: "shortcuts", label: $t("settings.shortcuts.title") },
+        { id: "images", label: $t("settings.images.title") },
+        { id: "vault", label: $t("settings.vault.title") },
+        { id: "import", label: $t("settings.import.title") },
+        { id: "privacy", label: $t("settings.privacy.title") },
+        { id: "license", label: $t("settings.license.title") },
+    ]);
+
+    let activeSection = $state<SectionId>("appearance");
+
+    /**
+     * Built-in and user themes as one list, so the grid renders them with one
+     * block of markup. They differ only in where the three swatch colours come
+     * from — a static table for the built-ins, the saved palette for the rest.
+     */
+    const themeCards = $derived([
+        ...BUILT_IN_THEMES.map((theme) => ({
+            // Source-tagged, because `name` alone is not unique across the two
+            // lists: nothing stops a user theme being called "dark", and a
+            // duplicate {#each} key is a hard Svelte error that takes the whole
+            // Settings modal down — including the theme editor, the only place
+            // the offending theme could be renamed.
+            key: `builtin:${theme.id}`,
+            name: theme.id as ThemeName,
+            label: theme.label,
+            swatch: theme.swatch,
+        })),
+        ...$userThemes.map((theme) => ({
+            key: `user:${theme.name}`,
+            name: theme.name,
+            label: theme.name,
+            swatch: {
+                background: theme.palette["--color-background-primary"],
+                secondary: theme.palette["--color-background-secondary"],
+                accent: theme.palette["--color-accent-primary"],
+            },
+        })),
+    ]);
 
     /** Endonym of the language the OS locale resolves to, e.g. "Polski". */
     const systemLocaleName = $derived(
@@ -286,375 +345,402 @@
     }
 </script>
 
-<Modal title={$t("settings.title")} {onClose}>
-    <div class="modal-body-content">
-        <div class="setting-item">
-            <h4>{$t("settings.language.title")}</h4>
-            <p>{$t("settings.language.description")}</p>
-            <div class="form-group">
-                <Select
-                    options={[
-                        {
-                            value: SYSTEM_LOCALE,
-                            label: $t("settings.language.system", {
-                                name: systemLocaleName,
-                            }),
-                        },
-                        ...$availableLocales.map((l) => ({
-                            value: l.code,
-                            label: l.name,
-                        })),
-                    ]}
-                    value={$languagePreference}
-                    onSelect={(val) => languagePreference.set(val)}
-                />
+<Modal title={$t("settings.title")} {onClose} size="settings" flushBody>
+    <div class="settings-layout">
+        <nav class="settings-rail">
+            <div class="rail-items">
+                {#each sections as section (section.id)}
+                    <button
+                        class="rail-item"
+                        class:active={activeSection === section.id}
+                        aria-current={activeSection === section.id
+                            ? "true"
+                            : undefined}
+                        onclick={() => (activeSection = section.id)}
+                    >
+                        {section.label}
+                    </button>
+                {/each}
             </div>
-        </div>
 
-        <div class="setting-item">
-            <h4>{$t("settings.appearance.title")}</h4>
-            <p>{$t("settings.appearance.description")}</p>
-            <div class="appearance-controls">
-                <!-- Theme (Color Palette) Selector -->
-                <div class="form-group">
-                    <!-- svelte-ignore a11y_label_has_associated_control -->
-                    <label>{$t("settings.appearance.theme")}</label>
-                    <div class="theme-controls">
-                        <Select
-                            groups={[
-                                {
-                                    label: $t(
-                                        "settings.appearance.builtInThemes",
-                                    ),
-                                    options: [
-                                        {
-                                            value: "light",
-                                            label: "Parchment & Ink",
-                                        },
-                                        {
-                                            value: "burgundy",
-                                            label: "Parchment & Wine",
-                                        },
-                                        {
-                                            value: "dark",
-                                            label: "Slate & Chalk (Dark)",
-                                        },
-                                        {
-                                            value: "slate-and-gold",
-                                            label: "Slate & Gold (Dark)",
-                                        },
-                                        {
-                                            value: "hologram",
-                                            label: "Sci-Fi Hologram",
-                                        },
-                                        {
-                                            value: "professional",
-                                            label: "Professional",
-                                        },
-                                        {
-                                            value: "paneidos",
-                                            label: "Paneidos",
-                                        },
-                                    ],
-                                },
-                                ...($userThemes.length > 0
-                                    ? [
-                                          {
-                                              label: $t(
-                                                  "settings.appearance.yourThemes",
-                                              ),
-                                              options: $userThemes.map(
-                                                  (theme) => ({
-                                                      value: theme.name,
-                                                      label: theme.name,
-                                                  }),
-                                              ),
-                                          },
-                                      ]
-                                    : []),
-                            ]}
-                            value={$activeTheme}
-                            onSelect={(val) => setActiveTheme(val as ThemeName)}
-                        />
-                        <Button onclick={openThemeEditor}
-                            >{$t("settings.appearance.manageThemes")}</Button
-                        >
-                    </div>
-                </div>
-
-                <!-- Welcome Banner -->
-                <div class="form-group">
-                    <!-- svelte-ignore a11y_label_has_associated_control -->
-                    <label>{$t("settings.appearance.welcomeBanner")}</label>
-                    <Select
-                        options={[
-                            {
-                                value: "default",
-                                label: $t(
-                                    "settings.appearance.welcomeBannerDefault",
-                                ),
-                            },
-                            {
-                                value: "scifi",
-                                label: $t(
-                                    "settings.appearance.welcomeBannerScifi",
-                                ),
-                            },
-                        ]}
-                        value={$welcomeBanner}
-                        onSelect={(val) =>
-                            ($welcomeBanner = val as WelcomeBanner)}
-                    />
-                </div>
-
-                <!-- World Atmosphere -->
-                <div class="form-group">
-                    <span>{$t("settings.atmosphere.title")}</span>
-                    <p class="setting-description">
-                        {$t("settings.atmosphere.description")}
+            <!-- Version and diagnostics belong to the app, not to any one
+                 section, so they sit at the foot of the rail rather than
+                 trailing whichever pane happens to be open. -->
+            <div class="rail-footer">
+                {#if appVersion}
+                    <p>
+                        {$t("settings.footer.version", { version: appVersion })}
                     </p>
-                    <Button onclick={openAtmosphereManager}
-                        >{$t("settings.atmosphere.customize")}</Button
-                    >
-                </div>
-
-                <!-- Font Selectors -->
-                <div class="font-selectors-grid">
-                    <div class="form-group">
-                        <!-- svelte-ignore a11y_label_has_associated_control -->
-                        <label>{$t("settings.fonts.heading")}</label>
-                        <Select
-                            options={allAvailableFonts.map((f) => ({
-                                value: f.value,
-                                label: f.name,
-                            }))}
-                            bind:value={$headingFont}
-                        />
-                    </div>
-                    <div class="form-group">
-                        <!-- svelte-ignore a11y_label_has_associated_control -->
-                        <label>{$t("settings.fonts.body")}</label>
-                        <Select
-                            options={allAvailableFonts.map((f) => ({
-                                value: f.value,
-                                label: f.name,
-                            }))}
-                            bind:value={$bodyFont}
-                        />
-                    </div>
-                </div>
-
-                <!-- Custom Fonts -->
-                <div class="form-group">
-                    <div class="custom-font-row">
-                        <Button
-                            onclick={handleAddFont}
-                            disabled={isInstallingFont}
-                        >
-                            {isInstallingFont
-                                ? $t("settings.fonts.adding")
-                                : $t("settings.fonts.add")}
-                        </Button>
-                        <span class="setting-description">
-                            {$t("settings.fonts.addDescription")}
-                        </span>
-                    </div>
-                    {#if fontInstallMessage}
-                        <p class="import-message">{fontInstallMessage}</p>
-                    {/if}
-                </div>
-
-                <!-- Font Size Slider -->
-                <div class="form-group">
-                    <label for="font-size-slider"
-                        >{$t("settings.fonts.size")}</label
-                    >
-                    <div class="font-slider-container">
-                        <input
-                            id="font-size-slider"
-                            type="range"
-                            min="80"
-                            max="140"
-                            step="5"
-                            value={$fontSize}
-                            oninput={(e) =>
-                                setFontSize(parseInt(e.currentTarget.value))}
-                        />
-                        <span class="font-size-label">{$fontSize}%</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="setting-item">
-            <h4>{$t("settings.templates.title")}</h4>
-            <p>{$t("settings.templates.description")}</p>
-            <Button onclick={openTemplateManager}
-                >{$t("settings.templates.manage")}</Button
-            >
-        </div>
-
-        <div class="setting-item">
-            <h4>{$t("settings.snippets.title")}</h4>
-            <p>
-                {$t("settings.snippets.description")}
-            </p>
-            <Button onclick={openSnippetsManager}
-                >{$t("settings.snippets.manage")}</Button
-            >
-        </div>
-
-        <div class="setting-item">
-            <h4>{$t("settings.shortcuts.title")}</h4>
-            <p>{$t("settings.shortcuts.description")}</p>
-            <Button onclick={openKeybindings}
-                >{$t("settings.shortcuts.customize")}</Button
-            >
-        </div>
-
-        <div class="setting-item">
-            <h4>{$t("settings.images.title")}</h4>
-            <p>{$t("settings.images.description")}</p>
-            <div class="form-group">
-                <!-- svelte-ignore a11y_label_has_associated_control -->
-                <label>{$t("settings.images.location")}</label>
-                <Select
-                    options={[
-                        {
-                            value: "folder",
-                            label: $t("settings.images.inFolder"),
-                        },
-                        {
-                            value: "adjacent",
-                            label: $t("settings.images.nextToPage"),
-                        },
-                    ]}
-                    value={$imageImportLocation}
-                    onSelect={(val) =>
-                        ($imageImportLocation = val as ImageImportLocation)}
-                />
-            </div>
-            {#if $imageImportLocation === "folder"}
-                <div class="form-group">
-                    <label for="image-dir-input"
-                        >{$t("settings.images.folder")}</label
-                    >
-                    <input
-                        id="image-dir-input"
-                        class="setting-text-input"
-                        type="text"
-                        bind:value={$imageImportDir}
-                        placeholder="images"
-                    />
-                </div>
-            {/if}
-            <ToggleSwitch
-                id="prompt-image-name-toggle"
-                label={$t("settings.images.promptName")}
-                description={$t("settings.images.promptNameDescription")}
-                bind:checked={$promptForImageName}
-            />
-        </div>
-
-        <div class="setting-item">
-            <h4>{$t("settings.vault.title")}</h4>
-            <p>{$t("settings.vault.description")}</p>
-            <Button onclick={handleChangeVault}
-                >{$t("settings.vault.change")}</Button
-            >
-        </div>
-
-        <div class="setting-item">
-            <h4>{$t("settings.import.title")}</h4>
-            <p>{$t("settings.import.description")}</p>
-            <Button onclick={openImporter}>{$t("settings.import.open")}</Button>
-        </div>
-
-        <div class="setting-item">
-            <h4>{$t("settings.privacy.title")}</h4>
-            <ToggleSwitch
-                id="telemetry-toggle"
-                label={$t("settings.privacy.telemetry")}
-                description={$t("settings.privacy.telemetryDescription")}
-                bind:checked={telemetryEnabled}
-            />
-        </div>
-
-        <div class="setting-item">
-            <h4>{$t("settings.license.title")}</h4>
-            {#if $licenseStore.status === "licensed"}
-                <p>
-                    {$t("settings.license.status")}
-                    <span class="license-status-active"
-                        >{$licenseStore.license?.status}</span
-                    >
-                </p>
-                <p class="license-expiry">
-                    {$t("settings.license.expiry", {
-                        date: $licenseStore.license?.expiry ?? "",
-                    })}
-                </p>
-                {#if !showLicenseInput}
-                    <Button onclick={() => (showLicenseInput = true)}
-                        >{$t("settings.license.replace")}</Button
-                    >
                 {/if}
-            {:else}
-                <p>
-                    {$t("settings.license.supportPre")}
-                    <a
-                        href="https://chronicler.pro/#support"
-                        onclick={(event) => {
-                            event.preventDefault();
-                            openUrl(DONATE_URL);
-                        }}>{$t("settings.license.supportLink")}</a
-                    >.
-                </p>
-            {/if}
-
-            {#if $licenseStore.status !== "licensed" || showLicenseInput}
-                <div class="license-input-group">
-                    <input
-                        type="text"
-                        placeholder={$t("settings.license.pastePlaceholder")}
-                        bind:value={licenseKeyInput}
-                        disabled={isVerifyingLicense}
-                    />
-                    <Button
-                        onclick={verifyLicense}
-                        disabled={isVerifyingLicense || !licenseKeyInput}
-                    >
-                        {#if isVerifyingLicense}
-                            {$t("settings.license.verifying")}
-                        {:else}
-                            {$t("settings.license.verify")}
-                        {/if}
-                    </Button>
-                </div>
-            {/if}
-
-            {#if licenseMessage}
-                <p class="import-message">{licenseMessage}</p>
-            {/if}
-        </div>
-    </div>
-
-    {#if appVersion}
-        <div class="modal-footer">
-            <p>{$t("settings.footer.version", { version: appVersion })}</p>
-            <div class="footer-links">
                 <button
                     class="link-button"
                     onclick={() => (showChangelog = true)}
-                    >{$t("settings.footer.changelog")}</button
                 >
-                <span class="separator"> • </span>
-                <button class="link-button" onclick={openLogDirectory}
-                    >{$t("settings.footer.logs")}</button
-                >
+                    {$t("settings.footer.changelog")}
+                </button>
+                <button class="link-button" onclick={openLogDirectory}>
+                    {$t("settings.footer.logs")}
+                </button>
             </div>
+        </nav>
+
+        <div class="settings-pane">
+            {#if activeSection === "language"}
+                <section class="setting-item">
+                    <h4>{$t("settings.language.title")}</h4>
+                    <p>{$t("settings.language.description")}</p>
+                    <div class="form-group">
+                        <Select
+                            options={[
+                                {
+                                    value: SYSTEM_LOCALE,
+                                    label: $t("settings.language.system", {
+                                        name: systemLocaleName,
+                                    }),
+                                },
+                                ...$availableLocales.map((l) => ({
+                                    value: l.code,
+                                    label: l.name,
+                                })),
+                            ]}
+                            value={$languagePreference}
+                            onSelect={(val) => languagePreference.set(val)}
+                        />
+                    </div>
+                </section>
+            {:else if activeSection === "appearance"}
+                <section class="setting-item">
+                    <h4>{$t("settings.appearance.title")}</h4>
+                    <p>{$t("settings.appearance.description")}</p>
+
+                    <!-- Themes as swatches, not names in a dropdown: the whole
+                         point of a theme is what it looks like. -->
+                    <div class="theme-grid">
+                        {#each themeCards as theme (theme.key)}
+                            <button
+                                class="theme-card"
+                                class:selected={$activeTheme === theme.name}
+                                aria-pressed={$activeTheme === theme.name}
+                                onclick={() => setActiveTheme(theme.name)}
+                            >
+                                <span class="swatch">
+                                    <span
+                                        style="background: {theme.swatch
+                                            .background}"
+                                    ></span>
+                                    <span
+                                        style="background: {theme.swatch
+                                            .secondary}"
+                                    ></span>
+                                    <span
+                                        style="background: {theme.swatch
+                                            .accent}"
+                                    ></span>
+                                </span>
+                                <span class="theme-name">{theme.label}</span>
+                            </button>
+                        {/each}
+
+                        <button
+                            class="theme-card manage-card"
+                            onclick={openThemeEditor}
+                        >
+                            <span class="manage-plus">+</span>
+                            <span class="theme-name"
+                                >{$t("settings.appearance.manageThemes")}</span
+                            >
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <!-- svelte-ignore a11y_label_has_associated_control -->
+                        <label>{$t("settings.appearance.welcomeBanner")}</label>
+                        <Select
+                            options={[
+                                {
+                                    value: "default",
+                                    label: $t(
+                                        "settings.appearance.welcomeBannerDefault",
+                                    ),
+                                },
+                                {
+                                    value: "scifi",
+                                    label: $t(
+                                        "settings.appearance.welcomeBannerScifi",
+                                    ),
+                                },
+                            ]}
+                            value={$welcomeBanner}
+                            onSelect={(val) =>
+                                ($welcomeBanner = val as WelcomeBanner)}
+                        />
+                    </div>
+
+                    <!-- Atmosphere is a look, not a category of its own: it
+                         swaps icons and textures, so it belongs beside the
+                         theme swatches that set everything else's colour. -->
+                    <h5 class="eyebrow subsection">
+                        {$t("settings.atmosphere.title")}
+                    </h5>
+                    <div class="form-group">
+                        <p class="setting-description">
+                            {$t("settings.atmosphere.description")}
+                        </p>
+                        <div class="subsection-action">
+                            <Button onclick={openAtmosphereManager}
+                                >{$t("settings.atmosphere.customize")}</Button
+                            >
+                        </div>
+                    </div>
+
+                    <h5 class="eyebrow subsection">
+                        {$t("settings.typography.title")}
+                    </h5>
+
+                    <div class="font-selectors-grid">
+                        <div class="form-group">
+                            <!-- svelte-ignore a11y_label_has_associated_control -->
+                            <label>{$t("settings.fonts.heading")}</label>
+                            <Select
+                                options={allAvailableFonts.map((f) => ({
+                                    value: f.value,
+                                    label: f.name,
+                                }))}
+                                bind:value={$headingFont}
+                            />
+                        </div>
+                        <div class="form-group">
+                            <!-- svelte-ignore a11y_label_has_associated_control -->
+                            <label>{$t("settings.fonts.body")}</label>
+                            <Select
+                                options={allAvailableFonts.map((f) => ({
+                                    value: f.value,
+                                    label: f.name,
+                                }))}
+                                bind:value={$bodyFont}
+                            />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="font-size-slider"
+                            >{$t("settings.fonts.size")}</label
+                        >
+                        <div class="font-slider-container">
+                            <input
+                                id="font-size-slider"
+                                type="range"
+                                min="80"
+                                max="140"
+                                step="5"
+                                value={$fontSize}
+                                oninput={(e) =>
+                                    setFontSize(
+                                        parseInt(e.currentTarget.value),
+                                    )}
+                            />
+                            <span class="font-size-label">{$fontSize}%</span>
+                            <Button
+                                size="small"
+                                onclick={handleAddFont}
+                                disabled={isInstallingFont}
+                            >
+                                {isInstallingFont
+                                    ? $t("settings.fonts.adding")
+                                    : $t("settings.fonts.add")}
+                            </Button>
+                        </div>
+                        <span class="setting-description">
+                            {$t("settings.fonts.addDescription")}
+                        </span>
+                        {#if fontInstallMessage}
+                            <p class="import-message">{fontInstallMessage}</p>
+                        {/if}
+                    </div>
+
+                    <!-- Font and size choices are invisible until you close the
+                         modal and look at a page. This shows them here. -->
+                    <div class="type-preview">
+                        <span class="eyebrow">
+                            {$t("settings.typography.preview")}
+                        </span>
+                        <p class="preview-heading">
+                            {$t("settings.typography.previewHeading")}
+                        </p>
+                        <p class="preview-body">
+                            {$t("settings.typography.previewBody")}
+                            <a
+                                href="https://chronicler.pro"
+                                onclick={(e) => e.preventDefault()}
+                            >
+                                {$t("settings.typography.previewLink")}
+                            </a>
+                        </p>
+                    </div>
+                </section>
+            {:else if activeSection === "templates"}
+                <section class="setting-item">
+                    <h4>{$t("settings.templates.title")}</h4>
+                    <p>{$t("settings.templates.description")}</p>
+                    <Button onclick={openTemplateManager}
+                        >{$t("settings.templates.manage")}</Button
+                    >
+                </section>
+            {:else if activeSection === "snippets"}
+                <section class="setting-item">
+                    <h4>{$t("settings.snippets.title")}</h4>
+                    <p>{$t("settings.snippets.description")}</p>
+                    <Button onclick={openSnippetsManager}
+                        >{$t("settings.snippets.manage")}</Button
+                    >
+                </section>
+            {:else if activeSection === "shortcuts"}
+                <section class="setting-item">
+                    <h4>{$t("settings.shortcuts.title")}</h4>
+                    <p>{$t("settings.shortcuts.description")}</p>
+                    <Button onclick={openKeybindings}
+                        >{$t("settings.shortcuts.customize")}</Button
+                    >
+                </section>
+            {:else if activeSection === "images"}
+                <section class="setting-item">
+                    <h4>{$t("settings.images.title")}</h4>
+                    <p>{$t("settings.images.description")}</p>
+                    <div class="form-group">
+                        <!-- svelte-ignore a11y_label_has_associated_control -->
+                        <label>{$t("settings.images.location")}</label>
+                        <Select
+                            options={[
+                                {
+                                    value: "folder",
+                                    label: $t("settings.images.inFolder"),
+                                },
+                                {
+                                    value: "adjacent",
+                                    label: $t("settings.images.nextToPage"),
+                                },
+                            ]}
+                            value={$imageImportLocation}
+                            onSelect={(val) =>
+                                ($imageImportLocation =
+                                    val as ImageImportLocation)}
+                        />
+                    </div>
+                    {#if $imageImportLocation === "folder"}
+                        <div class="form-group">
+                            <label for="image-dir-input"
+                                >{$t("settings.images.folder")}</label
+                            >
+                            <input
+                                id="image-dir-input"
+                                class="setting-text-input"
+                                type="text"
+                                bind:value={$imageImportDir}
+                                placeholder="images"
+                            />
+                        </div>
+                    {/if}
+                    <ToggleSwitch
+                        id="prompt-image-name-toggle"
+                        label={$t("settings.images.promptName")}
+                        description={$t(
+                            "settings.images.promptNameDescription",
+                        )}
+                        bind:checked={$promptForImageName}
+                    />
+                </section>
+            {:else if activeSection === "vault"}
+                <section class="setting-item">
+                    <h4>{$t("settings.vault.title")}</h4>
+                    <p>{$t("settings.vault.description")}</p>
+                    <Button onclick={handleChangeVault}
+                        >{$t("settings.vault.change")}</Button
+                    >
+                </section>
+            {:else if activeSection === "import"}
+                <section class="setting-item">
+                    <h4>{$t("settings.import.title")}</h4>
+                    <p>{$t("settings.import.description")}</p>
+                    <Button onclick={openImporter}
+                        >{$t("settings.import.open")}</Button
+                    >
+                </section>
+            {:else if activeSection === "privacy"}
+                <section class="setting-item">
+                    <h4>{$t("settings.privacy.title")}</h4>
+                    <ToggleSwitch
+                        id="telemetry-toggle"
+                        label={$t("settings.privacy.telemetry")}
+                        description={$t(
+                            "settings.privacy.telemetryDescription",
+                        )}
+                        bind:checked={telemetryEnabled}
+                    />
+                </section>
+            {:else if activeSection === "license"}
+                <section class="setting-item">
+                    <h4>{$t("settings.license.title")}</h4>
+                    {#if $licenseStore.status === "licensed"}
+                        <p>
+                            {$t("settings.license.status")}
+                            <span class="license-status-active"
+                                >{$licenseStore.license?.status}</span
+                            >
+                        </p>
+                        <p class="license-expiry">
+                            {$t("settings.license.expiry", {
+                                date: $licenseStore.license?.expiry ?? "",
+                            })}
+                        </p>
+                        {#if !showLicenseInput}
+                            <Button onclick={() => (showLicenseInput = true)}
+                                >{$t("settings.license.replace")}</Button
+                            >
+                        {/if}
+                    {:else}
+                        <p>
+                            {$t("settings.license.supportPre")}
+                            <a
+                                href="https://chronicler.pro/#support"
+                                onclick={(event) => {
+                                    event.preventDefault();
+                                    openUrl(DONATE_URL);
+                                }}>{$t("settings.license.supportLink")}</a
+                            >.
+                        </p>
+                    {/if}
+
+                    {#if $licenseStore.status !== "licensed" || showLicenseInput}
+                        <div class="license-input-group">
+                            <input
+                                type="text"
+                                placeholder={$t(
+                                    "settings.license.pastePlaceholder",
+                                )}
+                                bind:value={licenseKeyInput}
+                                disabled={isVerifyingLicense}
+                            />
+                            <Button
+                                onclick={verifyLicense}
+                                disabled={isVerifyingLicense ||
+                                    !licenseKeyInput}
+                            >
+                                {#if isVerifyingLicense}
+                                    {$t("settings.license.verifying")}
+                                {:else}
+                                    {$t("settings.license.verify")}
+                                {/if}
+                            </Button>
+                        </div>
+                    {/if}
+
+                    {#if licenseMessage}
+                        <p class="import-message">{licenseMessage}</p>
+                    {/if}
+                </section>
+            {/if}
         </div>
-    {/if}
+    </div>
 </Modal>
 
 {#if showChangelog}
@@ -662,24 +748,178 @@
 {/if}
 
 <style>
-    .modal-body-content {
+    .settings-layout {
+        display: flex;
+        /* A fixed height rather than one that follows the content: the pane
+           changes on every rail click, and a modal that resizes underneath
+           the cursor is disorienting. */
+        height: 660px;
+        max-height: 78vh;
+    }
+
+    .settings-rail {
+        width: 206px;
+        flex-shrink: 0;
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        justify-content: space-between;
+        border-right: 1px solid var(--color-border-primary);
+        background: var(--color-overlay-subtle);
+        overflow-y: auto;
     }
+
+    .rail-items {
+        display: flex;
+        flex-direction: column;
+        padding: 0.5rem 0;
+    }
+
+    .rail-item {
+        text-align: left;
+        background: none;
+        border: none;
+        padding: 0.55rem 1rem;
+        font-family: inherit;
+        font-size: 0.92rem;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition:
+            background-color 0.15s,
+            color 0.15s;
+    }
+    .rail-item:hover {
+        color: var(--color-text-primary);
+        background: var(--color-overlay-light);
+    }
+    .rail-item.active {
+        background: var(--color-background-secondary);
+        box-shadow: inset 2px 0 0 var(--color-accent-primary);
+        color: var(--color-text-primary);
+    }
+
+    .rail-footer {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--color-border-primary);
+        font-size: 0.78rem;
+        color: var(--color-text-secondary);
+    }
+    .rail-footer p {
+        margin: 0 0 0.15rem;
+        font-size: 0.78rem;
+    }
+
+    .settings-pane {
+        flex-grow: 1;
+        min-width: 0;
+        overflow-y: auto;
+        padding: 1.25rem 1.5rem;
+    }
+
     .setting-item {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--color-border-primary);
-    }
-    .setting-item:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
+        gap: 0.75rem;
     }
     h4 {
         margin: 0;
+    }
+    .subsection {
+        margin: 0.75rem 0 0;
+    }
+    /* Keeps a lone action button at its natural width — .setting-item is a
+       stretch-aligned column, so an unwrapped button spans the whole pane. */
+    .subsection-action {
+        display: flex;
+    }
+
+    /* --- Theme swatch cards --- */
+    .theme-grid {
+        /* Not a fixed four columns: the labels are user- and locale-supplied,
+           and the whole grid rescales with the font-size setting, so let the
+           column count fall to whatever still fits a readable label. */
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+        gap: 10px;
+    }
+    .theme-card {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 0;
+        background: none;
+        border: 1px solid var(--color-border-primary);
+        border-radius: 6px;
+        overflow: hidden;
+        cursor: pointer;
+        font-family: inherit;
+        text-align: left;
+        transition: border-color 0.15s;
+    }
+    .theme-card:hover {
+        border-color: var(--color-accent-primary);
+    }
+    .theme-card.selected {
+        border-color: var(--color-accent-primary);
+        box-shadow: 0 0 0 1px var(--color-accent-primary);
+    }
+    .swatch {
+        display: flex;
+        height: 44px;
+    }
+    .swatch > span {
+        flex: 1;
+    }
+    .theme-name {
+        font-size: 0.72rem;
+        line-height: 1.3;
+        color: var(--color-text-primary);
+        padding: 0 6px 6px;
+        /* Wrap rather than ellipsise. A truncated "Manage Them…" is worse than
+           a two-line label, and grid rows stretch to match so the cards in a
+           row stay the same height either way. */
+        overflow-wrap: anywhere;
+    }
+    .manage-card {
+        border-style: dashed;
+        align-items: center;
+        justify-content: center;
+    }
+    .manage-card .theme-name {
+        text-align: center;
+    }
+    .manage-plus {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 44px;
+        font-size: 1.4rem;
+        color: var(--color-text-secondary);
+    }
+
+    /* --- Typography preview --- */
+    .type-preview {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        border: 1px solid var(--color-border-primary);
+        border-radius: 6px;
+        padding: 14px 16px;
+        background: var(--color-overlay-subtle);
+    }
+    .preview-heading {
+        font-family: var(--font-family-heading);
+        color: var(--color-text-heading);
+        font-size: 1.4rem;
+        margin: 0;
+    }
+    .preview-body {
+        font-family: var(--font-family-body);
+        margin: 0;
+        line-height: 1.6;
     }
     .setting-item p {
         margin: 0;
@@ -691,12 +931,6 @@
         margin-bottom: 0.5rem !important;
         font-size: 0.9rem !important;
         color: var(--color-text-secondary) !important;
-    }
-    .appearance-controls {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        margin-top: 0.5rem;
     }
     .form-group {
         display: flex;
@@ -717,28 +951,6 @@
     .license-status-active {
         font-weight: bold;
         color: var(--color-accent-primary);
-    }
-    .modal-footer {
-        margin-top: 1.5rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--color-border-primary);
-        text-align: center;
-        font-size: 0.85rem;
-        color: var(--color-text-secondary);
-    }
-    .modal-footer p {
-        margin: 0;
-        margin-bottom: 0.25rem;
-    }
-    .footer-links {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .theme-controls {
-        display: flex;
-        gap: 0.5rem;
     }
     .font-slider-container {
         display: flex;
@@ -806,11 +1018,5 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1rem;
-    }
-    .custom-font-row {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
     }
 </style>
