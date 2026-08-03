@@ -5,6 +5,8 @@ import {
     isTimeline,
     isTimelineFile,
     getDisplayName,
+    parentFolderName,
+    vaultDisplayName,
 } from "./utils";
 import type { FileNode } from "./bindings";
 
@@ -33,6 +35,55 @@ describe("isTimelineFile", () => {
     it("rejects other extensions", () => {
         expect(isTimelineFile("/v/History.md")).toBe(false);
         expect(isTimelineFile("/v/timeline")).toBe(false);
+    });
+});
+
+describe("parentFolderName", () => {
+    it("names the immediate parent folder", () => {
+        expect(parentFolderName("/v/Places/Cantathaer.md", "/v")).toBe(
+            "Places",
+        );
+    });
+    it("returns nothing for files at the vault root", () => {
+        expect(parentFolderName("/v/Index.md", "/v")).toBe("");
+    });
+    it("names only the immediate parent, not the whole chain", () => {
+        expect(parentFolderName("/v/Places/Cities/Cantathaer.md", "/v")).toBe(
+            "Cities",
+        );
+    });
+    it("handles Windows separators", () => {
+        expect(
+            parentFolderName("C:\\vault\\Places\\Cantathaer.md", "C:\\vault"),
+        ).toBe("Places");
+        expect(parentFolderName("C:\\vault\\Index.md", "C:\\vault")).toBe("");
+    });
+    it("falls back to the raw parent when the vault path is unknown", () => {
+        expect(parentFolderName("/v/Places/Cantathaer.md", null)).toBe(
+            "Places",
+        );
+    });
+    it("tolerates trailing slashes on the vault path", () => {
+        expect(parentFolderName("/v/Index.md", "/v/")).toBe("");
+    });
+});
+
+describe("vaultDisplayName", () => {
+    it("names the vault by its folder", () => {
+        expect(vaultDisplayName("/home/me/Documents/Aetheria")).toBe(
+            "Aetheria",
+        );
+    });
+    it("tolerates a trailing separator", () => {
+        expect(vaultDisplayName("/home/me/Documents/Aetheria/")).toBe(
+            "Aetheria",
+        );
+    });
+    it("handles Windows separators", () => {
+        expect(vaultDisplayName("C:\\Users\\me\\Aetheria")).toBe("Aetheria");
+    });
+    it("falls back to the raw path when there are no segments", () => {
+        expect(vaultDisplayName("/")).toBe("/");
     });
 });
 

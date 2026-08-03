@@ -40,21 +40,31 @@
 </div>
 
 <style>
+    /* Deliberately the same inset, radius, height and type size as the vault
+       chip above it in the sidebar: they're both single-line controls in the
+       same stack, and they used to disagree on all four. The separator line
+       is gone too — the tab rail below already draws one. */
     .search-container {
-        padding: 0.75rem;
-        border-bottom: 1px solid var(--color-border-primary);
+        padding: 10px 12px 0;
     }
     .search-input {
         width: 100%;
-        padding: 0.5rem 0.75rem;
+        box-sizing: border-box;
+        padding: 6px 9px;
         border-radius: 6px;
         border: 1px solid var(--color-border-primary);
         background-color: var(--color-background-primary);
         color: var(--color-text-primary);
-        font-size: 0.95rem;
+        font-family: inherit;
+        font-size: 0.86rem;
+        transition: border-color 0.15s;
+    }
+    .search-input::placeholder {
+        color: var(--color-text-secondary);
     }
     .search-input:focus {
-        outline: 1px solid var(--color-accent-primary);
+        outline: none;
         border-color: var(--color-accent-primary);
+        box-shadow: 0 0 0 1px var(--color-accent-primary);
     }
 </style>

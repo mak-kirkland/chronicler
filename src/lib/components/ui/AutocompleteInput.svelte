@@ -91,7 +91,8 @@
         const handled = handleListNavigation(e, {
             isOpen: isOpen && suggestions.length > 0,
             nav,
-            listContainer,
+            getItemEl: (i: number) =>
+                listContainer?.children[i] as HTMLElement | undefined,
             onSelect: selectSuggestion,
             onClose: () => (isOpen = false),
             triggerElement: inputEl,

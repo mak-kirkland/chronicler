@@ -8,9 +8,10 @@
     import { tabs, tabStatus, isViewSplit } from "$lib/viewStores";
     import type { FileViewMode } from "$lib/viewStores";
     import { onDestroy } from "svelte";
-    import BacklinksPanel from "$lib/components/views/BacklinksPanel.svelte";
+    import ContextRail from "$lib/components/views/ContextRail.svelte";
+    import type { RailSection } from "$lib/components/views/ContextRail.svelte";
     import { isTocVisible } from "$lib/settingsStore";
-    import { files, isWorldLoaded } from "$lib/worldStore";
+    import { files, isWorldLoaded, vaultPath } from "$lib/worldStore";
     import {
         buildPageView,
         writePageContent,
@@ -20,15 +21,21 @@
         handleContentClick,
         navigateToMap,
         navigateToPage,
+        navigateToTag,
     } from "$lib/actions";
-    import type { PageHeader, FullPageData, Backlink } from "$lib/bindings";
-    import { findFileInTree } from "$lib/utils";
+    import type {
+        PageHeader,
+        FullPageData,
+        Backlink,
+        MapLink,
+    } from "$lib/bindings";
+    import { findFileInTree, parentFolderName } from "$lib/utils";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
     import { log } from "$lib/logger";
     import Icon from "$lib/components/ui/Icon.svelte";
     import { openModal, closeModal } from "$lib/modalStore";
     import InfoboxEditorModal from "$lib/components/infobox/InfoboxEditorModal.svelte";
-    import FloatingMenu from "$lib/components/ui/FloatingMenu.svelte";
+    import MenuList from "$lib/components/ui/MenuList.svelte";
     import { t } from "$lib/i18n";
 
     let { file, sectionId, tabId, isActive, initialMode } = $props<{
@@ -42,7 +49,43 @@
     // svelte-ignore state_referenced_locally
     let mode = $state<FileViewMode>(initialMode ?? "preview");
     let backlinks = $state<Backlink[]>([]);
-    let showBacklinks = $state(false);
+
+    // The context rail (contents + backlinks + tags) is one panel with one
+    // switch. `isTocVisible` remains the persisted preference: it seeds the
+    // rail for each new view, and toggling writes back so the next page you
+    // open matches the choice you just made.
+    // svelte-ignore state_referenced_locally
+    let showContextRail = $state($isTocVisible);
+    let railFocus = $state<{ section: RailSection } | null>(null);
+
+    /**
+     * Opens the rail at `section`, or closes it if that section is already
+     * what you're looking at. Pressing the *other* section's button while the
+     * rail is open scrolls there instead of closing — closing something you
+     * were trying to navigate would be a trap.
+     */
+    function toggleRail(section: RailSection) {
+        // `railFocus === null` means "open, but you haven't picked a section" —
+        // the state a freshly opened page starts in. Both segments render as
+        // active then, so a click on either has to close, or the button that
+        // looks pressed doesn't unpress until you click it twice.
+        if (
+            showContextRail &&
+            (railFocus === null || railFocus.section === section)
+        ) {
+            showContextRail = false;
+            $isTocVisible = false;
+            return;
+        }
+        showContextRail = true;
+        $isTocVisible = true;
+        railFocus = { section };
+    }
+
+    function closeRail() {
+        showContextRail = false;
+        $isTocVisible = false;
+    }
 
     // The editor and preview both stay mounted across mode toggles (only their
     // visibility/width change via CSS) so scroll position and CodeMirror state
@@ -110,6 +153,29 @@
     // Check if this page is pinned on any maps
     let associatedMaps = $derived(pageData?.associated_maps || []);
 
+    // --- Page bar + context rail ---
+    // The folder the page lives in, shown before the title. Empty at the vault
+    // root, where repeating the vault name would say nothing.
+    let breadcrumbFolder = $derived(parentFolderName(file.path, $vaultPath));
+
+    let toc = $derived(pageData?.rendered_page?.toc ?? []);
+
+    // Frontmatter tags, defended against a hand-edited `tags:` that isn't a list.
+    let pageTags = $derived.by<string[]>(() => {
+        const raw = pageData?.rendered_page?.processed_frontmatter?.tags;
+        return Array.isArray(raw)
+            ? raw.filter((t) => typeof t === "string")
+            : [];
+    });
+
+    // With nothing to put in it, the rail is just a 252px stripe of empty.
+    //
+    // Tags deliberately don't count on their own. The only control that
+    // reopens the rail is the Contents|Backlinks pair, so a page with tags but
+    // no headings and no backlinks could be closed and never reopened. Tags
+    // are not lost — they still render in the infobox and the preview footer.
+    let hasRailContent = $derived(toc.length > 0 || backlinks.length > 0);
+
     // The path currently loaded into `pageData`. Makes the load effect below
     // idempotent — it only resets/refetches when the path actually changes.
     let loadedPath: string | null = null;
@@ -153,6 +219,7 @@
         clearTimeout(saveTimeout); // Drop the previous file's pending autosave
         clearTimeout(loadingTimer); // Clear any pending loading message timer
         backlinks = []; // Reset backlinks
+        railFocus = null; // The new page's rail starts unscrolled
         isMapMenuOpen = false; // Close menu on navigation
 
         // --- Set a timer to show the "Loading..." message only if it takes too long ---
@@ -293,21 +360,16 @@
     }
 
     // --- Map Navigation Handler ---
-    function handleMapClick(e: MouseEvent) {
+    // One map is a link; several are a menu. The menu anchors to the wrapper
+    // div's bind:this, so the click event itself isn't needed.
+    function handleMapClick() {
         if (associatedMaps.length === 1) {
-            // Single map: Navigate directly
             navigateToMap({
                 title: associatedMaps[0].title,
                 path: associatedMaps[0].path,
             });
         } else if (associatedMaps.length > 1) {
-            // Multiple maps: Toggle dropdown
             isMapMenuOpen = !isMapMenuOpen;
-            // The Button component forwards the event or we bind the element
-            // We'll use the bind:this on a wrapper or the button itself if possible
-            // but standard Button component might not export element binding easily.
-            // Let's assume we wrap it or the click event target serves as anchor.
-            mapButtonEl = e.currentTarget as HTMLElement;
         }
     }
 </script>
@@ -323,14 +385,17 @@
         </div>
     {:else if pageData}
         <ViewHeader>
+            <!-- Breadcrumb rather than a heading: the tab already names the
+                 page, so the bar's job is to say where it sits. -->
             <div slot="left" class="title-container">
-                <h2 class="view-title" title={file.title}>
-                    {file.title}
-                </h2>
-                <!-- Wrapped in fixed-width container to prevent layout shift -->
-                <div class="save-status-wrapper">
-                    <SaveStatus status={saveStatus} {lastSaveTime} />
-                </div>
+                <nav class="breadcrumb" title={file.path}>
+                    {#if breadcrumbFolder}
+                        <span class="crumb-folder">{breadcrumbFolder}</span>
+                        <span class="crumb-sep" aria-hidden="true">/</span>
+                    {/if}
+                    <span class="crumb-title">{file.title}</span>
+                </nav>
+                <SaveStatus status={saveStatus} {lastSaveTime} />
             </div>
             <!-- Collapse the action buttons to icons only (tooltips still name
                  them) when the pane is narrow, and always in split view, to
@@ -347,6 +412,12 @@
                         <Button
                             size="small"
                             onclick={handleMapClick}
+                            aria-haspopup={associatedMaps.length > 1
+                                ? "menu"
+                                : undefined}
+                            aria-expanded={associatedMaps.length > 1
+                                ? isMapMenuOpen
+                                : undefined}
                             title={associatedMaps.length === 1
                                 ? $t("fileView.viewOnMapTitle", {
                                       name: associatedMaps[0].title,
@@ -363,63 +434,59 @@
                             </span>
                         </Button>
 
-                        {#if isMapMenuOpen}
-                            <FloatingMenu
-                                isOpen={isMapMenuOpen}
-                                anchorEl={mapButtonEl}
-                                onClose={() => (isMapMenuOpen = false)}
-                                width={200}
+                        <MenuList
+                            isOpen={isMapMenuOpen}
+                            anchorEl={mapButtonEl}
+                            width={200}
+                            items={associatedMaps.map((m: MapLink) => ({
+                                label: m.title,
+                                title: m.path,
+                                icon: "map" as const,
+                                handler: () => navigateToMap(m),
+                            }))}
+                            onClose={() => (isMapMenuOpen = false)}
+                        />
+                    </div>
+                {/if}
+
+                <!-- Contents and Backlinks are two ways into one panel, so
+                     they share one control. Pressed state = rail visible. -->
+                {#if hasRailContent}
+                    <div class="segmented">
+                        {#if toc.length > 0}
+                            <button
+                                class:active={showContextRail}
+                                aria-pressed={showContextRail}
+                                onclick={() => toggleRail("contents")}
+                                title={$t("fileView.toggleToc")}
                             >
-                                <div class="map-dropdown-list">
-                                    {#each associatedMaps as mapItem}
-                                        <button
-                                            class="menu-item"
-                                            onclick={() => {
-                                                navigateToMap({
-                                                    title: mapItem.title,
-                                                    path: mapItem.path,
-                                                });
-                                                isMapMenuOpen = false;
-                                            }}
-                                        >
-                                            <Icon type="map" />
-                                            <span class="truncate"
-                                                >{mapItem.title}</span
-                                            >
-                                        </button>
-                                    {/each}
-                                </div>
-                            </FloatingMenu>
+                                <Icon type="contents" /><span class="btn-label"
+                                    >{$t("fileView.contents")}</span
+                                >
+                            </button>
+                        {/if}
+                        {#if backlinks.length > 0}
+                            <button
+                                class:active={showContextRail}
+                                aria-pressed={showContextRail}
+                                onclick={() => toggleRail("backlinks")}
+                                title={$t("fileView.toggleBacklinks")}
+                            >
+                                <Icon type="backlinks" /><span class="btn-label"
+                                    >{$t("backlinks.title")}</span
+                                >
+                                {backlinks.length}
+                            </button>
                         {/if}
                     </div>
                 {/if}
 
-                {#if pageData.rendered_page && pageData.rendered_page.toc.length > 0}
-                    <Button
-                        size="small"
-                        onclick={() => ($isTocVisible = !$isTocVisible)}
-                        title={$t("fileView.toggleToc")}
-                    >
-                        <Icon type="contents" /><span class="btn-label">
-                            {$t("fileView.contents")}</span
-                        >
-                    </Button>
-                {/if}
-
-                {#if backlinks.length > 0}
-                    <Button
-                        size="small"
-                        onclick={() => (showBacklinks = !showBacklinks)}
-                        title={$t("fileView.toggleBacklinks")}
-                    >
-                        <Icon type="backlinks" />
-                        {backlinks.length}
-                    </Button>
-                {/if}
-
-                <!-- View Mode Controls -->
+                <!-- View mode. Reading is the quiet default, so it offers a
+                     single call to action; once you're editing, all three
+                     modes stay visible as one control. -->
                 {#if mode === "preview"}
                     <Button
+                        variant="primary"
                         size="small"
                         onclick={() => (mode = "split")}
                         title={$t("common.edit")}
@@ -428,46 +495,40 @@
                             {$t("common.edit")}</span
                         >
                     </Button>
-                {/if}
-                {#if mode === "split"}
-                    <Button
-                        size="small"
-                        onclick={() => (mode = "editor")}
-                        title={$t("fileView.editorOnly")}
-                    >
-                        <Icon type="file" /><span class="btn-label">
-                            {$t("fileView.editorOnly")}</span
+                {:else}
+                    <div class="segmented">
+                        <!-- This branch only renders when mode isn't
+                             "preview", so Read is never the pressed one here. -->
+                        <button
+                            aria-pressed="false"
+                            onclick={() => (mode = "preview")}
+                            title={$t("fileView.previewOnly")}
                         >
-                    </Button>
-                    <Button
-                        size="small"
-                        onclick={() => (mode = "preview")}
-                        title={$t("fileView.previewOnly")}
-                    >
-                        <Icon type="preview" /><span class="btn-label">
-                            {$t("fileView.previewOnly")}</span
+                            <Icon type="preview" /><span class="btn-label"
+                                >{$t("fileView.read")}</span
+                            >
+                        </button>
+                        <button
+                            class:active={mode === "split"}
+                            aria-pressed={mode === "split"}
+                            onclick={() => (mode = "split")}
+                            title={$t("fileView.splitView")}
                         >
-                    </Button>
-                {/if}
-                {#if mode === "editor"}
-                    <Button
-                        size="small"
-                        onclick={() => (mode = "split")}
-                        title={$t("fileView.splitView")}
-                    >
-                        <Icon type="split" /><span class="btn-label">
-                            {$t("fileView.splitView")}</span
+                            <Icon type="split" /><span class="btn-label"
+                                >{$t("fileView.split")}</span
+                            >
+                        </button>
+                        <button
+                            class:active={mode === "editor"}
+                            aria-pressed={mode === "editor"}
+                            onclick={() => (mode = "editor")}
+                            title={$t("fileView.editorOnly")}
                         >
-                    </Button>
-                    <Button
-                        size="small"
-                        onclick={() => (mode = "preview")}
-                        title={$t("fileView.previewOnly")}
-                    >
-                        <Icon type="preview" /><span class="btn-label">
-                            {$t("fileView.previewOnly")}</span
-                        >
-                    </Button>
+                            <Icon type="edit" /><span class="btn-label"
+                                >{$t("fileView.write")}</span
+                            >
+                        </button>
+                    </div>
                 {/if}
             </div>
         </ViewHeader>
@@ -518,14 +579,18 @@
                     />
                 </div>
             </div>
-            {#if showBacklinks && backlinks.length > 0}
+            {#if showContextRail && hasRailContent}
                 <!-- Clicking a backlink navigates this tab to that page; the
                      Backlink is converted to a PageHeader for navigation. -->
-                <BacklinksPanel
+                <ContextRail
+                    {toc}
                     {backlinks}
-                    onClose={() => (showBacklinks = false)}
+                    tags={pageTags}
+                    focus={railFocus}
+                    onClose={closeRail}
                     onNavigate={(link) =>
                         navigateToPage({ title: link.title, path: link.path })}
+                    onNavigateTag={navigateToTag}
                 />
             {/if}
         </div>
@@ -541,25 +606,42 @@
     }
     .title-container {
         display: flex;
-        align-items: baseline;
-        gap: 1rem;
+        align-items: center;
+        gap: 0.75rem;
         flex-shrink: 1;
         overflow: hidden;
         min-width: 0; /* Helps with ellipsis truncation */
     }
-    .save-status-wrapper {
-        /* At comfortable widths this reserves a stable 180px so the title
-           doesn't jitter as the status text changes. When the pane is narrow
-           (e.g. a split pane) it yields space first — shrinking faster than the
-           title — so the title isn't cut off by an otherwise-empty block. */
-        width: 180px;
-        flex-shrink: 4;
+    .breadcrumb {
+        display: flex;
+        align-items: baseline;
+        gap: 0.4rem;
         min-width: 0;
         white-space: nowrap;
         overflow: hidden;
+    }
+    .crumb-folder {
+        color: var(--color-text-secondary);
+        font-size: 0.85rem;
+        overflow: hidden;
         text-overflow: ellipsis;
-        display: flex;
-        align-items: center; /* Better vertical alignment than baseline for mixed content */
+        /* The title outranks the folder: give up folder characters first. */
+        flex-shrink: 4;
+        min-width: 0;
+    }
+    .crumb-sep {
+        color: var(--color-text-secondary);
+        opacity: 0.5;
+        flex-shrink: 0;
+    }
+    .crumb-title {
+        font-family: var(--font-family-heading);
+        color: var(--color-text-heading);
+        font-size: 0.95rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex-shrink: 1;
+        min-width: 0;
     }
     .header-actions {
         display: flex;
@@ -571,15 +653,6 @@
        carry their own leading space, so hiding them removes the gap too. */
     .header-actions.icons-only .btn-label {
         display: none;
-    }
-    .view-title {
-        font-family: var(--font-family-heading);
-        color: var(--color-text-heading);
-        margin: 0;
-        font-size: 1.5rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
     .content-panes {
         display: flex;
@@ -641,39 +714,5 @@
         display: flex;
         justify-content: center;
         align-items: center;
-    }
-
-    /* Map Dropdown Styles */
-    .map-dropdown-list {
-        display: flex;
-        flex-direction: column;
-        background: var(--color-background-secondary);
-        border: 1px solid var(--color-border-primary);
-        border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        padding: 4px 0;
-        min-width: 180px;
-    }
-    .menu-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        background: none;
-        border: none;
-        color: var(--color-text-primary);
-        text-align: left;
-        cursor: pointer;
-        font-family: var(--font-family-base);
-        font-size: 0.9rem;
-    }
-    .menu-item:hover {
-        background: var(--color-background-hover);
-    }
-    .truncate {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 180px;
     }
 </style>

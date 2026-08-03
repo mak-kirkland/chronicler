@@ -303,6 +303,30 @@ function flattenTree(
 const allLeafNodes = derived(files, ($files) => flattenTree($files));
 
 /**
+ * Counts of what the vault contains, for the sidebar footer. Derived from the tree the frontend already holds — the sizes involved
+ * (thousands of nodes at most) don't justify a backend round trip.
+ *
+ * Folders exclude the vault root itself, which the user thinks of as "the
+ * vault", not as one of its folders.
+ */
+export const vaultStats = derived(files, ($files) => {
+    let pages = 0;
+    let folders = 0;
+
+    const walk = (node: FileNode, isRoot: boolean) => {
+        if (node.children) {
+            if (!isRoot) folders++;
+            for (const child of node.children) walk(child, false);
+        } else if (isMarkdown(node)) {
+            pages++;
+        }
+    };
+
+    if ($files) walk($files, true);
+    return { pages, folders };
+});
+
+/**
  * A derived store that provides a flattened list of all page titles.
  * Useful for autocompletion features.
  */
@@ -366,12 +390,10 @@ export const pagePathLookup = derived(allLeafNodes, ($nodes) => {
 export const allMaps = derived(allLeafNodes, ($nodes) =>
     $nodes
         .filter((n) => n.name.endsWith(".cmap"))
-        .map(
-            (n): PageHeader => ({
-                title: n.name.replace(".cmap", ""),
-                path: n.path,
-            }),
-        )
+        .map((n): PageHeader => ({
+            title: n.name.replace(".cmap", ""),
+            path: n.path,
+        }))
         .sort((a, b) => a.title.localeCompare(b.title)),
 );
 

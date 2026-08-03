@@ -5,8 +5,8 @@
     import { log } from "$lib/logger";
     import { t } from "$lib/i18n";
 
-    let videoReady = false;
-    let videoError = false;
+    let videoReady = $state(false);
+    let videoError = $state(false);
 
     function handleVideoError() {
         log.warn(
@@ -22,10 +22,15 @@
         navigator.userAgent.includes("Linux");
 
     // Which static hero image to use when the video isn't shown.
-    $: bannerSrc =
-        $welcomeBanner === "scifi" ? "/scifi-banner.png" : "/banner.png";
+    const bannerSrc = $derived(
+        $welcomeBanner === "scifi" ? "/scifi-banner.png" : "/banner.png",
+    );
 </script>
 
+<!--
+  The hero fills the pane; the only chrome is a single slim bar at the bottom
+  replacing what used to be four emoji paragraphs of community links.
+-->
 <div class="welcome-container">
     <div class="welcome-screen">
         <div class="hero-banner">
@@ -63,34 +68,27 @@
         </div>
     </div>
 
+    <!-- One slim bar, and only for people who haven't bought a licence yet.
+         A paying user has already answered the ask; the hero should fill the
+         whole pane for them. -->
     {#if $licenseStore.status !== "licensed"}
-        <div class="welcome-footer">
-            <p>
-                {$t("welcome.activeDevelopment")}
-            </p>
-            <p>
-                {$t("welcome.supportPre")}
+        <footer class="welcome-footer">
+            <span class="footer-note">{$t("welcome.builtBy")}</span>
+            <span class="footer-links">
                 <a
                     href="https://chronicler.pro/#support"
-                    onclick={handleContentClick}>{$t("welcome.supportLink")}</a
-                >. {$t("welcome.supportPost")}
-            </p>
-            <p>
-                {$t("welcome.discordPre")}
+                    onclick={handleContentClick}
+                >
+                    {$t("welcome.donate")}
+                </a>
                 <a
                     href="https://discord.gg/cXJwcbe2b7"
-                    onclick={handleContentClick}>Discord</a
+                    onclick={handleContentClick}
                 >
-                {$t("welcome.discordPost")}
-            </p>
-            <p>
-                {$t("welcome.bugsPre")}
-                <a
-                    href="https://discord.gg/cXJwcbe2b7"
-                    onclick={handleContentClick}>Discord.</a
-                >
-            </p>
-        </div>
+                    Discord
+                </a>
+            </span>
+        </footer>
     {/if}
 </div>
 
@@ -186,24 +184,24 @@
         text-shadow: 0 2px 6px var(--color-background-primary);
     }
 
+    /* --- Footer --- */
     .welcome-footer {
         flex-shrink: 0;
-        padding: 1.5rem;
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.5rem;
+        padding: 0.7rem 34px;
         border-top: 1px solid var(--color-border-primary);
         background-color: var(--color-overlay-subtle);
-        z-index: 2; /* Ensure footer sits above any absolute positioning */
-    }
-
-    .welcome-footer p {
-        margin: 0.25rem 0;
-        font-size: 0.95rem;
+        font-size: 0.8rem;
         color: var(--color-text-secondary);
+        z-index: 2; /* Sit above the hero's absolutely positioned artwork */
     }
 
-    .welcome-footer a {
-        color: var(--color-text-link);
-        text-decoration: none;
-        border-bottom: 1px dotted var(--color-text-link);
+    .footer-links {
+        display: flex;
+        gap: 1.2rem;
     }
 </style>
