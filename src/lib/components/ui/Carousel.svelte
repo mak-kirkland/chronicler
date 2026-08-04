@@ -7,6 +7,7 @@
         images,
         className = "",
         onImageClick = undefined,
+        stripFooter = false,
     } = $props<{
         images: {
             src: string;
@@ -16,6 +17,13 @@
         }[];
         className?: string;
         onImageClick?: (index: number) => void;
+        /**
+         * Put the caption and the paging dots in one strip below the image
+         * instead of overlaying the dots and centring the caption. Used by the
+         * infobox card, where the image is flush to the card's edges and the
+         * strip is what tells you a multi-image card is a set.
+         */
+        stripFooter?: boolean;
     }>();
 
     let currentImageIndex = $state(0);
@@ -48,6 +56,10 @@
             images.length > 1 &&
             images.every((img: any) => img.caption && img.caption.length > 0),
     );
+
+    /** Dots live in the footer strip when there is one, overlaid otherwise.
+     *  Named tabs already say which image you're on, so they replace them. */
+    const showDots = $derived(images.length > 1 && !showTabs);
 
     // Check if we are specifically inside an infobox to apply strict layout constraints
     const isInfobox = $derived(className.includes("infobox-carousel"));
@@ -116,8 +128,9 @@
                 <Icon type="forward" />
             </button>
 
-            <!-- Show dots if we aren't showing tabs -->
-            {#if !showTabs}
+            <!-- Show dots if we aren't showing tabs, unless they belong in
+                 the footer strip below. -->
+            {#if showDots && !stripFooter}
                 <div class="carousel-dots">
                     {#each images as _, i}
                         <button
@@ -137,7 +150,32 @@
         {/if}
     </div>
 
-    <!--
+    {#if stripFooter}
+        {#if currentCaption || showDots}
+            <div class="carousel-strip">
+                <span class="strip-caption">
+                    {#if currentCaption}{@html currentCaption}{/if}
+                </span>
+                {#if showDots}
+                    <span class="strip-dots">
+                        {#each images as _, i}
+                            <button
+                                class="strip-dot"
+                                class:active={currentImageIndex === i}
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    currentImageIndex = i;
+                                }}
+                                aria-label={$t("carousel.goToImage", {
+                                    number: i + 1,
+                                })}
+                            ></button>
+                        {/each}
+                    </span>
+                {/if}
+            </div>
+        {/if}
+        <!--
         Show caption below image if:
         1. It exists
         2. AND (we aren't showing tabs OR we are in an infobox context)
@@ -145,7 +183,7 @@
         This ensures that in Infoboxes (where tabs are truncated), the full
         caption is still readable below the image.
     -->
-    {#if currentCaption && (!showTabs || isInfobox)}
+    {:else if currentCaption && (!showTabs || isInfobox)}
         <div class="carousel-caption">
             {@html currentCaption}
         </div>
@@ -251,6 +289,51 @@
         */
         width: 0;
         min-width: 100%;
+    }
+
+    /* --- Footer Strip ---
+       Caption at the left, paging at the right, on one line under the image. */
+    .carousel-strip {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 5px 0.9rem;
+        /* No fill of its own — it inherits whatever surface it sits on, and the
+           rule below is what separates it from what follows. */
+        border-bottom: 1px solid var(--hairline-soft);
+    }
+
+    .strip-caption {
+        font-family: var(--font-mono);
+        font-size: 0.64rem;
+        line-height: 1.5;
+        color: var(--color-text-secondary);
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .strip-dots {
+        display: flex;
+        gap: 5px;
+        flex-shrink: 0;
+    }
+
+    .strip-dot {
+        width: 5px;
+        height: 5px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: var(--color-border-primary);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .strip-dot.active {
+        background: var(--color-accent-primary);
     }
 
     /* --- Controls --- */
@@ -371,6 +454,8 @@
     }
     .tab.active {
         color: var(--color-accent-primary);
-        border-bottom-color: var(--color-text-accent);
+        /* Was --color-text-accent, which no theme defines, so the underline on
+           the selected tab never painted. */
+        border-bottom-color: var(--color-accent-primary);
     }
 </style>

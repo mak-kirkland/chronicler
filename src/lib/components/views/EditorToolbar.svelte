@@ -6,6 +6,8 @@
         toggleItalic,
         toggleStrikethrough,
         addHeading,
+        insertWikilink,
+        insertGallery,
     } from "$lib/editor";
     import type { IconType } from "$lib/icons";
     import { pickAndInsertImages } from "$lib/imageInsert";
@@ -28,8 +30,10 @@
         iconType: IconType;
     }
 
-    // Actions in groups, so the toolbar reads as "inline emphasis | structure |
-    // insert" rather than one undifferentiated row of nine glyphs.
+    // Actions in groups, so the strip reads as "inline emphasis | structure |
+    // insert" rather than one undifferentiated row of glyphs. The insert group
+    // is what the strip is mostly for: those actions put things into the text
+    // directly under them.
     const toolbarGroups = $derived<ToolbarAction[][]>([
         [
             {
@@ -67,11 +71,21 @@
         ],
         [
             {
+                title: $t("editor.insertLink"),
+                action: insertWikilink,
+                iconType: "connect",
+            },
+            {
                 title: $t("editor.insertImage"),
                 action: (v: EditorView) => {
                     void pickAndInsertImages(v, pagePath);
                 },
                 iconType: "image",
+            },
+            {
+                title: $t("editor.insertGallery"),
+                action: insertGallery,
+                iconType: "gallery",
             },
         ],
     ]);
@@ -96,10 +110,12 @@
         {/each}
     {/each}
 
+    <div class="separator"></div>
+
     <!-- The infobox belongs with insert actions: it adds structured fields to
          the page rather than formatting what's already there. -->
     <button title={$t("editor.editInfobox")} onclick={onInfoboxClick}>
-        <Icon type="edit" />
+        <Icon type="textCard" />
     </button>
 </div>
 
@@ -108,10 +124,10 @@
         display: flex;
         align-items: center;
         gap: 0.25rem;
-        height: 40px;
+        height: 34px;
         box-sizing: border-box;
-        padding: 0 16px;
-        border-bottom: 1px solid var(--color-border-primary);
+        padding: 0 12px;
+        border-top: 1px solid var(--hairline-soft);
         background-color: var(--color-overlay-subtle);
         flex-shrink: 0;
     }
@@ -120,28 +136,32 @@
         border: 1px solid transparent;
         color: var(--color-text-secondary);
         font-size: 1rem;
-        width: 30px;
-        height: 30px;
+        width: 26px;
+        height: 26px;
         flex-shrink: 0;
         border-radius: 4px;
         cursor: pointer;
-        transition: background-color 0.2s;
+        opacity: 0.75;
+        transition:
+            background-color 0.2s,
+            opacity 0.2s;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 0.3rem;
+        padding: 5px;
     }
 
     button:hover {
+        opacity: 1;
         background-color: var(--color-background-secondary);
         color: var(--color-text-primary);
     }
 
     .separator {
         width: 1px;
-        height: 18px;
+        height: 16px;
         flex-shrink: 0;
-        background-color: var(--color-border-primary);
-        margin: 0 0.4rem;
+        background-color: var(--hairline-soft);
+        margin: 0 0.35rem;
     }
 </style>

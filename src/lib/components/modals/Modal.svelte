@@ -152,13 +152,18 @@
         align-items: center;
         z-index: 9999;
     }
+    /* The padding lives on the header and the body, not here. A flat 2rem on
+       the shell meant a flush-bodied modal (the settings rail) floated inside
+       a 2rem margin instead of reaching the modal's edge, and there was no way
+       to opt out of it without also losing the header's. `overflow: hidden`
+       lets the border radius clip whatever a flush body paints to the edge. */
     .modal-content {
         background-color: var(--color-background-primary);
-        padding: 2rem;
         border-radius: 8px;
         border: 2px solid var(--color-border-primary);
         width: 100%;
         max-width: 600px;
+        overflow: hidden;
         box-shadow: 0 5px 15px var(--color-overlay-light);
         color: var(--color-text-primary);
     }
@@ -173,8 +178,7 @@
         justify-content: space-between;
         align-items: center;
         border-bottom: 1px solid var(--color-border-primary);
-        padding-bottom: 1rem;
-        margin-bottom: 1rem;
+        padding: 1rem 1.25rem;
     }
     .header-left {
         display: flex;
@@ -182,7 +186,8 @@
         gap: 0.5rem;
     }
     .modal-header h3 {
-        font-size: 1.5rem;
+        font-size: 1.35rem;
+        font-weight: 400;
         margin: 0;
     }
     .close-btn {
@@ -220,8 +225,9 @@
         gap: 1.5rem;
     }
     .modal-body-wrapper {
-        /* Add padding so content doesn't get clipped by the scroll container */
-        padding: 1rem 1rem 1rem 0.5rem;
+        /* The body's own inset, now that the shell has none. Also keeps content
+           clear of the scroll container's edge. */
+        padding: 1.25rem 1.5rem 1.5rem;
     }
 
     /* Content that lays out its own panes needs the full box: no outer scroll,

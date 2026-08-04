@@ -8,6 +8,8 @@
     import { tabs, tabStatus, isViewSplit } from "$lib/viewStores";
     import type { FileViewMode } from "$lib/viewStores";
     import { onDestroy } from "svelte";
+    import { undo, redo } from "@codemirror/commands";
+    import type { EditorView } from "@codemirror/view";
     import ContextRail from "$lib/components/views/ContextRail.svelte";
     import type { RailSection } from "$lib/components/views/ContextRail.svelte";
     import { isTocVisible } from "$lib/settingsStore";
@@ -112,11 +114,16 @@
     // block, which would disturb the Maps dropdown's positioning.
     let fileContainerEl = $state<HTMLElement | null>(null);
     let narrowHeader = $state(false);
+    let narrowPane = $state(false);
     const NARROW_HEADER_PX = 640;
+    /** Below this the page's generous outer padding costs more than it buys. */
+    const NARROW_PANE_PX = 900;
     $effect(() => {
         if (!fileContainerEl) return;
         const ro = new ResizeObserver((entries) => {
-            narrowHeader = entries[0].contentRect.width < NARROW_HEADER_PX;
+            const width = entries[0].contentRect.width;
+            narrowHeader = width < NARROW_HEADER_PX;
+            narrowPane = width < NARROW_PANE_PX;
         });
         ro.observe(fileContainerEl);
         return () => ro.disconnect();
@@ -258,6 +265,50 @@
         flushPendingEdits(loadedPath);
     });
 
+    /**
+     * Writes `contentToSave` to `path` and re-renders the preview from it.
+     * Shared by the autosave timer and the explicit Save action, so both land
+     * in exactly the same state.
+     */
+    function performSave(path: string, contentToSave: string) {
+        clearTimeout(saveTimeout);
+        saveStatus = "saving";
+        writePageContent(path, contentToSave)
+            .then(() => {
+                // If the user navigated to another file while this save was
+                // in flight, the component's reactive state now belongs to
+                // that file — don't write this file's status/preview onto
+                // it. The content itself was already persisted above.
+                if (file.path !== path) return null;
+                pristineContent = contentToSave;
+                saveStatus = "idle"; // Return to idle after a successful save
+                lastSaveTime = new Date(); // Set the timestamp of the successful save
+
+                // Re-render the preview with the new content.
+                return renderPagePreview(contentToSave);
+            })
+            .then((newlyRenderedData) => {
+                if (newlyRenderedData && pageData) {
+                    pageData.rendered_page = newlyRenderedData;
+                }
+            })
+            .catch((e) => {
+                if (file.path !== path) return;
+                log.error("Failed to save or re-render content", e, "FileView");
+                saveStatus = "error";
+            });
+    }
+
+    /**
+     * Saves now instead of when the autosave debounce elapses. Backs the Save
+     * button and Ctrl/Cmd+S. A no-op when there is nothing outstanding, so
+     * pressing it on a clean page does not rewrite the file's mtime.
+     */
+    function saveNow() {
+        if (!pageData || pageData.raw_content === pristineContent) return;
+        performSave(file.path, pageData.raw_content);
+    }
+
     // This effect handles auto-saving the content and updating the visual status indicator.
     $effect(() => {
         if (!pageData) return;
@@ -274,38 +325,22 @@
         const path = file.path;
         const contentToSave = pageData.raw_content;
 
-        saveTimeout = window.setTimeout(() => {
-            saveStatus = "saving";
-            writePageContent(path, contentToSave)
-                .then(() => {
-                    // If the user navigated to another file while this save was
-                    // in flight, the component's reactive state now belongs to
-                    // that file — don't write this file's status/preview onto
-                    // it. The content itself was already persisted above.
-                    if (file.path !== path) return null;
-                    pristineContent = contentToSave;
-                    saveStatus = "idle"; // Return to idle after a successful save
-                    lastSaveTime = new Date(); // Set the timestamp of the successful save
-
-                    // Re-render the preview with the new content.
-                    return renderPagePreview(contentToSave);
-                })
-                .then((newlyRenderedData) => {
-                    if (newlyRenderedData && pageData) {
-                        pageData.rendered_page = newlyRenderedData;
-                    }
-                })
-                .catch((e) => {
-                    if (file.path !== path) return;
-                    log.error(
-                        "Failed to save or re-render content",
-                        e,
-                        "FileView",
-                    );
-                    saveStatus = "error";
-                });
-        }, AUTOSAVE_DEBOUNCE_MS);
+        saveTimeout = window.setTimeout(
+            () => performSave(path, contentToSave),
+            AUTOSAVE_DEBOUNCE_MS,
+        );
     });
+
+    // --- Undo / redo / save ---
+    // The page bar drives CodeMirror's own history rather than keeping a second
+    // one: the editor is the only thing that edits the document.
+    let editorView = $state<EditorView | undefined>(undefined);
+
+    function runHistory(command: (view: EditorView) => boolean) {
+        if (!editorView) return;
+        command(editorView);
+        editorView.focus();
+    }
 
     // Surface this tab's save status to the tab bar.
     $effect(() => {
@@ -481,54 +516,87 @@
                     </div>
                 {/if}
 
+                <!-- Undo/redo act on the editor, so they only exist once there
+                     is one. In read mode they would be two permanently
+                     disabled buttons. -->
+                {#if mode !== "preview"}
+                    <div class="history-actions">
+                        <button
+                            onclick={() => runHistory(undo)}
+                            title={$t("editor.undo")}
+                            aria-label={$t("editor.undo")}
+                        >
+                            <Icon type="undo" />
+                        </button>
+                        <button
+                            onclick={() => runHistory(redo)}
+                            title={$t("editor.redo")}
+                            aria-label={$t("editor.redo")}
+                        >
+                            <Icon type="redo" />
+                        </button>
+                    </div>
+                {/if}
+
                 <!-- View mode. Reading is the quiet default, so it offers a
                      single call to action; once you're editing, all three
                      modes stay visible as one control. -->
                 {#if mode === "preview"}
                     <Button
-                        variant="primary"
+                        variant="accent"
                         size="small"
                         onclick={() => (mode = "split")}
                         title={$t("common.edit")}
                     >
-                        <Icon type="edit" /><span class="btn-label">
+                        <Icon type="edit" /><span class="btn-label persistent">
                             {$t("common.edit")}</span
                         >
                     </Button>
                 {:else}
-                    <div class="segmented">
+                    <div class="segmented mode-switch">
                         <!-- This branch only renders when mode isn't
                              "preview", so Read is never the pressed one here. -->
                         <button
                             aria-pressed="false"
                             onclick={() => (mode = "preview")}
                             title={$t("fileView.previewOnly")}
+                            aria-label={$t("fileView.read")}
                         >
-                            <Icon type="preview" /><span class="btn-label"
-                                >{$t("fileView.read")}</span
-                            >
+                            <Icon type="preview" />
                         </button>
                         <button
                             class:active={mode === "split"}
                             aria-pressed={mode === "split"}
                             onclick={() => (mode = "split")}
                             title={$t("fileView.splitView")}
+                            aria-label={$t("fileView.split")}
                         >
-                            <Icon type="split" /><span class="btn-label"
-                                >{$t("fileView.split")}</span
-                            >
+                            <Icon type="split" />
                         </button>
                         <button
                             class:active={mode === "editor"}
                             aria-pressed={mode === "editor"}
                             onclick={() => (mode = "editor")}
                             title={$t("fileView.editorOnly")}
+                            aria-label={$t("fileView.write")}
                         >
-                            <Icon type="edit" /><span class="btn-label"
-                                >{$t("fileView.write")}</span
-                            >
+                            <Icon type="edit" />
                         </button>
                     </div>
+
+                    <!-- The accent slot belongs to whatever the region is for.
+                         Reading it is Edit; editing it is Save. -->
+                    <Button
+                        variant="accent"
+                        size="small"
+                        onclick={saveNow}
+                        disabled={saveStatus === "idle"}
+                        title={$t("common.save")}
+                    >
+                        <span class="btn-label persistent"
+                            >{$t("common.save")}</span
+                        >
+                    </Button>
                 {/if}
             </div>
         </ViewHeader>
@@ -552,10 +620,12 @@
                 <div class="editor-pane">
                     <Editor
                         bind:content={pageData.raw_content}
+                        bind:editorView
                         pageName={file.title}
                         pagePath={file.path}
                         {isActive}
                         shouldFocus={mode !== "preview"}
+                        showPaneHeader={mode === "split"}
                     />
                 </div>
             {/if}
@@ -563,20 +633,30 @@
                 The preview-pane serves as the scrolling container.
                 Inside, 'chronicler-preview' provides the background texture and padding.
             -->
-            <div
-                class="preview-pane scrollable"
-                bind:this={previewPaneEl}
-                onscroll={rememberPreviewScroll}
-            >
-                <div class="chronicler-preview">
-                    <Preview
-                        renderedData={pageData.rendered_page}
-                        infoboxData={pageData.rendered_page
-                            .processed_frontmatter}
-                        mode={mode === "split" ? "split" : "unified"}
-                        onInfoboxEdit={handleInfoboxEdit}
-                        fallbackTitle={file.title}
-                    />
+            <div class="preview-column">
+                {#if mode === "split"}
+                    <!-- The preview half's matching label. Its right side is
+                         deliberately empty: the design calls for scroll-lock
+                         state there, and this build has no scroll lock. -->
+                    <div class="preview-pane-header">
+                        <span class="eyebrow">{$t("editor.previewPane")}</span>
+                    </div>
+                {/if}
+                <div
+                    class="preview-pane scrollable"
+                    bind:this={previewPaneEl}
+                    onscroll={rememberPreviewScroll}
+                >
+                    <div class="chronicler-preview" class:narrow={narrowPane}>
+                        <Preview
+                            renderedData={pageData.rendered_page}
+                            infoboxData={pageData.rendered_page
+                                .processed_frontmatter}
+                            mode={mode === "split" ? "split" : "unified"}
+                            onInfoboxEdit={handleInfoboxEdit}
+                            fallbackTitle={file.title}
+                        />
+                    </div>
                 </div>
             </div>
             {#if showContextRail && hasRailContent}
@@ -650,9 +730,41 @@
         flex-shrink: 0;
     }
     /* Narrow pane: collapse the action buttons to icons only. The label spans
-       carry their own leading space, so hiding them removes the gap too. */
-    .header-actions.icons-only .btn-label {
+       carry their own leading space, so hiding them removes the gap too.
+       Edit/Save keep theirs: they are the only labelled control left in the
+       bar, and dropping the label would leave it all-icon and ambiguous. */
+    .header-actions.icons-only .btn-label:not(.persistent) {
         display: none;
+    }
+
+    /* The mode switch is icon-only at every width — three glyphs that are
+       always the same three glyphs. */
+    .mode-switch > button {
+        padding: 0.34rem 0.5rem;
+    }
+
+    .history-actions {
+        display: flex;
+        gap: 2px;
+    }
+    .history-actions button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        background: none;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        opacity: 0.75;
+        transition:
+            opacity 0.15s,
+            background-color 0.15s;
+    }
+    .history-actions button:hover {
+        opacity: 1;
+        background: var(--color-background-secondary);
     }
     .content-panes {
         display: flex;
@@ -664,14 +776,33 @@
 
     /* Layout Panes. Both stay mounted; the mode classes below decide which is
        shown and how wide, so scroll/editor state persists across mode toggles. */
-    .preview-pane {
+    /* The column owns the width; the pane inside it owns the scrolling, so the
+       pane header can sit above the scroll container rather than inside it and
+       scroll away with the article. */
+    .preview-column {
         flex: 1;
         /* "width: 0" combined with "flex: 1" is a robust fix for preventing
            flex items from blowing out when containing wide children like tables/code blocks */
         width: 0;
         min-width: 0; /* Allows the pane to shrink */
-        position: relative; /* Context for the absolute wrapper */
         height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .preview-pane-header {
+        display: flex;
+        align-items: center;
+        height: 30px;
+        flex-shrink: 0;
+        box-sizing: border-box;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--hairline-soft);
+    }
+    .preview-pane {
+        flex: 1;
+        min-height: 0;
+        min-width: 0;
+        position: relative; /* Context for the absolute wrapper */
     }
     .editor-pane {
         flex: 1;
@@ -687,7 +818,7 @@
     .content-panes.preview-only .editor-pane {
         display: none;
     }
-    .content-panes.editor-only .preview-pane {
+    .content-panes.editor-only .preview-column {
         display: none;
     }
     .content-panes.split .editor-pane {
@@ -707,6 +838,9 @@
         padding: 2rem;
         box-sizing: border-box;
         position: relative;
+    }
+    .chronicler-preview.narrow {
+        padding: 1.5rem 1.25rem;
     }
     .status-container {
         padding: 2rem;

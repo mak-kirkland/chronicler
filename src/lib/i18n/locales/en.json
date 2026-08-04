@@ -361,7 +361,7 @@
 
     "save.saving": "Saving...",
     "save.failed": "Save failed",
-    "save.unsaved": "Unsaved",
+    "save.unsaved": "Unsaved changes",
     "save.savedAt": "Saved {time}",
 
     "fileView.loadFailed": "Could not load file: {error}",
@@ -392,6 +392,13 @@
     "editor.editInfobox": "Edit Infobox",
     "editor.infoboxFields": "Infobox fields",
     "editor.editAsForm": "Edit as form",
+    "editor.undo": "Undo",
+    "editor.redo": "Redo",
+    "editor.markdownPane": "Markdown",
+    "editor.previewPane": "Preview",
+    "editor.lineAndWords": "Ln {line} · {words} words",
+    "editor.insertLink": "Insert Link",
+    "editor.insertGallery": "Insert Gallery",
 
     "imageView.loadFailed": "Could not load image: {error}",
     "imageView.errorTitle": "Image Error",
