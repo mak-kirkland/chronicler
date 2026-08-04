@@ -48,7 +48,10 @@
         justify-content: space-between;
         align-items: center;
         padding: 0 22px;
-        border-bottom: 1px solid var(--color-border-primary);
+        /* Softer than the full border token: this rule runs the width of the
+           window directly above the article, and at full strength it read as
+           the first of the page's own horizontal rules. */
+        border-bottom: 1px solid var(--hairline-soft);
         z-index: 20;
         height: var(--chrome-page-bar-height);
         box-sizing: border-box;

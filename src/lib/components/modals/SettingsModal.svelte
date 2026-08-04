@@ -500,7 +500,9 @@
                     <div class="font-selectors-grid">
                         <div class="form-group">
                             <!-- svelte-ignore a11y_label_has_associated_control -->
-                            <label>{$t("settings.fonts.heading")}</label>
+                            <label class="eyebrow"
+                                >{$t("settings.fonts.heading")}</label
+                            >
                             <Select
                                 options={allAvailableFonts.map((f) => ({
                                     value: f.value,
@@ -511,7 +513,9 @@
                         </div>
                         <div class="form-group">
                             <!-- svelte-ignore a11y_label_has_associated_control -->
-                            <label>{$t("settings.fonts.body")}</label>
+                            <label class="eyebrow"
+                                >{$t("settings.fonts.body")}</label
+                            >
                             <Select
                                 options={allAvailableFonts.map((f) => ({
                                     value: f.value,
@@ -523,7 +527,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="font-size-slider"
+                        <label class="eyebrow" for="font-size-slider"
                             >{$t("settings.fonts.size")}</label
                         >
                         <div class="font-slider-container">
@@ -540,23 +544,30 @@
                                     )}
                             />
                             <span class="font-size-label">{$fontSize}%</span>
-                            <Button
-                                size="small"
-                                onclick={handleAddFont}
-                                disabled={isInstallingFont}
-                            >
-                                {isInstallingFont
-                                    ? $t("settings.fonts.adding")
-                                    : $t("settings.fonts.add")}
-                            </Button>
                         </div>
+                    </div>
+
+                    <!-- "Add Font…" used to share the slider's line, which put
+                         three unrelated controls — a range, a readout and a
+                         file picker — on one row. It gets its own footer with
+                         the sentence that explains it. -->
+                    <div class="add-font-row">
                         <span class="setting-description">
                             {$t("settings.fonts.addDescription")}
                         </span>
-                        {#if fontInstallMessage}
-                            <p class="import-message">{fontInstallMessage}</p>
-                        {/if}
+                        <button
+                            class="dashed-action"
+                            onclick={handleAddFont}
+                            disabled={isInstallingFont}
+                        >
+                            {isInstallingFont
+                                ? $t("settings.fonts.adding")
+                                : $t("settings.fonts.add")}
+                        </button>
                     </div>
+                    {#if fontInstallMessage}
+                        <p class="import-message">{fontInstallMessage}</p>
+                    {/if}
 
                     <!-- Font and size choices are invisible until you close the
                          modal and look at a page. This shows them here. -->
@@ -826,6 +837,9 @@
     }
     h4 {
         margin: 0;
+        font-size: 1.1rem;
+        font-weight: 400;
+        color: var(--color-text-heading);
     }
     .subsection {
         margin: 0.75rem 0 0;
@@ -921,10 +935,13 @@
         margin: 0;
         line-height: 1.6;
     }
+    /* The sentence under a pane title introduces the settings below it; at
+       primary colour and 0.95rem it carried the same weight as the settings
+       themselves. */
     .setting-item p {
         margin: 0;
-        color: var(--color-text-primary);
-        font-size: 0.95rem;
+        color: var(--color-text-secondary);
+        font-size: 0.9rem;
     }
     /* Add specific style for the setting description to reduce margin */
     .setting-description {
@@ -961,10 +978,52 @@
         flex-grow: 1;
     }
     .font-size-label {
-        font-weight: bold;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-variant-numeric: tabular-nums;
         color: var(--color-text-secondary);
         min-width: 4ch;
         text-align: right;
+    }
+
+    /* Its own footer, with a rule above it: the explanation and the action it
+       explains, rather than a third control wedged onto the slider's line. */
+    .add-font-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 0.5rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid var(--hairline-soft);
+    }
+
+    .dashed-action {
+        flex-shrink: 0;
+        padding: 0.35rem 0.8rem;
+        border: 1px dashed var(--color-border-primary);
+        border-radius: 6px;
+        background: none;
+        color: var(--color-text-secondary);
+        font-family: var(--font-family-heading);
+        font-size: 0.62rem;
+        letter-spacing: var(--label-tracking);
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+            border-color 0.15s,
+            color 0.15s;
+    }
+
+    .dashed-action:hover:not(:disabled) {
+        border-style: solid;
+        border-color: var(--color-accent-primary);
+        color: var(--color-accent-primary);
+    }
+
+    .dashed-action:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
     }
     .link-button {
         background: none;

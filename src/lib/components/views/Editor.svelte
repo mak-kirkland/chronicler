@@ -27,7 +27,12 @@
         allImageFiles,
         tags as worldTags,
     } from "$lib/worldStore";
-    import { toggleBold, toggleItalic, frontmatterBlock } from "$lib/editor";
+    import {
+        toggleBold,
+        toggleItalic,
+        frontmatterBlock,
+        wikilinkHighlight,
+    } from "$lib/editor";
     import { effectiveBindings } from "$lib/keybindingStore";
     import { comboToCodeMirror } from "$lib/keybindingUtils";
     import type { EditorCommandId } from "$lib/keybindingRegistry";
@@ -39,20 +44,48 @@
 
     let {
         content = $bindable(),
+        editorView = $bindable(),
         pageName = "",
         pagePath = "",
         isActive = true,
         shouldFocus = false,
+        showPaneHeader = false,
     } = $props<{
         content?: string;
+        /** Exposed so the page bar can drive undo/redo without a second history. */
+        editorView?: EditorView | undefined;
         pageName?: string;
         pagePath?: string;
         isActive?: boolean;
         /** True while this pane is in an edit mode. Boolean so the effect below
          *  only re-runs on the actual false→true edge (entering edit mode). */
         shouldFocus?: boolean;
+        /** Label the pane. Only earns its 30px when there are two panes. */
+        showPaneHeader?: boolean;
     }>();
     let editor: EditorView | undefined = $state();
+
+    // Mirror the local instance out to the parent rather than renaming the
+    // local: everything below already refers to `editor`, and a bindable prop
+    // read by a dozen effects is harder to follow than one assignment.
+    $effect(() => {
+        editorView = editor;
+    });
+
+    // --- Pane meta ---
+    // Where you are and how much there is, in the strip above the text.
+    let cursorLine = $state(1);
+
+    const wordCount = $derived(
+        ((content ?? "") as string).split(/\s+/).filter(Boolean).length,
+    );
+
+    const paneMeta = $derived(
+        $tr("editor.lineAndWords", {
+            line: cursorLine,
+            words: wordCount.toLocaleString(),
+        }),
+    );
 
     onMount(() => {
         editor?.focus();
@@ -343,18 +376,44 @@
                 backgroundColor: "transparent",
                 color: "var(--color-text-primary)",
             },
+            // Monospace, because this pane is the source rather than the page:
+            // it is where alignment, indentation and fence characters matter,
+            // and setting it in the body face invited it to be read as prose.
             ".cm-content": {
-                fontFamily: "var(--font-family-body)",
-                fontSize: "1.1rem",
-                lineHeight: "1.8",
+                fontFamily: "var(--font-mono)",
+                fontSize: "0.82rem",
+                lineHeight: "1.85",
                 paddingBottom: "50vh",
             },
             ".cm-gutters": {
                 backgroundColor: "transparent",
                 border: "none",
+                color: "color-mix(in srgb, var(--color-text-secondary) 45%, var(--color-background-primary))",
             },
+            ".cm-lineNumbers .cm-gutterElement": {
+                minWidth: "3.1rem",
+                paddingRight: "0.9rem",
+                textAlign: "right",
+                userSelect: "none",
+            },
+            // Tinted across the gutter as well as the text, so the line you're
+            // on reads as one band rather than as a highlight that stops short
+            // of its own number.
             ".cm-activeLine": {
-                backgroundColor: "var(--color-overlay-medium)",
+                backgroundColor: "var(--tint-accent-line)",
+            },
+            ".cm-activeLineGutter": {
+                backgroundColor: "var(--tint-accent-line)",
+            },
+            // Agreeing with the preview: a link that will render blue is blue
+            // here, and one that will render as a broken link says so now
+            // rather than after you close the editor.
+            ".cm-wikilink": {
+                color: "var(--color-text-link)",
+            },
+            ".cm-wikilink-broken": {
+                color: "var(--color-text-link-broken)",
+                textDecoration: "underline dotted",
             },
             ".cm-cursor": {
                 borderLeftColor: "var(--color-text-primary)",
@@ -462,24 +521,45 @@
             fontWeight: "bold",
         },
 
-        // 3. HTML and YAML Attributes (class=, href=) & Object Properties
+        // 3. HTML attributes (class=, href=)
         {
-            tag: [t.attributeName, t.propertyName],
+            tag: t.attributeName,
             color: "var(--code-attribute)",
         },
 
-        // 4. Strings & content inside quotes
+        // 4. Frontmatter keys. These are the fields that become the infobox,
+        //    so they take the accent the infobox's own labels are drawn in
+        //    rather than reading as generic markup.
+        {
+            tag: t.propertyName,
+            color: "var(--color-accent-primary)",
+        },
+
+        // 5. Strings & content inside quotes
         {
             tag: t.string,
             color: "var(--code-string)",
         },
 
-        // 5. Brackets and separators (keep subtle)
+        // 6. Brackets and separators (keep subtle)
         {
             tag: [t.bracket, t.punctuation],
             color: "var(--color-text-secondary)",
         },
     ]);
+
+    /**
+     * Whether a wikilink target resolves, for the editor's link colouring.
+     * Reads the world stores imperatively because it is called from inside a
+     * CodeMirror extension rather than from reactive markup.
+     */
+    function wikilinkResolves(target: string, isImage: boolean): boolean {
+        if (!target) return false;
+        const known = isImage ? get(allImageFiles) : get(allFileTitles);
+        return known.some(
+            (label) => label.toLowerCase() === target.toLowerCase(),
+        );
+    }
 
     // The svelte-codemirror-editor wrapper handles basic setup like history and default keymaps.
     // We only need to provide the extensions that are truly custom to our application.
@@ -512,6 +592,16 @@
             },
         }),
 
+        // Colours [[wikilinks]], and flags the ones that don't resolve.
+        wikilinkHighlight(wikilinkResolves),
+
+        // Keeps the pane header's "Ln 14" honest.
+        EditorView.updateListener.of((update) => {
+            if (!update.selectionSet && !update.docChanged) return;
+            const head = update.state.selection.main.head;
+            cursorLine = update.state.doc.lineAt(head).number;
+        }),
+
         // The structural base theme
         chroniclerTheme,
 
@@ -523,11 +613,14 @@
 </script>
 
 <div class="editor-container">
-    <EditorToolbar
-        editorView={editor}
-        onInfoboxClick={handleInfoboxClick}
-        {pagePath}
-    />
+    <!-- Split view puts two same-coloured, same-width panes side by side and
+         the eye has nothing to grab. The strip says which is which. -->
+    {#if showPaneHeader}
+        <div class="pane-header">
+            <span class="eyebrow">{$tr("editor.markdownPane")}</span>
+            <span class="pane-meta">{paneMeta}</span>
+        </div>
+    {/if}
     <div class="editor-wrapper">
         <Codemirror
             on:ready={(e) => (editor = e.detail)}
@@ -537,6 +630,14 @@
             nodebounce={true}
         />
     </div>
+    <!-- Below the text rather than above it: these actions put things into the
+         document, and they now sit against the edge of the thing they write to
+         instead of a region away at the top of the window. -->
+    <EditorToolbar
+        editorView={editor}
+        onInfoboxClick={handleInfoboxClick}
+        {pagePath}
+    />
 </div>
 
 <style>
@@ -546,6 +647,25 @@
         height: 100%;
         width: 100%;
         overflow: hidden;
+        background: var(--color-overlay-subtle);
+    }
+    .pane-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        height: 30px;
+        flex-shrink: 0;
+        box-sizing: border-box;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--hairline-soft);
+    }
+    .pane-meta {
+        font-family: var(--font-mono);
+        font-size: 0.64rem;
+        color: var(--color-text-secondary);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
     }
     .editor-wrapper {
         display: flex;
@@ -554,6 +674,6 @@
         box-sizing: border-box;
         flex-grow: 1;
         overflow-y: auto;
-        padding: 0 2rem 2rem 2rem;
+        padding: 0.5rem 1rem 2rem 0;
     }
 </style>

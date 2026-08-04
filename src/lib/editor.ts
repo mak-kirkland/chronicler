@@ -1,8 +1,10 @@
 import {
     Decoration,
     EditorView,
+    ViewPlugin,
     WidgetType,
     type DecorationSet,
+    type ViewUpdate,
 } from "@codemirror/view";
 import {
     StateField,
@@ -10,6 +12,7 @@ import {
     type Extension,
     type Range,
 } from "@codemirror/state";
+import { startCompletion } from "@codemirror/autocomplete";
 
 /**
  * A helper function to wrap selected text with a given prefix and suffix.
@@ -117,6 +120,43 @@ export function addHeading(view: EditorView, level: number) {
             selection: { anchor: line.from + prefix.length },
         });
     }
+}
+
+/**
+ * Wraps the selection in `[[ ]]`, or opens an empty pair with the cursor
+ * between the brackets. Autocomplete triggers on the same `[[` the user would
+ * have typed, so the button and the keystroke end in the same place.
+ */
+export function insertWikilink(view: EditorView) {
+    const { from, to } = view.state.selection.main;
+    const selected = view.state.sliceDoc(from, to);
+    view.dispatch({
+        changes: { from, to, insert: `[[${selected}]]` },
+        selection: { anchor: from + 2 + selected.length },
+    });
+    view.focus();
+    startCompletion(view);
+}
+
+/**
+ * Inserts an empty gallery container at the start of a new block, with the
+ * cursor on the blank line inside it ready for the first `![[image]]`.
+ */
+export function insertGallery(view: EditorView) {
+    const { from, to } = view.state.selection.main;
+    const line = view.state.doc.lineAt(to);
+    // Start on a line of its own: a gallery is a block, and opening one in the
+    // middle of a paragraph would swallow the rest of that paragraph.
+    const atLineStart = from === line.from;
+    const prefix = atLineStart ? "" : "\n";
+    const block = `${prefix}<div class="gallery">\n\n</div>\n`;
+    view.dispatch({
+        changes: { from, to, insert: block },
+        selection: {
+            anchor: from + prefix.length + '<div class="gallery">\n'.length,
+        },
+    });
+    view.focus();
 }
 
 /**
@@ -336,4 +376,96 @@ export function frontmatterBlock(options: FrontmatterBlockOptions): Extension {
     });
 
     return [field, frontmatterTheme];
+}
+
+// --- Wikilinks -----------------------------------------------------------
+//
+// `[[Target]]` is not CommonMark, so the markdown parser has nothing to say
+// about it and the most Chronicler-specific thing in the document rendered as
+// plain text. Worse, a link to a page that does not exist looked exactly like
+// one that does — you found out by closing the editor.
+//
+// The decorations below colour both cases, matching what the preview does with
+// the same link. Purely decorative: the document text is untouched.
+
+/** `[[Target]]`, `[[Target|Alias]]`, `![[Image]]`, `[[Target#Section]]`. */
+const WIKILINK = /(!?)\[\[([^\]\n]+)\]\]/g;
+
+/**
+ * The page or image a wikilink points at, with any alias, section anchor and
+ * surrounding whitespace removed — i.e. the part that has to resolve.
+ */
+function wikilinkTarget(inner: string): string {
+    return inner.split("|")[0].split("#")[0].trim();
+}
+
+const wikilinkMark = Decoration.mark({ class: "cm-wikilink" });
+const brokenWikilinkMark = Decoration.mark({ class: "cm-wikilink-broken" });
+
+function buildWikilinkDecorations(
+    view: EditorView,
+    exists: (target: string, isImage: boolean) => boolean,
+): DecorationSet {
+    const marks: Range<Decoration>[] = [];
+
+    // Only the visible ranges: a long page is mostly off-screen, and the
+    // regex would otherwise run over the whole document on every keystroke.
+    for (const { from, to } of view.visibleRanges) {
+        const text = view.state.sliceDoc(from, to);
+        WIKILINK.lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = WIKILINK.exec(text)) !== null) {
+            const isImage = match[1] === "!";
+            const target = wikilinkTarget(match[2]);
+            const mark = exists(target, isImage)
+                ? wikilinkMark
+                : brokenWikilinkMark;
+            marks.push(
+                mark.range(
+                    from + match.index,
+                    from + match.index + match[0].length,
+                ),
+            );
+        }
+    }
+
+    return Decoration.set(marks, true);
+}
+
+/**
+ * Colours `[[wikilinks]]` in the editor, distinguishing links that resolve from
+ * links that do not.
+ *
+ * @param exists Called with a link's target; returns whether it resolves.
+ *               Kept as a callback so this module stays free of store imports
+ *               and remains unit-testable.
+ */
+export function wikilinkHighlight(
+    exists: (target: string, isImage: boolean) => boolean,
+): Extension {
+    return ViewPlugin.fromClass(
+        class {
+            decorations: DecorationSet;
+
+            constructor(view: EditorView) {
+                this.decorations = buildWikilinkDecorations(view, exists);
+            }
+
+            update(update: ViewUpdate) {
+                // Viewport changes matter as much as edits here: scrolling
+                // brings unscanned text into view.
+                if (
+                    update.docChanged ||
+                    update.viewportChanged ||
+                    update.selectionSet
+                ) {
+                    this.decorations = buildWikilinkDecorations(
+                        update.view,
+                        exists,
+                    );
+                }
+            }
+        },
+        { decorations: (plugin) => plugin.decorations },
+    );
 }

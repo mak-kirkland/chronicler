@@ -36,13 +36,15 @@
         ☰
     </button>
     <div class="tabs-scroll">
-        {#each $tabs.tabs as tab (tab.id)}
+        {#each $tabs.tabs as tab, i (tab.id)}
             <div class="tab-slot">
                 <TabItem
                     {tab}
                     active={tab.id === $activeTabId}
                     displayed={$displayedPanes.includes(tab.id) &&
                         tab.id !== $activeTabId}
+                    first={i === 0}
+                    afterActive={i > 0 && $tabs.tabs[i - 1].id === $activeTabId}
                     status={$tabStatus[tab.id]}
                     onActivate={() => tabs.activate(tab.id)}
                     onClose={() => tabs.close(tab.id)}

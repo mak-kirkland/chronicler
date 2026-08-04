@@ -34,7 +34,9 @@
     .infobox-container :global(.infobox) {
         border: none;
         background: var(--color-background-primary);
-        padding: var(--space-sm);
+        /* The card's bands carry their own padding — an outer gutter here
+           would just inset them from the popup's edge. */
+        padding: 0;
         margin: 0;
         position: relative;
         z-index: 1;
