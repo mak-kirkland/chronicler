@@ -65,6 +65,33 @@
     --radius-base: 4px;
     --select-arrow: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
 
+    /* --- Derived hairlines and tints ---
+       Not new colours: each one is a mix of an existing token, named once so
+       every rule that wants "the softened rule" asks for the same thing
+       instead of re-deriving it.
+
+       They live here rather than inline because the mix that reads correctly
+       depends on the mode: a 70% border loses more contrast over a dark
+       background than it does over parchment. The dark values are overridden
+       under [data-mode] below. */
+    --hairline-soft: color-mix(
+        in srgb,
+        var(--color-border-primary) 70%,
+        transparent
+    );
+    --hairline-faint: color-mix(
+        in srgb,
+        var(--color-border-primary) 45%,
+        transparent
+    );
+    /* The editor's current line. The only place an accent tint is used as a
+       fill — it marks where the caret is, which is a live state, not chrome. */
+    --tint-accent-line: color-mix(
+        in srgb,
+        var(--color-accent-primary) 7%,
+        transparent
+    );
+
     /* --- SYNTAX HIGHLIGHTING (Default) --- */
     --code-tag: #005f6a; /* Deep Teal */
     --code-attribute: #8c4a10; /* Warm Sienna */
@@ -219,6 +246,37 @@
     --code-tag: #b58900;
     --code-attribute: #268bd2;
     --code-string: #2aa198;
+}
+
+/* --- Dark-mode hairlines and tints ---
+   `data-mode` is stamped on `.app-shell` from the `atmosphereMode` store, which
+   covers user themes (by luminance) as well as the three dark built-ins, so
+   this keys off it rather than listing `[data-theme]` names.
+
+   Rules go UP on dark: the same 70% mix that reads as a quiet rule on parchment
+   all but disappears over #23232a. The active-line tint goes the other way —
+   mixed into the surface rather than layered over it, because an additive tint
+   on a dark background reads as a glow, and on a theme whose overlays are
+   themselves coloured (hologram's are cyan) it reads as a patch of colour.
+
+   `.app-shell` is a descendant of the `<html>` element carrying `data-theme`,
+   so these win by proximity in the cascade regardless of specificity. */
+[data-mode="dark"] {
+    --hairline-soft: color-mix(
+        in srgb,
+        var(--color-border-primary) 85%,
+        transparent
+    );
+    --hairline-faint: color-mix(
+        in srgb,
+        var(--color-border-primary) 60%,
+        transparent
+    );
+    --tint-accent-line: color-mix(
+        in srgb,
+        var(--color-accent-primary) 8%,
+        var(--color-background-secondary)
+    );
 }
 
 /* Global Styles */

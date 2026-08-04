@@ -18,6 +18,8 @@
         tab,
         active,
         displayed = false,
+        first = false,
+        afterActive = false,
         status,
         onActivate,
         onClose,
@@ -27,6 +29,10 @@
         active: boolean;
         /** Shown in the other (non-focused) pane of a split. */
         displayed?: boolean;
+        /** Leftmost tab: nothing to its left to separate it from. */
+        first?: boolean;
+        /** Immediately right of the active tab, whose edge draws no rule. */
+        afterActive?: boolean;
         status: SaveStatus | undefined;
         onActivate: () => void;
         onClose: () => void;
@@ -100,6 +106,9 @@
     class="tab"
     class:active
     class:displayed
+    class:first
+    class:after-active={afterActive}
+    class:dirty
     role="tab"
     tabindex="0"
     aria-selected={active}
@@ -127,6 +136,11 @@
 </div>
 
 <style>
+    /* A leading rule rather than a trailing one. `border-right` put a hard line
+       against the active tab's right edge and doubled up with the next tab's
+       own edge; a `border-left` skipped on the first tab draws each seam once
+       and never touches the active tab, which its fill and underline already
+       separate. */
     .tab {
         display: flex;
         align-items: center;
@@ -135,12 +149,17 @@
         height: 100%;
         max-width: 200px;
         min-width: 120px;
-        border-right: 1px solid var(--color-border-primary);
+        border-left: 1px solid var(--hairline-soft);
         cursor: pointer;
         user-select: none;
         color: var(--color-text-secondary);
         background: transparent;
         flex-shrink: 0;
+    }
+    .tab.first,
+    .tab.active,
+    .tab.after-active {
+        border-left-color: transparent;
     }
     .tab:hover {
         background: var(--color-background-secondary);
@@ -163,12 +182,24 @@
         text-overflow: ellipsis;
         font-size: 0.9rem;
     }
+    /* The dot takes the close button's place rather than sitting beside it —
+       two glyphs in the trailing slot made every unsaved tab look busier than
+       it is. Hovering swaps it back for the X, which is when you want one. */
     .dirty-dot {
-        width: 8px;
-        height: 8px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
         background: var(--color-accent-primary);
         flex-shrink: 0;
+    }
+    .tab.dirty:hover .dirty-dot {
+        display: none;
+    }
+    .tab.dirty .close-btn {
+        display: none;
+    }
+    .tab.dirty:hover .close-btn {
+        display: flex;
     }
     /* Hidden until you're actually pointed at the tab, or it's the one you're
        working in. A row of X's is visual noise you never asked for. Kept in
