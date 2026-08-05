@@ -36,6 +36,7 @@
     import { comboToCodeMirror } from "$lib/keybindingUtils";
     import type { EditorCommandId } from "$lib/keybindingRegistry";
     import { pasteImageFromClipboard } from "$lib/imageInsert";
+    import { observeSize } from "$lib/domActions";
     import EditorToolbar from "$lib/components/views/EditorToolbar.svelte";
     import { t as tr } from "$lib/i18n";
     import { openModal, closeModal } from "$lib/modalStore";
@@ -116,9 +117,7 @@
     // so the initial geometry is covered too.
     $effect(() => {
         if (!editor) return;
-        const ro = new ResizeObserver(() => editor?.requestMeasure());
-        ro.observe(editor.dom);
-        return () => ro.disconnect();
+        return observeSize(editor.dom, () => editor?.requestMeasure());
     });
 
     /**
