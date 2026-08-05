@@ -33,6 +33,35 @@ export function autofocus(node: HTMLElement) {
     }, 0);
 }
 
+// --- Resize Observation ---
+
+/**
+ * Watch `node`'s box and call `onResize` whenever it changes, returning the
+ * teardown. Not a Svelte action: several callers observe a node they don't
+ * render themselves (CodeMirror's `editor.dom`, Leaflet's container), so this
+ * is a plain function meant to be returned straight out of an `$effect`:
+ *
+ *     $effect(() => {
+ *         if (!el) return;
+ *         return observeSize(el, () => doSomething());
+ *     });
+ *
+ * ResizeObserver fires once on observe, so the initial geometry is covered
+ * without a separate measurement on mount.
+ *
+ * Note the box can legitimately be 0x0: this app keeps every tab mounted and
+ * hides the inactive ones with `display: none`. Callers that map size onto
+ * visible state should ignore a zero width rather than act on it.
+ */
+export function observeSize(
+    node: Element,
+    onResize: (entry: ResizeObserverEntry) => void,
+): () => void {
+    const ro = new ResizeObserver((entries) => onResize(entries[0]));
+    ro.observe(node);
+    return () => ro.disconnect();
+}
+
 // --- Infinite Scroll Action ---
 
 interface InfiniteScrollParams {
