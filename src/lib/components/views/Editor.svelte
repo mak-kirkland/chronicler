@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { onMount } from "svelte";
     import { defaultKeymap } from "@codemirror/commands";
     import Codemirror from "svelte-codemirror-editor";
     import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -87,29 +86,28 @@
         }),
     );
 
-    onMount(() => {
+    // One action, two independent triggers below. Kept as two effects on
+    // purpose: a single `isActive || shouldFocus` condition would short-circuit
+    // (so `shouldFocus` wouldn't even be tracked while `isActive` held) and
+    // would re-fire when `isActive` went true→false, focusing a pane that had
+    // just been hidden.
+    function measureAndFocus() {
+        editor?.requestMeasure();
         editor?.focus();
+    }
+
+    // The tab became visible again: it was display:none, so it has no geometry
+    // to lay out against and has lost focus.
+    $effect(() => {
+        if (isActive) measureAndFocus();
     });
 
-    // When this editor's tab becomes active again, CodeMirror needs to
-    // re-measure (it was display:none and has no geometry) and regain focus.
+    // This pane entered an edit mode. Fires on the false→true edge, since that's
+    // the only time `shouldFocus` changes — and nothing here reads state it also
+    // writes, so there's no loop. Driven by THIS pane's mode rather than its
+    // visibility, so the two editors of a split don't fight over focus.
     $effect(() => {
-        if (isActive && editor) {
-            editor.requestMeasure();
-            editor.focus();
-        }
-    });
-
-    // Focus when this pane enters an edit mode. The effect only re-runs when
-    // `shouldFocus` (or `editor`) changes, so it fires on the false→true edge —
-    // no state is read and written here, so there's no update loop. Because the
-    // signal is driven by THIS pane's mode (not visibility), the two editors of
-    // a split don't fight: only the pane whose mode changed re-focuses.
-    $effect(() => {
-        if (shouldFocus && editor) {
-            editor.requestMeasure();
-            editor.focus();
-        }
+        if (shouldFocus) measureAndFocus();
     });
 
     // Re-measure whenever the editor's own box changes width/height — e.g. when

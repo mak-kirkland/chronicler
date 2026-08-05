@@ -41,8 +41,7 @@
                 <TabItem
                     {tab}
                     active={tab.id === $activeTabId}
-                    displayed={$displayedPanes.includes(tab.id) &&
-                        tab.id !== $activeTabId}
+                    displayed={$displayedPanes.includes(tab.id)}
                     first={i === 0}
                     afterActive={i > 0 && $tabs.tabs[i - 1].id === $activeTabId}
                     status={$tabStatus[tab.id]}
@@ -109,8 +108,9 @@
         display: flex;
         align-items: stretch;
     }
-    /* The sidebar toggle isn't an .icon-btn: it keeps the full-height hit area
-       and the rule that walls it off from the tab strip. */
+    /* The sidebar toggle isn't an .icon-btn: it's chrome for the whole window
+       rather than part of the tab strip, so it keeps its own rule, its
+       full-height hit area, and the divider that walls it off. */
     .sidebar-toggle-btn {
         display: flex;
         align-items: center;
@@ -120,10 +120,6 @@
         border: none;
         color: var(--color-text-secondary);
         cursor: pointer;
-    }
-    /* The sidebar toggle is chrome for the whole window, so it keeps its rule
-       and full-height hit area. */
-    .sidebar-toggle-btn {
         width: 38px;
         border-right: 1px solid var(--color-border-primary);
         font-size: 1.1rem;
@@ -145,9 +141,5 @@
         background: var(--color-background-tertiary);
         color: var(--color-text-primary);
         opacity: 1;
-    }
-    .split-btn:disabled {
-        opacity: 0.3;
-        cursor: default;
     }
 </style>

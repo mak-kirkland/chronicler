@@ -2,7 +2,7 @@
     import type { Component } from "svelte";
     import { tabs } from "$lib/viewStores";
     import { currentViewOf, isSplit } from "$lib/tabs";
-    import type { Tab, TabsState } from "$lib/tabs";
+    import type { Tab } from "$lib/tabs";
     import Icon from "$lib/components/ui/Icon.svelte";
     import { t } from "$lib/i18n";
     import TabBar from "$lib/components/views/TabBar.svelte";
@@ -33,16 +33,6 @@
         "report:parse-errors": ParseErrorsReportView,
         "report:broken-images": BrokenImagesReport,
     };
-
-    // Where a tab sits in the layout: "full" (single view), one side of a
-    // split, or null when it's a background tab that stays mounted but hidden.
-    type PaneSide = "full" | "left" | "right" | null;
-    function paneSideOf(tab: Tab, state: TabsState): PaneSide {
-        const pi = state.panes.indexOf(tab.id);
-        if (pi === -1) return null;
-        if (state.panes.length === 1) return "full";
-        return pi === 0 ? "left" : "right";
-    }
 
     // Resolve a tab to the component + props to render. View-specific extras
     // (tabId/isActive/isFocused/initialMode) are injected here so the template
@@ -102,28 +92,23 @@
     <TabBar />
     <div class="tab-panes" class:split={isSplit($tabs)}>
         {#each $tabs.tabs as tab (tab.id)}
-            {@const side = paneSideOf(tab, $tabs)}
-            {@const resolved = resolve(
-                tab,
-                side !== null,
-                $tabs.panes.indexOf(tab.id) === $tabs.focused,
-            )}
+            <!-- Which pane shows this tab, or -1 when it's a background tab that
+                 stays mounted but hidden. Index doubles as the side: 0 = left,
+                 1 = right (and the only pane when not split). -->
+            {@const pane = $tabs.panes.indexOf(tab.id)}
+            {@const resolved = resolve(tab, pane !== -1, pane === $tabs.focused)}
             {@const Active = resolved.component}
             <!-- Clicking anywhere in a pane focuses it (capture phase so the
-                 editor still receives the event). Background tabs (side===null)
-                 stay mounted but display:none to preserve their state. -->
+                 editor still receives the event). Unsplit this can't fire, since
+                 the only displayed tab is already the focused one. -->
             <div
                 class="tab-pane"
-                class:visible={side !== null}
-                class:left={side === "left"}
-                class:right={side === "right"}
+                class:visible={pane !== -1}
+                class:left={pane === 0}
+                class:right={pane === 1}
                 onpointerdowncapture={() => {
-                    // Only when split, and only when focus actually moves — a
-                    // store update notifies subscribers even if the state is
-                    // unchanged, so guard the no-op clicks.
-                    if ($tabs.panes.length < 2) return;
-                    const pi = $tabs.panes.indexOf(tab.id);
-                    if (pi !== -1 && pi !== $tabs.focused) tabs.focusPane(pi);
+                    if (pane !== -1 && pane !== $tabs.focused)
+                        tabs.focusPane(pane);
                 }}
             >
                 {#if Active}
@@ -183,11 +168,14 @@
         position: absolute;
         inset: 0;
         display: none;
-        /* Contain each pane's internal z-indexes (e.g. ViewHeader's z-index:20)
-           in its own stacking context. Without this the pane — position:absolute
-           with z-index:auto — is NOT a stacking context, so those descendants
-           escape into the .tab-panes layer and paint over the pane-divider and
-           pane-close overlays, swallowing clicks on the close buttons. */
+        /* Contain each pane's internal z-indexes in its own stacking context.
+           Without this the pane — position:absolute with z-index:auto — is NOT
+           a stacking context, so those descendants escape into the .tab-panes
+           layer and paint over the pane-divider and pane-close overlays,
+           swallowing clicks on the close buttons. Raising the chrome's z-index
+           instead is not an option: the views range from ViewHeader's 20 up to
+           Leaflet's own 1000-2000 (MapView, MapConsole, MapLayerControl), which
+           this app doesn't get to choose. */
         isolation: isolate;
     }
     .tab-pane.visible {
