@@ -122,6 +122,11 @@
         if (!fileContainerEl) return;
         const ro = new ResizeObserver((entries) => {
             const width = entries[0].contentRect.width;
+            // A background tab is display:none and measures 0, which would
+            // collapse this header to icons and expand it again the moment the
+            // tab is shown — a visible flicker on every tab switch. Keep the
+            // last real measurement; a new one arrives when the pane is back.
+            if (width === 0) return;
             narrowHeader = width < NARROW_HEADER_PX;
             narrowPane = width < NARROW_PANE_PX;
         });

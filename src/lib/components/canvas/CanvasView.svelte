@@ -48,9 +48,12 @@
     import TextInputModal from "$lib/components/modals/TextInputModal.svelte";
     import { t, translate } from "$lib/i18n";
 
-    let { data, isActive = true } = $props<{
+    let { data, isActive = true, isFocused = true } = $props<{
         data: PageHeader | null;
+        /** Displayed in a pane — true for BOTH panes of a split. */
         isActive?: boolean;
+        /** Owns the keyboard — true for at most one tab at a time. */
+        isFocused?: boolean;
     }>();
 
     const path = $derived(data ? normalizePath(data.path) : "");
@@ -590,7 +593,9 @@
     }
 </script>
 
-<svelte:window onkeydown={isActive ? onKeyDown : undefined} />
+<!-- Gated on focus, not visibility: in a split both canvases are `isActive`,
+     and they would otherwise both answer the same keypress. -->
+<svelte:window onkeydown={isFocused ? onKeyDown : undefined} />
 
 <div class="canvas-root">
     <CanvasToolbar bind:tool onUndo={undo} onRedo={redo} {canUndo} {canRedo} />

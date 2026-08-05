@@ -50,9 +50,12 @@
     import ContextMenu from "$lib/components/ui/ContextMenu.svelte";
     import LinkPreview from "$lib/components/ui/LinkPreview.svelte";
 
-    let { data, isActive = true } = $props<{
+    let { data, isActive = true, isFocused = true } = $props<{
         data: PageHeader | null;
+        /** Displayed in a pane — true for BOTH panes of a split. */
         isActive?: boolean;
+        /** Owns the keyboard — true for at most one tab at a time. */
+        isFocused?: boolean;
     }>();
 
     const path = $derived(data ? normalizePath(data.path) : "");
@@ -412,7 +415,9 @@
     }
 
     function onKeyDown(e: KeyboardEvent) {
-        if (!isActive) return;
+        // Focus, not visibility: in a split both timelines are `isActive`, and
+        // they would otherwise both answer the same keypress.
+        if (!isFocused) return;
         if (e.key === "Escape") {
             contextMenu = null;
             laneMenu = null;
