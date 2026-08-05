@@ -47,7 +47,10 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0 22px;
+        /* The right gutter widens in a split view, where +page.svelte floats a
+           pane-close button over this corner and needs the actions out of its
+           way. Everywhere else it stays symmetric with the left. */
+        padding: 0 var(--view-header-gutter-right, 22px) 0 22px;
         /* Softer than the full border token: this rule runs the width of the
            window directly above the article, and at full strength it read as
            the first of the page's own horizontal rules. */

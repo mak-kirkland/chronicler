@@ -45,13 +45,21 @@
     }
 
     // Resolve a tab to the component + props to render. View-specific extras
-    // (tabId/isActive/initialMode) are injected here so the template stays a
-    // single, branch-free spread. `isActive` (visible in a pane) lets FileView's
-    // editor and MapView's Leaflet re-measure when a tab mounted hidden becomes
-    // visible; `initialMode` is a one-shot seed FileView reads only at mount.
+    // (tabId/isActive/isFocused/initialMode) are injected here so the template
+    // stays a single, branch-free spread. `initialMode` is a one-shot seed
+    // FileView reads only at mount.
+    //
+    // `isActive` and `isFocused` were one flag until the view could split, and
+    // they answer different questions now that two panes are on screen at once:
+    //   isActive  — "I have a real box": lets FileView's editor and MapView's
+    //               Leaflet re-measure when a tab mounted hidden becomes
+    //               visible, and gates lazy data loads. TRUE FOR BOTH PANES.
+    //   isFocused — "I own the keyboard": exactly one tab at a time, so the two
+    //               canvases of a split don't both answer the same keypress.
     function resolve(
         tab: Tab,
         isActive: boolean,
+        isFocused: boolean,
     ): { component: Component<any>; props: Record<string, any> } {
         const view = currentViewOf(tab);
         let key: string = view.type;
@@ -67,9 +75,13 @@
                 };
                 break;
             case "map":
+                props = { data: view.data, isActive };
+                break;
             case "canvas":
             case "timeline":
-                props = { data: view.data, isActive };
+                // These two bind window-level key handling, so they need to
+                // know which pane owns the keyboard, not just that they're up.
+                props = { data: view.data, isActive, isFocused };
                 break;
             case "image":
                 props = { data: view.data };
@@ -91,7 +103,11 @@
     <div class="tab-panes" class:split={isSplit($tabs)}>
         {#each $tabs.tabs as tab (tab.id)}
             {@const side = paneSideOf(tab, $tabs)}
-            {@const resolved = resolve(tab, side !== null)}
+            {@const resolved = resolve(
+                tab,
+                side !== null,
+                $tabs.panes.indexOf(tab.id) === $tabs.focused,
+            )}
             {@const Active = resolved.component}
             <!-- Clicking anywhere in a pane focuses it (capture phase so the
                  editor still receives the event). Background tabs (side===null)
@@ -210,8 +226,12 @@
         z-index: 2;
         pointer-events: none;
     }
-    /* Hidden until the editor area is hovered, and non-interactive while hidden
-       so they never swallow clicks on a view's own header controls beneath. */
+    /* Revealed while the pointer is anywhere in the split — which is nearly all
+       the time — so these are effectively always live, and MUST NOT sit over
+       anything clickable. They'd otherwise take the top-right corner of each
+       pane's header actions; `--view-header-gutter-right` below reserves the
+       space instead. (Per-pane reveal is tempting but flickers: the buttons are
+       siblings of the panes, so hovering one un-hovers the pane beneath it.) */
     .pane-close {
         position: absolute;
         top: 4px;
@@ -234,6 +254,12 @@
     .tab-panes.split:hover .pane-close {
         opacity: 0.55;
         pointer-events: auto;
+    }
+    /* Each button floats over the top-right corner of its pane's own header, so
+       widen that header's right gutter while split to clear it. ViewHeader reads
+       this custom property; it inherits down into every view. */
+    .tab-panes.split {
+        --view-header-gutter-right: 34px;
     }
     .tab-panes.split .pane-close:hover {
         opacity: 1;
