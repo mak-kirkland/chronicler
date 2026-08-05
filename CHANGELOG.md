@@ -2,6 +2,15 @@
 
 ---
 
+## [v0.58.0-alpha] - 2026-08-05
+
+### ✨ Added
+
+- **Settings**: Added a Keyboard Shortcuts section where you can view and rebind navigation and editor shortcuts. Shortcuts are grouped by category, conflicts are flagged, and your changes persist across sessions. Individual bindings or all defaults can be restored at any time.
+- **Sidebar**: Added a toggle button to hide and show the sidebar. The sidebar's visibility is saved per-vault.
+
+---
+
 ## [v0.57.0-alpha] - 2026-07-29
 
 ### ✨ Added
