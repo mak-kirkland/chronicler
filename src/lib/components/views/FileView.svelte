@@ -32,6 +32,7 @@
         MapLink,
     } from "$lib/bindings";
     import { findFileInTree, parentFolderName } from "$lib/utils";
+    import { observeSize } from "$lib/domActions";
     import { AUTOSAVE_DEBOUNCE_MS } from "$lib/config";
     import { log } from "$lib/logger";
     import Icon from "$lib/components/ui/Icon.svelte";
@@ -120,8 +121,8 @@
     const NARROW_PANE_PX = 900;
     $effect(() => {
         if (!fileContainerEl) return;
-        const ro = new ResizeObserver((entries) => {
-            const width = entries[0].contentRect.width;
+        return observeSize(fileContainerEl, (entry) => {
+            const width = entry.contentRect.width;
             // A background tab is display:none and measures 0, which would
             // collapse this header to icons and expand it again the moment the
             // tab is shown — a visible flicker on every tab switch. Keep the
@@ -130,8 +131,6 @@
             narrowHeader = width < NARROW_HEADER_PX;
             narrowPane = width < NARROW_PANE_PX;
         });
-        ro.observe(fileContainerEl);
-        return () => ro.disconnect();
     });
     function rememberPreviewScroll() {
         if (mode !== "editor" && previewPaneEl) {

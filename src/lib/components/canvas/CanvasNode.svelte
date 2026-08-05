@@ -11,6 +11,7 @@
     import {
         hasMoreBelow,
         hasMoreRight,
+        observeSize,
         overflowsVertically,
     } from "$lib/domActions";
     import { wheelPixels } from "$lib/canvasViewport";
@@ -251,9 +252,7 @@
     }
     $effect(() => {
         if (!el) return;
-        const ro = new ResizeObserver(() => updateClipHints());
-        ro.observe(el);
-        return () => ro.disconnect();
+        return observeSize(el, updateClipHints);
     });
 
     function onResizeDblClick(e: MouseEvent) {

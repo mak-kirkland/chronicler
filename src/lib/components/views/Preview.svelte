@@ -8,6 +8,7 @@
         hydrateCarousels,
         enhanceGalleries,
         renderMath,
+        observeSize,
     } from "$lib/domActions";
     import { navigateToTag } from "$lib/actions";
     import { t } from "$lib/i18n";
@@ -40,11 +41,11 @@
     let isNarrow = $state(false);
     $effect(() => {
         if (!containerEl) return;
-        const ro = new ResizeObserver((entries) => {
-            isNarrow = entries[0].contentRect.width < UNFLOAT_PX;
+        return observeSize(containerEl, (entry) => {
+            // Ignore the 0 a hidden tab reports; see observeSize's note.
+            const width = entry.contentRect.width;
+            if (width > 0) isNarrow = width < UNFLOAT_PX;
         });
-        ro.observe(containerEl);
-        return () => ro.disconnect();
     });
 
     // Unfloated, the card sits between the title and the first paragraph so the

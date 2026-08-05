@@ -10,7 +10,7 @@
      * 5. Portaling to body to escape parent stacking contexts.
      */
     import { tick } from "svelte";
-    import { portal } from "$lib/domActions";
+    import { portal, observeSize } from "$lib/domActions";
 
     let {
         isOpen = false,
@@ -135,9 +135,7 @@
     // bottom clamp were computed against. Re-measure when the box changes.
     $effect(() => {
         if (!isOpen || !menuEl) return;
-        const ro = new ResizeObserver(() => updatePosition());
-        ro.observe(menuEl);
-        return () => ro.disconnect();
+        return observeSize(menuEl, () => updatePosition());
     });
 
     // --- Global Event Listeners ---

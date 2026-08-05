@@ -54,6 +54,7 @@
         mapPathLookup,
     } from "$lib/worldStore";
     import { throttle } from "$lib/utils";
+    import { observeSize } from "$lib/domActions";
     import type { MapConfig, MapLayer, MapRegion } from "$lib/mapModels";
     import type { PageHeader } from "$lib/bindings";
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
@@ -192,9 +193,7 @@
     // or misaligned tiles. `mapElement` is reactive; `map` is read at call time.
     $effect(() => {
         if (!mapElement) return;
-        const ro = new ResizeObserver(() => map?.invalidateSize());
-        ro.observe(mapElement);
-        return () => ro.disconnect();
+        return observeSize(mapElement, () => map?.invalidateSize());
     });
 
     // Layer Groups to manage different types of content
