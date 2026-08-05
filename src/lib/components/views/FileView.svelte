@@ -95,7 +95,7 @@
     // on first edit and then kept, so files you only ever read never spin up a
     // CodeMirror instance.
     // svelte-ignore state_referenced_locally
-    let editorEverShown = $state((initialMode ?? "preview") !== "preview");
+    let editorEverShown = $state(mode !== "preview");
     $effect(() => {
         if (mode !== "preview") editorEverShown = true;
     });

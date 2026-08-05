@@ -18,9 +18,27 @@ let idCounter = 0;
 const makeId = () => `tab-${idCounter++}`;
 
 function createTabsStore() {
-    const { subscribe, update, set } = writable<TabsState>(
-        T.createInitialState(makeId()),
-    );
+    let current = T.createInitialState(makeId());
+    const { subscribe, set } = writable<TabsState>(current);
+
+    /**
+     * Apply a pure-model op, and stay silent when it changed nothing.
+     *
+     * The model in tabs.ts deliberately returns the IDENTICAL state object for
+     * a no-op — clicking the tab that's already active, focusing the pane
+     * that's already focused, navigating to the page you're already on. Svelte's
+     * `safe_not_equal` reports any two objects as different, so handing that
+     * same object to `set` would still notify every subscriber and re-render
+     * every mounted pane for nothing. Honouring the model's contract once, here,
+     * saves each call site from guarding its own no-ops.
+     */
+    const update = (fn: (s: TabsState) => TabsState) => {
+        const next = fn(current);
+        if (next === current) return;
+        current = next;
+        set(next);
+    };
+
     return {
         subscribe,
         openInCurrent: (view: ViewState) =>
@@ -53,7 +71,8 @@ function createTabsStore() {
             update((s) => T.applyRename(s, oldPath, newPath, newTitle, kindOf)),
         applyDelete: (path: string) =>
             update((s) => T.applyDelete(s, path, makeId)),
-        reset: () => set(T.createInitialState(makeId())),
+        // Goes through `update` too, so `current` stays in sync with the store.
+        reset: () => update(() => T.createInitialState(makeId())),
     };
 }
 
@@ -71,12 +90,6 @@ export const activeTabId: Readable<string> = derived(tabs, (s) =>
 
 /** The 1 or 2 displayed tab ids, left→right. Length 2 means the view is split. */
 export const displayedPanes: Readable<string[]> = derived(tabs, (s) => s.panes);
-
-/** Index into `displayedPanes` of the focused pane. */
-export const focusedPaneIndex: Readable<number> = derived(
-    tabs,
-    (s) => s.focused,
-);
 
 /** Whether two panes are shown side by side. */
 export const isViewSplit: Readable<boolean> = derived(tabs, (s) =>

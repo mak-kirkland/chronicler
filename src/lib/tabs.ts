@@ -172,17 +172,19 @@ export function closePane(state: TabsState, paneIndex: number): TabsState {
     return { ...state, panes: [keep], focused: 0 };
 }
 
-/** Pick a tab (not `excludeId`) to fill a pane after its tab was removed. */
+/**
+ * Pick a tab (not `excludeId`) to fill a pane after its tab was removed.
+ * `tabs` is the list with the tab already removed, so `removedIdx` now points
+ * at its right neighbour. Preference: right neighbour, then left, then any.
+ * Out-of-range indexes read as `undefined` and are skipped by the `t &&`.
+ */
 function pickReplacement(
     tabs: Tab[],
     removedIdx: number,
     excludeId: string,
 ): string | null {
-    const candidates: string[] = [];
-    if (removedIdx < tabs.length) candidates.push(tabs[removedIdx].id);
-    if (removedIdx - 1 >= 0) candidates.push(tabs[removedIdx - 1].id);
-    for (const t of tabs) candidates.push(t.id);
-    return candidates.find((c) => c !== excludeId) ?? null;
+    const preferred = [tabs[removedIdx], tabs[removedIdx - 1], ...tabs];
+    return preferred.find((t) => t && t.id !== excludeId)?.id ?? null;
 }
 
 export function closeTab(

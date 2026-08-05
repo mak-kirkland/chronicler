@@ -27,7 +27,7 @@
     } = $props<{
         tab: Tab;
         active: boolean;
-        /** Shown in the other (non-focused) pane of a split. */
+        /** Shown in one of the split's panes. Styled only when not `active`. */
         displayed?: boolean;
         /** Leftmost tab: nothing to its left to separate it from. */
         first?: boolean;
@@ -164,15 +164,18 @@
     .tab:hover {
         background: var(--color-background-secondary);
     }
-    .tab.active {
+    /* On-screen tabs lift out of the strip; the underline says which of them
+       has focus. `:not(.active)` is load-bearing — without it the split rule
+       would win on source order and dim the focused tab's underline too. */
+    .tab.active,
+    .tab.displayed {
         background: var(--color-background-primary);
         color: var(--color-text-primary);
+    }
+    .tab.active {
         box-shadow: inset 0 -2px 0 var(--color-accent-primary);
     }
-    /* The other pane of a split: shown but not focused — a dimmer underline. */
     .tab.displayed:not(.active) {
-        background: var(--color-background-primary);
-        color: var(--color-text-primary);
         box-shadow: inset 0 -2px 0 var(--color-border-primary);
     }
     .tab-title {
