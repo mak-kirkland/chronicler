@@ -1,7 +1,7 @@
 /**
  * @file Startup announcement for the community mascot-design contest.
  *
- * Shows a splash modal on launch featuring a random community mascot and a link
+ * Shows a splash modal on launch featuring the 8 round-2 finalists and a link
  * to vote on the website. It appears on every launch (there is no dismissal) so
  * the contest stays front-of-mind while it runs. Fully offline: it makes no
  * network calls itself — the only outbound action is the user choosing to open
@@ -12,22 +12,15 @@
 
 import { openModal } from "./modalStore";
 import MascotContestModal from "./components/modals/MascotContestModal.svelte";
-import { contestMascots, type ContestMascot } from "./data/contestMascots";
+import { shuffleFinalists } from "./data/contestMascots";
 
 /** Website page where the contest voting happens. */
 export const CONTEST_VOTE_URL = "https://chronicler.pro/mascots";
 
-/** Pick a random mascot to feature. `rng` is injectable for predictability. */
-export function pickRandomMascot(
-    rng: () => number = Math.random,
-): ContestMascot {
-    return contestMascots[Math.floor(rng() * contestMascots.length)];
-}
-
-/** Open the contest announcement modal, featuring a random mascot. */
+/** Open the contest announcement modal, showing the finalists in random order. */
 export function showContestAnnouncement(): void {
     openModal({
         component: MascotContestModal,
-        props: { mascot: pickRandomMascot() },
+        props: { mascots: shuffleFinalists() },
     });
 }
