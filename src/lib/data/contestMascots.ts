@@ -1,11 +1,11 @@
 /**
  * Bundled data for the community mascot-contest splash announcement.
  *
- * Generated from the chronicler-website mascots vault (23 community designs).
- * This is a self-contained snapshot so the app stays fully offline — it has no
- * runtime or build dependency on the website repo. Safe to delete (along with
- * `contestAnnouncement.ts`, `MascotContestModal.svelte`, and `static/mascots/`)
- * once the contest is over.
+ * Round 1 narrowed 23 community designs down to these 8 finalists. Generated
+ * from the chronicler-website mascots vault; this is a self-contained snapshot
+ * so the app stays fully offline — it has no runtime or build dependency on the
+ * website repo. Safe to delete (along with `contestAnnouncement.ts`,
+ * `MascotContestModal.svelte`, and `static/mascots/`) once the contest is over.
  */
 
 export interface ContestMascot {
@@ -17,62 +17,14 @@ export interface ContestMascot {
     image: string;
 }
 
+/** The 8 finalists, in the order round 1 left them. */
 export const contestMascots: ContestMascot[] = [
-    {
-        slug: "birdie",
-        name: "Birdie",
-        subtitle: "The First Draft",
-        creator: "@amadshade",
-        image: "/mascots/birdie.webp",
-    },
     {
         slug: "birdie-evolved",
         name: "Birdie Evolved",
         subtitle: "The Fledged",
         creator: "@loreofold",
         image: "/mascots/birdie-evolved.webp",
-    },
-    {
-        slug: "brush-bird",
-        name: "Brush Bird",
-        subtitle: "The Painter of Worlds",
-        creator: "@Daemon",
-        image: "/mascots/brush-bird.webp",
-    },
-    {
-        slug: "corvid",
-        name: "Corvid",
-        subtitle: "The Scholar Scribe",
-        creator: "@fernyorchard",
-        image: "/mascots/corvid.webp",
-    },
-    {
-        slug: "courier",
-        name: "Courier",
-        subtitle: "The Story-Bearer",
-        creator: "@ghostofnight",
-        image: "/mascots/courier.webp",
-    },
-    {
-        slug: "dragon",
-        name: "Dragon",
-        subtitle: "The Chronicler's Assistant",
-        creator: "@draco5557",
-        image: "/mascots/dragon.webp",
-    },
-    {
-        slug: "ferret",
-        name: "Ferret",
-        subtitle: "The Chaotic Organizer",
-        creator: "@malikamoonheart",
-        image: "/mascots/ferret.webp",
-    },
-    {
-        slug: "hawk-billed-sea-turtle",
-        name: "Hawk-billed Sea Turtle",
-        subtitle: "The Deep Archivist",
-        creator: "@hamastra",
-        image: "/mascots/hawk-billed-sea-turtle.webp",
     },
     {
         slug: "librarian",
@@ -82,74 +34,25 @@ export const contestMascots: ContestMascot[] = [
         image: "/mascots/librarian.webp",
     },
     {
-        slug: "lil-owl-boi",
-        name: "Lil Owl Boi",
-        subtitle: "The Bespectacled Note-Taker",
-        creator: "@helya",
-        image: "/mascots/lil-owl-boi.webp",
+        slug: "dragon",
+        name: "Dragon",
+        subtitle: "The Chronicler's Assistant",
+        creator: "@draco5557",
+        image: "/mascots/dragon.webp",
     },
     {
-        slug: "michael-the-creator",
-        name: "Michael the Creator",
-        subtitle: "The Hand Behind the Pages",
-        creator: "@abyssal_troglodyte",
-        image: "/mascots/michael-the-creator.webp",
+        slug: "wizard",
+        name: "Wizard",
+        subtitle: "The World Beneath the Hat",
+        creator: "@frenchbelphegor",
+        image: "/mascots/wizard.webp",
     },
     {
-        slug: "morphy",
-        name: "Morphy",
-        subtitle: "The Shapeshifting Memory",
-        creator: "@magicxknight",
-        image: "/mascots/morphy.webp",
-    },
-    {
-        slug: "mouse",
-        name: "Mouse",
-        subtitle: "The Brave Little Quill-Bearer",
-        creator: "@king_momus_micky",
-        image: "/mascots/mouse.webp",
-    },
-    {
-        slug: "octopus",
-        name: "Octopus",
-        subtitle: "The Eight-Armed Multitasker",
-        creator: "RonnieTheZombie",
-        image: "/mascots/octopus.webp",
-    },
-    {
-        slug: "os-tan",
-        name: "OS-tan",
-        subtitle: "The App, Personified",
-        creator: "@kiryuutouga",
-        image: "/mascots/os-tan.webp",
-    },
-    {
-        slug: "peacock-spider",
-        name: "Peacock Spider",
-        subtitle: "The Storyteller's Display",
-        creator: "@cherryvanillasoap",
-        image: "/mascots/peacock-spider.webp",
-    },
-    {
-        slug: "quill",
-        name: "Quill",
-        subtitle: "The Pen Brought to Life",
-        creator: "@leaddy_",
-        image: "/mascots/quill.webp",
-    },
-    {
-        slug: "scriptmy",
-        name: "Scriptmy",
-        subtitle: "The Clumsy Scroll-Mother",
-        creator: "@tsewer",
-        image: "/mascots/scriptmy.webp",
-    },
-    {
-        slug: "star-captain",
-        name: "Star Captain",
-        subtitle: "The Pen-Sword Navigator",
-        creator: "@cryptidillusion",
-        image: "/mascots/star-captain.webp",
+        slug: "brush-bird",
+        name: "Brush Bird",
+        subtitle: "The Painter of Worlds",
+        creator: "@Daemon",
+        image: "/mascots/brush-bird.webp",
     },
     {
         slug: "stoat",
@@ -159,11 +62,11 @@ export const contestMascots: ContestMascot[] = [
         image: "/mascots/stoat.webp",
     },
     {
-        slug: "teddy-bear",
-        name: "Teddy Bear",
-        subtitle: "The Cozy Adventurer",
-        creator: "@aithernia",
-        image: "/mascots/teddy-bear.webp",
+        slug: "birdie",
+        name: "Birdie",
+        subtitle: "The First Draft",
+        creator: "@amadshade",
+        image: "/mascots/birdie.webp",
     },
     {
         slug: "the-inky-knight",
@@ -172,11 +75,22 @@ export const contestMascots: ContestMascot[] = [
         creator: "@oshashi",
         image: "/mascots/the-inky-knight.webp",
     },
-    {
-        slug: "wizard",
-        name: "Wizard",
-        subtitle: "The World Beneath the Hat",
-        creator: "@frenchbelphegor",
-        image: "/mascots/wizard.webp",
-    },
 ];
+
+/**
+ * Return the finalists in a fresh random order, leaving the source untouched.
+ *
+ * The splash shows all 8 at once, so a fixed order would hand whoever sits in
+ * the top-left a permanent advantage. Reshuffling per launch spreads that
+ * around. `rng` is injectable for predictability in tests.
+ */
+export function shuffleFinalists(
+    rng: () => number = Math.random,
+): ContestMascot[] {
+    const shuffled = [...contestMascots];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
