@@ -2,6 +2,19 @@
 
 ---
 
+## [v0.58.1-alpha] - 2026-08-10
+
+### 🔄 Changed
+
+- **Community**: The mascot contest splash now shows all eight round-two finalists at once, reshuffled on every launch. Go vote for your favourite!
+
+### 🐞 Fixed
+
+- **Preview**: Fixed the infobox and Table of Contents overlapping when the preview pane is narrow (e.g. when Chronicler is in a half-screen window or the sidebar is wide).
+- **Infoboxes**: Fixed a bug where opening the infobox editor on a page with no frontmatter, or whose content began with a markdown table separator, would load a jumble of junk fields instead of a clean empty editor.
+
+---
+
 ## [v0.58.0-alpha] - 2026-08-05
 
 ### ✨ Added
