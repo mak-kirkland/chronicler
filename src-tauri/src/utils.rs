@@ -4,7 +4,7 @@
 
 use serde::Serializer;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 /// A list of common image file extensions.
@@ -60,6 +60,64 @@ pub fn is_map_file(path: &Path) -> bool {
     path.file_name()
         .and_then(|s| s.to_str())
         .is_some_and(|name| name.ends_with(".cmap"))
+}
+
+/// Checks whether `path` carries the given extension, case-insensitively.
+/// `ext` is written without the leading dot (e.g. `"css"`).
+pub fn has_extension(path: &Path, ext: &str) -> bool {
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case(ext))
+}
+
+/// Creates `dir` (and any missing parents) if it is not already there, and
+/// returns it. `create_dir_all` is already idempotent, so this is simply the
+/// shared spelling used by the vault's on-demand config directories.
+pub fn ensure_dir(dir: PathBuf) -> Result<PathBuf, std::io::Error> {
+    fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+/// Lists the files in `dir` carrying `ext`, sorted by path for cross-platform
+/// determinism. A missing directory yields an empty list rather than an error,
+/// since these directories are created on demand.
+///
+/// The cheap extension test is applied before the `is_file` stat so only
+/// plausible candidates cost a syscall.
+pub fn list_files_with_extension(dir: &Path, ext: &str) -> Result<Vec<PathBuf>, std::io::Error> {
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+    let mut paths: Vec<PathBuf> = fs::read_dir(dir)?
+        .filter_map(|entry| entry.ok().map(|e| e.path()))
+        .filter(|p| has_extension(p, ext) && p.is_file())
+        .collect();
+    paths.sort();
+    Ok(paths)
+}
+
+/// Reads a file to a string, refusing anything larger than [`MAX_FILE_SIZE`].
+///
+/// The size is taken from the already-open handle (an `fstat`, no second path
+/// walk) and reused to size the buffer, so a capped read costs one path
+/// resolution rather than three.
+///
+/// [`MAX_FILE_SIZE`]: crate::config::MAX_FILE_SIZE
+pub fn read_file_capped(path: &Path) -> crate::error::Result<String> {
+    use std::io::Read;
+
+    let mut file = fs::File::open(path)?;
+    let size = file.metadata()?.len();
+    if size > crate::config::MAX_FILE_SIZE {
+        return Err(crate::error::ChroniclerError::FileTooLarge {
+            path: path.to_path_buf(),
+            size,
+            max_size: crate::config::MAX_FILE_SIZE,
+        });
+    }
+
+    let mut contents = String::with_capacity(size as usize);
+    file.read_to_string(&mut contents)?;
+    Ok(contents)
 }
 
 /// Extracts the file stem from a path and returns it as a clean String.

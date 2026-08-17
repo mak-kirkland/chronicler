@@ -18,6 +18,7 @@ import {
 } from "$lib/settingsStore";
 import { loadKeybindings } from "$lib/keybindingStore";
 import { loadActiveFonts } from "$lib/fonts";
+import { initializeSnippets, destroySnippets } from "$lib/snippetsStore";
 import { checkForAppUpdates } from "$lib/updater";
 import { licenseStore } from "./licenseStore";
 import { get } from "svelte/store";
@@ -38,8 +39,14 @@ export async function handleVaultSelected(path: string) {
         await initializeVault(path);
 
         // 2. Initialize frontend stores and vault-specific settings
-        //    in parallel, as they do not depend on each other.
-        await Promise.all([world.initialize(), initializeVaultSettings(path)]);
+        //    in parallel, as they do not depend on each other. Enabled CSS
+        //    snippets are applied here too, before "ready", so notes render
+        //    with their user styling on first paint.
+        await Promise.all([
+            world.initialize(),
+            initializeVaultSettings(path),
+            initializeSnippets(),
+        ]);
 
         // 3. Load active fonts *after* vault settings are loaded
         //    (since it depends on them) and *before* we set the app to "ready".
@@ -124,6 +131,7 @@ export function selectNewVault() {
     // Destroy the state for the vault that is being closed.
     world.destroy();
     destroyVaultSettings(); // Also destroy the settings associated with the closed vault.
+    destroySnippets(); // Remove any injected snippet <style> elements.
     resetAllStores();
 
     appStatus.set({ state: "selecting_vault" });

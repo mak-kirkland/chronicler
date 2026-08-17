@@ -16,6 +16,7 @@
         description = "",
         checked = $bindable(false),
         disabled = false,
+        onchange,
     } = $props<{
         /** A unique ID for the underlying <input>, used for accessibility. */
         id: string;
@@ -27,6 +28,12 @@
         checked?: boolean;
         /** If true, the toggle is non-interactive and visually dimmed. */
         disabled?: boolean;
+        /**
+         * Optional callback fired with the new value when the user flips the
+         * toggle. Complements `bind:checked` for callers that need to react to
+         * a change (e.g. persist it) rather than just mirror the state.
+         */
+        onchange?: (checked: boolean) => void;
     }>();
 </script>
 
@@ -39,7 +46,13 @@
             {/if}
         </div>
         <label class="toggle-switch" class:disabled>
-            <input type="checkbox" {id} bind:checked {disabled} />
+            <input
+                type="checkbox"
+                {id}
+                bind:checked
+                {disabled}
+                onchange={() => onchange?.(checked)}
+            />
             <span class="slider"></span>
         </label>
     </div>

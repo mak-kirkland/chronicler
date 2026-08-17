@@ -174,6 +174,39 @@ Chronicler stores global settings, themes and fonts in a dedicated folder on you
 
 ---
 
+### 🖌️ CSS Snippets
+
+If you find yourself repeating the same inline styles across pages, you can define a CSS class once in a **snippet** and reuse it everywhere.
+
+Snippets live inside your vault, in `.chronicler/snippets/`. Any `.css` file you put there shows up in **Settings → CSS Snippets**, where you enable the ones you want. Use **Open Snippets Folder** in that panel to jump straight there.
+
+For example, save this as `.chronicler/snippets/stat-block.css`:
+
+```css
+.stat-block {
+    border: 1px solid #8b7355;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    background: rgba(139, 115, 85, 0.08);
+}
+```
+
+Enable it, then use the class in any page:
+
+```html
+<div class="stat-block">
+    <strong>Armour Class</strong> 15<br />
+    <strong>Hit Points</strong> 82
+</div>
+```
+
+Edits are applied live - save the `.css` file and the change appears immediately, with no restart.
+
+
+> ⚠️ **Only enable snippets you trust.**
+
+---
+
 ## 🚀 Part 3: Advanced Guide
 
 This section covers powerful features for enhancing your workflow.

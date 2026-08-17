@@ -5,13 +5,15 @@
 
 use crate::licensing;
 use crate::licensing::License;
-use crate::models::{BrokenImage, BrokenLink, FullPageData, ImportedImage, PageHeader, ParseError};
+use crate::models::{
+    BrokenImage, BrokenLink, FullPageData, ImportedImage, PageHeader, ParseError, Snippet,
+};
 use crate::{
     config,
     error::{ChroniclerError, Result},
     fonts, importer,
     models::{FileNode, RenderedPage},
-    themes,
+    snippets, themes,
     world::World,
 };
 use chrono::{Local, NaiveDate};
@@ -309,12 +311,19 @@ pub fn duplicate_page(path: String, world: State<World>) -> Result<PageHeader> {
     world.duplicate_page(path)
 }
 
+/// Hands a path to the OS's default handler (file manager for directories).
+fn reveal_path(app_handle: &AppHandle, path: &Path) -> Result<()> {
+    app_handle
+        .opener()
+        .open_path(path.to_string_lossy(), None::<&str>)?;
+    Ok(())
+}
+
 /// Opens the specified path in the OS's default file explorer.
 #[command]
 #[instrument(skip(app_handle), err(Debug))]
 pub fn open_in_explorer(app_handle: AppHandle, path: String) -> Result<()> {
-    app_handle.opener().open_path(path, None::<&str>)?;
-    Ok(())
+    reveal_path(&app_handle, Path::new(&path))
 }
 
 /// Reads a `.cmap` file from within the vault and returns its raw JSON.
@@ -499,10 +508,7 @@ pub fn log_from_frontend(level: String, message: String, context: Option<String>
 #[instrument(skip(app_handle), err(Debug))]
 pub fn open_log_directory(app_handle: AppHandle) -> Result<()> {
     let log_dir = app_handle.path().app_log_dir()?;
-    app_handle
-        .opener()
-        .open_path(log_dir.to_string_lossy(), None::<&str>)?;
-    Ok(())
+    reveal_path(&app_handle, &log_dir)
 }
 
 // --- Custom Fonts ---
@@ -583,4 +589,62 @@ pub fn delete_theme_from_disk(name: String, app_handle: AppHandle) -> Result<()>
 #[instrument(err(Debug))]
 pub fn import_theme_from_path(path: String) -> Result<serde_json::Value> {
     themes::import_theme_from_path(std::path::Path::new(&path))
+}
+
+// --- CSS Snippets ---
+
+/// Lists the active vault's `.css` snippet files, each paired with whether it
+/// is currently enabled. The enabled state is read from the app config (keyed
+/// by vault path), so it reflects this user's local opt-in choices only.
+#[command]
+#[instrument(skip(world, app_handle), err(Debug))]
+pub fn list_snippets(world: State<World>, app_handle: AppHandle) -> Result<Vec<Snippet>> {
+    let root = vault_root(&world)?;
+
+    let files = snippets::list_snippet_files(&root)?;
+    let enabled = config::get_enabled_snippets(&app_handle, &root)?;
+
+    Ok(files
+        .into_iter()
+        .map(|filename| Snippet {
+            enabled: enabled.contains(&filename),
+            filename,
+        })
+        .collect())
+}
+
+/// Reads a single snippet's raw CSS text (path-traversal guarded). The frontend
+/// applies it via a `<style>` element's `textContent`, never as HTML.
+#[command]
+#[instrument(skip(world), err(Debug))]
+pub fn read_snippet(world: State<World>, filename: String) -> Result<String> {
+    let root = vault_root(&world)?;
+    snippets::read_snippet_css(&root, &filename)
+}
+
+/// Enables or disables a snippet for the active vault. The choice is persisted
+/// app-side (keyed by vault path), never inside the vault, keeping snippets
+/// opt-in even when a vault is shared or synced.
+#[command]
+#[instrument(skip(world, app_handle), err(Debug))]
+pub fn set_snippet_enabled(
+    world: State<World>,
+    app_handle: AppHandle,
+    filename: String,
+    enabled: bool,
+) -> Result<()> {
+    let root = vault_root(&world)?;
+    // Reject a traversal name before it ever reaches the persisted config.
+    snippets::validate_snippet_filename(&filename)?;
+    config::set_snippet_enabled(&app_handle, &root, &filename, enabled)
+}
+
+/// Opens the active vault's snippets folder in the OS file manager, creating it
+/// first so the user always lands somewhere valid.
+#[command]
+#[instrument(skip(world, app_handle), err(Debug))]
+pub fn open_snippets_dir(world: State<World>, app_handle: AppHandle) -> Result<()> {
+    let root = vault_root(&world)?;
+    let dir = snippets::ensure_snippets_dir(&root)?;
+    reveal_path(&app_handle, &dir)
 }

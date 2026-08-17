@@ -2,13 +2,11 @@
 //!
 //! Extracts metadata, links, and frontmatter from files.
 
-use crate::config::MAX_FILE_SIZE;
 use crate::error::{ChroniclerError, Result};
 use crate::models::{Link, Page};
 use crate::wikilink::extract_wikilinks;
 use regex::Regex;
 use std::collections::HashSet;
-use std::fs;
 use std::path::Path;
 use std::sync::LazyLock;
 use tracing::instrument;
@@ -22,17 +20,7 @@ use tracing::instrument;
 /// A `Result` containing the parsed `Page` or a `ChroniclerError`.
 #[instrument(skip(path), fields(path = %path.display()), level = "debug", ret(level = "debug"))]
 pub fn parse_file(path: &Path) -> Result<Page> {
-    // Check file size limit
-    let metadata = fs::metadata(path)?;
-    if metadata.len() > MAX_FILE_SIZE {
-        return Err(ChroniclerError::FileTooLarge {
-            path: path.to_path_buf(),
-            size: metadata.len(),
-            max_size: MAX_FILE_SIZE,
-        });
-    }
-
-    let content = fs::read_to_string(path)?;
+    let content = crate::utils::read_file_capped(path)?;
     let (frontmatter_str, _markdown_body) = extract_frontmatter(&content);
 
     // Parse frontmatter
@@ -342,6 +330,7 @@ mod tests {
     use super::*; // Import everything from the parent module (parser)
     use crate::error::ChroniclerError;
     use std::collections::HashSet;
+    use std::fs;
     use tempfile::tempdir;
 
     #[test]
