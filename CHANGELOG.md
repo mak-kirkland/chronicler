@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.59.0-alpha] - 2026-08-17
+
+### ✨ Added
+
+- **Snippets**: You can now define custom CSS snippets per-vault, making it easy to create and reuse your own styles across notes (such as stat blocks or custom callouts). Snippets are managed from Settings and apply live to rendered pages.
+
+---
+
 ## [v0.58.1-alpha] - 2026-08-10
 
 ### 🔄 Changed
