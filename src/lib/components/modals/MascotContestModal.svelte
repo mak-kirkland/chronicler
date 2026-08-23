@@ -15,19 +15,19 @@
 </script>
 
 <Modal
-    title="The finalists are in — cast your vote!"
+    title="It's down to the final two — cast your vote!"
     showCloseButton={true}
     onClose={closeModal}
 >
     <div class="contest-content">
         <p class="intro">
-            The community designed 23 mascots for Chronicler, and round one
-            narrowed them down to these eight. One of them becomes the face of
-            the app — the final call is yours.
+            The community designed 23 mascots for Chronicler, and two rounds of
+            voting have narrowed it down to the final two! Who will be the new
+            Chronicler Mascot?
         </p>
 
         <ul class="finalists">
-            {#each mascots as mascot (mascot.slug)}
+            {#each mascots as mascot, i (mascot.slug)}
                 <li class="finalist">
                     <img src={mascot.image} alt={mascot.name} />
                     <span class="name">{mascot.name}</span>
@@ -35,6 +35,9 @@
                         <span class="creator">{mascot.creator}</span>
                     {/if}
                 </li>
+                {#if i === 0}
+                    <li class="versus" aria-hidden="true">VS</li>
+                {/if}
             {/each}
         </ul>
 
@@ -62,12 +65,11 @@
         margin: 0;
         padding: 0;
         display: grid;
-        /* Eight finalists, so a fixed four columns splits them evenly into two
-           rows. Deliberately not auto-fit: letting the count follow the
-           available width gives a ragged 5-then-3 split, which reads as a
-           rank rather than a field of equals. */
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.85rem 0.5rem;
+        /* Two contestants either side of a "VS" divider — a showdown, not a
+           field, so the layout should read as a match-up rather than a grid. */
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 0.5rem 1rem;
     }
     .finalist {
         display: flex;
@@ -77,15 +79,18 @@
         min-width: 0;
     }
     .finalist img {
-        /* A fixed box keeps the rows aligned no matter how each entry's artwork
-           is proportioned. Scaling with the viewport keeps all eight inside the
-           modal body's 70vh cap on a laptop screen — voters should be able to
-           compare the full field without scrolling — while letting the artwork
-           breathe on a larger display. */
-        height: clamp(74px, 9.5vh, 116px);
+        /* Only two portraits now, so they can run much larger than the old
+           eight-up grid while still fitting the modal body's 70vh cap. */
+        height: clamp(120px, 22vh, 220px);
         width: 100%;
         object-fit: contain;
         margin-bottom: 0.25rem;
+    }
+    .versus {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: var(--color-text-secondary);
+        padding: 0 0.25rem;
     }
     .name {
         font-size: 0.92rem;
@@ -115,10 +120,13 @@
     }
 
     /* Below the modal's own max-width it goes full-bleed, so viewport width is
-       a fair proxy for how much room the grid has. */
+       a fair proxy for how much room the pair has to shrink into. */
     @media (max-width: 560px) {
-        .finalists {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+        .finalist img {
+            height: clamp(90px, 18vh, 160px);
+        }
+        .versus {
+            font-size: 0.95rem;
         }
     }
 </style>
