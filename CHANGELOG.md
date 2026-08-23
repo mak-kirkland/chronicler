@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.59.1-alpha] - 2026-08-23
+
+### 🔄 Changed
+
+- **Community**: The mascot contest splash has been updated for the final round: Birdie Evolved vs the Librarian! Cast your vote!
+
+---
+
 ## [v0.59.0-alpha] - 2026-08-17
 
 ### ✨ Added
