@@ -77,6 +77,15 @@ export const contestMascots: ContestMascot[] = [
     },
 ];
 
+function shuffle<T>(items: T[], rng: () => number): T[] {
+    const shuffled = [...items];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
 /**
  * Return the finalists in a fresh random order, leaving the source untouched.
  *
@@ -87,10 +96,25 @@ export const contestMascots: ContestMascot[] = [
 export function shuffleFinalists(
     rng: () => number = Math.random,
 ): ContestMascot[] {
-    const shuffled = [...contestMascots];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(rng() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
+    return shuffle(contestMascots, rng);
+}
+
+/** Round 2 narrowed the field to a showdown between these two. */
+const RUNOFF_SLUGS = ["birdie-evolved", "librarian"];
+
+/** The final two, pulled from the full field so their data stays in one place. */
+export const finalMascots: ContestMascot[] = contestMascots.filter((m) =>
+    RUNOFF_SLUGS.includes(m.slug),
+);
+
+/**
+ * Return the final two in a fresh random order, leaving the source untouched.
+ *
+ * Same rationale as {@link shuffleFinalists}: don't let a fixed order favor
+ * whoever lands first. `rng` is injectable for predictability in tests.
+ */
+export function shuffleFinalMascots(
+    rng: () => number = Math.random,
+): ContestMascot[] {
+    return shuffle(finalMascots, rng);
 }
