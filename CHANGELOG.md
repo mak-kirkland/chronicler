@@ -2,6 +2,19 @@
 
 ---
 
+## [v0.60.0-alpha] - 2026-09-03
+
+### ✨ Added
+
+- **Tabs**: You can now split the view to show two tabs side by side.
+
+### 🐞 Fixed
+
+- **Editor**: Fixed scroll position and editor state (cursor, selection, undo history) being lost when toggling between editor, preview, and split modes.
+- **Editor**: Fixed the file header action buttons (Maps, Contents, Backlinks, mode toggles) crowding out the title and overlapping the save status in split or narrow panes. They now collapse to icon-only in those situations, with tooltips still showing their names.
+
+---
+
 ## [v0.59.1-alpha] - 2026-08-23
 
 ### 🔄 Changed
