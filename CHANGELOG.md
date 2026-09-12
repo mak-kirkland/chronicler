@@ -2,6 +2,15 @@
 
 ---
 
+## [v0.60.1-alpha] - 2026-09-12
+
+### ✨ Added
+
+- **Preview**: Hovering over a link to a page without an infobox now shows a preview of its opening paragraph instead of nothing.
+- **Editor**: You can now link to a heading within the same page using `[[#Heading]]` syntax. The link scrolls to that section when clicked.
+
+---
+
 ## [v0.60.0-alpha] - 2026-09-03
 
 ### ✨ Added
