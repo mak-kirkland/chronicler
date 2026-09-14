@@ -2,6 +2,18 @@
 
 ---
 
+## [v0.60.2-alpha] - 2026-09-14
+
+### 🐞 Fixed
+
+- **Editor**: Fixed a crash on macOS where pasting anything could segfault the application. This was caused by a previous fix for a Linux deadlock inadvertently running clipboard reads on the wrong thread on macOS.
+
+### 🗑️ Removed
+
+- **Community**: The mascot contest splash screen has been removed and the app's normal startup behaviour is restored.
+
+---
+
 ## [v0.60.1-alpha] - 2026-09-12
 
 ### ✨ Added
@@ -380,6 +392,7 @@
 - **Atmosphere**: Compressed the Slate background texture within the Fantasy theme to optimize loading times.
 
 ### 🗑️ Removed
+
 - **Atmosphere**: Cleaned up the codebase by removing the unused "cursors" module from the atmospheres system.
 
 ---
