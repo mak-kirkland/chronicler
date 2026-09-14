@@ -22,7 +22,10 @@
 
 <Modal title={$t("about.title")} {onClose}>
     <div class="about-container">
-        <img src="/logo.png" alt="Chronicler Logo" class="app-logo" />
+        <div class="app-art">
+            <img src="/logo.png" alt="Chronicler Logo" class="app-logo" />
+            <img src="/mascot.png" alt="" class="app-mascot" />
+        </div>
 
         <div class="app-info">
             <h2 class="app-name">Chronicler</h2>
@@ -55,6 +58,7 @@
                     </button>
                 </p>
                 <p>{$t("about.animationBy")}</p>
+                <p>{$t("about.mascotBy")} @klfni</p>
             </div>
 
             <div class="credit-group">
@@ -97,11 +101,22 @@
         box-sizing: border-box;
     }
 
+    .app-art {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+    }
+
     .app-logo {
         width: 80px;
         height: 80px;
         border-radius: 16px;
         box-shadow: 0 4px 12px var(--color-overlay-subtle);
+    }
+
+    .app-mascot {
+        width: auto;
+        height: 96px;
     }
 
     .app-info {
