@@ -2,6 +2,16 @@
 
 ---
 
+## [v0.61.0-alpha] - 2026-09-21
+
+### ✨ Added
+
+- **Translations**: Switch languages from the new Language dropdown in Settings - no restart needed. The community can now contribute translations; see TRANSLATING.md for details.
+- **Translations**: Added a Dutch translation.
+- **About**: The community's chosen mascot, the Librarian (designed by @klfni), is now credited on the About screen.
+
+---
+
 ## [v0.60.2-alpha] - 2026-09-14
 
 ### 🐞 Fixed
