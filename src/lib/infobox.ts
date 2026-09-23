@@ -671,6 +671,23 @@ function removePair(map: YAMLMap, pair: Pair): void {
 }
 
 /**
+ * The value to write for a custom field. A text input only ever holds a string,
+ * so text that is exactly a number or `true`/`false` is written as one rather
+ * than as a quoted string. Numbers only convert when they read back exactly as
+ * typed: "007" or "1.50" would come back as 7 or 1.5, so they stay strings.
+ */
+function fieldValue(field: EditorField): unknown {
+    if (field.type !== "text" || typeof field.value !== "string") {
+        return field.value;
+    }
+    const text = field.value;
+    if (text === "true" || text === "false") return text === "true";
+
+    const number = Number(text);
+    return Number.isFinite(number) && String(number) === text ? number : text;
+}
+
+/**
  * Applies the editor state to the original file content string using Non-Destructive editing.
  *
  * It parses the original frontmatter into a Concrete Syntax Tree (CST), modifies only the
@@ -845,14 +862,15 @@ export function applyInfoboxStateToContent(
             fieldPairs.get(key) ??
             findPair(key) ??
             new Pair(doc.createNode(key));
-        // A text input holds `String(value)` (see parseInfoboxContent), so an
-        // untouched number or boolean must be compared that way, or it would
-        // be rewritten as a quoted string.
+        // A text input holds `String(value)` (see parseInfoboxContent), so
+        // compare that way to leave an untouched value exactly as written.
         const untouched =
             field.type === "text" &&
             isScalar(pair.value) &&
             String(pair.value.value) === field.value;
-        if (!untouched) pair.value = mergeNode(doc, pair.value, field.value);
+        if (!untouched) {
+            pair.value = mergeNode(doc, pair.value, fieldValue(field));
+        }
         fieldPairs.set(key, pair);
     }
 
