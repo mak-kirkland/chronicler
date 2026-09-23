@@ -14,15 +14,15 @@
     }>();
 </script>
 
+<!-- `chronicler-note` marks rendered note content so user CSS snippets
+     reach hover previews too. It is style-free by design: the article
+     typography in preview.css lives on `chronicler-content`, which would
+     oversize headings in a compact popup. -->
 {#if infobox}
-    <div class="infobox-container">
+    <div class="infobox-container chronicler-note">
         <Infobox data={infobox} onEdit={undefined} {fallbackTitle} />
     </div>
 {:else if fallbackHtml}
-    <!-- `chronicler-note` marks rendered note content so user CSS snippets
-         reach hover previews too. It is style-free by design: the article
-         typography in preview.css lives on `chronicler-content`, which would
-         oversize headings in a compact popup. -->
     <div class="fallback chronicler-note">
         {@html fallbackHtml}
     </div>
