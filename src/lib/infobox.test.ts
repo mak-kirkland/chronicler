@@ -182,3 +182,59 @@ Body text.
         expect(out).toContain("# deceased\nallies: [ Cara, Dov ]\ntags:");
     });
 });
+
+describe("applyInfoboxStateToContent — custom field values", () => {
+    const content = `---
+title: "1984"
+dex: 12 # rolled
+---
+
+Body text.
+`;
+
+    /** Saves `content` with `values` set as text fields (added if new). */
+    function saveFields(values: Record<string, string>) {
+        const state = parseInfoboxContent(content);
+        for (const [key, value] of Object.entries(values)) {
+            const existing = state.customFields.find((f) => f.key === key);
+            if (existing) existing.value = value;
+            else state.customFields.push({ ...createField(), key, value });
+        }
+        return applyInfoboxStateToContent(content, state);
+    }
+
+    it("writes numbers and booleans typed into text fields unquoted", () => {
+        const out = saveFields({
+            dex: "14",
+            age: "45",
+            weight: "-2.5",
+            alive: "true",
+        });
+
+        expect(out).toContain("dex: 14 # rolled");
+        expect(out).toContain("age: 45\n");
+        expect(out).toContain("weight: -2.5\n");
+        expect(out).toContain("alive: true\n");
+        // The title is not a custom field and must stay a string.
+        expect(out).toContain('title: "1984"');
+    });
+
+    it("keeps text that would not read back as typed as a string", () => {
+        const values = {
+            code: "007",
+            price: "1.50",
+            big: "12345678901234567890",
+            spaced: " 14",
+            empty: "",
+        };
+        const out = saveFields(values);
+
+        expect(out).toContain('code: "007"');
+        expect(out).toContain('price: "1.50"');
+
+        const reloaded = parseInfoboxContent(out).customFields;
+        for (const [key, value] of Object.entries(values)) {
+            expect(reloaded.find((f) => f.key === key)?.value).toBe(value);
+        }
+    });
+});
