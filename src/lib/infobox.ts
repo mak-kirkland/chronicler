@@ -10,11 +10,15 @@
 
 import {
     parseDocument,
+    visit,
     Document,
+    Pair,
     isMap,
+    isNode,
+    isScalar,
     isSeq,
-    YAMLSeq,
     type Node,
+    type YAMLMap,
 } from "yaml";
 import { TEMPLATE_FOLDER_PATH } from "$lib/config";
 import {
@@ -506,6 +510,165 @@ export function mergeTemplateState(
 }
 
 // --- Logic: Persistence (Editor State -> CST -> String) ---
+//
+// A hand-written comment lives on the node it sits beside: a comment line above
+// an entry on its key, one at the end of the line on its value. So the save
+// path never recreates a node it can update — that is what keeps the comments,
+// along with the quoting and inline/block style the user chose.
+
+/** Structural equality for the plain values `node.toJS()` yields. */
+function sameValue(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
+    if (Array.isArray(a) || Array.isArray(b)) {
+        return (
+            Array.isArray(a) &&
+            Array.isArray(b) &&
+            a.length === b.length &&
+            a.every((item, i) => sameValue(item, b[i]))
+        );
+    }
+    if (a && b && typeof a === "object" && typeof b === "object") {
+        const aKeys = Object.keys(a);
+        return (
+            aKeys.length === Object.keys(b).length &&
+            aKeys.every(
+                (k) =>
+                    Object.hasOwn(b, k) &&
+                    sameValue((a as any)[k], (b as any)[k]),
+            )
+        );
+    }
+    return false;
+}
+
+/** A pair's key as a string (keys are plain scalars in practice). */
+function keyOf(pair: Pair): string {
+    return String(isScalar(pair.key) ? pair.key.value : pair.key);
+}
+
+/**
+ * Builds a node for a value the file has no node for yet, in the editor's house
+ * style: lists are written inline (`[a, b]`), except lists of maps such as
+ * `layout`, which keep one entry per line.
+ */
+function createStyledNode(doc: Document, value: unknown): Node {
+    const node = doc.createNode(value);
+    visit(node, {
+        Seq(_, seq) {
+            seq.flow = !seq.items.some(isMap);
+        },
+    });
+    return node;
+}
+
+/**
+ * Returns a node holding `value`, reusing `prev` for whatever it already
+ * matches so that only the parts that actually changed are rebuilt.
+ */
+function mergeNode(doc: Document, prev: unknown, value: unknown): Node {
+    if (isNode(prev) && sameValue(prev.toJS(doc), value)) return prev;
+
+    if (isScalar(prev) && (value === null || typeof value !== "object")) {
+        prev.value = value;
+        return prev;
+    }
+    if (isSeq(prev) && Array.isArray(value)) {
+        prev.items = mergeItems(doc, prev.items, value);
+        return prev;
+    }
+    if (isMap(prev) && value && typeof value === "object") {
+        mergePairs(doc, prev, value as Record<string, unknown>);
+        return prev;
+    }
+
+    // The shape changed (e.g. text became a list), so nothing inside can be
+    // kept, but the comments beside the old node still belong to this entry.
+    const node = createStyledNode(doc, value);
+    if (isNode(prev)) {
+        node.commentBefore = prev.commentBefore;
+        node.comment = prev.comment;
+        node.spaceBefore = prev.spaceBefore;
+    }
+    return node;
+}
+
+/**
+ * Matches a list's new items to its old item nodes. An unchanged item keeps its
+ * node wherever it moved to. The rest are paired up in order only when the list
+ * kept its length, i.e. items were edited but none added or removed. Otherwise
+ * there is no telling which old item became which new one, and a guess would
+ * put comments on the wrong entry.
+ */
+function mergeItems(
+    doc: Document,
+    prevItems: unknown[],
+    values: unknown[],
+): unknown[] {
+    const unmatched = prevItems.map((_, i) => i);
+    const merged = values.map((value) => {
+        const at = unmatched.findIndex((i) => {
+            const item = prevItems[i];
+            return isNode(item) && sameValue(item.toJS(doc), value);
+        });
+        return at === -1 ? null : prevItems[unmatched.splice(at, 1)[0]];
+    });
+
+    const pairUp = values.length === prevItems.length;
+    let next = 0;
+    return merged.map((item, i) => {
+        if (item !== null) return item;
+        return pairUp
+            ? mergeNode(doc, prevItems[unmatched[next++]], values[i])
+            : createStyledNode(doc, values[i]);
+    });
+}
+
+/**
+ * Updates a map's entries in place: existing keys keep their pair and position,
+ * missing keys are removed and new keys are appended.
+ */
+function mergePairs(
+    doc: Document,
+    map: YAMLMap,
+    value: Record<string, unknown>,
+): void {
+    for (const pair of [...map.items]) {
+        if (!Object.hasOwn(value, keyOf(pair))) removePair(map, pair);
+    }
+    for (const [key, item] of Object.entries(value)) {
+        const pair = map.items.find((p) => keyOf(p) === key);
+        if (pair) {
+            pair.value = mergeNode(doc, pair.value, item);
+        } else {
+            map.items.push(
+                new Pair(doc.createNode(key), createStyledNode(doc, item)),
+            );
+        }
+    }
+}
+
+/**
+ * Removes a pair the way deleting its line in a text editor would: a comment at
+ * the end of the line goes with it, but comment lines above it stay put, now
+ * above whatever follows.
+ */
+function removePair(map: YAMLMap, pair: Pair): void {
+    const at = map.items.indexOf(pair);
+    map.items.splice(at, 1);
+
+    if (!isNode(pair.key) || !pair.key.commentBefore) return;
+    const above = pair.key.commentBefore;
+    const next = map.items[at]?.key;
+
+    if (isNode(next)) {
+        next.commentBefore = next.commentBefore
+            ? `${above}\n${next.commentBefore}`
+            : above;
+        next.spaceBefore ||= pair.key.spaceBefore;
+    } else {
+        map.comment = map.comment ? `${above}\n${map.comment}` : above;
+    }
+}
 
 /**
  * Applies the editor state to the original file content string using Non-Destructive editing.
@@ -557,7 +720,26 @@ export function applyInfoboxStateToContent(
         body = originalContent.trimStart();
     }
 
+    // An empty frontmatter block (e.g. only comments) has no map to edit yet.
+    if (doc.contents == null) doc.contents = doc.createNode({});
+    const map = doc.contents;
+    if (!isMap(map)) {
+        throw new Error(
+            "This page's frontmatter is not a set of key: value fields, so " +
+                "the infobox editor can't safely save it. Please fix the " +
+                "frontmatter in the text editor, then reopen the infobox editor.",
+        );
+    }
+
     // --- Helpers for CST Manipulation ---
+
+    const findPair = (key: string) => map.items.find((p) => keyOf(p) === key);
+
+    /** Removes a key, keeping any comment lines above it. */
+    const deleteKey = (key: string) => {
+        const pair = findPair(key);
+        if (pair) removePair(map, pair);
+    };
 
     /** Safely sets a value. If val is empty/undefined, it deletes the key. */
     const setOrDelete = (key: string, val: any) => {
@@ -567,9 +749,9 @@ export function applyInfoboxStateToContent(
             val === "" ||
             (Array.isArray(val) && val.length === 0)
         ) {
-            doc.delete(key);
+            deleteKey(key);
         } else {
-            doc.set(key, val);
+            map.set(key, mergeNode(doc, map.get(key, true), val));
         }
     };
 
@@ -577,15 +759,7 @@ export function applyInfoboxStateToContent(
 
     setOrDelete("title", state.title);
     setOrDelete("subtitle", state.subtitle);
-
-    // Tags: Force flow style [a, b] for compactness
-    if (state.tags.length > 0) {
-        const tagNode = doc.createNode(state.tags);
-        tagNode.flow = true;
-        doc.set("tags", tagNode);
-    } else {
-        doc.delete("tags");
-    }
+    setOrDelete("tags", state.tags);
 
     // Images: Construct the complex image value
     if (state.images.length > 0) {
@@ -610,17 +784,12 @@ export function applyInfoboxStateToContent(
                 }
             }
 
-            const imgNode = doc.createNode(imageValue);
-            // Explicitly cast to YAMLSeq to access 'flow' if it's a sequence
-            if (Array.isArray(imageValue) && imgNode instanceof YAMLSeq) {
-                imgNode.flow = true;
-            }
-            doc.set("image", imgNode);
+            setOrDelete("image", imageValue);
         } else {
-            doc.delete("image");
+            deleteKey("image");
         }
     } else {
-        doc.delete("image");
+        deleteKey("image");
     }
 
     // Layout
@@ -659,91 +828,66 @@ export function applyInfoboxStateToContent(
             return rule;
         });
 
-        // We want the main list to be Block style (- item),
-        // but inner arrays (keys: [A, B], above: [x, y]) to be Flow style.
-        const layoutNode = doc.createNode(layoutData);
-        if (isSeq(layoutNode)) {
-            layoutNode.items.forEach((item) => {
-                if (isMap(item)) {
-                    for (const prop of ["keys", "above", "below"]) {
-                        const node = item.get(prop, true) as Node;
-                        if (node && isSeq(node)) {
-                            node.flow = true;
-                        }
-                    }
-                }
-            });
-        }
-        doc.set("layout", layoutNode);
+        setOrDelete("layout", layoutData);
     } else {
-        doc.delete("layout");
+        deleteKey("layout");
     }
 
     // --- Update Custom Fields ---
-    const editorKeys = new Set(state.customFields.map((f) => f.key.trim()));
 
-    // A. Detect Deletions & Remove stale keys (Non-Destructive)
-    // We traverse existing keys in the doc. If a key is NOT in editorKeys,
-    // we need to decide if the user deleted it, or if we just never loaded it (complex object).
-    // We also delete keys that ARE in editorKeys so we can re-add them in editor
-    // order in step B.
-    if (isMap(doc.contents)) {
-        // Get all keys currently in the YAML CST
-        const existingKeys = doc.contents.items.map((pair: any) =>
-            String(pair.key.value),
-        );
-
-        for (const key of existingKeys) {
-            // Ignored keys are managed elsewhere
-            if (RESERVED_INFOBOX_KEYS.has(key)) continue;
-
-            // If the key is in the editor, remove it now — it will be re-added
-            // in the correct order in step B.
-            if (editorKeys.has(key)) {
-                doc.delete(key);
-                continue;
-            }
-
-            // It is NOT in the editor. Did the user delete it?
-            const val = doc.get(key);
-
-            // Check if it's a "Supported Type" that we would have loaded.
-            const isSupported =
-                val === null ||
-                typeof val === "string" ||
-                typeof val === "number" ||
-                typeof val === "boolean" ||
-                // Check for standard sequence (array)
-                (isSeq(doc.contents.get(key, true)) && !isMap(val)); // Rough check: is list and not map
-
-            // If it was supported, but isn't in editorKeys, the user deleted it.
-            if (isSupported) {
-                doc.delete(key);
-            }
-
-            // If it was NOT supported (e.g. nested map), we do NOTHING.
-            // It stays in the doc, preserving data we can't edit.
-        }
-    }
-
-    // B. Re-add fields in editor order
-    // Because we deleted all editor-managed keys in step A, doc.set() will
-    // append them, preserving the order the user arranged in the editor.
+    // A. Update each field on its existing pair (or a new one), in editor order.
+    const fieldPairs = new Map<string, Pair>();
     for (const field of state.customFields) {
         const key = field.key.trim();
         if (!key) continue;
 
-        let valToSet: any = field.value;
-
-        // If list type, ensure array and set flow style
-        if (field.type === "list" && Array.isArray(field.value)) {
-            const listNode = doc.createNode(field.value);
-            listNode.flow = true;
-            valToSet = listNode;
-        }
-
-        doc.set(key, valToSet);
+        const pair =
+            fieldPairs.get(key) ??
+            findPair(key) ??
+            new Pair(doc.createNode(key));
+        // A text input holds `String(value)` (see parseInfoboxContent), so an
+        // untouched number or boolean must be compared that way, or it would
+        // be rewritten as a quoted string.
+        const untouched =
+            field.type === "text" &&
+            isScalar(pair.value) &&
+            String(pair.value.value) === field.value;
+        if (!untouched) pair.value = mergeNode(doc, pair.value, field.value);
+        fieldPairs.set(key, pair);
     }
+
+    // B. Detect deletions. A key missing from the editor was deleted there,
+    // unless it holds a nested map: the editor never loads those, so they are
+    // left untouched to preserve data it can't edit.
+    for (const pair of [...map.items]) {
+        const key = keyOf(pair);
+        if (RESERVED_INFOBOX_KEYS.has(key) || fieldPairs.has(key)) continue;
+        if (pair.value == null || isScalar(pair.value) || isSeq(pair.value)) {
+            removePair(map, pair);
+        }
+    }
+
+    // C. Lay the fields out in editor order, filling the slots existing fields
+    // already occupy so that a save that reorders nothing moves nothing. New
+    // fields go after the last existing one, or at the end if there were none.
+    const ordered = [...fieldPairs.values()];
+    const items: Pair[] = [];
+    let used = 0;
+    let insertAt = -1;
+    for (const pair of map.items) {
+        if (fieldPairs.has(keyOf(pair))) {
+            items.push(ordered[used++]);
+            insertAt = items.length;
+        } else {
+            items.push(pair);
+        }
+    }
+    items.splice(
+        insertAt === -1 ? items.length : insertAt,
+        0,
+        ...ordered.slice(used),
+    );
+    map.items = items;
 
     // Use `lineWidth: 0` to disable line folding. The library default (80)
     // wraps long values onto indented continuation lines. Those continuation
