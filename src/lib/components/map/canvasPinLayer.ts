@@ -303,17 +303,51 @@ export class CanvasPinLayer extends L.Layer {
         // mapPanePos converts layer pixels → container pixels for hit-test.
         const mapPanePos = map.containerPointToLayerPoint([0, 0]);
 
+        // Draw a single pin and register its hit entry, skipping pins
+        // outside the canvas's draw region.
+        const emitPin = (sp: { pin: CanvasPin; lpx: number; lpy: number }) => {
+            if (
+                sp.lpx < minLPX ||
+                sp.lpx > maxLPX ||
+                sp.lpy < minLPY ||
+                sp.lpy > maxLPY
+            )
+                return;
+            const cx = sp.lpx - this.originLayerPoint.x;
+            const cy = sp.lpy - this.originLayerPoint.y;
+            this.drawPin(sp.pin, cx, cy);
+            hits.push({
+                type: "pin",
+                pinId: sp.pin.id,
+                // Hit-test center is the pin's vertical midpoint, not its
+                // tip — drawPin anchors at the tip but the body extends
+                // ~48px upward, so a tip-centered circle would only catch
+                // hovers near the bottom.
+                cx: sp.lpx - mapPanePos.x,
+                cy: sp.lpy - mapPanePos.y - 24,
+                radius: 28,
+            });
+        };
+
         if (useCluster) {
-            // Bucket ALL pins (not just visible ones) into world-anchored
-            // grid cells, and compute each cluster's centroid from the
-            // full bucket. That way the centroid is a pure function of
-            // (zoom, pin set) — pan can't change it.
+            // Bucket pins (all of them, not just on-screen ones) into
+            // world-anchored grid cells, and compute each cluster's
+            // centroid from the full bucket. That way the centroid is a
+            // pure function of (zoom, pin set) — pan can't change it.
             const cellSize = this.clusterRadius;
             const cells = new Map<
                 string,
                 { pins: { pin: CanvasPin; lpx: number; lpy: number }[] }
             >();
             for (const sp of pinLP) {
+                // Invisible pins are hotspots over features in the map
+                // image itself, so they never join a cluster: a bubble would
+                // reveal them, and the hotspot would stop being clickable
+                // at its real location.
+                if (sp.pin.invisible) {
+                    emitPin(sp);
+                    continue;
+                }
                 const ck = `${Math.floor(sp.lpx / cellSize)}|${Math.floor(sp.lpy / cellSize)}`;
                 let bucket = cells.get(ck);
                 if (!bucket) {
@@ -324,28 +358,7 @@ export class CanvasPinLayer extends L.Layer {
             }
             for (const bucket of cells.values()) {
                 if (bucket.pins.length === 1) {
-                    const sp = bucket.pins[0];
-                    if (
-                        sp.lpx < minLPX ||
-                        sp.lpx > maxLPX ||
-                        sp.lpy < minLPY ||
-                        sp.lpy > maxLPY
-                    )
-                        continue;
-                    const cx = sp.lpx - this.originLayerPoint.x;
-                    const cy = sp.lpy - this.originLayerPoint.y;
-                    this.drawPin(sp.pin, cx, cy);
-                    hits.push({
-                        type: "pin",
-                        pinId: sp.pin.id,
-                        // Hit-test center is the pin's vertical midpoint, not
-                        // its tip — drawPin anchors at the tip but the body
-                        // extends ~48px upward, so a tip-centered circle
-                        // would only catch hovers near the bottom.
-                        cx: sp.lpx - mapPanePos.x,
-                        cy: sp.lpy - mapPanePos.y - 24,
-                        radius: 28,
-                    });
+                    emitPin(bucket.pins[0]);
                 } else {
                     let lpx = 0;
                     let lpy = 0;
@@ -375,26 +388,7 @@ export class CanvasPinLayer extends L.Layer {
                 }
             }
         } else {
-            for (const sp of pinLP) {
-                if (
-                    sp.lpx < minLPX ||
-                    sp.lpx > maxLPX ||
-                    sp.lpy < minLPY ||
-                    sp.lpy > maxLPY
-                )
-                    continue;
-                const cx = sp.lpx - this.originLayerPoint.x;
-                const cy = sp.lpy - this.originLayerPoint.y;
-                this.drawPin(sp.pin, cx, cy);
-                hits.push({
-                    type: "pin",
-                    pinId: sp.pin.id,
-                    // See cluster-branch comment above re: tip vs midpoint.
-                    cx: sp.lpx - mapPanePos.x,
-                    cy: sp.lpy - mapPanePos.y - 24,
-                    radius: 28,
-                });
-            }
+            for (const sp of pinLP) emitPin(sp);
         }
 
         this.renderHits = hits;
