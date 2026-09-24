@@ -317,6 +317,26 @@ export function tablesort(
     let listeners: [HTMLElement, (e: Event) => void][] = [];
 
     /**
+     * Returns the text a cell should be sorted by, leaving out footnote
+     * references so "300[^1]" sorts as "300" rather than "3001".
+     *
+     * pulldown-cmark renders a reference as `<sup class="footnote-reference">
+     * <a href="#id">1</a></sup>`, but the sanitizer strips the class, so the
+     * reference is matched by its structure instead.
+     */
+    function getSortText(cell: HTMLTableCellElement | undefined): string {
+        if (!cell) return "";
+        const footnoteSelector = 'sup > a[href^="#"]';
+        if (!cell.querySelector(footnoteSelector)) return cell.textContent || "";
+
+        const clone = cell.cloneNode(true) as HTMLTableCellElement;
+        for (const link of clone.querySelectorAll(footnoteSelector)) {
+            link.parentElement?.remove();
+        }
+        return clone.textContent || "";
+    }
+
+    /**
      * The main sort function.
      * @param th The <th> element that was clicked.
      * @param table The <table> being sorted.
@@ -341,8 +361,8 @@ export function tablesort(
 
         // The sorting comparator function
         const comparator = (a: HTMLTableRowElement, b: HTMLTableRowElement) => {
-            const valA = a.cells[colIndex]?.textContent || "";
-            const valB = b.cells[colIndex]?.textContent || "";
+            const valA = getSortText(a.cells[colIndex]);
+            const valB = getSortText(b.cells[colIndex]);
 
             // Remove commas from numbers (e.g., "1,200" -> "1200") so localeCompare
             // treats them as a single large integer rather than "1" followed by "200".
