@@ -2,6 +2,19 @@
 
 ---
 
+## [v0.61.1-alpha] - 2026-10-05
+
+### ✨ Added
+
+- **Welcome**: Added a per-vault "Welcome Banner" setting to choose between the default and a Sci-Fi hero image on the welcome page.
+
+### 🐞 Fixed
+
+- **Maps**: Fixed map tiles appearing blurry when first opening a map, particularly on high-DPI displays. The tiler now selects the correct resolution level for your screen's pixel density. Existing tile caches will regenerate automatically on first open.
+- **Preview**: Fixed spoiler text remaining visible when hovered over in link previews.
+
+---
+
 ## [v0.61.0-alpha] - 2026-09-21
 
 ### ✨ Added
