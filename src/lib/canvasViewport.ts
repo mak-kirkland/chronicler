@@ -24,9 +24,32 @@ export interface WorldRect {
     height: number;
 }
 
-function clamp(value: number, min: number, max: number): number {
+export function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
 }
+
+/**
+ * A wheel event's delta in pixels. Line-mode deltas (some mice/configs) are
+ * approximated at 16px a line; page-mode deltas (Windows' "one screen at a
+ * time") count `pagePx` a page.
+ */
+export function wheelPixels(
+    delta: number,
+    deltaMode: number,
+    pagePx: number,
+): number {
+    if (deltaMode === 1) return delta * 16;
+    if (deltaMode === 2) return delta * pagePx;
+    return delta;
+}
+
+/**
+ * Smallest delta treated as one whole mouse-wheel notch. Notches report 33px
+ * (Windows set to one line per notch) to 120px depending on platform and
+ * settings; trackpads and smooth-scrolling mice send streams of smaller
+ * deltas, which zoom in proportion.
+ */
+export const WHEEL_NOTCH_PX = 30;
 
 /** Screen (container-relative px) → world coordinates. */
 export function screenToWorld(

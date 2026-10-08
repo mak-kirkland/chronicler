@@ -31,6 +31,17 @@ describe("createHistory", () => {
         expect(h.canRedo()).toBe(false);
     });
 
+    it("map rewrites undo and redo snapshots in place", () => {
+        const h = createHistory<string>(10);
+        h.push("a");
+        h.push("b");
+        expect(h.undo("c")).toBe("b"); // redo now holds "c"
+        h.map((s) => s.toUpperCase());
+        expect(h.redo("B")).toBe("C");
+        expect(h.undo("C")).toBe("B");
+        expect(h.undo("B")).toBe("A");
+    });
+
     it("bounds the undo stack to the limit", () => {
         const h = createHistory<number>(2);
         h.push(1);

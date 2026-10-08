@@ -11,6 +11,8 @@ export interface History<T> {
     canUndo(): boolean;
     canRedo(): boolean;
     clear(): void;
+    /** Rewrites every recorded snapshot, undo and redo alike. */
+    map(fn: (snapshot: T) => T): void;
 }
 
 export function createHistory<T>(limit: number): History<T> {
@@ -40,6 +42,10 @@ export function createHistory<T>(limit: number): History<T> {
         clear() {
             undoStack = [];
             redoStack = [];
+        },
+        map(fn: (snapshot: T) => T) {
+            undoStack = undoStack.map(fn);
+            redoStack = redoStack.map(fn);
         },
     };
 }

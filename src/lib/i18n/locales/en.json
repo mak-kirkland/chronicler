@@ -676,6 +676,8 @@
     "canvas.textEmptyHint": "Double-click to edit…",
     "canvas.openPage": "Open page",
     "canvas.open": "open",
+    "canvas.pageMissing": "This page no longer exists — it may have been renamed or deleted.",
+    "canvas.resizeHint": "Drag to resize · double-click to fit content",
     "canvas.selectColor": "Select color {name}",
     "canvas.noColor": "No color",
     "canvas.colorPalette": "Card color",

@@ -21,6 +21,9 @@
         marqueeHitTest,
         fitToContent,
         defaultImageCardSize,
+        clamp,
+        wheelPixels,
+        WHEEL_NOTCH_PX,
         gridStep,
         type Viewport,
         type Point,
@@ -107,6 +110,7 @@
         selectedEdgeId = null;
         connectSource = null;
         autoEditId = null;
+        pendingFits = new Set();
         gesturePre = null;
         marquee = null;
         panning = false;
@@ -271,6 +275,7 @@
         // and other buttons are left to the platform (context menu etc.).
         if (e.button !== 0 && e.button !== 1) return;
         containerEl!.setPointerCapture(e.pointerId);
+        selectedEdgeId = null;
         const sp = containerPoint(e);
         const world = screenToWorld(sp.x, sp.y, viewport);
         if (e.button === 0 && placeWithActiveTool(world)) return;
@@ -331,10 +336,9 @@
 
     function onWheel(e: WheelEvent) {
         e.preventDefault();
-        // Line-mode deltas (some mice/configs) → approximate pixels.
-        const scale = e.deltaMode === 1 ? 16 : 1;
-        const dx = e.deltaX * scale;
-        const dy = e.deltaY * scale;
+        const page = containerEl!.clientHeight;
+        const dx = wheelPixels(e.deltaX, e.deltaMode, page);
+        const dy = wheelPixels(e.deltaY, e.deltaMode, page);
         if (e.shiftKey) {
             // Horizontal pan; devices differ in which axis they report with
             // Shift held.
@@ -348,7 +352,10 @@
         if (e.ctrlKey || e.metaKey) {
             factor = Math.exp(-dy * 0.002);
         } else {
-            factor = dy < 0 ? 1.1 : 1 / 1.1;
+            // Scaled by the delta, so trackpads and smooth-scrolling mice
+            // (streams of small deltas) don't zoom a full step per event; a
+            // whole notch is a full 1.1 step.
+            factor = Math.pow(1.1, -clamp(dy / WHEEL_NOTCH_PX, -1, 1));
         }
         const sp = containerPoint(e);
         viewport = zoomAbout(viewport, factor, sp.x, sp.y, ZOOM_MIN, ZOOM_MAX);
@@ -449,12 +456,72 @@
         createTextCard(screenToWorld(sp.x, sp.y, viewport));
     }
 
+    const PAGE_CARD_WIDTH = 340;
+    /** A page card's height until its preview has loaded and it can fit it. */
+    const PAGE_CARD_HEIGHT = 260;
+
+    // Page cards placed but not yet fitted to their content. They stay hidden
+    // until fitted, so the placeholder size never shows.
+    let pendingFits = $state(new Set<string>());
+    /** Reveal a pending card anyway if its preview never reports in. */
+    const FIT_TIMEOUT_MS = 4000;
+
+    function clearPendingFit(id: string) {
+        if (!pendingFits.has(id)) return;
+        const next = new Set(pendingFits);
+        next.delete(id);
+        pendingFits = next;
+    }
+
+    /**
+     * Resize a card to fit its content as part of the change that produced
+     * that content — an insertion or a text edit — so no undo step of its own.
+     */
+    function autoFitNode(id: string, height: number) {
+        const pending = pendingFits.has(id);
+        // Reveals a pending card; the cache update below lands in the same
+        // tick, so no frame shows it at the placeholder height.
+        clearPendingFit(id);
+        const current = getCanvasFromCache(path)?.nodes.find(
+            (n) => n.id === id,
+        );
+        if (!current || current.height === height) return;
+        // A pending card the user has resized since placing it is left alone.
+        if (pending && current.height !== PAGE_CARD_HEIGHT) return;
+        const fit = (d: CanvasData) => M.patchNode(d, id, { height });
+        previewMutate(fit);
+        // A drag in progress previews from its start snapshot; without this
+        // it would put the old height back.
+        if (gesturePre) gesturePre = fit(gesturePre);
+        // States recorded since the change the fit belongs to show the same
+        // unfitted card; fit it there too, or undoing something unrelated
+        // done meanwhile would shrink it back. States from before that change
+        // (the card absent, or its text different) are left alone.
+        history.map((snap) => {
+            const n = snap.nodes.find((n) => n.id === id);
+            return n && sameCard(n, current) ? fit(snap) : snap;
+        });
+        // Persist what the cache now holds (see endGesture).
+        applyUpdate((d) => d);
+    }
+
+    /** Same size and content — what a fit depends on — wherever it sits. */
+    function sameCard(a: CanvasNodeData, b: CanvasNodeData): boolean {
+        const content = (n: CanvasNodeData) =>
+            n.type === "text" ? n.text : n.type === "file" ? n.file : n.label;
+        return (
+            a.width === b.width &&
+            a.height === b.height &&
+            content(a) === content(b)
+        );
+    }
+
     function createFileCard(
         at: Point,
         relFile: string,
         width: number,
         height: number,
-    ) {
+    ): string {
         const id = genNodeId();
         mutate((d) =>
             M.addNode(d, {
@@ -468,6 +535,7 @@
             }),
         );
         selection = new Set([id]);
+        return id;
     }
 
     function openImagePicker(at: Point) {
@@ -518,8 +586,15 @@
                 onSelect: (titleStr: string) => {
                     const abs = get(pagePathLookup).get(titleStr.toLowerCase());
                     const root = get(vaultPath);
-                    if (abs && root)
-                        createFileCard(at, toRelativePath(abs, root), 340, 260);
+                    if (!abs || !root) return;
+                    const id = createFileCard(
+                        at,
+                        toRelativePath(abs, root),
+                        PAGE_CARD_WIDTH,
+                        PAGE_CARD_HEIGHT,
+                    );
+                    pendingFits = new Set(pendingFits).add(id);
+                    setTimeout(() => clearPendingFit(id), FIT_TIMEOUT_MS);
                 },
             },
         });
@@ -579,6 +654,7 @@
      *  replaces the selection (and leaves an existing one intact, so dragging
      *  a multi-selection keeps it). */
     function selectNode(id: string, additive: boolean) {
+        selectedEdgeId = null;
         if (additive) {
             const next = new Set(selection);
             if (next.has(id)) {
@@ -616,7 +692,7 @@
     >
         <div
             class="canvas-world"
-            class:panning
+            class:promoted={panning && viewport.zoom <= 1}
             style="transform: translate({panXr}px, {panYr}px) scale({viewport.zoom});"
         >
             <CanvasEdges
@@ -642,6 +718,8 @@
                     onDragMove={dragNodes}
                     autoEdit={autoEditId === node.id}
                     onAutoEditConsumed={() => (autoEditId = null)}
+                    fitOnReady={pendingFits.has(node.id)}
+                    onAutoFit={(height: number) => autoFitNode(node.id, height)}
                 />
             {/each}
             {#if marquee}
@@ -726,11 +804,11 @@
         left: 0;
         transform-origin: 0 0;
     }
-    /* Promote to a compositor layer only while panning (pure translation never
-       blurs). At rest / after zoom the layer re-rasterizes at the current
-       scale, keeping text crisp — a promoted layer would stay cached at 1x
-       and stretch. */
-    .canvas-world.panning {
+    /* Promote to a compositor layer while panning, so a pan moves a cached
+       bitmap — but only at or below 1x. WebKit rasterizes a promoted layer at
+       1x and stretches it, so zoomed in, text would blur for the length of
+       every pan; there the world is repainted per frame instead. */
+    .canvas-world.promoted {
         will-change: transform;
     }
     .empty-hint {

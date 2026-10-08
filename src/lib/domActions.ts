@@ -62,6 +62,49 @@ export function observeSize(
     return () => ro.disconnect();
 }
 
+// Scroll-extent checks. The 1px slack absorbs subpixel layout.
+
+/** True when `el` has content scrolled out of view below it. */
+export function hasMoreBelow(el: Element): boolean {
+    return el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+}
+
+/** True when `el` has content scrolled out of view to its right. */
+export function hasMoreRight(el: Element): boolean {
+    return el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+}
+
+/** True when `el`'s content is taller than its box, however it's scrolled. */
+export function overflowsVertically(el: Element): boolean {
+    return el.scrollHeight - 1 > el.clientHeight;
+}
+
+/**
+ * Resolves once every `<img>` under `root` has loaded or failed, or after
+ * `timeoutMs` — whichever is first. Use it before measuring content whose
+ * height depends on images, which have no size until they load.
+ */
+export function whenImagesSettled(
+    root: Element,
+    timeoutMs = 2000,
+): Promise<void> {
+    const pending = [...root.querySelectorAll("img")].filter(
+        (img) => !img.complete,
+    );
+    if (pending.length === 0) return Promise.resolve();
+    const settled = pending.map(
+        (img) =>
+            new Promise<void>((resolve) => {
+                img.addEventListener("load", () => resolve(), { once: true });
+                img.addEventListener("error", () => resolve(), { once: true });
+            }),
+    );
+    return Promise.race([
+        Promise.all(settled).then(() => {}),
+        new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+    ]);
+}
+
 // --- Infinite Scroll Action ---
 
 interface InfiniteScrollParams {
