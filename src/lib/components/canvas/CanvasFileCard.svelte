@@ -6,11 +6,18 @@
     import { navigateToPage } from "$lib/actions";
     import { isImageFile, fileStemString } from "$lib/utils";
     import { hasInfoboxContent, type InfoboxFrontmatter } from "$lib/infobox";
+    import { whenImagesSettled } from "$lib/domActions";
+    import { tick } from "svelte";
     import PagePreviewContent from "$lib/components/ui/PagePreviewContent.svelte";
     import { log } from "$lib/logger";
     import { t } from "$lib/i18n";
 
-    let { node } = $props<{ node: CanvasFileNode }>();
+    let { node, onContentReady } = $props<{
+        node: CanvasFileNode;
+        /** Fired once a page preview has rendered, images included, so the
+         *  node can measure it. Not fired for image cards. */
+        onContentReady?: () => void;
+    }>();
 
     const abs = $derived(toAbsolutePath(node.file, $vaultPath ?? ""));
     const isImage = $derived(isImageFile(node.file));
@@ -18,6 +25,8 @@
     let imageUrl = $state("");
     let infobox = $state<InfoboxFrontmatter | null>(null);
     let fallbackHtml = $state("");
+    let missing = $state(false);
+    let bodyEl = $state<HTMLDivElement | null>(null);
     const title = $derived(fileStemString(abs));
 
     $effect(() => {
@@ -48,10 +57,21 @@
                         d.rendered_page?.html_before_toc ?? ""
                     ).trim();
                 }
+                missing = false;
             })
             .catch(() => {
+                if (cancelled) return;
+                // Most often the page was renamed or deleted after it was
+                // placed on the canvas.
                 infobox = null;
                 fallbackHtml = "";
+                missing = true;
+            })
+            .then(async () => {
+                if (cancelled) return;
+                await tick();
+                if (bodyEl) await whenImagesSettled(bodyEl);
+                if (!cancelled) onContentReady?.();
             });
         return () => (cancelled = true);
     });
@@ -77,12 +97,16 @@
                 title={$t("canvas.openPage")}>↗ {$t("canvas.open")}</button
             >
         </div>
-        <div class="note-body">
-            <PagePreviewContent
-                {infobox}
-                {fallbackHtml}
-                fallbackTitle={title}
-            />
+        <div class="note-body card-scroll" bind:this={bodyEl}>
+            {#if missing}
+                <p class="missing">{$t("canvas.pageMissing")}</p>
+            {:else}
+                <PagePreviewContent
+                    {infobox}
+                    {fallbackHtml}
+                    fallbackTitle={title}
+                />
+            {/if}
         </div>
     </div>
 {/if}
@@ -127,9 +151,25 @@
         cursor: pointer;
         font-size: 11px;
     }
+    /* `auto` basis, not `flex: 1`'s 0%: the node measures its natural height
+       by setting its own height to auto, and the body must then report its
+       content height rather than collapse. `overflow: hidden`, not `auto`: a
+       native scroller blurs the card when zoomed (see CanvasNode's onWheel,
+       which scrolls it instead). */
     .note-body {
-        flex: 1;
+        flex: 1 1 auto;
         min-height: 0;
-        overflow: auto;
+        overflow: hidden;
+    }
+    /* The carousel's caption tabs scroll sideways when they overflow — the
+       same blur, and in a card they have ellipsis to fall back on. */
+    .note-body :global(.carousel-tabs) {
+        overflow-x: hidden;
+    }
+    .missing {
+        margin: 0;
+        padding: 8px 10px;
+        color: var(--color-text-secondary);
+        font-style: italic;
     }
 </style>
