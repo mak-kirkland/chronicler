@@ -31,6 +31,18 @@ struct BacklinkUpdate {
     new_content: String,
 }
 
+/// Files other than the renamed one that a rename or move may have to rewrite.
+pub struct RenameRefs {
+    /// Pages and timelines that link to a renamed page by name.
+    pub backlinks: HashSet<PathBuf>,
+    /// Every canvas in the vault. They point at files by vault-relative path
+    /// rather than by link, so any of them may reference the renamed file, or
+    /// something inside a renamed folder.
+    pub canvases: Vec<PathBuf>,
+    /// The root those canvas paths are relative to.
+    pub vault_root: PathBuf,
+}
+
 /// A component responsible for performing safe, transactional file system
 /// write operations within the vault.
 #[derive(Debug, Clone)]
@@ -240,6 +252,202 @@ fn rewrite_timeline_links(content: &str, old_stem: &str, new_stem: &str) -> Opti
     }
 }
 
+/// Points `[[wikilinks]]` and `{{insert:}}`s at a renamed page. Returns None
+/// when nothing changed.
+fn rewrite_page_refs(text: &str, old_stem: &str, new_stem: &str) -> Option<String> {
+    let after_wikilinks = replace_wikilink_in_content(text, old_stem, new_stem);
+    let base = after_wikilinks.as_deref().unwrap_or(text);
+    replace_insert_in_content(base, old_stem, new_stem).or(after_wikilinks)
+}
+
+/// `path` relative to `root`, with `/` separators — the form JSON Canvas
+/// file nodes store. None when `path` isn't strictly inside `root`.
+fn vault_relative(path: &Path, root: &Path) -> Option<String> {
+    let rel = path.strip_prefix(root).ok()?;
+    let parts: Vec<_> = rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect();
+    (!parts.is_empty()).then(|| parts.join("/"))
+}
+
+/// The new vault-relative path for `path` if a rename from `old_rel` to
+/// `new_rel` covers it: the renamed file itself, or anything inside a
+/// renamed folder.
+fn moved_path(path: &str, old_rel: &str, new_rel: &str) -> Option<String> {
+    let path = path.replace('\\', "/");
+    if path == old_rel {
+        return Some(new_rel.to_string());
+    }
+    let rest = path.strip_prefix(old_rel)?;
+    rest.starts_with('/').then(|| format!("{new_rel}{rest}"))
+}
+
+/// Rewrites a `.canvas` file (JSON Canvas) after a rename or move. File
+/// nodes (and group backgrounds) that point at the renamed file, or into a
+/// renamed folder, get the new vault-relative path; when a page's name
+/// changed (`stems`), `[[wikilinks]]` and inserts in text nodes follow it.
+/// Value-based so unknown fields round-trip untouched. Returns None when
+/// nothing changed or the JSON is malformed (a malformed canvas must not
+/// abort the rename transaction).
+fn rewrite_canvas_refs(
+    content: &str,
+    old_rel: &str,
+    new_rel: &str,
+    stems: Option<(&str, &str)>,
+) -> Option<String> {
+    let mut value: serde_json::Value = serde_json::from_str(content).ok()?;
+    let mut changed = false;
+
+    for node in value.get_mut("nodes")?.as_array_mut()? {
+        for key in ["file", "background"] {
+            let moved = node
+                .get(key)
+                .and_then(|v| v.as_str())
+                .and_then(|p| moved_path(p, old_rel, new_rel));
+            if let Some(moved) = moved {
+                node[key] = serde_json::Value::String(moved);
+                changed = true;
+            }
+        }
+        let Some((old_stem, new_stem)) = stems else {
+            continue;
+        };
+        if node.get("type").and_then(|t| t.as_str()) != Some("text") {
+            continue;
+        }
+        let new_text = node
+            .get("text")
+            .and_then(|t| t.as_str())
+            .and_then(|text| rewrite_page_refs(text, old_stem, new_stem));
+        if let Some(new_text) = new_text {
+            node["text"] = serde_json::Value::String(new_text);
+            changed = true;
+        }
+    }
+    if changed {
+        serde_json::to_string_pretty(&value).ok()
+    } else {
+        None
+    }
+}
+
+/// Reads `path` and applies `rewrite`, giving the update to make if it changed
+/// anything. An unreadable file is skipped with a warning.
+fn prepare_update(
+    path: PathBuf,
+    rewrite: impl FnOnce(&str) -> Option<String>,
+) -> Option<BacklinkUpdate> {
+    let old_content = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(e) => {
+            warn!("Failed to read {:?}, skipping update: {}", path, e);
+            return None;
+        }
+    };
+    let new_content = rewrite(&old_content)?;
+    Some(BacklinkUpdate {
+        path,
+        old_content,
+        new_content,
+    })
+}
+
+/// Link rewrites for a renamed page: `[[wikilinks]]` and inserts in markdown
+/// backlinks, value-based rewrites in timeline backlinks.
+fn prepare_link_updates(
+    old_path: &Path,
+    new_path: &Path,
+    backlinks: &HashSet<PathBuf>,
+) -> Vec<BacklinkUpdate> {
+    let old_stem = file_stem_string(old_path);
+    let new_stem = file_stem_string(new_path);
+    backlinks
+        .iter()
+        .filter_map(|path| {
+            prepare_update(path.clone(), |content| {
+                // Timeline backlinks are JSON files: rewrite them value-based.
+                if is_timeline_file(path) {
+                    rewrite_timeline_links(content, &old_stem, &new_stem)
+                } else {
+                    rewrite_page_refs(content, &old_stem, &new_stem)
+                }
+            })
+        })
+        .collect()
+}
+
+/// Canvas rewrites for a rename or move of `old_path` (file or folder) to
+/// `new_path`, which has already happened on disk.
+fn prepare_canvas_updates(
+    old_path: &Path,
+    new_path: &Path,
+    canvases: &[PathBuf],
+    vault_root: &Path,
+) -> Vec<BacklinkUpdate> {
+    let (Some(old_rel), Some(new_rel)) = (
+        vault_relative(old_path, vault_root),
+        vault_relative(new_path, vault_root),
+    ) else {
+        return Vec::new();
+    };
+    // Text cards link by page name, so only a page rename touches them.
+    let old_stem = file_stem_string(old_path);
+    let new_stem = file_stem_string(new_path);
+    let stems = (is_markdown_file(old_path) && old_stem != new_stem)
+        .then_some((old_stem.as_str(), new_stem.as_str()));
+
+    canvases
+        .iter()
+        .filter_map(|canvas| {
+            // A canvas inside a renamed folder has already moved with it.
+            let path = match canvas.strip_prefix(old_path) {
+                Ok(rest) if rest.as_os_str().is_empty() => new_path.to_path_buf(),
+                Ok(rest) => new_path.join(rest),
+                Err(_) => canvas.clone(),
+            };
+            prepare_update(path, |content| {
+                rewrite_canvas_refs(content, &old_rel, &new_rel, stems)
+            })
+        })
+        .collect()
+}
+
+/// Writes every update atomically, restoring the already-written ones if any
+/// write fails.
+fn commit_updates(updates: &[BacklinkUpdate]) -> Result<()> {
+    let mut successfully_updated: Vec<&BacklinkUpdate> = Vec::new();
+    for update in updates {
+        if let Err(e) = atomic_write(&update.path, &update.new_content) {
+            // --- ROLLBACK ---
+            warn!(
+                "Failed to write backlink file {:?}, rolling back changes. Error: {}",
+                &update.path, e
+            );
+
+            // Roll back the already updated backlinks by writing their old content back.
+            for change_to_revert in successfully_updated.iter().rev() {
+                if let Err(rollback_err) =
+                    atomic_write(&change_to_revert.path, &change_to_revert.old_content)
+                {
+                    error!(
+                        "CRITICAL: FAILED TO ROLL BACK BACKLINK FILE {:?}: {}. Vault may be inconsistent.",
+                        &change_to_revert.path,
+                        rollback_err
+                    );
+                    // Continue trying to roll back the rest of the transaction.
+                }
+            }
+            return Err(e); // Return the original error
+        } else {
+            // On success, add the update to our list for potential rollback.
+            successfully_updated.push(update);
+        }
+    }
+
+    Ok(())
+}
+
 /// Returns `true` when both paths refer to the same underlying file.
 fn is_same_file(a: &Path, b: &Path) -> bool {
     match (Handle::from_path(a), Handle::from_path(b)) {
@@ -398,16 +606,17 @@ tags: [add, your, tags]
         Ok(())
     }
 
-    /// Renames a file or folder in-place and transactionally updates all files that link to it.
+    /// Renames a file or folder in-place and transactionally updates `refs`,
+    /// the files that may refer to it.
     ///
     /// # Returns
     /// The new path of the renamed file or folder.
-    #[instrument(skip(self, backlinks))]
+    #[instrument(skip(self, refs))]
     pub fn rename_path(
         &self,
         old_path: &Path,
         new_name: &str,
-        backlinks: &HashSet<PathBuf>,
+        refs: &RenameRefs,
     ) -> Result<PathBuf> {
         let parent = old_path
             .parent()
@@ -428,20 +637,21 @@ tags: [add, your, tags]
             parent.join(new_name.trim())
         };
 
-        self.execute_rename_or_move(old_path, new_path, backlinks)
+        self.execute_rename_or_move(old_path, new_path, refs)
     }
 
-    /// Moves a file or folder to a new directory and transactionally updates backlinks.
+    /// Moves a file or folder to a new directory and transactionally updates
+    /// `refs`, the files that may refer to it.
     /// This function contains the platform-aware path construction logic.
     ///
     /// # Returns
     /// The new path of the moved file or folder.
-    #[instrument(skip(self, backlinks))]
+    #[instrument(skip(self, refs))]
     pub fn move_path(
         &self,
         old_path: &Path,
         dest_dir: &Path,
-        backlinks: &HashSet<PathBuf>,
+        refs: &RenameRefs,
     ) -> Result<PathBuf> {
         let file_name = old_path
             .file_name()
@@ -449,7 +659,7 @@ tags: [add, your, tags]
 
         let new_path = dest_dir.join(file_name);
 
-        self.execute_rename_or_move(old_path, new_path, backlinks)
+        self.execute_rename_or_move(old_path, new_path, refs)
     }
 
     /// Common logic for executing a transactional rename or move operation.
@@ -460,7 +670,7 @@ tags: [add, your, tags]
         &self,
         old_path: &Path,
         new_path: PathBuf,
-        backlinks: &HashSet<PathBuf>,
+        refs: &RenameRefs,
     ) -> Result<PathBuf> {
         // Only reject when the destination is a *genuinely different*
         // file.  Comparing file identity lets a self-rename through
@@ -473,7 +683,7 @@ tags: [add, your, tags]
         fs::rename(old_path, &new_path)?;
 
         // --- 2. Atomically update all backlink files ---
-        if let Err(e) = self.update_backlinks_for_rename(old_path, &new_path, backlinks) {
+        if let Err(e) = self.update_backlinks_for_rename(old_path, &new_path, refs) {
             warn!(
                 "Backlink update failed after rename, rolling back primary rename: {}",
                 e
@@ -495,92 +705,34 @@ tags: [add, your, tags]
         Ok(new_path)
     }
 
-    /// Transactionally updates all files that link to a renamed file.
+    /// Transactionally updates `refs`, the files that may refer to a renamed or
+    /// moved file or folder.
     ///
-    /// This function reads each backlink file, replaces the wikilink, and writes the
+    /// This function reads each referring file, rewrites the reference, and writes the
     /// file back atomically. If any write fails, it attempts to roll back all
     /// previous writes in the transaction. This is the core reusable logic.
-    #[instrument(skip(self, backlinks))]
+    #[instrument(skip(self, refs))]
     pub fn update_backlinks_for_rename(
         &self,
         old_path: &Path,
         new_path: &Path,
-        backlinks: &HashSet<PathBuf>,
+        refs: &RenameRefs,
     ) -> Result<()> {
-        if !is_markdown_file(old_path) {
-            // Backlink updates only apply to markdown file renames, not folders or other file types.
-            return Ok(());
-        }
-
         // --- 1. Prepare Phase: Read files and calculate changes in memory ---
-        let old_name_stem = file_stem_string(old_path);
-        let new_name_stem = file_stem_string(new_path);
-        let mut updates: Vec<BacklinkUpdate> = Vec::new();
-
-        for backlink_path in backlinks {
-            let old_content = match fs::read_to_string(backlink_path) {
-                Ok(content) => content,
-                Err(e) => {
-                    warn!(
-                        "Failed to read backlink file {:?}, skipping update: {}",
-                        backlink_path, e
-                    );
-                    continue; // Skip this file if it can't be read
-                }
-            };
-
-            // Timeline backlinks are JSON files: rewrite them value-based.
-            // Markdown backlinks get wikilink + insert text replacement.
-            let replacement = if is_timeline_file(backlink_path) {
-                rewrite_timeline_links(&old_content, &old_name_stem, &new_name_stem)
-            } else {
-                let after_wikilinks =
-                    replace_wikilink_in_content(&old_content, &old_name_stem, &new_name_stem);
-                let base = after_wikilinks.as_deref().unwrap_or(&old_content);
-                replace_insert_in_content(base, &old_name_stem, &new_name_stem)
-                    .or(after_wikilinks)
-            };
-
-            if let Some(new_content) = replacement {
-                updates.push(BacklinkUpdate {
-                    path: backlink_path.clone(),
-                    old_content,
-                    new_content,
-                });
-            }
+        let mut updates = Vec::new();
+        // Links go by page name, so only a page rename affects them.
+        if is_markdown_file(old_path) {
+            updates.extend(prepare_link_updates(old_path, new_path, &refs.backlinks));
         }
+        updates.extend(prepare_canvas_updates(
+            old_path,
+            new_path,
+            &refs.canvases,
+            &refs.vault_root,
+        ));
 
-        // --- 2. Transaction Phase: Perform all file system changes ---
-        let mut successfully_updated: Vec<&BacklinkUpdate> = Vec::new();
-        for update in &updates {
-            if let Err(e) = atomic_write(&update.path, &update.new_content) {
-                // --- ROLLBACK ---
-                warn!(
-                    "Failed to write backlink file {:?}, rolling back changes. Error: {}",
-                    &update.path, e
-                );
-
-                // Roll back the already updated backlinks by writing their old content back.
-                for change_to_revert in successfully_updated.iter().rev() {
-                    if let Err(rollback_err) =
-                        atomic_write(&change_to_revert.path, &change_to_revert.old_content)
-                    {
-                        error!(
-                            "CRITICAL: FAILED TO ROLL BACK BACKLINK FILE {:?}: {}. Vault may be inconsistent.",
-                            &change_to_revert.path,
-                            rollback_err
-                        );
-                        // Continue trying to roll back the rest of the transaction.
-                    }
-                }
-                return Err(e); // Return the original error
-            } else {
-                // On success, add the update to our list for potential rollback.
-                successfully_updated.push(update);
-            }
-        }
-
-        Ok(())
+        // --- 2. Transaction Phase ---
+        commit_updates(&updates)
     }
 
     /// Creates a duplicate of a page, finding a unique name for the new file.
@@ -631,6 +783,24 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
 
     /// Helper function to set up a temporary vault with some files for writer tests
+    /// Refs for a rename with these backlinks and no canvases.
+    fn link_refs(backlinks: HashSet<PathBuf>) -> RenameRefs {
+        RenameRefs {
+            backlinks,
+            canvases: Vec::new(),
+            vault_root: PathBuf::new(),
+        }
+    }
+
+    /// Refs for a rename with one canvas to check and no backlinks.
+    fn canvas_refs(canvas: &Path, root: &Path) -> RenameRefs {
+        RenameRefs {
+            backlinks: HashSet::new(),
+            canvases: vec![canvas.to_path_buf()],
+            vault_root: root.to_path_buf(),
+        }
+    }
+
     fn setup_writer_test_vault() -> (tempfile::TempDir, PathBuf, PathBuf) {
         let dir = tempdir().unwrap();
         let root = dir.path();
@@ -689,7 +859,7 @@ mod tests {
         // In a real scenario, this would be fetched from the indexer.
         let backlinks = HashSet::from([page2_path.clone()]);
         let new_path = writer
-            .rename_path(&page1_path, "First Chapter", &backlinks)
+            .rename_path(&page1_path, "First Chapter", &link_refs(backlinks))
             .unwrap();
 
         // Assertions
@@ -766,7 +936,7 @@ mod tests {
         let writer = Writer::new();
         let backlinks = HashSet::from([timeline.clone()]);
         writer
-            .update_backlinks_for_rename(&old_page, &new_page, &backlinks)
+            .update_backlinks_for_rename(&old_page, &new_page, &link_refs(backlinks))
             .unwrap();
 
         let rewritten = fs::read_to_string(&timeline).unwrap();
@@ -781,7 +951,7 @@ mod tests {
         fs::write(&path, "content").unwrap();
         let writer = Writer::new();
 
-        let result = writer.rename_path(&path, "Note", &HashSet::new());
+        let result = writer.rename_path(&path, "Note", &link_refs(HashSet::new()));
 
         assert!(
             result.is_ok(),
@@ -802,7 +972,7 @@ mod tests {
         fs::hard_link(&upper, &lower).unwrap();
         let writer = Writer::new();
 
-        let result = writer.rename_path(&upper, "filename", &HashSet::new());
+        let result = writer.rename_path(&upper, "filename", &link_refs(HashSet::new()));
 
         assert!(
             result.is_ok(),
@@ -817,7 +987,7 @@ mod tests {
         let writer = Writer::new();
 
         // `Page Two.md` already exists in the test vault.
-        let result = writer.rename_path(&page1_path, "Page Two", &HashSet::new());
+        let result = writer.rename_path(&page1_path, "Page Two", &link_refs(HashSet::new()));
 
         assert!(
             matches!(result, Err(ChroniclerError::FileAlreadyExists(_))),
@@ -878,7 +1048,7 @@ mod tests {
         let writer = Writer::new();
         let backlinks = HashSet::from([page2_path.clone()]);
         let new_path = writer
-            .rename_path(&page1_path, "First Chapter", &backlinks)
+            .rename_path(&page1_path, "First Chapter", &link_refs(backlinks))
             .unwrap();
 
         assert_eq!(new_path, root.join("First Chapter.md"));
@@ -907,7 +1077,7 @@ mod tests {
         fs::set_permissions(subdir, readonly_perms).unwrap();
 
         let backlinks = HashSet::from([backlink1_path.clone(), backlink2_path.clone()]);
-        let result = writer.rename_path(&page1_path, "New Name", &backlinks);
+        let result = writer.rename_path(&page1_path, "New Name", &link_refs(backlinks));
 
         // Restore permissions for cleanup
         let writable_perms = fs::Permissions::from_mode(0o755); // rwx
@@ -972,5 +1142,152 @@ mod tests {
         let res_case = replace_wikilink_in_content(content_case, "Old Page", "New Page")
             .expect("Should update content");
         assert_eq!(res_case, "See [[New Page#Heading]].");
+    }
+
+    // --- Canvas references ---
+
+    /// Parses a canvas and returns its nodes, for assertions.
+    fn canvas_nodes(content: &str) -> Vec<serde_json::Value> {
+        let v: serde_json::Value = serde_json::from_str(content).unwrap();
+        v["nodes"].as_array().unwrap().clone()
+    }
+
+    #[test]
+    fn moved_path_matches_file_and_folder_contents_only() {
+        assert_eq!(
+            moved_path("Notes/A.md", "Notes/A.md", "Notes/B.md").as_deref(),
+            Some("Notes/B.md")
+        );
+        assert_eq!(
+            moved_path("Notes/A.md", "Notes", "Lore").as_deref(),
+            Some("Lore/A.md")
+        );
+        assert_eq!(
+            moved_path("Notes\\A.md", "Notes", "Lore").as_deref(),
+            Some("Lore/A.md")
+        );
+        // A sibling that merely shares the prefix is not inside the folder.
+        assert_eq!(moved_path("Notes Old/A.md", "Notes", "Lore"), None);
+        assert_eq!(moved_path("Other/A.md", "Notes", "Lore"), None);
+    }
+
+    #[test]
+    fn rewrite_canvas_refs_updates_file_nodes_and_keeps_other_fields() {
+        let content = r#"{"nodes":[
+            {"id":"a","type":"file","file":"People/Aria.md","x":1,"y":2,"width":340,"height":749,"color":"3","custom":{"k":true}},
+            {"id":"b","type":"file","file":"People/Other.md","x":0,"y":0,"width":10,"height":10},
+            {"id":"g","type":"group","background":"People/Aria.md","x":0,"y":0,"width":10,"height":10}
+        ],"edges":[{"id":"e","fromNode":"a","toNode":"b","label":"knows"}],"chronicler":{"v":1}}"#;
+        let out =
+            rewrite_canvas_refs(content, "People/Aria.md", "People/Aria Vex.md", None).unwrap();
+        let nodes = canvas_nodes(&out);
+        assert_eq!(nodes[0]["file"], "People/Aria Vex.md");
+        assert_eq!(nodes[0]["color"], "3");
+        assert_eq!(nodes[0]["custom"]["k"], true);
+        assert_eq!(nodes[0]["height"], 749);
+        assert_eq!(nodes[1]["file"], "People/Other.md");
+        assert_eq!(nodes[2]["background"], "People/Aria Vex.md");
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["edges"][0]["label"], "knows");
+        assert_eq!(v["chronicler"]["v"], 1);
+        // Field order survives (preserve_order), so diffs stay small.
+        assert!(out.find("\"id\"").unwrap() < out.find("\"type\"").unwrap());
+        assert!(out.find("\"type\"").unwrap() < out.find("\"file\"").unwrap());
+    }
+
+    #[test]
+    fn rewrite_canvas_refs_follows_page_name_in_text_nodes() {
+        let content = r#"{"nodes":[
+            {"id":"t","type":"text","text":"See [[Aria#Past|her past]] and {{insert: Aria}}","x":0,"y":0,"width":10,"height":10}
+        ],"edges":[]}"#;
+        let out = rewrite_canvas_refs(
+            content,
+            "Aria.md",
+            "Aria Vex.md",
+            Some(("Aria", "Aria Vex")),
+        )
+        .unwrap();
+        assert_eq!(
+            canvas_nodes(&out)[0]["text"],
+            "See [[Aria Vex#Past|her past]] and {{insert: Aria Vex}}"
+        );
+        // A move keeps the name, so text is left alone.
+        assert!(rewrite_canvas_refs(content, "Aria.md", "People/Aria.md", None).is_none());
+    }
+
+    #[test]
+    fn rewrite_canvas_refs_returns_none_when_nothing_matches_or_malformed() {
+        let content = r#"{"nodes":[{"id":"a","type":"file","file":"B.md","x":0,"y":0,"width":1,"height":1}],"edges":[]}"#;
+        assert!(rewrite_canvas_refs(content, "A.md", "C.md", None).is_none());
+        assert!(rewrite_canvas_refs("{ nope", "A.md", "C.md", None).is_none());
+        assert!(rewrite_canvas_refs(r#"{"edges":[]}"#, "A.md", "C.md", None).is_none());
+    }
+
+    #[test]
+    fn rename_page_updates_canvas_cards() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        fs::create_dir(root.join("People")).unwrap();
+        let page = root.join("People").join("Aria.md");
+        fs::write(&page, "# Aria").unwrap();
+        let canvas = root.join("Ideas.canvas");
+        fs::write(
+            &canvas,
+            r#"{"nodes":[{"id":"a","type":"file","file":"People/Aria.md","x":0,"y":0,"width":340,"height":260},{"id":"t","type":"text","text":"[[Aria]]","x":0,"y":0,"width":1,"height":1}],"edges":[]}"#,
+        )
+        .unwrap();
+
+        Writer::new()
+            .rename_path(&page, "Aria Vex", &canvas_refs(&canvas, root))
+            .unwrap();
+
+        let nodes = canvas_nodes(&fs::read_to_string(&canvas).unwrap());
+        assert_eq!(nodes[0]["file"], "People/Aria Vex.md");
+        assert_eq!(nodes[1]["text"], "[[Aria Vex]]");
+    }
+
+    #[test]
+    fn rename_folder_updates_canvas_inside_it() {
+        // The canvas lives in the renamed folder and points at a sibling:
+        // it must be found at its new location, and its path rewritten.
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let folder = root.join("Lore");
+        fs::create_dir(&folder).unwrap();
+        fs::write(folder.join("Map.png"), b"png").unwrap();
+        let canvas = folder.join("Board.canvas");
+        fs::write(
+            &canvas,
+            r#"{"nodes":[{"id":"a","type":"file","file":"Lore/Map.png","x":0,"y":0,"width":1,"height":1}],"edges":[]}"#,
+        )
+        .unwrap();
+
+        let new_folder = Writer::new()
+            .rename_path(&folder, "World", &canvas_refs(&canvas, root))
+            .unwrap();
+
+        let moved_canvas = new_folder.join("Board.canvas");
+        let nodes = canvas_nodes(&fs::read_to_string(moved_canvas).unwrap());
+        assert_eq!(nodes[0]["file"], "World/Map.png");
+    }
+
+    #[test]
+    fn move_file_updates_canvas_cards() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let page = root.join("Aria.md");
+        fs::write(&page, "# Aria").unwrap();
+        let dest = root.join("People");
+        fs::create_dir(&dest).unwrap();
+        let canvas = root.join("Ideas.canvas");
+        let original = r#"{"nodes":[{"id":"a","type":"file","file":"Aria.md","x":0,"y":0,"width":1,"height":1}],"edges":[]}"#;
+        fs::write(&canvas, original).unwrap();
+
+        Writer::new()
+            .move_path(&page, &dest, &canvas_refs(&canvas, root))
+            .unwrap();
+
+        let nodes = canvas_nodes(&fs::read_to_string(&canvas).unwrap());
+        assert_eq!(nodes[0]["file"], "People/Aria.md");
     }
 }

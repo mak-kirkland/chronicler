@@ -28,8 +28,8 @@ use crate::{
         is_canvas_file, is_image_file, is_map_file, is_markdown_file, is_timeline_file,
         serialize_pathbufs_as_web_strs,
     },
-    watcher::Watcher,
-    writer::Writer,
+    watcher::{is_tracked_path, Watcher},
+    writer::{RenameRefs, Writer},
 };
 use parking_lot::{Mutex, RwLock};
 use serde::Serialize;
@@ -97,6 +97,36 @@ pub struct IndexUpdatePayload {
     /// consumed by the frontend stores for live refresh of open views.
     #[serde(serialize_with = "serialize_pathbufs_as_web_strs")]
     pub changed_files: Vec<PathBuf>,
+}
+
+/// What a rename or move of `path` may have to rewrite, gathered from the
+/// index before it changes. None before a vault is open.
+fn rename_refs(index: &Indexer, path: &Path) -> Option<RenameRefs> {
+    let mut backlinks = index
+        .assets
+        .get(path)
+        .and_then(|asset| match asset {
+            VaultAsset::Page(p) => Some(p.backlinks.clone()),
+            _ => None,
+        })
+        .unwrap_or_default();
+    // Timelines that reference the page must be rewritten too.
+    if let Some(timelines) = index.timeline_backlinks.get(path) {
+        backlinks.extend(timelines.iter().cloned());
+    }
+    // Canvases point at files by vault-relative path rather than by link, so
+    // they aren't in the backlink graph: every one is checked.
+    let canvases = index
+        .assets
+        .iter()
+        .filter(|(_, asset)| matches!(asset, VaultAsset::Canvas))
+        .map(|(path, _)| path.clone())
+        .collect();
+    Some(RenameRefs {
+        backlinks,
+        canvases,
+        vault_root: index.root_path.clone()?,
+    })
 }
 
 /// Inspects a batch of file events and returns a payload describing which
@@ -409,37 +439,36 @@ impl World {
                 for event in &events_batch {
                     if let FileEvent::Renamed { from, to } = &event {
                         if let Some(writer) = writer.read().clone() {
-                            // Get the backlinks from the index *before* it's updated.
-                            let backlinks = {
+                            // Gathered from the index *before* it's updated. A
+                            // path the index doesn't know has nothing referring
+                            // to it: a temp file, or the echo of an in-app
+                            // rename, which updated the index already.
+                            let refs = {
                                 let index = indexer.read();
-                                let mut set = index
-                                    .assets
-                                    .get(from)
-                                    .and_then(|asset| match asset {
-                                        VaultAsset::Page(p) => Some(p.backlinks.clone()),
-                                        _ => None,
-                                    })
-                                    .unwrap_or_default();
-                                // Timelines that reference the page must be rewritten too.
-                                if let Some(timelines) = index.timeline_backlinks.get(from) {
-                                    set.extend(timelines.iter().cloned());
+                                if index.assets.contains_key(from) {
+                                    rename_refs(&index, from)
+                                } else {
+                                    None
                                 }
-                                set
                             };
-
-                            if !backlinks.is_empty() {
-                                info!(
-                                    "External rename detected for file with {} backlinks. Updating...",
-                                    backlinks.len()
+                            let Some(refs) = refs else { continue };
+                            // Renamed out of the vault (an editor backup, the
+                            // trash): references must not follow it there.
+                            if !is_tracked_path(to, &refs.vault_root)
+                                || (refs.backlinks.is_empty() && refs.canvases.is_empty())
+                            {
+                                continue;
+                            }
+                            info!(
+                                "External rename detected; checking {} backlinks and {} canvases...",
+                                refs.backlinks.len(),
+                                refs.canvases.len()
+                            );
+                            if let Err(e) = writer.update_backlinks_for_rename(from, to, &refs) {
+                                error!(
+                                    "Failed to update backlinks for external rename from {:?} to {:?}: {}",
+                                    from, to, e
                                 );
-                                if let Err(e) =
-                                    writer.update_backlinks_for_rename(from, to, &backlinks)
-                                {
-                                    error!(
-                                        "Failed to update backlinks for external rename from {:?} to {:?}: {}",
-                                        from, to, e
-                                    );
-                                }
                             }
                         }
                     }
@@ -658,24 +687,10 @@ impl World {
     /// Returns the new path of the renamed item.
     pub fn rename_path(&self, path: PathBuf, new_name: String) -> Result<PathBuf> {
         // Get necessary info from the indexer before performing the operation.
-        let backlinks = {
-            let index = self.indexer.read();
-            let mut set = index
-                .assets
-                .get(&path)
-                .and_then(|asset| match asset {
-                    VaultAsset::Page(p) => Some(p.backlinks.clone()),
-                    _ => None,
-                })
-                .unwrap_or_default();
-            // Timelines that reference the page must be rewritten too.
-            if let Some(timelines) = index.timeline_backlinks.get(&path) {
-                set.extend(timelines.iter().cloned());
-            }
-            set
-        };
+        let refs =
+            rename_refs(&self.indexer.read(), &path).ok_or(ChroniclerError::VaultNotInitialized)?;
 
-        let new_path = self.with_writer(|w| w.rename_path(&path, &new_name, &backlinks))?;
+        let new_path = self.with_writer(|w| w.rename_path(&path, &new_name, &refs))?;
 
         // After the transaction succeeds, update the indexer's in-memory state.
         self.indexer
@@ -693,20 +708,11 @@ impl World {
     /// Returns the new path of the moved item.
     pub fn move_path(&self, source_path: PathBuf, dest_dir: PathBuf) -> Result<PathBuf> {
         // Get backlinks from the indexer *before* the move.
-        let backlinks = {
-            let index = self.indexer.read();
-            index
-                .assets
-                .get(&source_path)
-                .and_then(|asset| match asset {
-                    VaultAsset::Page(p) => Some(p.backlinks.clone()),
-                    _ => None,
-                })
-                .unwrap_or_default()
-        };
+        let refs = rename_refs(&self.indexer.read(), &source_path)
+            .ok_or(ChroniclerError::VaultNotInitialized)?;
 
         // The writer performs the transactional move on the file system.
-        let new_path = self.with_writer(|w| w.move_path(&source_path, &dest_dir, &backlinks))?;
+        let new_path = self.with_writer(|w| w.move_path(&source_path, &dest_dir, &refs))?;
 
         // After the move succeeds, notify the indexer of the rename event.
         self.indexer

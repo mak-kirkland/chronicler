@@ -182,9 +182,7 @@ fn translate(event: &DebouncedEvent, vault_root: &Path) -> Vec<FileEvent> {
 
 fn translate_rename(paths: &[PathBuf], vault_root: &Path) -> Vec<FileEvent> {
     let [from, to] = paths else { return Vec::new() };
-    let valid = is_tracked_file(from, vault_root)
-        || is_tracked_file(to, vault_root)
-        || (to.is_dir() && !is_under_hidden_subdir(to, vault_root));
+    let valid = is_tracked_file(from, vault_root) || is_tracked_path(to, vault_root);
     if valid {
         vec![FileEvent::Renamed {
             from: from.clone(),
@@ -219,6 +217,15 @@ fn classify_disappearance(path: &Path, vault_root: &Path) -> Option<FileEvent> {
     }
 }
 
+/// True when `path`, which exists, is something the vault tracks: a tracked
+/// file or a folder, outside hidden folders. A rename *to* anything else — an
+/// editor backup like `Page.md~`, the trash — takes a file out of the vault
+/// rather than moving it, so nothing should be repointed at it.
+pub fn is_tracked_path(path: &Path, vault_root: &Path) -> bool {
+    is_tracked_file(path, vault_root)
+        || (path.is_dir() && !is_under_hidden_subdir(path, vault_root))
+}
+
 fn is_tracked_file(path: &Path, vault_root: &Path) -> bool {
     !is_ignored(path, vault_root) && has_tracked_extension(path)
 }
@@ -249,6 +256,23 @@ mod tests {
     use std::path::Path;
 
     #[test]
+    fn tracked_path_excludes_backups_and_hidden_folders() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("Lore")).unwrap();
+        std::fs::create_dir_all(root.join(".Trash-1000/files")).unwrap();
+        assert!(is_tracked_path(&root.join("Aria.md"), root));
+        assert!(is_tracked_path(&root.join("Lore"), root));
+        assert!(!is_tracked_path(&root.join("Aria.md~"), root));
+        assert!(!is_tracked_path(&root.join("Aria.md.bak"), root));
+        assert!(!is_tracked_path(
+            &root.join(".Trash-1000/files/Aria.md"),
+            root
+        ));
+        assert!(!is_tracked_path(&root.join(".Trash-1000/files"), root));
+    }
+
+    #[test]
     fn canvas_files_are_tracked() {
         // Regression: the watcher must forward .canvas events, otherwise a
         // newly created canvas never reaches the indexer or the file tree.
@@ -257,8 +281,7 @@ mod tests {
 
     #[test]
     fn canvas_creation_publishes_created_event() {
-        let ev =
-            classify_appearance(Path::new("/vault/Ideas.canvas"), Path::new("/vault"));
+        let ev = classify_appearance(Path::new("/vault/Ideas.canvas"), Path::new("/vault"));
         assert!(matches!(ev, Some(FileEvent::Created(_))));
     }
 
