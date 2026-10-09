@@ -234,6 +234,9 @@ pub struct PageHeader {
 #[serde(rename_all = "camelCase")]
 pub struct DatedPageInfo {
     pub title: String,
+    /// File name without `.md` — the name wikilinks and event `pageLink`s
+    /// resolve against. Differs from `title` when frontmatter sets one.
+    pub stem: String,
     #[serde(serialize_with = "serialize_pathbuf_as_web_str")]
     pub path: PathBuf,
     pub tags: Vec<String>,

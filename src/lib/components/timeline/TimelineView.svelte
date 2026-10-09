@@ -100,6 +100,25 @@
         return { cal: compileCalendar(GREGORIAN), fallback: true };
     });
 
+    /** The timeline as drawn: event dates clamped to the compiled calendar,
+     *  so events saved under another calendar (the Gregorian fallback, or a
+     *  calendar edit that removed months) render instead of crashing.
+     *  Display only — mutations still run on `timeline`, so the file keeps
+     *  its stored dates until the user edits that event. */
+    const shown = $derived.by<TimelineData | null>(() => {
+        if (!timeline || !compiled) return timeline;
+        const cal = compiled.cal;
+        let changed = false;
+        const events = timeline.events.map((e) => {
+            const start = cal.clampDate(e.start);
+            const end = e.end && cal.clampDate(e.end);
+            if (start === e.start && end === e.end) return e;
+            changed = true;
+            return { ...e, start, end };
+        });
+        return changed ? { ...timeline, events } : timeline;
+    });
+
     let datedPages = $state<DatedPageInfo[]>([]);
     // Refresh candidates whenever page data changes (worldStore bumps
     // pagesVersion on every pages refresh) — this is what makes ingested
@@ -165,10 +184,10 @@
     // Initialize the viewport once per file: saved viewport, else fit.
     let initializedPath = $state("");
     $effect(() => {
-        if (!timeline || !compiled || initializedPath === path) return;
+        if (!shown || !compiled || initializedPath === path) return;
         initializedPath = path;
-        viewport = timeline.viewport ??
-            fitToEvents(compiled.cal, timeline.events, trackWidth) ?? {
+        viewport = shown.viewport ??
+            fitToEvents(compiled.cal, shown.events, trackWidth) ?? {
                 centerSerial: compiled.cal.yearStartSerial(1),
                 daysPerPixel: 365 / Math.max(trackWidth, 1),
             };
@@ -257,8 +276,8 @@
     }
 
     function openEditModal(id: string) {
-        if (!timeline || !compiled) return;
-        const event = timeline.events.find((e) => e.id === id);
+        if (!timeline || !shown || !compiled) return;
+        const event = shown.events.find((e) => e.id === id);
         if (!event) return;
         openModal({
             component: EventModal,
@@ -491,7 +510,7 @@
         <div class="status-container">
             <ErrorBox title={$t("timeline.errorTitle")}>{loadError}</ErrorBox>
         </div>
-    {:else if timeline && compiled}
+    {:else if shown && compiled}
         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <div
             class="timeline-body"
@@ -515,7 +534,7 @@
             {#if compiled.fallback}
                 <div class="warning-banner">
                     {translate("timeline.missingCalendar", {
-                        id: timeline.calendarId,
+                        id: shown.calendarId,
                     })}
                 </div>
             {/if}
@@ -528,7 +547,7 @@
                 />
             </div>
             <TimelineLanes
-                {timeline}
+                timeline={shown}
                 cal={compiled.cal}
                 {viewport}
                 widthPx={trackWidth}
@@ -544,13 +563,13 @@
                 {onLaneContextMenu}
                 onAddLane={() => openLaneModal(null)}
             />
-            {#if timeline.events.length === 0 && (ingestion?.events.length ?? 0) === 0}
+            {#if shown.events.length === 0 && (ingestion?.events.length ?? 0) === 0}
                 <div class="empty-hint">{$t("timeline.emptyHint")}</div>
             {/if}
         </div>
         {#if contextMenu}
             {@const ctxEvent = [
-                ...timeline.events,
+                ...shown.events,
                 ...(ingestion?.events ?? []),
             ].find((ev) => ev.id === contextMenu!.id)}
             <ContextMenu
@@ -615,7 +634,7 @@
                             mutate((t) => M.moveLane(t, id, 1));
                         },
                     },
-                    ...(timeline.lanes.length > 1
+                    ...(shown.lanes.length > 1
                         ? [
                               { isSeparator: true } as const,
                               {

@@ -79,6 +79,7 @@ describe("parseFrontmatterDate", () => {
 function page(over: Partial<DatedPageInfo>): DatedPageInfo {
     return {
         title: "Battle of Redford",
+        stem: "Battle of Redford",
         path: "/vault/History/Battle of Redford.md",
         tags: ["history/battles"],
         date: "1042-03-12",
@@ -246,5 +247,33 @@ describe("ingestEvents", () => {
         const r = ingestEvents(cal, t, [page({})], "/vault");
         expect(r.events).toHaveLength(0);
         expect(r.skippedPaths).toEqual([]);
+    });
+
+    it("links by file name when frontmatter sets a different title", () => {
+        const t = sourcedTimeline();
+        const cal = compileCalendar(GREGORIAN);
+        const sundering = page({
+            title: "The Sundering",
+            stem: "sundering",
+            path: "/vault/History/sundering.md",
+        });
+        const r = ingestEvents(cal, t, [sundering], "/vault");
+        expect(r.events).toHaveLength(1);
+        expect(r.events[0].title).toBe("The Sundering"); // chip label
+        expect(r.events[0].pageLink).toBe("sundering"); // resolvable link
+
+        // A manual event links the file name, so that's what dedupe keys on.
+        t.events.push({
+            id: "manual1",
+            laneId: t.lanes[0].id,
+            title: "Sundering",
+            start: { year: 1000 },
+            end: null,
+            circa: false,
+            description: "",
+            pageLink: "Sundering",
+            color: null,
+        });
+        expect(ingestEvents(cal, t, [sundering], "/vault").events).toEqual([]);
     });
 });
