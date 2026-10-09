@@ -149,15 +149,12 @@ fn compute_update_payload(events: &[FileEvent]) -> IndexUpdatePayload {
             // Map config changes can break pin/shape targets, which feed
             // broken-link checks via the page graph.
             payload.pages_changed = true;
-        } else if is_timeline_file(path) {
-            // Timeline events link to pages; content edits can change the
-            // backlink set, which feeds broken-link checks.
-            payload.pages_changed = true;
         }
-        // Canvas files don't feed backlinks, so they don't set
-        // `pages_changed` — but both timeline and canvas files are tracked
-        // here so the frontend stores can live-refresh exactly the open
-        // files that changed.
+        // Timeline and canvas files don't set `pages_changed`: their links
+        // never reach tags, broken-link or parse-error reports, and the
+        // timeline's own viewport save would otherwise trigger a vault-wide
+        // refresh after every pan. They're tracked here instead, so the
+        // frontend stores live-refresh exactly the open files that changed.
         if (is_timeline_file(path) || is_canvas_file(path))
             && !payload.changed_files.iter().any(|p| p == path)
         {
@@ -842,5 +839,15 @@ mod tests {
         );
         // Markdown files don't enter changed_files (no store consumes them).
         assert!(payload.pages_changed);
+    }
+
+    #[test]
+    fn timeline_edit_refreshes_only_that_file() {
+        let path = PathBuf::from("/v/history.timeline");
+        let payload = compute_update_payload(&[FileEvent::Modified(path.clone())]);
+        assert_eq!(payload.changed_files, vec![path]);
+        assert!(!payload.pages_changed);
+        assert!(!payload.structure_changed);
+        assert!(!payload.media_changed);
     }
 }

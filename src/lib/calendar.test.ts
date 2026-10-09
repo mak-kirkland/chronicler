@@ -235,6 +235,82 @@ describe("serial math", () => {
         expect(cal.fromSerial(-31)).toMatchObject({ year: -2, day: 20 });
     });
 
+    it("matches year-by-year sums for mixed rules, with and without year 0", () => {
+        const leapRules = [
+            {
+                monthIndex: 0,
+                extraDays: 1,
+                everyYears: 3,
+                exceptEveryYears: 9,
+                offsetYears: 1,
+            },
+            { monthIndex: 1, extraDays: 2, everyYears: 5 },
+        ];
+        for (const hasYearZero of [false, true]) {
+            const cal = compileCalendar(
+                tinyCalendar({ leapRules, hasYearZero }),
+            );
+            // Every day across ±120 years (several 45-year cycles) lands in
+            // the year whose start the running sum predicts.
+            const check = (y: number, start: number) => {
+                expect(cal.yearStartSerial(y)).toBe(start);
+                for (let d = 0; d < cal.daysInYear(y); d++) {
+                    expect(cal.fromSerial(start + d).year).toBe(y);
+                }
+            };
+            let s = 0;
+            for (let y = 1; y <= 120; y = cal.nextYear(y)) {
+                check(y, s);
+                s += cal.daysInYear(y);
+            }
+            s = 0;
+            for (let y = cal.prevYear(1); y >= -120; y = cal.prevYear(y)) {
+                s -= cal.daysInYear(y);
+                check(y, s);
+            }
+        }
+    });
+
+    it("finds dates quickly in a very long leap cycle", () => {
+        // lcm(7, 1000, 11) = 77,000 years. This passes validation, and
+        // walking the cycle year by year took over a minute per lookup.
+        const cal = compileCalendar(
+            tinyCalendar({
+                leapRules: [
+                    {
+                        monthIndex: 0,
+                        extraDays: 1,
+                        everyYears: 7,
+                        exceptEveryYears: 1000,
+                    },
+                    { monthIndex: 1, extraDays: 1, everyYears: 11 },
+                ],
+            }),
+        );
+        for (let i = 0; i < 2000; i++) {
+            const year = ((i * 7919) % 200000) - 100000 || 1; // no year 0
+            const date = { year, month: 1, day: 5, hour: 3, minute: 9 };
+            expect(cal.fromSerial(cal.toSerial(date))).toEqual(date);
+        }
+    });
+
+    it("rounds to the minute, so drift just short of midnight is 00:00", () => {
+        const cal = compileCalendar(tinyCalendar());
+        const midnight = { hour: 0, minute: 0 };
+        expect(cal.fromSerial(2 - 1e-9)).toEqual({
+            year: 1,
+            month: 0,
+            day: 3,
+            ...midnight,
+        });
+        expect(cal.fromSerial(-1e-9)).toEqual({
+            year: 1,
+            month: 0,
+            day: 1,
+            ...midnight,
+        });
+    });
+
     it("computes far-future years without hanging (cycle acceleration)", () => {
         const cal = compileCalendar(
             tinyCalendar({

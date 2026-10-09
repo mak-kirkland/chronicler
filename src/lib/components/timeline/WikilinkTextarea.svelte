@@ -22,8 +22,17 @@
     const suggestions = $derived.by<string[]>(() => {
         if (!token) return [];
         const q = token.query.toLowerCase();
+        // Same-named notes in different folders share a title, and links
+        // resolve case-insensitively: list each name once (it also keys
+        // the #each below, which throws on duplicate keys).
+        const seen = new Set<string>();
         return $allFileTitles
-            .filter((t: string) => t.toLowerCase().includes(q))
+            .filter((t: string) => {
+                const key = t.toLowerCase();
+                if (!key.includes(q) || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            })
             .slice(0, 8);
     });
 

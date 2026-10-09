@@ -69,6 +69,14 @@ export function emptyCanvas(): CanvasData {
     return { nodes: [], edges: [] };
 }
 
+/** Parses `.canvas` JSON text. Both top-level arrays are optional in the
+ *  JSON Canvas spec (Obsidian writes new files as "{}"), so they're
+ *  defaulted; the spread keeps unknown fields round-tripping losslessly. */
+export function parseCanvasData(json: string): CanvasData {
+    const parsed = (JSON.parse(json) ?? {}) as Partial<CanvasData>;
+    return { ...parsed, nodes: parsed.nodes ?? [], edges: parsed.edges ?? [] };
+}
+
 /** Unique id for a node/edge. */
 export function genNodeId(): string {
     // uuid() (not crypto.randomUUID directly): the latter is undefined on

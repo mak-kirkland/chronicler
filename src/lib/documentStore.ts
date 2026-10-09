@@ -1,18 +1,17 @@
 /**
  * @file Shared machinery behind the JSON-document stores (`.canvas`,
  * `.timeline`): an LRU cache wrapped in a Svelte store for reactivity, a
- * per-path queue serializing the whole read→modify→write cycle, echo-suppressed
- * reload on external change, and optimistic updates with rollback on
- * disk-write failure.
+ * per-path queue serializing the whole read→modify→write cycle, reload on
+ * external change (ignoring our own writes coming back), and optimistic
+ * updates with rollback on disk-write failure.
  *
- * Each call to `createDocumentStore` owns its own cache, queue and echo guard,
- * so two document types never share state.
+ * Each call to `createDocumentStore` owns its own cache, queue and record of
+ * file contents, so two document types never share state.
  */
 import { writable, type Readable } from "svelte/store";
 import { writePageContent } from "$lib/commands";
 import { normalizePath, LRUCache } from "$lib/utils";
 import { log } from "$lib/logger";
-import { createEchoGuard } from "$lib/externalRefresh";
 
 export interface CachedDocument<T> {
     path: string;
@@ -26,8 +25,10 @@ export interface DocumentStoreOptions<T> {
     /** Log context tag, e.g. `"canvasStore"`. */
     context: string;
     maxCached: number;
-    /** Reads and parses the file; rejects if it is missing or malformed. */
-    read: (path: string) => Promise<T>;
+    /** Reads the file's raw text; rejects if it is missing. */
+    readText: (path: string) => Promise<string>;
+    /** Parses that text; throws if it is malformed. */
+    parse: (text: string) => T;
 }
 
 export interface DocumentStore<T> {
@@ -49,20 +50,30 @@ export function createDocumentStore<T>({
     noun,
     context,
     maxCached,
-    read,
+    readText,
+    parse,
 }: DocumentStoreOptions<T>): DocumentStore<T> {
     const cache = new LRUCache<string, CachedDocument<T>>(maxCached);
     const loaded = writable<Map<string, CachedDocument<T>>>(new Map());
     const externalReloads = writable<Map<string, number>>(new Map());
     const fileWriteQueues = new Map<string, Promise<void>>();
-    const echoGuard = createEchoGuard();
+    /** path → the file's text as we last read or wrote it. A watcher event
+     *  for a file that still holds this text is our own write coming back
+     *  (or a touch that changed nothing), so it doesn't reload. */
+    const diskText = new Map<string, string>();
 
     function syncStoreFromCache(): void {
         const snapshot = new Map<string, CachedDocument<T>>();
         for (const [k, v] of cache.entries()) snapshot.set(k, v);
+        // Forget the text of documents the LRU has evicted.
+        for (const p of diskText.keys()) {
+            if (!snapshot.has(p)) diskText.delete(p);
+        }
         loaded.set(snapshot);
     }
 
+    /** Cache only: `diskText` tracks the file, which this doesn't touch
+     *  (canvas drag previews register on every pointer move). */
     function register(path: string, data: T): void {
         const normalizedPath = normalizePath(path);
         cache.set(normalizedPath, {
@@ -78,15 +89,23 @@ export function createDocumentStore<T>({
         return cached ? cached.data : null;
     }
 
-    async function load(path: string, forceReload = false): Promise<T | null> {
-        const normalizedPath = normalizePath(path);
-        if (!forceReload) {
-            const cached = cache.get(normalizedPath);
-            if (cached) return cached.data;
-        }
+    /**
+     * Reads, parses and caches the file. Returns null if that fails (logged)
+     * or, with `onlyIfChanged`, if the file still holds the text we last
+     * read or wrote.
+     */
+    async function readFromDisk(
+        normalizedPath: string,
+        onlyIfChanged = false,
+    ): Promise<T | null> {
         try {
-            const data = await read(normalizedPath);
+            const text = await readText(normalizedPath);
+            if (onlyIfChanged && text === diskText.get(normalizedPath)) {
+                return null;
+            }
+            const data = parse(text);
             register(normalizedPath, data);
+            diskText.set(normalizedPath, text);
             return data;
         } catch (e) {
             log.error(
@@ -98,33 +117,37 @@ export function createDocumentStore<T>({
         }
     }
 
+    async function load(path: string, forceReload = false): Promise<T | null> {
+        const normalizedPath = normalizePath(path);
+        if (!forceReload) {
+            const cached = cache.get(normalizedPath);
+            if (cached) return cached.data;
+        }
+        return readFromDisk(normalizedPath);
+    }
+
     /**
      * Called from worldStore when the watcher reports changed files. Reloads
-     * any that are open, unless the change is an echo of our own write. The
-     * reload joins the per-path write queue in both directions: it chains
-     * behind an in-flight write rather than racing it, and any concurrent
-     * `update` call chains behind the reload instead of racing its cache
-     * commit.
+     * any that are open whose text on disk differs from what we last read or
+     * wrote. Comparing content (rather than counting our writes) matters
+     * because the watcher coalesces: one event can stand for several of our
+     * saves, and a count would leave stale entries that swallow the next
+     * real edit. The reload joins the per-path write queue in both
+     * directions: it chains behind an in-flight write, so the disk is judged
+     * only once that write has landed, and any concurrent `update` call
+     * chains behind the reload instead of racing its cache commit.
      */
     function handleExternalChanges(paths: string[]): void {
         for (const p of paths) {
             const normalizedPath = normalizePath(p);
             if (!cache.get(normalizedPath)) continue; // not open
-            // A write in flight means we cannot judge this event yet: the echo
-            // token is only issued once the write resolves, so testing it now
-            // would misread our own change as external. Chain behind the write
-            // and test it there instead — dropping the event would leave the
-            // cache stale and let the next local edit overwrite the real change.
             const previousTask =
                 fileWriteQueues.get(normalizedPath) || Promise.resolve();
             const reloadTask = previousTask
                 .catch(() => {})
-                .then(() => {
-                    if (echoGuard.isEcho(normalizedPath)) return null; // our own echo
-                    return load(normalizedPath, true);
-                })
+                .then(() => readFromDisk(normalizedPath, true))
                 .then((data) => {
-                    if (data === null) return; // load failure already logged
+                    if (data === null) return; // unchanged, or failed (logged)
                     externalReloads.update((m) => {
                         const next = new Map(m);
                         next.set(
@@ -169,12 +192,10 @@ export function createDocumentStore<T>({
                 const next = updateFn(current);
                 const previous = current;
                 register(normalizedPath, next);
+                const json = JSON.stringify(next, null, 2);
                 try {
-                    await writePageContent(
-                        normalizedPath,
-                        JSON.stringify(next, null, 2),
-                    );
-                    echoGuard.expectEcho(normalizedPath);
+                    await writePageContent(normalizedPath, json);
+                    diskText.set(normalizedPath, json);
                 } catch (e) {
                     log.error(
                         `Write failed for ${normalizedPath}, rolling back.`,

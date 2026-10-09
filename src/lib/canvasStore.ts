@@ -3,10 +3,10 @@
  * The machinery lives in documentStore.ts, shared with timelineStore.ts; this
  * file binds it to the canvas type and gives it canvas-specific names.
  */
-import { getCanvasData } from "$lib/commands";
+import { getCanvasJson } from "$lib/commands";
 import { MAX_CACHED_CANVASES } from "$lib/config";
 import { createDocumentStore, type CachedDocument } from "$lib/documentStore";
-import type { CanvasData } from "$lib/canvasModels";
+import { parseCanvasData, type CanvasData } from "$lib/canvasModels";
 
 export type CachedCanvas = CachedDocument<CanvasData>;
 
@@ -14,7 +14,8 @@ const store = createDocumentStore<CanvasData>({
     noun: "canvas",
     context: "canvasStore",
     maxCached: MAX_CACHED_CANVASES,
-    read: (path) => getCanvasData(path),
+    readText: getCanvasJson,
+    parse: parseCanvasData,
 });
 
 export const loadedCanvases = store.loaded;

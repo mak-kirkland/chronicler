@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const writeMock = vi.fn<(path: string, content: string) => Promise<void>>();
-const getMock = vi.fn<(path: string) => Promise<unknown>>();
+const getMock = vi.fn<(path: string) => Promise<string>>();
 
 vi.mock("$lib/commands", () => ({
     writePageContent: (p: string, c: string) => writeMock(p, c),
-    getCanvasData: (p: string) => getMock(p),
+    getCanvasJson: (p: string) => getMock(p),
 }));
 
 // `$lib/logger` may pull in Tauri plugins; stub it for the node test env.
@@ -40,7 +40,7 @@ beforeEach(() => {
 
 describe("canvasStore", () => {
     it("loadCanvasData fetches once then serves from cache", async () => {
-        getMock.mockResolvedValue(emptyCanvas());
+        getMock.mockResolvedValue(JSON.stringify(emptyCanvas()));
         const p = "/v/a.canvas";
         await loadCanvasData(p);
         await loadCanvasData(p);

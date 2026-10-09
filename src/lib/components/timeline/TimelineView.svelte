@@ -10,7 +10,11 @@
         updateTimeline,
         externalReloads,
     } from "$lib/timelineStore";
-    import { loadVaultCalendars, resolveCalendar } from "$lib/calendarStore";
+    import {
+        loadVaultCalendars,
+        resolveCalendar,
+        vaultCalendars,
+    } from "$lib/calendarStore";
     import { compileCalendar, type CompiledCalendar } from "$lib/calendar";
     import { GREGORIAN } from "$lib/calendarPresets";
     import { zoomAbout, panByPixels, fitToEvents } from "$lib/timelineViewport";
@@ -87,6 +91,9 @@
         fallback: boolean;
     } | null>(() => {
         if (!timeline || !calendarsLoaded) return null;
+        // resolveCalendar reads the store with get(), which doesn't track;
+        // subscribe here so a calendar edit redraws the open timeline.
+        void $vaultCalendars;
         const def = resolveCalendar(timeline.calendarId);
         try {
             if (def) return { cal: compileCalendar(def), fallback: false };
