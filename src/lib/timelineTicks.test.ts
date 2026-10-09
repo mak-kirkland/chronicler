@@ -42,6 +42,23 @@ describe("ticks", () => {
         expect(result.some((t) => /\d{2}:00/.test(t.label))).toBe(true);
     });
 
+    it("labels midnight 00:00, never a second 23:59", () => {
+        // Time ticks step by repeated addition, which (here, in BCE years)
+        // drifts just short of the day boundary at hour and minute zoom.
+        for (const halfWindow of [0.25, 0.004]) {
+            for (let day = 1; day <= 60; day++) {
+                const midnight = cal.toSerial({ year: -500, month: 2, day });
+                const labels = ticks(
+                    cal,
+                    midnight - halfWindow,
+                    midnight + halfWindow,
+                ).map((t) => t.label);
+                expect(labels).toContain("00:00");
+                expect(new Set(labels).size).toBe(labels.length);
+            }
+        }
+    });
+
     it("every tick serial lies within the window", () => {
         const start = cal.toSerial({ year: 1500 });
         const end = cal.toSerial({ year: 1750 });

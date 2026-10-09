@@ -23,7 +23,8 @@ export class CalendarValidationError extends Error {
 const ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 
 /** Largest leap cycle (lcm of all rule periods) we accept. The Gregorian
- * cycle is 400; this cap keeps serial math O(cycle) with sane bounds. */
+ * cycle is 400. compileCalendar tabulates one cycle (8 bytes a year), so
+ * this caps that table at 8 MB and its build at a million daysInYear calls. */
 const MAX_LEAP_CYCLE = 1_000_000;
 
 export function validateCalendar(def: CalendarDef): CalendarError[] {
@@ -202,11 +203,26 @@ export function compileCalendar(def: CalendarDef): CompiledCalendar {
         return days;
     }
 
-    /** Sum of daysInYear over one full leap cycle. The leap pattern is
-     * periodic in the raw year number, so any `cycle` consecutive years sum
-     * to the same total. */
-    let daysPerCycle = 0;
-    for (let k = 1; k <= cycle; k++) daysPerCycle += daysInYear(k);
+    /** cycleDays[k] = days in years 1..k, for k in [0, cycle]. The leap
+     * pattern is periodic in the raw year number, so this one table gives
+     * the length of any run of years in O(1). */
+    const cycleDays = new Float64Array(cycle + 1);
+    for (let k = 1; k <= cycle; k++) {
+        cycleDays[k] = cycleDays[k - 1] + daysInYear(k);
+    }
+    const daysPerCycle = cycleDays[cycle];
+
+    /** Days in raw years 1..x, extended to every integer x by periodicity
+     * (so it is negative for x < 0), making daysThrough(b) - daysThrough(a-1)
+     * the length of years a..b. Raw numbering counts a year 0 even when the
+     * calendar has none; `negativeShift` takes it back out. */
+    function daysThrough(x: number): number {
+        const q = Math.floor(x / cycle);
+        return q * daysPerCycle + cycleDays[x - q * cycle];
+    }
+    /** daysThrough(firstNegative): 0 with a year zero, otherwise minus the
+     * length of the year 0 that raw numbering would put before year 1. */
+    const negativeShift = daysThrough(def.hasYearZero ? 0 : -1);
 
     function assertYearExists(y: number): void {
         if (!def.hasYearZero && y === 0) {
@@ -222,36 +238,11 @@ export function compileCalendar(def: CalendarDef): CompiledCalendar {
         return !def.hasYearZero && n === 0 ? -1 : n;
     }
 
-    const yearStartCache = new Map<number, number>();
-
     function yearStartSerial(y: number): number {
         assertYearExists(y);
-        const hit = yearStartCache.get(y);
-        if (hit !== undefined) return hit;
-
-        let s: number;
-        if (y >= 1) {
-            // Sum of daysInYear(k) for k in [1, y).
-            const n = y - 1;
-            const q = Math.floor(n / cycle);
-            const r = n - q * cycle;
-            s = q * daysPerCycle;
-            for (let k = 1; k <= r; k++) s += daysInYear(q * cycle + k);
-        } else {
-            // Sum backwards over the real years in [y, firstNegative].
-            const firstNegative = def.hasYearZero ? 0 : -1;
-            const n = firstNegative - y + 1;
-            const q = Math.floor(n / cycle);
-            const r = n - q * cycle;
-            s = q * daysPerCycle;
-            for (let k = 0; k < r; k++) {
-                s += daysInYear(firstNegative - q * cycle - k);
-            }
-            s = -s;
-        }
-        if (yearStartCache.size > 4096) yearStartCache.clear();
-        yearStartCache.set(y, s);
-        return s;
+        // Year 1 starts at serial 0; negative years count back from there
+        // over only the years that exist.
+        return y >= 1 ? daysThrough(y - 1) : daysThrough(y - 1) - negativeShift;
     }
 
     function toSerial(date: TimelineDate): number {
@@ -265,13 +256,27 @@ export function compileCalendar(def: CalendarDef): CompiledCalendar {
     }
 
     function fromSerial(serial: number) {
-        const dayIndex = Math.floor(serial);
-        // Estimate the year from whole cycles, then walk to the exact year.
-        let y = Math.floor(dayIndex / daysPerCycle) * cycle + 1;
-        // With a one-year cycle, any day in year -1 estimates to year 0.
-        if (!def.hasYearZero && y === 0) y = 1;
-        while (yearStartSerial(nextYear(y)) <= dayIndex) y = nextYear(y);
-        while (yearStartSerial(y) > dayIndex) y = prevYear(y);
+        // Whole minutes first, so float drift just short of midnight (the
+        // axis steps ticks by repeated addition) rolls into the next day
+        // instead of reading 23:59. `|| 0` turns -0 into 0.
+        const minutes = Math.round(serial * 1440) || 0;
+        const dayIndex = Math.floor(minutes / 1440);
+        const totalMinutes = minutes - dayIndex * 1440;
+
+        // The year is x + 1 for the largest raw x with daysThrough(x) at or
+        // before the day (shifted past the missing year 0 when negative):
+        // whole cycles by division, then a binary search of the table.
+        const target = dayIndex >= 0 ? dayIndex : dayIndex + negativeShift;
+        const q = Math.floor(target / daysPerCycle);
+        const inCycle = target - q * daysPerCycle;
+        let lo = 0;
+        let hi = cycle - 1;
+        while (lo < hi) {
+            const mid = (lo + hi + 1) >> 1;
+            if (cycleDays[mid] <= inCycle) lo = mid;
+            else hi = mid - 1;
+        }
+        const y = q * cycle + lo + 1;
 
         let rem = dayIndex - yearStartSerial(y);
         let month = 0;
@@ -279,10 +284,6 @@ export function compileCalendar(def: CalendarDef): CompiledCalendar {
             rem -= daysInMonth(y, month);
             month++;
         }
-        const totalMinutes = Math.min(
-            1439,
-            Math.round((serial - dayIndex) * 1440),
-        );
         return {
             year: y,
             month,
@@ -312,7 +313,7 @@ export function compileCalendar(def: CalendarDef): CompiledCalendar {
      * returns the input itself when nothing needed changing.
      */
     function clampDate(date: TimelineDate): TimelineDate {
-        const out: TimelineDate = { ...date };
+        const out: TimelineDate = { ...date, year: Math.trunc(date.year) };
         if (!def.hasYearZero && out.year === 0) out.year = 1;
         if (out.month != null) {
             out.month = Math.min(

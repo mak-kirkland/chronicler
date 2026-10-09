@@ -22,8 +22,6 @@ import type {
     Snippet,
 } from "./bindings";
 import type { MapConfig, TileSetInfo } from "./mapModels";
-import type { CanvasData } from "$lib/canvasModels";
-import { parseTimelineData, type TimelineData } from "./timelineModels";
 
 /**
  * Thin wrapper around Tauri's `invoke` that funnels every backend call
@@ -287,28 +285,19 @@ export const getMapConfig = async (path: string): Promise<MapConfig> => {
 };
 
 /**
- * Reads and parses a `.canvas` file from within the vault.
- * The backend returns the raw JSON string and we `JSON.parse` it here
- * (same rationale as getMapConfig — avoid double IPC serialization).
+ * Reads a `.canvas` file's raw JSON text (parsed by parseCanvasData). The
+ * canvas store keeps the text to tell its own writes coming back through
+ * the watcher from real external edits.
  */
-export const getCanvasData = async (path: string): Promise<CanvasData> => {
-    const json = await invoke<string>("get_canvas_data", { path });
-    // Both top-level arrays are optional in the JSON Canvas spec (Obsidian
-    // writes new files as "{}"). Normalize them; spread first so any unknown
-    // fields still round-trip losslessly.
-    const parsed = (JSON.parse(json) ?? {}) as Partial<CanvasData>;
-    return { ...parsed, nodes: parsed.nodes ?? [], edges: parsed.edges ?? [] };
-};
+export const getCanvasJson = (path: string): Promise<string> =>
+    invoke<string>("get_canvas_data", { path });
 
 /**
- * Reads and parses a `.timeline` file from within the vault.
- * The backend returns the raw JSON string; parseTimelineData normalizes
- * every field (same rationale as getCanvasData).
+ * Reads a `.timeline` file's raw JSON text (parsed by parseTimelineData),
+ * for the same reason as getCanvasJson.
  */
-export const getTimelineData = async (path: string): Promise<TimelineData> => {
-    const json = await invoke<string>("get_timeline_data", { path });
-    return parseTimelineData(json);
-};
+export const getTimelineJson = (path: string): Promise<string> =>
+    invoke<string>("get_timeline_data", { path });
 
 export const getDatedPages = async (): Promise<DatedPageInfo[]> => {
     return await invoke("get_dated_pages");
