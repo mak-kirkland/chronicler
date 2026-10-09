@@ -1040,6 +1040,7 @@ impl Indexer {
                 tags.sort();
                 Some(DatedPageInfo {
                     title: page.title.clone(),
+                    stem: file_stem_string(&page.path),
                     path: page.path.clone(),
                     tags,
                     date,
@@ -1490,6 +1491,7 @@ Now I link to [[Page Two]]!
         assert_eq!(dated.len(), 1);
         let d = &dated[0];
         assert_eq!(d.title, "Battle of Redford");
+        assert_eq!(d.stem, "battle");
         assert_eq!(d.date, "1042-03-12");
         assert_eq!(d.date_end.as_deref(), Some("1042-04-02"));
         assert_eq!(d.calendar.as_deref(), Some("valdrun"));

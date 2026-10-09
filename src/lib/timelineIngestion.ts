@@ -110,13 +110,14 @@ export function ingestEvents(
     const events: IngestedEvent[] = [];
     const skippedPaths: string[] = [];
     // Manual wins: hand-placed linked events suppress ingestion of their page.
-    const linkedTitles = new Set(
+    // Links name the file stem, not the frontmatter title.
+    const linkedStems = new Set(
         timeline.events
             .filter((e) => e.pageLink !== null)
             .map((e) => e.pageLink!.toLowerCase()),
     );
     for (const page of datedPages) {
-        if (linkedTitles.has(page.title.toLowerCase())) continue;
+        if (linkedStems.has(page.stem.toLowerCase())) continue;
         if (page.calendar !== null && page.calendar !== timeline.calendarId) {
             continue; // different calendar: not ingested, not an error
         }
@@ -140,7 +141,7 @@ export function ingestEvents(
             end,
             circa: false,
             description: "",
-            pageLink: page.title,
+            pageLink: page.stem,
             color: null,
             ingested: true,
         });

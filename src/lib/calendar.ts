@@ -111,14 +111,22 @@ function lcm(a: number, b: number): number {
     return (a / gcd(a, b)) * b;
 }
 
-/** The period (in years) after which the leap pattern repeats. */
+/** The period (in years) after which the leap pattern repeats. Periods that
+ * aren't positive integers are skipped: validateCalendar reports them, and
+ * it runs this on unvalidated input (a cleared editor field binds null),
+ * where gcd would recurse forever on NaN. */
 function leapCycleOf(def: CalendarDef): number {
     let cycle = 1;
     for (const r of def.leapRules) {
-        cycle = lcm(cycle, r.everyYears);
-        if (r.exceptEveryYears) cycle = lcm(cycle, r.exceptEveryYears);
-        if (r.unlessEveryYears) cycle = lcm(cycle, r.unlessEveryYears);
-        if (cycle > MAX_LEAP_CYCLE) return cycle;
+        for (const period of [
+            r.everyYears,
+            r.exceptEveryYears,
+            r.unlessEveryYears,
+        ]) {
+            if (!Number.isInteger(period) || (period as number) < 1) continue;
+            cycle = lcm(cycle, period as number);
+            if (cycle > MAX_LEAP_CYCLE) return cycle;
+        }
     }
     return cycle;
 }
@@ -140,6 +148,8 @@ export interface CompiledCalendar {
         minute: number;
     };
     serialRange(date: TimelineDate): [number, number];
+    /** Coerces a stored date into one this calendar can represent. */
+    clampDate(date: TimelineDate): TimelineDate;
     compareDates(a: TimelineDate, b: TimelineDate): number;
     addDays(date: TimelineDate, days: number): TimelineDate;
     diffDays(a: TimelineDate, b: TimelineDate): number;
@@ -258,6 +268,8 @@ export function compileCalendar(def: CalendarDef): CompiledCalendar {
         const dayIndex = Math.floor(serial);
         // Estimate the year from whole cycles, then walk to the exact year.
         let y = Math.floor(dayIndex / daysPerCycle) * cycle + 1;
+        // With a one-year cycle, any day in year -1 estimates to year 0.
+        if (!def.hasYearZero && y === 0) y = 1;
         while (yearStartSerial(nextYear(y)) <= dayIndex) y = nextYear(y);
         while (yearStartSerial(y) > dayIndex) y = prevYear(y);
 
@@ -290,6 +302,35 @@ export function compileCalendar(def: CalendarDef): CompiledCalendar {
             max = min + daysInMonth(date.year, date.month);
         else max = yearStartSerial(nextYear(date.year));
         return [min, max];
+    }
+
+    /**
+     * Dates are stored as bare indices, so an event saved under another
+     * calendar (or under this one before months were removed) can name a
+     * year, month or day that doesn't exist here, which the functions above
+     * reject or crash on. Pins each field to its nearest valid value, and
+     * returns the input itself when nothing needed changing.
+     */
+    function clampDate(date: TimelineDate): TimelineDate {
+        const out: TimelineDate = { ...date };
+        if (!def.hasYearZero && out.year === 0) out.year = 1;
+        if (out.month != null) {
+            out.month = Math.min(
+                Math.max(Math.trunc(out.month), 0),
+                def.months.length - 1,
+            );
+            if (out.day != null) {
+                out.day = Math.min(
+                    Math.max(out.day, 1),
+                    daysInMonth(out.year, out.month),
+                );
+            }
+        }
+        const same =
+            out.year === date.year &&
+            out.month === date.month &&
+            out.day === date.day;
+        return same ? date : out;
     }
 
     const PRECISION_RANK: Record<string, number> = {
@@ -427,6 +468,7 @@ export function compileCalendar(def: CalendarDef): CompiledCalendar {
         toSerial,
         fromSerial,
         serialRange,
+        clampDate,
         compareDates,
         addDays,
         diffDays,

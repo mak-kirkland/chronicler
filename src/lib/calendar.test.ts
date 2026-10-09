@@ -94,6 +94,24 @@ describe("validateCalendar", () => {
         expect(errors.some((e) => e.field === "eras[0]")).toBe(true);
     });
 
+    it("reports a missing leap period instead of overflowing the stack", () => {
+        // A cleared number input in the calendar editor binds null.
+        const errors = validateCalendar(
+            tinyCalendar({
+                leapRules: [
+                    {
+                        monthIndex: 0,
+                        extraDays: 1,
+                        everyYears: null as unknown as number,
+                    },
+                ],
+            }),
+        );
+        expect(errors.some((e) => e.field === "leapRules[0].everyYears")).toBe(
+            true,
+        );
+    });
+
     it("rejects a weekdayAnchor outside the weekday cycle", () => {
         const errors = validateCalendar(
             tinyCalendar({ weekdays: ["A", "B"], weekdayAnchor: 5 }),
@@ -199,6 +217,22 @@ describe("serial math", () => {
                 expect(cal.fromSerial(cal.toSerial(date))).toEqual(date);
             }
         }
+    });
+
+    it("resolves year -1 when there are no leap rules and no year zero", () => {
+        // A one-year leap cycle estimates every day of year -1 as year 0.
+        const cal = compileCalendar(tinyCalendar());
+        expect(cal.fromSerial(-1)).toMatchObject({
+            year: -1,
+            month: 1,
+            day: 20,
+        });
+        expect(cal.fromSerial(-30)).toMatchObject({
+            year: -1,
+            month: 0,
+            day: 1,
+        });
+        expect(cal.fromSerial(-31)).toMatchObject({ year: -2, day: 20 });
     });
 
     it("computes far-future years without hanging (cycle acceleration)", () => {
@@ -333,6 +367,57 @@ describe("ranges, comparison, eras, weekdays", () => {
             }),
         );
         expect(cal.eraOf(5)).toBeNull();
+    });
+});
+
+describe("clampDate", () => {
+    // tinyCalendar: First (10 days), Second (20 days), no year zero.
+    const cal = compileCalendar(tinyCalendar());
+
+    it("returns an already-valid date as the same object", () => {
+        const d = { year: 3, month: 1, day: 20, hour: 7 };
+        expect(cal.clampDate(d)).toBe(d);
+    });
+
+    it("pins months and days to the nearest that exist", () => {
+        expect(cal.clampDate({ year: 3, month: 11, day: 31 })).toEqual({
+            year: 3,
+            month: 1,
+            day: 20,
+        });
+        expect(cal.clampDate({ year: 3, month: 0, day: 15 })).toEqual({
+            year: 3,
+            month: 0,
+            day: 10,
+        });
+        expect(cal.clampDate({ year: 3, month: -1 })).toEqual({
+            year: 3,
+            month: 0,
+        });
+        expect(
+            cal.clampDate({ year: 3, month: 5, day: 2, hour: 7, minute: 30 }),
+        ).toEqual({ year: 3, month: 1, day: 2, hour: 7, minute: 30 });
+    });
+
+    it("moves year 0 to year 1 only when the calendar has no year zero", () => {
+        expect(cal.clampDate({ year: 0, month: 0 })).toEqual({
+            year: 1,
+            month: 0,
+        });
+        const d = { year: 0 };
+        expect(
+            compileCalendar(tinyCalendar({ hasYearZero: true })).clampDate(d),
+        ).toBe(d);
+    });
+
+    it("makes a date from a longer calendar safe for the engine", () => {
+        const greg = compileCalendar(GREGORIAN);
+        const foreign = { year: 1042, month: 13, day: 40 };
+        expect(() => greg.serialRange(foreign)).toThrow();
+        const safe = greg.clampDate(foreign);
+        expect(safe).toEqual({ year: 1042, month: 11, day: 31 });
+        expect(() => greg.serialRange(safe)).not.toThrow();
+        expect(() => greg.format(safe)).not.toThrow();
     });
 });
 

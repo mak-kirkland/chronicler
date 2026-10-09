@@ -220,6 +220,9 @@ export interface ImportedImage {
 /** A page with a `date:` frontmatter field — timeline-ingestion candidate. */
 export interface DatedPageInfo {
     title: string;
+    /** File name without `.md` — what wikilinks and `pageLink` resolve
+     *  against. Differs from `title` when frontmatter sets one. */
+    stem: string;
     path: string;
     tags: string[];
     /** Raw frontmatter strings; parsed by the TS calendar engine. */
