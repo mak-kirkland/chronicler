@@ -2,6 +2,14 @@
 
 ---
 
+## [v0.62.0-alpha] - 2026-10-11
+
+### ✨ Added
+
+- **Canvas**: Added a freeform brainstorming canvas as a new `.canvas` file type. Create one from the file tree context menu or the New Canvas button. Canvases support markdown text cards, image cards, page embeds, and labeled arrows, with pan and zoom, multi-select, drag, resize, per-card colour, and full undo/redo. The format is compatible with Obsidian's JSON Canvas spec.
+
+---
+
 ## [v0.61.1-alpha] - 2026-10-05
 
 ### ✨ Added
