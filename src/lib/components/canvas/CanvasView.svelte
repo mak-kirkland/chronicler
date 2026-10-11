@@ -292,6 +292,23 @@
         }
     }
 
+    // Left-button presses anywhere on the canvas (cards included) would start
+    // a native text selection, and WebKit extends it as the pointer moves,
+    // capture or not: a drag highlights the card's text and, past the canvas,
+    // the sidebar's. user-select can't stop the latter, so the press's
+    // default action is cancelled instead. That also stops it moving focus,
+    // which is how a text card being edited learns it's done, so focus moves
+    // here by hand. Presses in the card editor keep the default (caret,
+    // selection); other buttons do too — in WebKit the context menu is part
+    // of the right button's default action.
+    function onMouseDown(e: MouseEvent) {
+        if (e.button !== 0) return;
+        if ((e.target as Element).closest("textarea, input, [contenteditable]"))
+            return;
+        e.preventDefault();
+        containerEl!.focus({ preventScroll: true });
+    }
+
     function onPointerMove(e: PointerEvent) {
         const sp = containerPoint(e);
         if (panning) {
@@ -691,7 +708,7 @@
 
 <div class="canvas-root">
     <CanvasToolbar bind:tool onUndo={undo} onRedo={redo} {canUndo} {canRedo} />
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
     <div
         class="canvas-viewport"
         class:grabbing={panning}
@@ -700,6 +717,7 @@
         tabindex="0"
         style="background-size: {grid}px {grid}px; background-position: {panXr}px {panYr}px;"
         onpointerdown={onBackgroundPointerDown}
+        onmousedown={onMouseDown}
         onpointermove={onPointerMove}
         onpointerup={onPointerUp}
         onpointercancel={onPointerCancel}
