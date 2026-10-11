@@ -92,13 +92,16 @@
         /* Icon.svelte sizes itself in em — this yields ~18px icons. */
         font-size: 15px;
     }
-    .tool:hover:not(:disabled) {
+    .tool:hover:not(:disabled):not(.active) {
         background: var(--color-background-tertiary);
         color: var(--color-text-primary);
     }
     .tool.active {
         background: var(--color-accent-primary);
-        color: #fff;
+        color: var(--color-background-primary);
+        /* Masked icons paint themselves with --color-icons, which defaults to
+           the accent — on an accent fill that renders them invisible. */
+        --color-icons: var(--color-background-primary);
     }
     .tool:disabled {
         opacity: 0.35;
