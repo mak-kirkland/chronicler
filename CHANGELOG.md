@@ -2,6 +2,17 @@
 
 ---
 
+## [v0.62.1-alpha] - 2026-10-11
+
+### 🐞 Fixed
+
+- **Canvas**: Fixed the whole canvas going blurry when zoomed in. This happened whenever a page card showed an infobox with image tabs.
+- **Canvas**: Fixed the selected tool in the canvas toolbar showing as a solid block instead of its icon.
+- **Canvas**: Fixed canvas tabs being labelled "Welcome" instead of showing the canvas's name and icon.
+- **Canvas**: Fixed connections between cards not showing on Windows.
+
+---
+
 ## [v0.62.0-alpha] - 2026-10-11
 
 ### ✨ Added
