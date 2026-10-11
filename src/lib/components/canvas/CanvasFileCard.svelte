@@ -162,9 +162,12 @@
         overflow: hidden;
     }
     /* The carousel's caption tabs scroll sideways when they overflow — the
-       same blur, and in a card they have ellipsis to fall back on. */
+       same blur, and in a card they have ellipsis to fall back on. Both axes:
+       while x isn't `visible`, CSS computes an untouched `overflow-y: visible`
+       as `auto`, so hiding x alone leaves a strip whose tabs are a fraction
+       of a pixel too tall still a (vertical) scroller. */
     .note-body :global(.carousel-tabs) {
-        overflow-x: hidden;
+        overflow: hidden;
     }
     .missing {
         margin: 0;
