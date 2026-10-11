@@ -606,8 +606,24 @@
         } else if (connectSource !== id) {
             const from = connectSource;
             connectSource = null;
+            // One connection per pair of cards, either way round: a second
+            // would be drawn exactly over the first. Trying again selects the
+            // one that's there.
+            const existing = M.edgeBetween(canvas, from, id);
+            if (existing) {
+                onEdgeSelect(existing.id);
+                return;
+            }
+            // Checked again against the data the update applies to, which
+            // can be ahead of `canvas` while a write is still queued.
             mutate((d) =>
-                M.addEdge(d, { id: genNodeId(), fromNode: from, toNode: id }),
+                M.edgeBetween(d, from, id)
+                    ? d
+                    : M.addEdge(d, {
+                          id: genNodeId(),
+                          fromNode: from,
+                          toNode: id,
+                      }),
             );
         } else {
             connectSource = null;

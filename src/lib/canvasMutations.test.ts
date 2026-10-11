@@ -5,6 +5,7 @@ import {
     moveNodes,
     removeNodes,
     addEdge,
+    edgeBetween,
     patchEdge,
     removeEdges,
 } from "./canvasMutations";
@@ -74,5 +75,14 @@ describe("edge mutations", () => {
     it("removeEdges removes by id", () => {
         const d = addEdge(base(), edge("e1", "a", "b"));
         expect(removeEdges(d, ["e1"]).edges).toHaveLength(0);
+    });
+    it("edgeBetween finds an edge joining two nodes either way round", () => {
+        const d: CanvasData = {
+            nodes: [text("a"), text("b"), text("c")],
+            edges: [edge("e1", "a", "b")],
+        };
+        expect(edgeBetween(d, "a", "b")?.id).toBe("e1");
+        expect(edgeBetween(d, "b", "a")?.id).toBe("e1");
+        expect(edgeBetween(d, "a", "c")).toBeUndefined();
     });
 });

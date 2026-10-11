@@ -52,6 +52,19 @@ export function addEdge(data: CanvasData, edge: CanvasEdge): CanvasData {
     return { ...data, edges: [...data.edges, edge] };
 }
 
+/** The edge joining nodes `a` and `b`, either way round, if there is one. */
+export function edgeBetween(
+    data: CanvasData,
+    a: string,
+    b: string,
+): CanvasEdge | undefined {
+    return data.edges.find(
+        (e) =>
+            (e.fromNode === a && e.toNode === b) ||
+            (e.fromNode === b && e.toNode === a),
+    );
+}
+
 export function patchEdge(
     data: CanvasData,
     id: string,
