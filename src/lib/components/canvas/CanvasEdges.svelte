@@ -115,8 +115,11 @@
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        /* Not 100%: the world box is 0x0, and Chromium (WebView2 on Windows)
+           draws nothing in an <svg> with a zero dimension, overflow or not.
+           Every edge lives in the overflow either way. */
+        width: 1px;
+        height: 1px;
         overflow: visible;
         pointer-events: none;
     }
@@ -133,6 +136,10 @@
         stroke-width: 14;
         pointer-events: stroke;
         cursor: pointer;
+        /* Clicking focuses it, and Chromium rings its whole bounding box.
+           Selection already shows on the edge itself, and tabindex="-1"
+           keeps it out of keyboard focus, so the ring has nothing to add. */
+        outline: none;
     }
     .edge-label {
         fill: var(--color-text-primary);
