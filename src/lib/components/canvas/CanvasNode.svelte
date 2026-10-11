@@ -117,6 +117,11 @@
         if (e.button === 2) return;
         if (tool === "connect") {
             e.stopPropagation();
+            // Captured as a drag is, for its side effect: the click that
+            // follows goes to the card, not to whatever is under the pointer,
+            // so the card's contents (infobox settings, carousel tabs, image
+            // links) stay inert here as they do for the select tool.
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
             onConnectClick(node.id);
             return;
         }
