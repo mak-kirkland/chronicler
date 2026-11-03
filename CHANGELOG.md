@@ -2,6 +2,16 @@
 
 ---
 
+## [v0.63.0-alpha] - 2026-11-03
+
+### ✨ Added
+
+- **Timelines**: Added interactive timelines as a new `.timeline` file type. Plot events on named lanes across a zoomable time axis, navigate to linked pages by clicking event chips, and see hover previews. Events are created by double-clicking a lane and edited through a date-aware modal.
+- **Timelines**: Timelines are driven by fully custom calendars - define your own months, leap rules, eras, and weekdays, or start from a Gregorian or example fantasy calendar preset. Calendars are created and edited from a dedicated modal with live validation and a formatted-date preview.
+- **Timelines**: Dated notes can be ingested automatically into timeline lanes based on their tags or folder, so your existing notes appear as events without manual entry.
+
+---
+
 ## [v0.62.1-alpha] - 2026-10-11
 
 ### 🐞 Fixed
