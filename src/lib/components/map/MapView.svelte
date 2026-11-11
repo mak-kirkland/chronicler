@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from "svelte";
+    import { onMount, onDestroy, untrack } from "svelte";
     import L from "leaflet";
     import "leaflet/dist/leaflet.css";
     import {
@@ -35,7 +35,21 @@
         deleteShape,
     } from "$lib/mapActions";
     import {
+        cutHoleInRegion,
+        cutRegionOutOf,
+        fillRegionHole,
+        splitRegionApart,
+        mergeRegionsInto,
+    } from "$lib/mapRegionActions";
+    import {
+        cutOutPairs,
+        hasMergePartner,
+        pickMergeCandidate,
+        regionsWithHoleAt,
+    } from "$lib/mapRegionOps";
+    import {
         getShapesAtPoint,
+        mapModeKeyAction,
         buildLayerVisibilityLookup,
         isLayerIdVisible,
         setsEqual,
@@ -55,7 +69,15 @@
     } from "$lib/worldStore";
     import { throttle } from "$lib/utils";
     import { observeSize } from "$lib/domActions";
-    import type { MapConfig, MapLayer, MapRegion } from "$lib/mapModels";
+    import type {
+        MapConfig,
+        MapLayer,
+        MapPoint,
+        MapPolygon,
+        MapRegion,
+    } from "$lib/mapModels";
+    import { largestPieceCenter, regionPieces } from "$lib/mapGeometry";
+    import type { ContextMenuItem } from "$lib/types";
     import type { PageHeader } from "$lib/bindings";
     import ErrorBox from "$lib/components/ui/ErrorBox.svelte";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
@@ -73,9 +95,15 @@
         areMapPreviewsEnabled,
     } from "$lib/settingsStore";
 
-    let { data, isActive = true } = $props<{
+    let {
+        data,
+        isActive = true,
+        isFocused = true,
+    } = $props<{
         data: PageHeader;
         isActive?: boolean;
+        /** This pane owns the keyboard (see +page.svelte `resolve`). */
+        isFocused?: boolean;
     }>();
 
     // -------------------------------------------------------------------------
@@ -259,7 +287,17 @@
     // --- Drawing State ---
 
     let isDrawing = $state(false);
-    let drawMode = $state<"polygon" | null>(null);
+    // "polygon" draws a new region; "hole" draws a shape that is cut out of
+    // `holeTargetId` and never becomes a region itself.
+    let drawMode = $state<"polygon" | "hole" | null>(null);
+    let holeTargetId = $state<string | null>(null);
+
+    // --- Merge Pick Mode State ---
+    // While `mergeTargetId` is set, clicking a region toggles it in
+    // `mergePickIds`; "Merge" unions the picks into the target. Hover
+    // tooltips, previews and click-to-navigate are suspended meanwhile.
+    let mergeTargetId = $state<string | null>(null);
+    let mergePickIds = $state(new Set<string>());
     let tempPoints: L.LatLng[] = [];
     let tempLayer: L.Layer | null = null; // Visual feedback during draw
 
@@ -612,6 +650,22 @@
     }
 
     /**
+     * Where a region's tooltip/preview anchors. Polygons use the centre of
+     * their largest piece so a multi-piece region (an archipelago) doesn't
+     * anchor in the empty space between its pieces (cached per shape, as it
+     * is read on hover); circles use their mounted layer's bounds as before.
+     */
+    function regionAnchor(shape: MapRegion): L.LatLng | null {
+        if (shape.type === "polygon") {
+            const c = largestPieceCenter(shape);
+            // Custom Y-down CRS: lat == image Y.
+            return L.latLng(c.y, c.x);
+        }
+        const layer = shapeIdToLayer.get(shape.id);
+        return (layer as any)?.getBounds?.()?.getCenter?.() ?? null;
+    }
+
+    /**
      * Show preview popups for a single shape's targets.
      * Returns true if a preview was shown.
      *
@@ -619,7 +673,7 @@
      * have no individual DOM node — `layer.getElement()` returns the
      * shared canvas (or undefined) rather than a per-shape element. We
      * route the preview through `placePreviewAt`, anchoring at the
-     * shape's bounds-center in container coords.
+     * shape's anchor point (`regionAnchor`) in container coords.
      */
     function showShapePreview(shape: MapRegion): boolean {
         if (isConsoleOpen || !map) return false;
@@ -627,8 +681,7 @@
         const { pagePath, mapTargetPath } = resolveTargetPaths(shape);
         if (!pagePath && !mapTargetPath) return false;
 
-        const layer = shapeIdToLayer.get(shape.id);
-        const center = (layer as any)?.getBounds?.()?.getCenter?.();
+        const center = regionAnchor(shape);
         if (!center) return false;
 
         const cp = map.latLngToContainerPoint(center);
@@ -682,14 +735,26 @@
         void layerRevision;
 
         if (mapConfig) {
-            const currentMode: "hidden" | "visible" = isConsoleOpen
-                ? "visible"
-                : "hidden";
+            // Merge pick mode shows every region so the user can see what
+            // there is to pick.
+            const currentMode: "hidden" | "visible" =
+                isConsoleOpen || mergeTargetId ? "visible" : "hidden";
 
-            // Compute which IDs are currently targeted (highlighted/hovered)
+            // Compute which IDs are currently targeted (highlighted/hovered).
+            // While merging that's the target and the picks, not the hover.
+            // While drawing a hole, it's the region being cut (so its
+            // outline and existing holes are visible to draw against).
             const currentTargeted = new Set<string>();
-            if (highlightedRegionId) currentTargeted.add(highlightedRegionId);
-            for (const id of hoveredRegionIds) currentTargeted.add(id);
+            if (mergeTargetId) {
+                currentTargeted.add(mergeTargetId);
+                for (const id of mergePickIds) currentTargeted.add(id);
+            } else if (drawMode === "hole" && holeTargetId) {
+                currentTargeted.add(holeTargetId);
+            } else {
+                if (highlightedRegionId)
+                    currentTargeted.add(highlightedRegionId);
+                for (const id of hoveredRegionIds) currentTargeted.add(id);
+            }
 
             // Determine which shapes need restyling:
             // 1. Shapes that were targeted but no longer are
@@ -748,10 +813,10 @@
             const s = mapConfig?.shapes.find(
                 (s) => s.id === highlightedRegionId,
             );
-            if (layer && s) {
+            const center = layer && s ? regionAnchor(s) : null;
+            if (s && center) {
                 const tooltip = getOrCreateMultiTooltip();
                 // Force tooltip to center of region for console hover
-                const center = (layer as any).getBounds().getCenter();
                 tooltip
                     .setLatLng(center)
                     .setContent(s.label || "Region")
@@ -804,6 +869,12 @@
     $effect(() => {
         if (mapConfig && mapElement) {
             if (currentMapPath !== data.path) {
+                // Drawing and merge modes hold region ids from the map
+                // we're leaving — drop them before tearing it down.
+                untrack(() => {
+                    if (isDrawing) cancelDrawing();
+                    if (mergeTargetId) cancelMerge();
+                });
                 destroyMap();
                 currentMapPath = data.path;
             }
@@ -1113,7 +1184,8 @@
 
     function attachContextMenuHandler(mapHeight: number) {
         map!.on("contextmenu", (e: L.LeafletMouseEvent) => {
-            if (isDrawing) return; // Don't show context menu while drawing
+            // Don't show context menu while drawing or picking regions to merge
+            if (isDrawing || mergeTargetId) return;
             if (!mapConfig) return;
 
             // Pin right-click: show the pin context menu (edit/delete) and
@@ -1165,6 +1237,8 @@
                 handler: () => handleDeleteShape(shape.id),
             }));
 
+            const shapeActions = regionShapeActions(shapesAtCursor, mapX, mapY);
+
             contextMenu = {
                 x: e.originalEvent.clientX,
                 y: e.originalEvent.clientY,
@@ -1178,16 +1252,103 @@
                         : []),
                     ...editActions,
                     ...deleteActions,
+                    ...(shapeActions.length > 0
+                        ? [{ isSeparator: true } as any]
+                        : []),
+                    ...shapeActions,
                 ],
             };
         });
+    }
+
+    /** A region's label for menus and hints, falling back to "Unnamed". */
+    function regionName(id: string | null): string {
+        const s = id ? mapConfig?.shapes.find((x) => x.id === id) : null;
+        return s?.label || $t("map.unnamed");
+    }
+
+    /**
+     * Right-click items that change region shapes: cut a hole (drawn), cut
+     * one region out of another, fill the hole under the cursor, split a
+     * multi-piece region. Polygons only — circles are left alone.
+     */
+    function regionShapeActions(
+        under: MapRegion[],
+        mapX: number,
+        mapY: number,
+    ): ContextMenuItem[] {
+        if (!mapConfig) return [];
+        const at = { x: mapX, y: mapY };
+        const name = (s: MapRegion) => s.label || $t("map.unnamed");
+        const polygons = under.filter(
+            (s): s is MapPolygon => s.type === "polygon",
+        );
+
+        // Regions whose hole the cursor is in aren't "under" it, so look
+        // them up separately: broad-phase by bounds, visible layers only.
+        const lookup =
+            layerVisibilityLookup ??
+            buildLayerVisibilityLookup(mapConfig.layers);
+        const nearby = (
+            spatialIndex
+                ? spatialIndex.queryBounds(mapX, mapY, mapX, mapY)
+                : mapConfig.shapes
+        ).filter((s) => isLayerIdVisible(lookup, s.layerId));
+        const holey = regionsWithHoleAt(nearby, at);
+        // Merge picks only land on visible regions, so only they count as
+        // something to merge with.
+        const visibleShapes = mapConfig.shapes.filter((s) =>
+            isLayerIdVisible(lookup, s.layerId),
+        );
+
+        return [
+            ...polygons.map((s) => ({
+                label: $t("map.cutHoleIn", { name: name(s) }),
+                handler: () => {
+                    contextMenu = null;
+                    startDrawing("hole", s.id);
+                },
+            })),
+            ...cutOutPairs(under).map(({ target, cutter }) => ({
+                label: $t("map.cutRegionOutOf", {
+                    cutter: name(cutter),
+                    name: name(target),
+                }),
+                handler: () => {
+                    contextMenu = null;
+                    cutRegionOutOf(data.path, target.id, cutter.id);
+                },
+            })),
+            ...holey.map((s) => ({
+                label: $t("map.fillHoleIn", { name: name(s) }),
+                handler: () => {
+                    contextMenu = null;
+                    fillRegionHole(data.path, s.id, at);
+                },
+            })),
+            ...polygons
+                .filter((s) => !!s.parts?.length)
+                .map((s) => ({
+                    label: $t("map.splitRegionApart", { name: name(s) }),
+                    handler: () => {
+                        contextMenu = null;
+                        splitRegionApart(data.path, s.id);
+                    },
+                })),
+            ...polygons
+                .filter((s) => hasMergePartner(visibleShapes, s.id))
+                .map((s) => ({
+                    label: $t("map.mergeRegionWith", { name: name(s) }),
+                    handler: () => startMerge(s.id),
+                })),
+        ];
     }
 
     // Handle Hover for Overlapping Regions (Multi-Tooltip + Highlight Sync)
     function attachMouseMoveHandler(mapHeight: number) {
         // Core handler logic — extracted so it can be throttled
         const handleMouseMove = (e: L.LeafletMouseEvent) => {
-            if (isDrawing) return;
+            if (isDrawing || mergeTargetId) return;
             // Prevent showing tooltip if context menu is open
             // We ALLOW it if console is open now, but we will block full previews below
             if (contextMenu?.show) return;
@@ -1282,6 +1443,31 @@
         map!.on("click", (e: L.LeafletMouseEvent) => {
             if (!isDrawing) {
                 if (!mapConfig) return;
+
+                // Merge pick mode: a click toggles the region under it in
+                // or out of the merge — no pins, no navigation. The second
+                // click of a double-click is ignored so a double-click picks
+                // once instead of picking and un-picking.
+                if (mergeTargetId) {
+                    if (e.originalEvent.detail > 1) return;
+                    const pickX = e.latlng.lng;
+                    const pickY = toMapY(e.latlng.lat, mapHeight);
+                    const under = spatialIndex
+                        ? spatialIndex.query(
+                              pickX,
+                              pickY,
+                              layerVisibilityLookup ?? mapConfig.layers,
+                          )
+                        : getShapesAtPoint(
+                              pickX,
+                              pickY,
+                              mapConfig.shapes,
+                              mapConfig.layers,
+                          );
+                    const pick = pickMergeCandidate(under, mergeTargetId);
+                    if (pick) toggleMergePick(pick.id);
+                    return;
+                }
 
                 // Pin hit-test first: a click on a canvas pin should
                 // navigate, not fall through to shape disambiguation.
@@ -1385,7 +1571,7 @@
             }
 
             // --- Drawing mode click ---
-            if (drawMode === "polygon") {
+            if (drawMode === "polygon" || drawMode === "hole") {
                 tempPoints.push(e.latlng);
 
                 if (!tempLayer) {
@@ -1407,7 +1593,7 @@
     function attachDrawingHandler() {
         // Finisher for polygon (double click)
         map!.on("dblclick", (_e: L.LeafletMouseEvent) => {
-            if (isDrawing && drawMode === "polygon") {
+            if (isDrawing && (drawMode === "polygon" || drawMode === "hole")) {
                 finishDrawing();
             }
         });
@@ -1619,6 +1805,20 @@
     //      newly-in-view shapes / unmount outgoing ones. Big win for region-
     //      heavy maps where stringifying every polygon's points costs more
     //      than the rest of the pan combined.
+    /**
+     * The style the region-styling effect last settled on for `id`. Layers
+     * mounted after that effect ran (panned into view, rebuilt after an
+     * edit) start with it, so they match their neighbours — otherwise a
+     * region scrolled into view while the console or merge mode is showing
+     * regions would stay invisible.
+     */
+    function appliedRegionStyle(id: string): L.PathOptions {
+        if (prevStyledRegionIds.has(id)) return REGION_STYLES.highlighted;
+        return prevRegionStyleMode === "visible"
+            ? REGION_STYLES.visible
+            : REGION_STYLES.hidden;
+    }
+
     function syncShapes(config: MapConfig) {
         if (!shapeLayerGroup) return;
 
@@ -1691,16 +1891,26 @@
             const initialStyle: L.PathOptions = {
                 color: color,
                 fillColor: color,
-                ...REGION_STYLES.hidden,
+                ...appliedRegionStyle(shape.id),
                 renderer: shapeRenderer ?? undefined,
             };
 
             let layer: L.Path;
             if (shape.type === "polygon") {
                 // Custom Y-down CRS makes lat == image Y directly.
-                const latLngs = shape.points.map(
-                    (p) => [p.y, p.x] as [number, number],
-                );
+                const ring = (pts: MapPoint[]) =>
+                    pts.map((p) => [p.y, p.x] as [number, number]);
+                // One L.polygon per region, whatever its shape, so all its
+                // pieces highlight and hover as one. Leaflet takes
+                // [outline, ...holes] per piece; the canvas renderer fills
+                // even-odd, so holes stay empty.
+                const latLngs =
+                    shape.holes || shape.parts
+                        ? regionPieces(shape).map((piece) => [
+                              ring(piece.points),
+                              ...piece.holes.map(ring),
+                          ])
+                        : ring(shape.points);
                 layer = L.polygon(latLngs, initialStyle);
             } else {
                 return;
@@ -1729,9 +1939,12 @@
 
     // --- Drawing Handlers ---
 
-    function startDrawing(mode: "polygon") {
+    function startDrawing(mode: "polygon"): void;
+    function startDrawing(mode: "hole", targetId: string): void;
+    function startDrawing(mode: "polygon" | "hole", targetId?: string) {
         isDrawing = true;
         drawMode = mode;
+        holeTargetId = mode === "hole" ? (targetId ?? null) : null;
         // Automatically close the console to provide full view of the map for drawing
         isConsoleOpen = false;
 
@@ -1746,8 +1959,77 @@
     function cancelDrawing() {
         isDrawing = false;
         drawMode = null;
+        holeTargetId = null;
         if (drawLayerGroup) drawLayerGroup.clearLayers();
         if (map) map.doubleClickZoom.enable();
+    }
+
+    /** What a key event came from, in the terms `mapModeKeyAction` uses. */
+    function keyEventTarget(e: KeyboardEvent): "text" | "control" | "other" {
+        const el = e.target as HTMLElement | null;
+        if (el?.closest?.("input, textarea, select, [contenteditable]")) {
+            return "text";
+        }
+        if (el?.closest?.("button, a, [role=button]")) return "control";
+        return "other";
+    }
+
+    /**
+     * Esc leaves drawing mode (the drawn points are discarded) or merge pick
+     * mode; Enter finishes a merge. Only when this pane owns the keyboard —
+     * see `mapModeKeyAction` for the guards.
+     */
+    function handleWindowKeydown(e: KeyboardEvent) {
+        const action = mapModeKeyAction(e.key, {
+            isFocused,
+            isDrawing,
+            isMerging: mergeTargetId !== null,
+            target: keyEventTarget(e),
+        });
+        if (!action) return;
+        e.preventDefault();
+        if (action === "cancelDrawing") cancelDrawing();
+        else if (action === "cancelMerge") cancelMerge();
+        else finishMerge();
+    }
+
+    // =========================================================================
+    // MERGE PICK MODE
+    // =========================================================================
+
+    function startMerge(targetId: string) {
+        contextMenu = null;
+        isConsoleOpen = false;
+        highlightedRegionId = null;
+        hoveredRegionIds = new Set();
+        removeMultiTooltip();
+        clearAllPreviews();
+        mergePickIds = new Set();
+        mergeTargetId = targetId;
+        // Clicks are picks while merging, so a double-click mustn't zoom.
+        map?.doubleClickZoom.disable();
+    }
+
+    function cancelMerge() {
+        mergeTargetId = null;
+        mergePickIds = new Set();
+        map?.doubleClickZoom.enable();
+    }
+
+    function finishMerge() {
+        const target = mergeTargetId;
+        const picks = [...mergePickIds];
+        cancelMerge();
+        if (target && picks.length > 0) {
+            mergeRegionsInto(data.path, target, picks);
+        }
+    }
+
+    function toggleMergePick(id: string) {
+        const next = new Set(mergePickIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        mergePickIds = next;
     }
 
     function finishDrawing() {
@@ -1765,21 +2047,21 @@
         }
 
         const h = mapConfig.height;
-        let shapeData: any;
-
-        if (drawMode === "polygon" && tempPoints.length >= 3) {
-            // Convert LatLngs back to map coordinates (Y flip)
-            const points = tempPoints.map((p) => ({
-                x: Math.round(p.lng),
-                y: Math.round(toMapY(p.lat, h)),
-            }));
-            shapeData = { type: "polygon", points };
-        }
+        // Convert LatLngs back to map coordinates (Y flip)
+        const points = tempPoints.map((p) => ({
+            x: Math.round(p.lng),
+            y: Math.round(toMapY(p.lat, h)),
+        }));
+        const mode = drawMode;
+        const holeTarget = holeTargetId;
 
         cancelDrawing();
 
-        if (shapeData) {
-            addRegion(data.path, mapConfig, shapeData);
+        if (points.length < 3) return;
+        if (mode === "polygon") {
+            addRegion(data.path, mapConfig, { type: "polygon", points });
+        } else if (mode === "hole" && holeTarget) {
+            cutHoleInRegion(data.path, holeTarget, points);
         }
     }
 
@@ -1847,6 +2129,8 @@
     />
 {/if}
 
+<svelte:window onkeydown={handleWindowKeydown} />
+
 <div class="map-view-container">
     <ViewHeader>
         <div slot="left">
@@ -1859,6 +2143,15 @@
                     <!-- Instruction text moved to map overlay -->
                     <Button size="small" onclick={cancelDrawing}
                         >{$t("map.cancelDrawing")}</Button
+                    >
+                </div>
+            {:else if mergeTargetId}
+                <div class="draw-controls">
+                    <Button size="small" variant="accent" onclick={finishMerge}
+                        >{$t("map.mergeDone")}</Button
+                    >
+                    <Button size="small" onclick={cancelMerge}
+                        >{$t("map.cancelMerge")}</Button
                     >
                 </div>
             {:else}
@@ -1907,9 +2200,17 @@
 
             {#if isDrawing}
                 <div class="map-drawing-hint tooltip-floating">
-                    {drawMode === "polygon"
-                        ? $t("map.polygonHint")
-                        : $t("map.drawModeActive")}
+                    {#if drawMode === "polygon"}
+                        {$t("map.polygonHint")}
+                    {:else if drawMode === "hole"}
+                        {$t("map.holeHint", { name: regionName(holeTargetId) })}
+                    {:else}
+                        {$t("map.drawModeActive")}
+                    {/if}
+                </div>
+            {:else if mergeTargetId}
+                <div class="map-drawing-hint tooltip-floating">
+                    {$t("map.mergeHint", { name: regionName(mergeTargetId) })}
                 </div>
             {/if}
 

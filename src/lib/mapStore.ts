@@ -161,6 +161,11 @@ export async function updateMapConfig(
             // 2. Calculate new state
             const newConfig = updateFn(currentConfig);
 
+            // An update that hands back the config it was given changed
+            // nothing (e.g. a refused region operation) — don't touch the
+            // cache or rewrite the file.
+            if (newConfig === currentConfig) return;
+
             // 3. Optimistic Update: Update store immediately so UI reflects changes
             const previousConfig = currentConfig;
             registerMap(normalizedPath, newConfig);

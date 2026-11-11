@@ -37,6 +37,7 @@
         "katex": "^0.16.27",
         "leaflet": "^1.9.4",
         "marked": "^16.4.2",
+        "polygon-clipping": "^0.15.7",
         "svelte-codemirror-editor": "^1.4.2",
         "yaml": "^2.8.2"
     },

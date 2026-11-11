@@ -65,11 +65,9 @@
                 };
                 break;
             case "map":
-                props = { data: view.data, isActive };
-                break;
             case "canvas":
             case "timeline":
-                // These two bind window-level key handling, so they need to
+                // These bind window-level key handling, so they need to
                 // know which pane owns the keyboard, not just that they're up.
                 props = { data: view.data, isActive, isFocused };
                 break;

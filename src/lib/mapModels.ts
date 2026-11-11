@@ -74,16 +74,45 @@ export interface MapPin {
     invisible?: boolean;
 }
 
+/** A point in map image pixels. */
+export interface MapPoint {
+    x: number;
+    y: number;
+}
+
+/** One extra piece of a multi-piece polygon region (see `MapPolygon.parts`). */
+export interface MapPolygonPart {
+    points: MapPoint[];
+    holes?: MapPoint[][];
+}
+
 /**
  * Represents a polygon region.
+ *
+ * A region can be several separate pieces, each with holes (an archipelago,
+ * or Italy with the Vatican cut out). The layout keeps old files and old app
+ * versions working:
+ * - `points` is always the outline of the FIRST (largest) piece, so a plain
+ *   region is written exactly as it always was, and an older Chronicler
+ *   reading a newer file still sees a valid polygon (just without holes or
+ *   the extra pieces).
+ * - `holes` are holes in that first piece; `parts` are any further pieces.
+ *   Both are omitted when empty, never written as `[]`.
+ *
+ * Read the geometry through `regionPieces()` in `mapGeometry.ts` rather than
+ * touching `points`/`holes`/`parts` directly.
  */
 export interface MapPolygon {
     id: string;
     type: "polygon";
     /**
-     * Array of points {x, y} defining the shape.
+     * Outline of the first piece.
      */
-    points: { x: number; y: number }[];
+    points: MapPoint[];
+    /** Holes in the first piece. */
+    holes?: MapPoint[][];
+    /** Further pieces of the same region. */
+    parts?: MapPolygonPart[];
     /**
      * The ID of the layer this region belongs to.
      */

@@ -4,8 +4,16 @@
  * and centralized theme assets (icons, colors).
  */
 
-import type { MapConfig, MapLayer, MapRegion } from "./mapModels";
-import L from "leaflet";
+import type {
+    MapConfig,
+    MapLayer,
+    MapPoint,
+    MapPolygon,
+    MapPolygonPart,
+    MapRegion,
+} from "./mapModels";
+import type L from "leaflet";
+import { isPointInRegion, piecesBounds, regionPieces } from "./mapGeometry";
 
 // --- THEME CONSTANTS ---
 
@@ -321,13 +329,32 @@ export function resizeMapData(
                 radius: shape.radius * scaleFactor,
             };
         } else if (shape.type === "polygon") {
-            return {
+            // Plain outlines keep whole-pixel coordinates as they always
+            // have. Regions with holes or extra pieces keep 2 decimals (like
+            // the geometry ops) — rounding each ring to whole pixels
+            // independently can push a hole vertex across a slanted outline
+            // edge, where even-odd fill paints a sliver outside the region.
+            const precise = !!(shape.holes || shape.parts);
+            const round = precise
+                ? (v: number) => Math.round(v * scaleFactor * 100) / 100
+                : (v: number) => Math.round(v * scaleFactor);
+            const scaleRing = (ring: MapPoint[]) =>
+                ring.map((p) => ({ x: round(p.x), y: round(p.y) }));
+            const scaled: MapPolygon = {
                 ...shape,
-                points: shape.points.map((p) => ({
-                    x: Math.round(p.x * scaleFactor),
-                    y: Math.round(p.y * scaleFactor),
-                })),
+                points: scaleRing(shape.points),
             };
+            if (shape.holes) scaled.holes = shape.holes.map(scaleRing);
+            if (shape.parts) {
+                scaled.parts = shape.parts.map((part) => {
+                    const p: MapPolygonPart = {
+                        points: scaleRing(part.points),
+                    };
+                    if (part.holes) p.holes = part.holes.map(scaleRing);
+                    return p;
+                });
+            }
+            return scaled;
         }
         return shape;
     });
@@ -373,6 +400,19 @@ export function isPointInPolygon(
 }
 
 /**
+ * True when the point is inside a polygon region: inside one of its pieces
+ * and not inside that piece's holes. Plain one-outline regions (the common
+ * case, and the hot path on every mousemove) skip the pieces machinery.
+ */
+export function isPointInPolygonRegion(
+    pt: MapPoint,
+    shape: MapPolygon,
+): boolean {
+    if (!shape.holes && !shape.parts) return isPointInPolygon(pt, shape.points);
+    return isPointInRegion(pt, shape);
+}
+
+/**
  * Checks if a point is inside a circle.
  */
 export function isPointInCircle(
@@ -407,7 +447,7 @@ export function getShapesAtPoint(
         if (shape.type === "circle") {
             return isPointInCircle({ x: mapX, y: mapY }, shape);
         } else if (shape.type === "polygon") {
-            return isPointInPolygon({ x: mapX, y: mapY }, shape.points);
+            return isPointInPolygonRegion({ x: mapX, y: mapY }, shape);
         }
         return false;
     });
@@ -436,6 +476,9 @@ function computeAABB(shape: MapRegion): AABB {
             maxX: shape.x + shape.radius,
             maxY: shape.y + shape.radius,
         };
+    } else if (shape.parts) {
+        // Holes sit inside their outlines, so only outlines matter here.
+        return piecesBounds(regionPieces(shape));
     } else {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         for (const p of shape.points) {
@@ -572,7 +615,7 @@ export class ShapeSpatialIndex {
             if (shape.type === "circle") {
                 if (isPointInCircle({ x: mapX, y: mapY }, shape)) results.push(shape);
             } else if (shape.type === "polygon") {
-                if (isPointInPolygon({ x: mapX, y: mapY }, shape.points)) results.push(shape);
+                if (isPointInPolygonRegion({ x: mapX, y: mapY }, shape)) results.push(shape);
             }
         }
         return results;
@@ -585,9 +628,57 @@ export class ShapeSpatialIndex {
  */
 export function shapeFingerprint(shape: MapRegion): string {
     if (shape.type === "polygon") {
-        const pts = shape.points.map((p) => `${p.x},${p.y}`).join(";");
-        return `poly|${pts}|${shape.color || ""}|${shape.label || ""}|${shape.targetPage || ""}|${shape.targetMap || ""}|${shape.layerId || ""}`;
+        const ring = (r: MapPoint[]) => r.map((p) => `${p.x},${p.y}`).join(";");
+        const part = (p: MapPolygonPart) =>
+            [p.points, ...(p.holes ?? [])].map(ring).join("/");
+        const pts = ring(shape.points);
+        // Appended only when present so plain polygons keep their old
+        // fingerprint (no needless rebuild after an upgrade).
+        const holes = shape.holes
+            ? `|h:${shape.holes.map(ring).join("/")}`
+            : "";
+        const parts = shape.parts
+            ? `|p:${shape.parts.map(part).join("&")}`
+            : "";
+        return `poly|${pts}|${shape.color || ""}|${shape.label || ""}|${shape.targetPage || ""}|${shape.targetMap || ""}|${shape.layerId || ""}${holes}${parts}`;
     } else {
         return `circ|${shape.x},${shape.y},${shape.radius}|${shape.color || ""}|${shape.label || ""}|${shape.targetPage || ""}|${shape.targetMap || ""}|${shape.layerId || ""}`;
     }
+}
+
+// --- MAP MODE KEYBOARD ---
+
+/** What a keydown should do to MapView's drawing / merge-pick modes. */
+export type MapModeKeyAction = "cancelDrawing" | "cancelMerge" | "finishMerge";
+
+/**
+ * Decides what a window keydown means for MapView's modes. MapView listens on
+ * the window, so this guards against keys meant for something else:
+ * - an unfocused pane (background tab, other split pane) never reacts;
+ * - typing in a text field never reacts;
+ * - Enter on a focused button/link is left to activate that control (so
+ *   Enter on "Cancel Merge" doesn't merge). Escape still cancels.
+ *
+ * @param target what the event came from: "text" (input, textarea, select,
+ *   contenteditable), "control" (button, link, role=button) or "other".
+ */
+export function mapModeKeyAction(
+    key: string,
+    state: {
+        isFocused: boolean;
+        isDrawing: boolean;
+        isMerging: boolean;
+        target: "text" | "control" | "other";
+    },
+): MapModeKeyAction | null {
+    if (!state.isFocused || state.target === "text") return null;
+    if (key === "Escape") {
+        if (state.isDrawing) return "cancelDrawing";
+        if (state.isMerging) return "cancelMerge";
+        return null;
+    }
+    if (key === "Enter" && state.isMerging && state.target !== "control") {
+        return "finishMerge";
+    }
+    return null;
 }
