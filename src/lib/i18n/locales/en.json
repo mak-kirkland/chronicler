@@ -656,6 +656,7 @@
     "map.cutWouldRemoveRegion": "That would remove all of {name}. Use Delete Region to remove a region.",
     "map.regionShapeFailed": "Couldn't change the region's shape. Try a simpler outline.",
     "map.regionSaveFailed": "Couldn't save the map, so the region wasn't changed.",
+    "map.pinMoveFailed": "Couldn't save the map, so the pin wasn't moved.",
     "map.regionGone": "That region no longer exists, so nothing was changed.",
     "map.goToPage": "Go to Page: {name} ({region})",
     "map.goToMap": "Go to Map: {name} ({region})",

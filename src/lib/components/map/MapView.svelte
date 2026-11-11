@@ -30,6 +30,7 @@
         addPin,
         editPin,
         deletePin,
+        movePin,
         editRegion,
         addRegion,
         deleteShape,
@@ -62,6 +63,7 @@
         DEFAULT_ICON_COLOR,
         DRAWING_COLOR,
         DEFAULT_PIN_ICON,
+        pinDropPoint,
     } from "$lib/mapUtils";
     import {
         imagePathLookup,
@@ -299,6 +301,30 @@
     // tooltips, previews and click-to-navigate are suspended meanwhile.
     let mergeTargetId = $state<string | null>(null);
     let mergePickIds = $state(new Set<string>());
+
+    // --- Pin Drag State ---
+    // A left press on a pin arms a drag; moving PIN_DRAG_THRESHOLD_PX turns
+    // it into one (`at` set). The pin then follows the cursor — the canvas
+    // layer draws it there, the config is untouched — and the drop saves
+    // it. A press that never gets that far is a click, and still opens the
+    // pin's target.
+    const PIN_DRAG_THRESHOLD_PX = 4;
+    let pinDrag: {
+        id: string;
+        downX: number;
+        downY: number;
+        /** Cursor offset from the pin's tip, in container px. */
+        grabX: number;
+        grabY: number;
+        /** Where the pin would be dropped (image px); null until it moves. */
+        at: MapPoint | null;
+    } | null = null;
+    let isDraggingPin = $state(false);
+    let pinDragFrame = 0;
+    // The click that follows a drop (or an Escape mid-press) mustn't open
+    // the pin. Cleared by the next press, in case no click comes.
+    let swallowPinClick = false;
+
     let tempPoints: L.LatLng[] = [];
     let tempLayer: L.Layer | null = null; // Visual feedback during draw
 
@@ -954,6 +980,7 @@
     }
 
     function destroyMap() {
+        cancelPinDrag();
         if (map) {
             map.remove();
             map = null;
@@ -1177,8 +1204,9 @@
 
     function attachContextMenuHandler(mapHeight: number) {
         map!.on("contextmenu", (e: L.LeafletMouseEvent) => {
-            // Don't show context menu while drawing or picking regions to merge
-            if (isDrawing || mergeTargetId) return;
+            // Don't show context menu while drawing, picking regions to
+            // merge, or holding a pin
+            if (isDrawing || mergeTargetId || pinDrag) return;
             if (!mapConfig) return;
 
             // Pin right-click: show the pin context menu (edit/delete) and
@@ -1341,7 +1369,7 @@
     function attachMouseMoveHandler(mapHeight: number) {
         // Core handler logic — extracted so it can be throttled
         const handleMouseMove = (e: L.LeafletMouseEvent) => {
-            if (isDrawing || mergeTargetId) return;
+            if (isDrawing || mergeTargetId || isDraggingPin) return;
             // Prevent showing tooltip if context menu is open
             // We ALLOW it if console is open now, but we will block full previews below
             if (contextMenu?.show) return;
@@ -1434,6 +1462,11 @@
 
     function attachClickHandler(mapHeight: number) {
         map!.on("click", (e: L.LeafletMouseEvent) => {
+            // The release that ends a pin drag isn't a click on anything.
+            if (swallowPinClick) {
+                swallowPinClick = false;
+                return;
+            }
             if (!isDrawing) {
                 if (!mapConfig) return;
 
@@ -1602,6 +1635,146 @@
             // While drawing, clicks are handled by separate listener
             if (!isDrawing) contextMenu = null;
         });
+    }
+
+    // =========================================================================
+    // PIN DRAGGING
+    // =========================================================================
+
+    /**
+     * A left press on a pin takes the gesture from Leaflet (so the map
+     * doesn't pan) and arms a drag. Bound in the capture phase on the map
+     * container, so it runs before Leaflet's own listener on that element.
+     */
+    function handleMapMouseDown(e: MouseEvent) {
+        swallowPinClick = false;
+        // Primary button only: a right press must reach Leaflet's
+        // contextmenu path untouched (WebKitGTK right-click hazards).
+        // Shift+drag is Leaflet's box zoom.
+        if (e.button !== 0 || e.shiftKey || pinDrag) return;
+        if (isDrawing || mergeTargetId || !map || !mapConfig) return;
+        if (!pinLayer || !map.hasLayer(pinLayer)) return;
+        if (
+            e.target instanceof Element &&
+            e.target.closest(".leaflet-control-container")
+        )
+            return;
+        const cp = map.mouseEventToContainerPoint(e);
+        const hit = pinLayer.hitTestAt(cp.x, cp.y);
+        if (hit?.type !== "pin") return;
+        const pin = mapConfig.pins.find((p) => p.id === hit.pinId);
+        // A hidden pin can only be moved while the console shows it.
+        if (!pin || (pin.invisible && !isConsoleOpen)) return;
+        const tip = pinLayer.getPinContainerCoords(pin.id);
+        if (!tip) return;
+
+        // No map pan from Leaflet; no text selection or image drag.
+        e.stopPropagation();
+        e.preventDefault();
+        pinDrag = {
+            id: pin.id,
+            downX: e.clientX,
+            downY: e.clientY,
+            // Keep the pin where it was grabbed relative to the cursor,
+            // rather than jumping its tip to the cursor.
+            grabX: cp.x - tip.x,
+            grabY: cp.y - tip.y,
+            at: null,
+        };
+        window.addEventListener("mousemove", handlePinDragMove);
+        window.addEventListener("mouseup", handlePinDragUp);
+        window.addEventListener("keydown", handlePinDragKey, true);
+        window.addEventListener("blur", cancelPinDrag);
+    }
+
+    function handlePinDragMove(e: MouseEvent) {
+        const drag = pinDrag;
+        if (!drag || !map || !mapConfig) return;
+        if (!drag.at) {
+            const moved = Math.hypot(
+                e.clientX - drag.downX,
+                e.clientY - drag.downY,
+            );
+            if (moved < PIN_DRAG_THRESHOLD_PX) return;
+            beginPinDrag();
+        }
+        const cp = map.mouseEventToContainerPoint(e);
+        const ll = map.containerPointToLatLng([
+            cp.x - drag.grabX,
+            cp.y - drag.grabY,
+        ]);
+        // Custom Y-down CRS: lng == image X, lat == image Y.
+        drag.at = pinDropPoint(
+            ll.lng,
+            ll.lat,
+            mapConfig.width,
+            mapConfig.height,
+        );
+        if (!pinDragFrame) pinDragFrame = requestAnimationFrame(drawDraggedPin);
+    }
+
+    /** The press became a drag: the hover UI belongs to the pin's old spot. */
+    function beginPinDrag() {
+        isDraggingPin = true;
+        contextMenu = null;
+        hoveredPinId = null;
+        pinLayer?.setHover(null);
+        hoveredRegionIds = new Set();
+        removeMultiTooltip();
+        clearAllPreviews();
+    }
+
+    function drawDraggedPin() {
+        pinDragFrame = 0;
+        if (pinDrag?.at) {
+            pinLayer?.liftPin(pinDrag.id, pinDrag.at.x, pinDrag.at.y);
+        }
+    }
+
+    function handlePinDragUp(e: MouseEvent) {
+        if (e.button !== 0 || !pinDrag) return;
+        const { id, at } = pinDrag;
+        if (!at) {
+            // Never moved: the click that follows opens the pin's target.
+            stopPinDrag();
+            return;
+        }
+        stopPinDrag(at);
+        swallowPinClick = true;
+        movePin(data.path, id, at.x, at.y).finally(() =>
+            pinLayer?.settlePin(id, at),
+        );
+    }
+
+    function handlePinDragKey(e: KeyboardEvent) {
+        if (e.key !== "Escape") return;
+        e.preventDefault();
+        e.stopPropagation();
+        cancelPinDrag();
+        // The button is still down; letting go mustn't open the pin.
+        swallowPinClick = true;
+    }
+
+    // Not `stopPinDrag` itself as the blur listener: it'd take the event
+    // for a drop point.
+    function cancelPinDrag() {
+        stopPinDrag();
+    }
+
+    /**
+     * Ends the gesture. With `at` the pin was dropped there, and the layer
+     * keeps drawing it there until the save settles.
+     */
+    function stopPinDrag(at?: MapPoint) {
+        window.removeEventListener("mousemove", handlePinDragMove);
+        window.removeEventListener("mouseup", handlePinDragUp);
+        window.removeEventListener("keydown", handlePinDragKey, true);
+        window.removeEventListener("blur", cancelPinDrag);
+        if (pinDragFrame) cancelAnimationFrame(pinDragFrame);
+        pinDragFrame = 0;
+        if (pinDrag) pinLayer?.dropPin(pinDrag.id, at);
+        pinDrag = null;
+        isDraggingPin = false;
     }
 
     // =========================================================================
@@ -2174,8 +2347,16 @@
             <p>{$t("map.loadingConfig")}</p>
         </div>
     {:else}
-        <div class="map-wrapper" class:drawing={isDrawing}>
-            <div bind:this={mapElement} class="leaflet-container"></div>
+        <div
+            class="map-wrapper"
+            class:drawing={isDrawing}
+            class:dragging-pin={isDraggingPin}
+        >
+            <div
+                bind:this={mapElement}
+                class="leaflet-container"
+                onmousedowncapture={handleMapMouseDown}
+            ></div>
             <!--
               Invisible 1×1 anchor positioned over the currently-hovered
               canvas-rendered pin or shape. Hover-driven previews
@@ -2334,6 +2515,9 @@
     /* Cursor styling for drawing mode */
     .map-wrapper.drawing .leaflet-container {
         cursor: crosshair !important;
+    }
+    .map-wrapper.dragging-pin .leaflet-container {
+        cursor: grabbing !important;
     }
     .leaflet-container {
         width: 100%;

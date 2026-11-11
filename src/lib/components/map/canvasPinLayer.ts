@@ -97,6 +97,17 @@ export class CanvasPinLayer extends L.Layer {
      * (as translucent "ghosts") while the console is open for editing.
      */
     private consoleOpen = false;
+    /**
+     * The pin being dragged, at the cursor (image px). Drawn highlighted,
+     * on top of every other pin and never folded into a cluster.
+     */
+    private lifted: { id: string; x: number; y: number } | null = null;
+    /**
+     * Dropped pins whose new position is still being saved, drawn there
+     * until the saved config arrives — so a drop never flickers back to the
+     * old spot while the write queue catches up.
+     */
+    private placed = new Map<string, { x: number; y: number }>();
     /** Hit-test entries — coordinates are in **container** pixels. */
     private renderHits: PinHit[] = [];
 
@@ -198,6 +209,43 @@ export class CanvasPinLayer extends L.Layer {
         this.render();
     }
 
+    /** Draw pin `id` at image point (`x`, `y`) while it's being dragged. */
+    liftPin(id: string, x: number, y: number): void {
+        this.lifted = { id, x, y };
+        this.render();
+    }
+
+    /**
+     * Stop drawing pin `id` at the cursor. With `at`, it was dropped there:
+     * keep drawing it there until `settlePin` (the save is done). Without
+     * it, the drag was cancelled.
+     */
+    dropPin(id: string, at?: { x: number; y: number }): void {
+        const wasLifted = this.lifted?.id === id;
+        if (!at && !wasLifted) return;
+        if (at) this.placed.set(id, at);
+        if (wasLifted) this.lifted = null;
+        this.render();
+    }
+
+    /**
+     * The drop at `at` (the same object given to `dropPin`) has been saved,
+     * or failed to be: go back to drawing pin `id` from the pin set. Ignored
+     * if the pin has been dropped somewhere else since.
+     */
+    settlePin(id: string, at: { x: number; y: number }): void {
+        const placed = this.placed.get(id);
+        if (placed !== at) return;
+        this.placed.delete(id);
+        this.render();
+    }
+
+    /** Where pin `id` is drawn: at the cursor, at its drop point, or saved. */
+    private pinPosition(pin: CanvasPin): { x: number; y: number } {
+        if (this.lifted?.id === pin.id) return this.lifted;
+        return this.placed.get(pin.id) ?? pin;
+    }
+
     /**
      * Returns the pin or cluster (if any) under the given map-container
      * pixel coords. Used by MapView's mousemove/click pipeline.
@@ -227,7 +275,8 @@ export class CanvasPinLayer extends L.Layer {
         if (!this._map) return null;
         const pin = this.pins.find((p) => p.id === id);
         if (!pin) return null;
-        const point = this._map.latLngToContainerPoint([pin.y, pin.x]);
+        const at = this.pinPosition(pin);
+        const point = this._map.latLngToContainerPoint([at.y, at.x]);
         return { x: point.x, y: point.y };
     }
 
@@ -283,10 +332,17 @@ export class CanvasPinLayer extends L.Layer {
         // across pans: the same pin always falls into the same cell,
         // and the centroid we compute from cell members doesn't shift
         // when we pan the viewport.
+        //
+        // The dragged pin is kept out of the list and drawn last (below).
         const pinLP: { pin: CanvasPin; lpx: number; lpy: number }[] = [];
+        let liftedLP: { pin: CanvasPin; lpx: number; lpy: number } | null =
+            null;
         for (const pin of this.pins) {
-            const lp = map.latLngToLayerPoint([pin.y, pin.x]);
-            pinLP.push({ pin, lpx: lp.x, lpy: lp.y });
+            const at = this.pinPosition(pin);
+            const lp = map.latLngToLayerPoint([at.y, at.x]);
+            const sp = { pin, lpx: lp.x, lpy: lp.y };
+            if (pin.id === this.lifted?.id) liftedLP = sp;
+            else pinLP.push(sp);
         }
 
         // Layer-pixel bounds of the canvas's draw region, padded by the
@@ -391,6 +447,9 @@ export class CanvasPinLayer extends L.Layer {
             for (const sp of pinLP) emitPin(sp);
         }
 
+        // Last, so it's painted over every other pin.
+        if (liftedLP) emitPin(liftedLP);
+
         this.renderHits = hits;
     }
 
@@ -429,7 +488,9 @@ export class CanvasPinLayer extends L.Layer {
 
         const ctx = this.ctx!;
         const isHighlighted =
-            pin.id === this.highlightedId || pin.id === this.hoveredId;
+            pin.id === this.highlightedId ||
+            pin.id === this.hoveredId ||
+            pin.id === this.lifted?.id;
 
         // Match the old SVG marker: 32px wide × 48px tall body, scaled
         // 1.3× when highlighted. Anchor (cx, cy) is the pin tip — same

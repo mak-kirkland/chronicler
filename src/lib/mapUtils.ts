@@ -302,6 +302,48 @@ export async function checkLayerImage(
     };
 }
 
+// --- PIN DRAGGING ---
+
+/**
+ * Where a pin let go of at image point (`x`, `y`) lands: rounded to whole
+ * pixels (as `resizeMapData` stores pins) and kept on the image, so a drag
+ * that runs off the map's edge parks the pin on that edge.
+ */
+export function pinDropPoint(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+): MapPoint {
+    return {
+        x: Math.min(Math.max(Math.round(x), 0), width),
+        y: Math.min(Math.max(Math.round(y), 0), height),
+    };
+}
+
+/**
+ * `config` with pin `pinId` dropped at (`x`, `y`) — see `pinDropPoint`.
+ * Hands back `config` itself when the pin is gone (deleted elsewhere while
+ * it was being dragged) or wouldn't move, so `updateMapConfig` skips the
+ * write.
+ */
+export function movePinTo(
+    config: MapConfig,
+    pinId: string,
+    x: number,
+    y: number,
+): MapConfig {
+    const at = pinDropPoint(x, y, config.width, config.height);
+    const pin = config.pins.find((p) => p.id === pinId);
+    if (!pin || (pin.x === at.x && pin.y === at.y)) return config;
+    return {
+        ...config,
+        pins: config.pins.map((p) =>
+            p.id === pinId ? { ...p, x: at.x, y: at.y } : p,
+        ),
+    };
+}
+
 /**
  * Rescales all pins and shapes in a map configuration based on a scale factor.
  * Returns a new object with the updated coordinates.

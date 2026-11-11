@@ -8,6 +8,8 @@ import {
     mapModeKeyAction,
     isPointInPolygon,
     regionStyleState,
+    pinDropPoint,
+    movePinTo,
 } from "./mapUtils";
 
 function rect(x0: number, y0: number, x1: number, y1: number): MapPoint[] {
@@ -311,5 +313,58 @@ describe("regionStyleState", () => {
         });
         expect(r.mode).toBe("visible");
         expect(ids(r.targeted)).toEqual(["a", "c"]);
+    });
+});
+
+describe("pinDropPoint", () => {
+    it("rounds to whole image pixels", () => {
+        expect(pinDropPoint(10.4, 20.6, 100, 50)).toEqual({ x: 10, y: 21 });
+    });
+
+    it("parks a pin dragged off the image on its edge", () => {
+        expect(pinDropPoint(-30, 70, 100, 50)).toEqual({ x: 0, y: 50 });
+        expect(pinDropPoint(140, -2, 100, 50)).toEqual({ x: 100, y: 0 });
+    });
+});
+
+describe("movePinTo", () => {
+    const cfg: MapConfig = {
+        version: "1",
+        title: "t",
+        width: 100,
+        height: 50,
+        layers: [],
+        pins: [
+            { id: "a", x: 10, y: 10, label: "A", targetPage: "Alpha" },
+            { id: "b", x: 20, y: 20 },
+        ],
+        shapes: [],
+    };
+
+    it("moves only that pin and keeps everything else about it", () => {
+        const next = movePinTo(cfg, "a", 40.2, 30.7);
+        expect(next.pins).toEqual([
+            { id: "a", x: 40, y: 31, label: "A", targetPage: "Alpha" },
+            { id: "b", x: 20, y: 20 },
+        ]);
+        expect(next.pins[1]).toBe(cfg.pins[1]);
+        expect(cfg.pins[0]).toEqual({
+            id: "a",
+            x: 10,
+            y: 10,
+            label: "A",
+            targetPage: "Alpha",
+        });
+    });
+
+    it("keeps the pin on the image", () => {
+        const next = movePinTo(cfg, "b", 500, -9);
+        expect(next.pins[1]).toEqual({ id: "b", x: 100, y: 0 });
+    });
+
+    it("hands back the same config when nothing moves, so nothing is written", () => {
+        expect(movePinTo(cfg, "a", 10.3, 9.8)).toBe(cfg);
+        // Deleted elsewhere while it was being dragged.
+        expect(movePinTo(cfg, "gone", 5, 5)).toBe(cfg);
     });
 });

@@ -12,6 +12,8 @@ import MapObjectModal from "$lib/components/map/MapObjectModal.svelte";
 import ConfirmModal from "$lib/components/modals/ConfirmModal.svelte";
 import type { MapConfig, MapPin, MapRegion } from "$lib/mapModels";
 import { translate } from "$lib/i18n";
+import { log } from "$lib/logger";
+import { movePinTo } from "$lib/mapUtils";
 
 /**
  * Helper to open the MapObjectModal with common props pre-filled.
@@ -68,6 +70,26 @@ export function addPin(
  */
 export function editPin(mapPath: string, mapConfig: MapConfig, pin: MapPin) {
     openMapObjectModal(mapPath, mapConfig, "pin", pin);
+}
+
+/**
+ * Saves a dragged pin at its drop point (see `movePinTo`). A failed save
+ * rolls the store back, which puts the pin back where it was, and says so.
+ */
+export async function movePin(
+    mapPath: string,
+    pinId: string,
+    x: number,
+    y: number,
+): Promise<void> {
+    try {
+        await updateMapConfig(mapPath, (config) =>
+            movePinTo(config, pinId, x, y),
+        );
+    } catch (e) {
+        log.error("Saving a moved pin failed", e, "mapActions");
+        alert(translate("map.pinMoveFailed"));
+    }
 }
 
 /**
