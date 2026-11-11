@@ -303,3 +303,42 @@ describe("split view", () => {
         expect(T.isSplit(s)).toBe(false);
     });
 });
+
+describe("paneShowingMap", () => {
+    const map = (path: string): ViewState => ({
+        type: "map",
+        data: { path, title: "W" },
+    });
+    // Left pane (focused) shows a page; the right pane shows `right`.
+    const split = (right: ViewState) => {
+        let s = T.createInitialState("a");
+        s = T.openInCurrent(s, file("/p.md"));
+        s = T.splitView(s, ids());
+        s = T.openInCurrent(s, right);
+        return T.focusPane(s, 0);
+    };
+
+    it("finds the map in the other pane, whatever the path separators", () => {
+        const s = split(map("C:\\V\\W.cmap"));
+        expect(T.paneShowingMap(s, "C:/V/W.cmap")).toBe(s.panes[1]);
+    });
+
+    it("is null when not split", () => {
+        let s = T.createInitialState("a");
+        s = T.openInCurrent(s, map("/V/W.cmap"));
+        expect(T.paneShowingMap(s, "/V/W.cmap")).toBeNull();
+    });
+
+    it("is null when only the focused pane shows the map", () => {
+        const s = T.focusPane(split(map("/V/W.cmap")), 1);
+        expect(T.paneShowingMap(s, "/V/W.cmap")).toBeNull();
+    });
+
+    it("is null when the map is only in a background tab", () => {
+        let s = split(file("/q.md"));
+        s = T.openInNew(s, map("/V/W.cmap"), "bg");
+        // Put the page back in the focused pane; the map tab stays in the background.
+        s = T.activate(s, "a");
+        expect(T.paneShowingMap(s, "/V/W.cmap")).toBeNull();
+    });
+});

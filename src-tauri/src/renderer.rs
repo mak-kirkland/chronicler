@@ -12,7 +12,7 @@ use crate::error::ChroniclerError;
 use crate::models::{Backlink, FullPageData, MapLink, TocEntry, VaultAsset};
 use crate::sanitizer;
 use crate::utils::file_stem_string;
-use crate::wikilink::WIKILINK_RE;
+use crate::wikilink::{is_map_link_target, map_link_name, WIKILINK_RE};
 use crate::{error::Result, indexer::Indexer, models::RenderedPage, parser};
 use base64::{engine::general_purpose, Engine as _};
 use html_escape::decode_html_entities;
@@ -111,6 +111,22 @@ fn get_mime_type(filename: &str) -> &str {
         "image/webp"
     } else {
         "application/octet-stream"
+    }
+}
+
+/// The text a wikilink shows: its alias, else for a map link the place (or the
+/// map's name), else the target as written.
+fn wikilink_display_text<'a>(
+    target: &'a str,
+    section: Option<&'a str>,
+    alias: Option<&'a str>,
+) -> &'a str {
+    if let Some(alias) = alias {
+        return alias;
+    }
+    match map_link_name(target) {
+        Some(name) => section.unwrap_or(name),
+        None => target,
     }
 }
 
@@ -712,7 +728,40 @@ impl Renderer {
                     };
                 }
 
-                let alias = alias.unwrap_or(target);
+                // `[[map:Name#Place|alias]]` links to a map, optionally to a place
+                // on it. The frontend opens the map and flies to `data-place`.
+                if is_map_link_target(target) {
+                    // `[[map:]]` names no map — leave it literal, like `[[]]`.
+                    let Some(name) = map_link_name(target) else {
+                        return caps.get(0).unwrap().as_str().to_string();
+                    };
+                    let text = wikilink_display_text(target, section, alias);
+                    return match indexer.map_resolver.get(&name.to_lowercase()) {
+                        Some(path) => {
+                            let place = section
+                                .map(|p| {
+                                    format!(
+                                        " data-place=\"{}\"",
+                                        html_escape::encode_double_quoted_attribute(p)
+                                    )
+                                })
+                                .unwrap_or_default();
+                            format!(
+                                "<a href=\"#\" class=\"internal-link map-link\" data-map-path=\"{}\"{}>{}</a>",
+                                path_to_web_str(path),
+                                place,
+                                text
+                            )
+                        }
+                        None => format!(
+                            "<a href=\"#\" class=\"internal-link map-link broken\" data-map-target=\"{}\">{}</a>",
+                            html_escape::encode_double_quoted_attribute(name),
+                            text
+                        ),
+                    };
+                }
+
+                let alias = wikilink_display_text(target, section, alias);
                 let normalized_target = target.to_lowercase();
 
                 let href = if let Some(sec) = section {
@@ -746,10 +795,10 @@ impl Renderer {
     fn extract_display_text_from_wikilinks(&self, text: &str) -> String {
         WIKILINK_RE
             .replace_all(text, |caps: &Captures| {
-                // Use the alias (capture group 3) if it exists, otherwise use the target (capture group 1).
-                let alias = caps.get(3).map(|m| m.as_str().trim());
                 let target = caps.get(1).map(|m| m.as_str().trim()).unwrap_or("");
-                alias.unwrap_or(target).to_string()
+                let section = caps.get(2).map(|m| m.as_str().trim());
+                let alias = caps.get(3).map(|m| m.as_str().trim());
+                wikilink_display_text(target, section, alias).to_string()
             })
             .to_string()
     }
@@ -1134,6 +1183,102 @@ mod tests {
         let renderer = Renderer::new(indexer_arc, root.to_path_buf());
 
         (renderer, page1_path)
+    }
+
+    /// A renderer over a vault holding a page and a map that share the name
+    /// "Eldoria". Returns the renderer, the page path and the map path.
+    fn setup_map_renderer() -> (Renderer, PathBuf, PathBuf) {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let page = root.join("Eldoria.md");
+        fs::write(&page, "content").unwrap();
+        let map = root.join("Eldoria.cmap");
+        fs::write(&map, r#"{"title":"Eldoria"}"#).unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+        let renderer = Renderer::new(Arc::new(RwLock::new(indexer)), root.to_path_buf());
+        (renderer, page, map)
+    }
+
+    fn render_inline(renderer: &Renderer, content: &str) -> String {
+        renderer
+            .render_custom_syntax_in_string(content, &mut Vec::new())
+            .unwrap()
+    }
+
+    #[test]
+    fn test_render_map_link_resolved() {
+        let (renderer, _, map) = setup_map_renderer();
+        let map = path_to_web_str(&map);
+
+        assert_eq!(
+            render_inline(&renderer, "[[map:Eldoria]]"),
+            format!("<a href=\"#\" class=\"internal-link map-link\" data-map-path=\"{map}\">Eldoria</a>")
+        );
+        assert_eq!(
+            render_inline(&renderer, "[[map:Eldoria#Castle Black]]"),
+            format!(
+                "<a href=\"#\" class=\"internal-link map-link\" data-map-path=\"{map}\" \
+                 data-place=\"Castle Black\">Castle Black</a>"
+            )
+        );
+        assert_eq!(
+            render_inline(&renderer, "[[map:Eldoria#Castle Black|the keep]]"),
+            format!(
+                "<a href=\"#\" class=\"internal-link map-link\" data-map-path=\"{map}\" \
+                 data-place=\"Castle Black\">the keep</a>"
+            )
+        );
+    }
+
+    #[test]
+    fn test_render_page_and_map_same_name() {
+        let (renderer, page, map) = setup_map_renderer();
+        assert_eq!(
+            render_inline(&renderer, "[[Eldoria]] [[map:Eldoria]]"),
+            format!(
+                "<a href=\"#\" class=\"internal-link\" data-path=\"{}\">Eldoria</a> \
+                 <a href=\"#\" class=\"internal-link map-link\" data-map-path=\"{}\">Eldoria</a>",
+                path_to_web_str(&page),
+                path_to_web_str(&map)
+            )
+        );
+    }
+
+    #[test]
+    fn test_render_map_link_broken_and_empty() {
+        let (renderer, _, _) = setup_map_renderer();
+        assert_eq!(
+            render_inline(&renderer, "[[map:Nowhere]]"),
+            "<a href=\"#\" class=\"internal-link map-link broken\" data-map-target=\"Nowhere\">Nowhere</a>"
+        );
+        assert_eq!(render_inline(&renderer, "[[map:]]"), "[[map:]]");
+    }
+
+    #[test]
+    fn test_render_map_link_place_is_escaped() {
+        let (renderer, _, _) = setup_map_renderer();
+        let result = renderer
+            .render_page_preview("See [[map:Eldoria#The Fox & \"Hound\"]].")
+            .unwrap();
+        assert!(
+            result
+                .html_before_toc
+                .contains("data-place=\"The Fox &amp; &quot;Hound&quot;\""),
+            "place not escaped/kept, got: {}",
+            result.html_before_toc
+        );
+    }
+
+    #[test]
+    fn test_map_link_in_heading_display_text() {
+        let (renderer, _, _) = setup_map_renderer();
+        let result = renderer
+            .render_page_preview("## Near [[map:Eldoria#Castle Black]]\nText.")
+            .unwrap();
+        assert_eq!(result.toc.len(), 1);
+        assert_eq!(result.toc[0].text, "Near Castle Black");
     }
 
     #[test]

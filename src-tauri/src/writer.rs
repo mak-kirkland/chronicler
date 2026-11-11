@@ -7,8 +7,8 @@
 use crate::{
     error::{ChroniclerError, Result},
     models::PageHeader,
-    utils::{file_stem_string, is_markdown_file, is_timeline_file},
-    wikilink::WIKILINK_RE,
+    utils::{file_stem_string, is_map_file, is_markdown_file, is_timeline_file},
+    wikilink::{map_link_name, MAP_LINK_PREFIX, WIKILINK_RE},
 };
 use regex::{Captures, Regex};
 use same_file::Handle;
@@ -35,12 +35,22 @@ struct BacklinkUpdate {
 pub struct RenameRefs {
     /// Pages and timelines that link to a renamed page by name.
     pub backlinks: HashSet<PathBuf>,
+    /// Pages and timelines that link to a renamed map with `[[map:Name]]`.
+    pub map_backlinks: HashSet<PathBuf>,
     /// Every canvas in the vault. They point at files by vault-relative path
     /// rather than by link, so any of them may reference the renamed file, or
     /// something inside a renamed folder.
     pub canvases: Vec<PathBuf>,
     /// The root those canvas paths are relative to.
     pub vault_root: PathBuf,
+}
+
+impl RenameRefs {
+    /// True when no file could refer to the renamed one, so a rename needs
+    /// no rewrites at all.
+    pub fn is_empty(&self) -> bool {
+        self.backlinks.is_empty() && self.map_backlinks.is_empty() && self.canvases.is_empty()
+    }
 }
 
 /// A component responsible for performing safe, transactional file system
@@ -224,7 +234,15 @@ fn replace_insert_in_content(content: &str, old_stem: &str, new_stem: &str) -> O
 /// `events[].description`. Value-based so unknown fields round-trip
 /// untouched. Returns None when nothing changed or the JSON is malformed
 /// (a malformed timeline must not abort the rename transaction).
-fn rewrite_timeline_links(content: &str, old_stem: &str, new_stem: &str) -> Option<String> {
+///
+/// For a renamed map (`RefKind::Map`) only `[[map:…]]` links in descriptions
+/// change; `pageLink` always names a page.
+fn rewrite_timeline_links(
+    content: &str,
+    old_stem: &str,
+    new_stem: &str,
+    kind: RefKind,
+) -> Option<String> {
     let mut value: serde_json::Value = serde_json::from_str(content).ok()?;
     let mut changed = false;
     let old_lower = old_stem.to_lowercase();
@@ -232,13 +250,17 @@ fn rewrite_timeline_links(content: &str, old_stem: &str, new_stem: &str) -> Opti
     if let Some(events) = value.get_mut("events").and_then(|e| e.as_array_mut()) {
         for event in events {
             if let Some(link) = event.get("pageLink").and_then(|l| l.as_str()) {
-                if link.to_lowercase() == old_lower {
+                if kind == RefKind::Page && link.to_lowercase() == old_lower {
                     event["pageLink"] = serde_json::Value::String(new_stem.to_string());
                     changed = true;
                 }
             }
             if let Some(desc) = event.get("description").and_then(|d| d.as_str()) {
-                if let Some(new_desc) = replace_wikilink_in_content(desc, old_stem, new_stem) {
+                let new_desc = match kind {
+                    RefKind::Page => replace_wikilink_in_content(desc, old_stem, new_stem),
+                    RefKind::Map => replace_map_link_in_content(desc, old_stem, new_stem),
+                };
+                if let Some(new_desc) = new_desc {
                     event["description"] = serde_json::Value::String(new_desc);
                     changed = true;
                 }
@@ -249,6 +271,59 @@ fn rewrite_timeline_links(content: &str, old_stem: &str, new_stem: &str) -> Opti
         serde_json::to_string_pretty(&value).ok()
     } else {
         None
+    }
+}
+
+/// Points `[[map:Old…]]` links at a renamed map, keeping each link's prefix
+/// as typed (`map:`, `Map:`), place and alias. Page links are left alone.
+/// Returns None when nothing changed.
+fn replace_map_link_in_content(content: &str, old_stem: &str, new_stem: &str) -> Option<String> {
+    let old_lower = old_stem.to_lowercase();
+    let new_content = WIKILINK_RE.replace_all(content, |caps: &Captures| {
+        let raw = caps.get(1).map_or("", |m| m.as_str());
+        match map_link_name(raw) {
+            Some(name) if name.to_lowercase() == old_lower => {
+                let prefix = &raw.trim_start()[..MAP_LINK_PREFIX.len()];
+                let section = caps
+                    .get(2)
+                    .map_or(String::new(), |m| format!("#{}", m.as_str()));
+                let alias = caps
+                    .get(3)
+                    .map_or(String::new(), |m| format!("|{}", m.as_str()));
+                format!("[[{prefix}{new_stem}{section}{alias}]]")
+            }
+            _ => caps.get(0).unwrap().as_str().to_string(),
+        }
+    });
+    (new_content != content).then(|| new_content.into_owned())
+}
+
+/// How a renamed file is reached by name from text: `[[Page]]` for a page,
+/// `[[map:Map]]` for a map.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RefKind {
+    Page,
+    Map,
+}
+
+impl RefKind {
+    /// The kind of name-based links that reach `path`, if any do.
+    fn of(path: &Path) -> Option<RefKind> {
+        if is_markdown_file(path) {
+            Some(RefKind::Page)
+        } else if is_map_file(path) {
+            Some(RefKind::Map)
+        } else {
+            None
+        }
+    }
+}
+
+/// Points name-based links of `kind` in plain text at the renamed file.
+fn rewrite_text_refs(text: &str, old_stem: &str, new_stem: &str, kind: RefKind) -> Option<String> {
+    match kind {
+        RefKind::Page => rewrite_page_refs(text, old_stem, new_stem),
+        RefKind::Map => replace_map_link_in_content(text, old_stem, new_stem),
     }
 }
 
@@ -285,8 +360,8 @@ fn moved_path(path: &str, old_rel: &str, new_rel: &str) -> Option<String> {
 
 /// Rewrites a `.canvas` file (JSON Canvas) after a rename or move. File
 /// nodes (and group backgrounds) that point at the renamed file, or into a
-/// renamed folder, get the new vault-relative path; when a page's name
-/// changed (`stems`), `[[wikilinks]]` and inserts in text nodes follow it.
+/// renamed folder, get the new vault-relative path; when a page's or map's
+/// name changed (`stems`), the links to it in text nodes follow it.
 /// Value-based so unknown fields round-trip untouched. Returns None when
 /// nothing changed or the JSON is malformed (a malformed canvas must not
 /// abort the rename transaction).
@@ -294,7 +369,7 @@ fn rewrite_canvas_refs(
     content: &str,
     old_rel: &str,
     new_rel: &str,
-    stems: Option<(&str, &str)>,
+    stems: Option<(&str, &str, RefKind)>,
 ) -> Option<String> {
     let mut value: serde_json::Value = serde_json::from_str(content).ok()?;
     let mut changed = false;
@@ -310,7 +385,7 @@ fn rewrite_canvas_refs(
                 changed = true;
             }
         }
-        let Some((old_stem, new_stem)) = stems else {
+        let Some((old_stem, new_stem, kind)) = stems else {
             continue;
         };
         if node.get("type").and_then(|t| t.as_str()) != Some("text") {
@@ -319,7 +394,7 @@ fn rewrite_canvas_refs(
         let new_text = node
             .get("text")
             .and_then(|t| t.as_str())
-            .and_then(|text| rewrite_page_refs(text, old_stem, new_stem));
+            .and_then(|text| rewrite_text_refs(text, old_stem, new_stem, kind));
         if let Some(new_text) = new_text {
             node["text"] = serde_json::Value::String(new_text);
             changed = true;
@@ -353,12 +428,13 @@ fn prepare_update(
     })
 }
 
-/// Link rewrites for a renamed page: `[[wikilinks]]` and inserts in markdown
+/// Link rewrites for a renamed page or map (`kind`): text rewrites in markdown
 /// backlinks, value-based rewrites in timeline backlinks.
 fn prepare_link_updates(
     old_path: &Path,
     new_path: &Path,
     backlinks: &HashSet<PathBuf>,
+    kind: RefKind,
 ) -> Vec<BacklinkUpdate> {
     let old_stem = file_stem_string(old_path);
     let new_stem = file_stem_string(new_path);
@@ -368,9 +444,9 @@ fn prepare_link_updates(
             prepare_update(path.clone(), |content| {
                 // Timeline backlinks are JSON files: rewrite them value-based.
                 if is_timeline_file(path) {
-                    rewrite_timeline_links(content, &old_stem, &new_stem)
+                    rewrite_timeline_links(content, &old_stem, &new_stem, kind)
                 } else {
-                    rewrite_page_refs(content, &old_stem, &new_stem)
+                    rewrite_text_refs(content, &old_stem, &new_stem, kind)
                 }
             })
         })
@@ -391,11 +467,13 @@ fn prepare_canvas_updates(
     ) else {
         return Vec::new();
     };
-    // Text cards link by page name, so only a page rename touches them.
+    // Text cards link to pages and maps by name, so only renaming one of
+    // those, to a new name, touches them.
     let old_stem = file_stem_string(old_path);
     let new_stem = file_stem_string(new_path);
-    let stems = (is_markdown_file(old_path) && old_stem != new_stem)
-        .then_some((old_stem.as_str(), new_stem.as_str()));
+    let stems = RefKind::of(old_path)
+        .filter(|_| old_stem != new_stem)
+        .map(|kind| (old_stem.as_str(), new_stem.as_str(), kind));
 
     canvases
         .iter()
@@ -722,7 +800,21 @@ tags: [add, your, tags]
         let mut updates = Vec::new();
         // Links go by page name, so only a page rename affects them.
         if is_markdown_file(old_path) {
-            updates.extend(prepare_link_updates(old_path, new_path, &refs.backlinks));
+            updates.extend(prepare_link_updates(
+                old_path,
+                new_path,
+                &refs.backlinks,
+                RefKind::Page,
+            ));
+        }
+        // `[[map:Name]]` links go by the map's name.
+        if is_map_file(old_path) {
+            updates.extend(prepare_link_updates(
+                old_path,
+                new_path,
+                &refs.map_backlinks,
+                RefKind::Map,
+            ));
         }
         updates.extend(prepare_canvas_updates(
             old_path,
@@ -787,6 +879,7 @@ mod tests {
     fn link_refs(backlinks: HashSet<PathBuf>) -> RenameRefs {
         RenameRefs {
             backlinks,
+            map_backlinks: HashSet::new(),
             canvases: Vec::new(),
             vault_root: PathBuf::new(),
         }
@@ -796,6 +889,7 @@ mod tests {
     fn canvas_refs(canvas: &Path, root: &Path) -> RenameRefs {
         RenameRefs {
             backlinks: HashSet::new(),
+            map_backlinks: HashSet::new(),
             canvases: vec![canvas.to_path_buf()],
             vault_root: root.to_path_buf(),
         }
@@ -883,7 +977,8 @@ mod tests {
     {"id": "e2", "pageLink": "other page", "description": ""}
   ]
 }"#;
-        let result = rewrite_timeline_links(content, "Old Name", "New Name").unwrap();
+        let result =
+            rewrite_timeline_links(content, "Old Name", "New Name", RefKind::Page).unwrap();
         let value: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(value["events"][0]["pageLink"], "New Name");
         assert!(value["events"][0]["description"]
@@ -903,7 +998,7 @@ mod tests {
     #[test]
     fn rewrite_timeline_links_matches_pagelink_case_insensitively() {
         let content = r#"{"events":[{"pageLink":"old name"}]}"#;
-        let result = rewrite_timeline_links(content, "Old Name", "New").unwrap();
+        let result = rewrite_timeline_links(content, "Old Name", "New", RefKind::Page).unwrap();
         let value: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(value["events"][0]["pageLink"], "New");
     }
@@ -911,12 +1006,12 @@ mod tests {
     #[test]
     fn rewrite_timeline_links_returns_none_when_nothing_matches() {
         let content = r#"{"events":[{"pageLink":"Unrelated"}]}"#;
-        assert!(rewrite_timeline_links(content, "Old Name", "New").is_none());
+        assert!(rewrite_timeline_links(content, "Old Name", "New", RefKind::Page).is_none());
     }
 
     #[test]
     fn rewrite_timeline_links_returns_none_on_malformed_json() {
-        assert!(rewrite_timeline_links("{ nope", "Old", "New").is_none());
+        assert!(rewrite_timeline_links("{ nope", "Old", "New", RefKind::Page).is_none());
     }
 
     #[test]
@@ -1204,7 +1299,7 @@ mod tests {
             content,
             "Aria.md",
             "Aria Vex.md",
-            Some(("Aria", "Aria Vex")),
+            Some(("Aria", "Aria Vex", RefKind::Page)),
         )
         .unwrap();
         assert_eq!(
@@ -1221,6 +1316,111 @@ mod tests {
         assert!(rewrite_canvas_refs(content, "A.md", "C.md", None).is_none());
         assert!(rewrite_canvas_refs("{ nope", "A.md", "C.md", None).is_none());
         assert!(rewrite_canvas_refs(r#"{"edges":[]}"#, "A.md", "C.md", None).is_none());
+    }
+
+    #[test]
+    fn replace_map_link_in_content_variants() {
+        assert_eq!(
+            replace_map_link_in_content(
+                "[[map:Old]] [[Map:old#Gate|g]] [[Old]] [[map:Other]]",
+                "Old",
+                "New"
+            )
+            .as_deref(),
+            Some("[[map:New]] [[Map:New#Gate|g]] [[Old]] [[map:Other]]")
+        );
+        assert!(replace_map_link_in_content("[[Old]] [[map:Other]]", "Old", "New").is_none());
+    }
+
+    #[test]
+    fn page_rename_leaves_map_links_alone() {
+        assert_eq!(
+            rewrite_page_refs("[[Old]] [[map:Old]]", "Old", "New").as_deref(),
+            Some("[[New]] [[map:Old]]")
+        );
+    }
+
+    /// A vault where a page, a timeline and a canvas text card all link to
+    /// `Old.cmap`. Returns (dir, map, page, timeline, canvas).
+    fn map_link_vault() -> (tempfile::TempDir, PathBuf, PathBuf, PathBuf, PathBuf) {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let map = root.join("Old.cmap");
+        fs::write(&map, r#"{"title":"Old"}"#).unwrap();
+        let page = root.join("Page.md");
+        fs::write(&page, "Go to [[map:Old#Gate]].").unwrap();
+        let timeline = root.join("History.timeline");
+        fs::write(
+            &timeline,
+            r#"{"events":[{"id":"e1","pageLink":"Old","description":"[[map:Old]]"}]}"#,
+        )
+        .unwrap();
+        let canvas = root.join("Ideas.canvas");
+        fs::write(
+            &canvas,
+            r#"{"nodes":[{"id":"t","type":"text","text":"[[map:Old]] [[Old]]","x":0,"y":0,"width":1,"height":1}],"edges":[]}"#,
+        )
+        .unwrap();
+        (dir, map, page, timeline, canvas)
+    }
+
+    fn map_link_refs(page: &Path, timeline: &Path, canvas: &Path, root: &Path) -> RenameRefs {
+        RenameRefs {
+            backlinks: HashSet::new(),
+            map_backlinks: HashSet::from([page.to_path_buf(), timeline.to_path_buf()]),
+            canvases: vec![canvas.to_path_buf()],
+            vault_root: root.to_path_buf(),
+        }
+    }
+
+    #[test]
+    fn map_rename_rewrites_pages_timelines_and_canvas_text() {
+        let (dir, map, page, timeline, canvas) = map_link_vault();
+        let refs = map_link_refs(&page, &timeline, &canvas, dir.path());
+
+        Writer::new().rename_path(&map, "New", &refs).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(&page).unwrap(),
+            "Go to [[map:New#Gate]]."
+        );
+        let tl: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&timeline).unwrap()).unwrap();
+        assert_eq!(tl["events"][0]["pageLink"], "Old");
+        assert_eq!(tl["events"][0]["description"], "[[map:New]]");
+        let nodes = canvas_nodes(&fs::read_to_string(&canvas).unwrap());
+        assert_eq!(nodes[0]["text"], "[[map:New]] [[Old]]");
+    }
+
+    #[test]
+    fn refs_with_only_map_links_are_not_empty() {
+        // An external rename of a map in a vault with no canvases must still
+        // rewrite the pages that link to it.
+        let refs = RenameRefs {
+            backlinks: HashSet::new(),
+            map_backlinks: HashSet::from([PathBuf::from("/v/Page.md")]),
+            canvases: Vec::new(),
+            vault_root: PathBuf::from("/v"),
+        };
+        assert!(!refs.is_empty());
+        assert!(link_refs(HashSet::new()).is_empty());
+    }
+
+    #[test]
+    fn map_move_without_stem_change_rewrites_nothing() {
+        let (dir, map, page, timeline, canvas) = map_link_vault();
+        let refs = map_link_refs(&page, &timeline, &canvas, dir.path());
+        let dest = dir.path().join("Maps");
+        fs::create_dir(&dest).unwrap();
+
+        Writer::new().move_path(&map, &dest, &refs).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(&page).unwrap(),
+            "Go to [[map:Old#Gate]]."
+        );
+        let nodes = canvas_nodes(&fs::read_to_string(&canvas).unwrap());
+        assert_eq!(nodes[0]["text"], "[[map:Old]] [[Old]]");
     }
 
     #[test]

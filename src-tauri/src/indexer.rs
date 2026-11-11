@@ -62,6 +62,15 @@ pub struct Indexer {
     /// it (via `pageLink` or description wikilinks). Used to rewrite those
     /// timelines when the page is renamed.
     pub timeline_backlinks: HashMap<PathBuf, HashSet<PathBuf>>,
+
+    /// Resolves a lowercased map name (the `.cmap` file stem) to the map's
+    /// path, for `[[map:Name]]` links. Kept apart from `link_resolver`, so a
+    /// page and a map can share a name.
+    pub map_resolver: HashMap<String, PathBuf>,
+
+    /// Maps a map path to the pages and timelines whose text links to it with
+    /// `[[map:…]]`. Used to rewrite those links when the map is renamed.
+    pub map_link_backlinks: HashMap<PathBuf, HashSet<PathBuf>>,
 }
 
 /// Helper struct to hold the result of processing a single file during scan.
@@ -282,6 +291,8 @@ impl Indexer {
         self.link_graph.clear();
         self.map_backlinks.clear();
         self.timeline_backlinks.clear();
+        self.map_resolver.clear();
+        self.map_link_backlinks.clear();
 
         // 1. Collect all paths (files AND directories) first.
         // Use a single WalkDir iterator for efficiency.
@@ -556,6 +567,8 @@ impl Indexer {
         let mut new_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
         let mut new_map_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
         let mut new_timeline_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
+        let mut new_map_resolver: HashMap<String, PathBuf> = HashMap::new();
+        let mut new_map_link_backlinks: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
 
         // --- PASS 1: Build resolver maps ---
         // This pass ensures that all potential link targets are known before we process any links.
@@ -571,7 +584,12 @@ impl Indexer {
                         new_media_resolver.insert(filename.to_lowercase(), path.clone());
                     }
                 }
-                // Directories and Maps don't participate in link resolution
+                VaultAsset::Map(_) => {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        new_map_resolver.insert(stem.to_lowercase(), path.clone());
+                    }
+                }
+                // Directories don't participate in link resolution
                 _ => {}
             }
         }
@@ -602,6 +620,16 @@ impl Indexer {
                                 .push(link.clone());
                             new_backlinks
                                 .entry(target_path.clone())
+                                .or_default()
+                                .insert(path.clone());
+                        }
+                    }
+
+                    // Map links in the page's text
+                    for link in &page.map_links {
+                        if let Some(map_path) = new_map_resolver.get(&link.target.to_lowercase()) {
+                            new_map_link_backlinks
+                                .entry(map_path.clone())
                                 .or_default()
                                 .insert(path.clone());
                         }
@@ -665,6 +693,16 @@ impl Indexer {
                                 }
                             }
                             if let Some(desc) = &event.description {
+                                for link in crate::wikilink::extract_map_links(desc) {
+                                    if let Some(map_path) =
+                                        new_map_resolver.get(&link.target.to_lowercase())
+                                    {
+                                        new_map_link_backlinks
+                                            .entry(map_path.clone())
+                                            .or_default()
+                                            .insert(path.clone());
+                                    }
+                                }
                                 for link in crate::wikilink::extract_wikilinks(desc) {
                                     if let Some(target_path) =
                                         new_link_resolver.get(&link.target.to_lowercase())
@@ -697,9 +735,15 @@ impl Indexer {
         self.link_graph = new_link_graph;
         self.map_backlinks = new_map_backlinks;
         self.timeline_backlinks = new_timeline_backlinks;
+        self.map_resolver = new_map_resolver;
+        self.map_link_backlinks = new_map_link_backlinks;
     }
 
     /// Resolves a wikilink to an absolute file path using the resolver map.
+    pub fn resolve_map_link(&self, link: &Link) -> Option<PathBuf> {
+        self.map_resolver.get(&link.target.to_lowercase()).cloned()
+    }
+
     pub fn resolve_link(&self, link: &Link) -> Option<PathBuf> {
         self.link_resolver.get(&link.target.to_lowercase()).cloned()
     }
@@ -870,23 +914,35 @@ impl Indexer {
     /// Finds all broken links in the vault and aggregates them by target.
     #[instrument(level = "debug", skip(self))]
     pub fn get_all_broken_links(&self) -> Result<Vec<BrokenLink>> {
-        let mut broken_links_map: HashMap<String, HashSet<PageHeader>> = HashMap::new();
+        // Keyed by (target, is_map). A broken map link's target reads
+        // `map:Name`, so it can't be mistaken for a missing page.
+        let mut broken_links_map: HashMap<(String, bool), HashSet<PageHeader>> = HashMap::new();
 
         // Iterate through all pages and their outgoing links
         for (source_path, asset) in &self.assets {
             if let VaultAsset::Page(page) = asset {
+                let source_header = || PageHeader {
+                    path: source_path.clone(),
+                    title: page.title.clone(),
+                };
                 for link in &page.links {
                     // A link is broken if it cannot be resolved by the indexer.
                     if self.resolve_link(link).is_none() {
-                        let source_header = PageHeader {
-                            path: source_path.clone(),
-                            title: page.title.clone(),
-                        };
                         // Add the source page to the set for this broken target.
                         broken_links_map
-                            .entry(link.target.clone())
+                            .entry((link.target.clone(), false))
                             .or_default()
-                            .insert(source_header);
+                            .insert(source_header());
+                    }
+                }
+                // Only a missing map is broken: places on a map aren't checked,
+                // as headings in a page aren't.
+                for link in &page.map_links {
+                    if self.resolve_map_link(link).is_none() {
+                        broken_links_map
+                            .entry((format!("map:{}", link.target), true))
+                            .or_default()
+                            .insert(source_header());
                     }
                 }
             }
@@ -895,11 +951,15 @@ impl Indexer {
         // Convert the map into the final Vec<BrokenLink> structure for the frontend.
         let mut result: Vec<BrokenLink> = broken_links_map
             .into_iter()
-            .map(|(target, sources_set)| {
+            .map(|((target, is_map), sources_set)| {
                 let mut sources: Vec<PageHeader> = sources_set.into_iter().collect();
                 // Sort the source pages by title using natural ordering.
                 sources.sort_by(|a, b| nat_compare(&a.title, &b.title));
-                BrokenLink { target, sources }
+                BrokenLink {
+                    target,
+                    sources,
+                    is_map,
+                }
             })
             .collect();
 
@@ -1284,6 +1344,59 @@ Now I link to [[Page Two]]!
             .unwrap();
         assert_eq!(missing_page.sources.len(), 1);
         assert_eq!(missing_page.sources[0].path, page1_path);
+    }
+
+    #[test]
+    fn test_map_resolver_and_map_link_backlinks() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("Eldoria.md"), "See [[map:Eldoria#Castle]].").unwrap();
+        fs::write(root.join("Eldoria.cmap"), r#"{"title":"Eldoria"}"#).unwrap();
+        fs::write(
+            root.join("History.timeline"),
+            r#"{"title":"History","events":[{"description":"see [[map:eldoria]]"}]}"#,
+        )
+        .unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        let page = fs::canonicalize(root.join("Eldoria.md")).unwrap();
+        let map = fs::canonicalize(root.join("Eldoria.cmap")).unwrap();
+        let timeline = fs::canonicalize(root.join("History.timeline")).unwrap();
+
+        // A page and a map can share a name: each resolver finds its own.
+        assert_eq!(indexer.map_resolver["eldoria"], map);
+        assert_eq!(indexer.link_resolver["eldoria"], page);
+        // Both the page body and the timeline description link to the map.
+        let linking = &indexer.map_link_backlinks[&map];
+        assert!(linking.contains(&page));
+        assert!(linking.contains(&timeline));
+        // The map link is not a page link: the page doesn't backlink itself.
+        assert!(get_page(&indexer.assets, &page).backlinks.is_empty());
+    }
+
+    #[test]
+    fn test_broken_map_links_reported_as_maps() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        fs::write(
+            root.join("Page.md"),
+            "[[map:Nowhere]] [[map:Eldoria#Missing Place]] [[Missing Page]]",
+        )
+        .unwrap();
+        fs::write(root.join("Eldoria.cmap"), r#"{"title":"Eldoria"}"#).unwrap();
+
+        let mut indexer = Indexer::new(root);
+        indexer.scan_vault(root).unwrap();
+
+        let broken = indexer.get_all_broken_links().unwrap();
+        // A missing place on an existing map isn't a broken link.
+        assert_eq!(broken.len(), 2);
+        let map = broken.iter().find(|b| b.target == "map:Nowhere").unwrap();
+        assert!(map.is_map);
+        let page = broken.iter().find(|b| b.target == "Missing Page").unwrap();
+        assert!(!page.is_map);
     }
 
     #[test]

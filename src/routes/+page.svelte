@@ -65,6 +65,16 @@
                 };
                 break;
             case "map":
+                // `place` lands the map on a linked pin or region; `tabId`
+                // lets a link in the other pane fly it (see mapFocus.ts).
+                props = {
+                    data: view.data,
+                    place: view.place ?? null,
+                    tabId: tab.id,
+                    isActive,
+                    isFocused,
+                };
+                break;
             case "canvas":
             case "timeline":
                 // These bind window-level key handling, so they need to

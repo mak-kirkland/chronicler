@@ -7,11 +7,13 @@
 import type {
     MapConfig,
     MapLayer,
+    MapPin,
     MapPoint,
     MapPolygon,
     MapPolygonPart,
     MapRegion,
 } from "./mapModels";
+import type { Bounds } from "./mapGeometry";
 import type L from "leaflet";
 import { isPointInRegion, piecesBounds, regionPieces } from "./mapGeometry";
 
@@ -300,6 +302,111 @@ export async function checkLayerImage(
         scaleFactor,
         dimensions: dims,
     };
+}
+
+// --- LINKED PLACES ---
+
+/** The pin or region a `[[map:Name#Place]]` link lands on. */
+export type PlaceMatch =
+    | { kind: "pin"; pin: MapPin; hiddenLayerId: string | null }
+    | { kind: "region"; region: MapRegion; hiddenLayerId: string | null };
+
+/**
+ * Everything a link can land on, pins first, each in file order: labelled
+ * objects on no layer or on a layer that exists. `hiddenLayerId` names the
+ * layer to switch on to see it. An object on a deleted layer is never drawn,
+ * so it can't be linked to.
+ */
+function linkablePlaces(
+    config: MapConfig,
+): { label: string; match: PlaceMatch }[] {
+    const layers = new Map(config.layers.map((l) => [l.id, l]));
+    const out: { label: string; match: PlaceMatch }[] = [];
+    const add = (
+        item: { label?: string; layerId?: string },
+        match: (hiddenLayerId: string | null) => PlaceMatch,
+    ) => {
+        const label = item.label?.trim();
+        // `#`, `|`, `[` and `]` end or break the link, so a label holding
+        // one can't be written as `[[map:Name#Label]]`.
+        if (!label || /[#|[\]]/.test(label)) return;
+        let hidden: string | null = null;
+        if (item.layerId) {
+            const layer = layers.get(item.layerId);
+            if (!layer) return;
+            if (!layer.visible) hidden = layer.id;
+        }
+        out.push({ label, match: match(hidden) });
+    };
+    for (const pin of config.pins) {
+        add(pin, (hiddenLayerId) => ({ kind: "pin", pin, hiddenLayerId }));
+    }
+    for (const region of config.shapes) {
+        add(region, (hiddenLayerId) => ({
+            kind: "region",
+            region,
+            hiddenLayerId,
+        }));
+    }
+    return out;
+}
+
+/**
+ * The pin or region labelled `place` (trimmed, any case). Pins win over
+ * regions, and the first in the file wins among equals.
+ */
+export function findPlace(config: MapConfig, place: string): PlaceMatch | null {
+    const want = place.trim().toLowerCase();
+    if (!want) return null;
+    const hit = linkablePlaces(config).find(
+        (p) => p.label.toLowerCase() === want,
+    );
+    return hit?.match ?? null;
+}
+
+/**
+ * The labels a link can name, for autocomplete: each once (ignoring case,
+ * first wins, pins first), with whether it's a pin or a region.
+ */
+export function placeLabels(
+    config: MapConfig,
+): { label: string; kind: "pin" | "region" }[] {
+    const seen = new Set<string>();
+    const out: { label: string; kind: "pin" | "region" }[] = [];
+    for (const { label, match } of linkablePlaces(config)) {
+        const key = label.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ label, kind: match.kind });
+    }
+    return out;
+}
+
+/**
+ * The zoom to land on a linked pin at: at least the native level
+ * (`tileMaxZoom`, where pins stop clustering), and at least `closeUpZoom`
+ * (where the view spans about a third of the map), so a small map that
+ * already fits past its native level still zooms in. Capped at `maxZoom`.
+ */
+export function pinFocusZoom(
+    tileMaxZoom: number,
+    closeUpZoom: number,
+    maxZoom: number,
+): number {
+    return Math.min(maxZoom, Math.max(tileMaxZoom, closeUpZoom));
+}
+
+/** A region's extent in image pixels, every piece included. */
+export function regionBounds(region: MapRegion): Bounds {
+    if (region.type === "circle") {
+        return {
+            minX: region.x - region.radius,
+            minY: region.y - region.radius,
+            maxX: region.x + region.radius,
+            maxY: region.y + region.radius,
+        };
+    }
+    return piecesBounds(regionPieces(region));
 }
 
 // --- PIN DRAGGING ---

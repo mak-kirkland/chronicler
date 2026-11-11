@@ -24,8 +24,13 @@
     import {
         allFileTitles,
         allImageFiles,
+        allMaps,
+        mapPathLookup,
         tags as worldTags,
     } from "$lib/worldStore";
+    import { loadMapConfig } from "$lib/mapStore";
+    import { placeLabels } from "$lib/mapUtils";
+    import { MAP_LINK_PREFIX, mapLinkQuery } from "$lib/mapLinkAutocomplete";
     import {
         toggleBold,
         toggleItalic,
@@ -146,7 +151,7 @@
      */
     function customCompletions(
         context: CompletionContext,
-    ): CompletionResult | null {
+    ): CompletionResult | null | Promise<CompletionResult | null> {
         // Check for [[wikilink]] completion trigger
         const linkMatch = context.matchBefore(/\[\[([^\]]*)$/);
         if (linkMatch) {
@@ -180,6 +185,64 @@
                     },
                 });
             };
+
+            // `[[map:Name#Place]]`: suggest maps, then that map's places.
+            // Never the "Create" fallback — a map can't be made from here.
+            const mapQuery = isImageLink ? null : mapLinkQuery(rawQuery);
+            // Typing a map link's alias: nothing to suggest.
+            if (mapQuery?.kind === "alias") return null;
+            if (mapQuery?.kind === "map") {
+                const seen = new Set<string>();
+                const titles = get(allMaps)
+                    .map((m) => m.title)
+                    .filter((title) => {
+                        const key = title.toLowerCase();
+                        if (seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                    });
+                return {
+                    from: linkMatch.from + 2 + mapQuery.nameStart,
+                    options: titles.map((title) => ({
+                        label: title,
+                        type: "map",
+                        // The caret stays after the name, inside the link,
+                        // so a `#place` can follow.
+                        apply: (view, completion, from, to) => {
+                            view.dispatch({
+                                changes: { from, to, insert: completion.label },
+                                selection: {
+                                    anchor: from + completion.label.length,
+                                },
+                            });
+                        },
+                    })),
+                    filter: true,
+                };
+            }
+            if (mapQuery?.kind === "place") {
+                const path = get(mapPathLookup).get(mapQuery.map.toLowerCase());
+                if (!path) return null;
+                const from = linkMatch.from + 2 + mapQuery.placeStart;
+                return loadMapConfig(path).then((config) =>
+                    config
+                        ? {
+                              from,
+                              options: placeLabels(config).map((p) => ({
+                                  label: p.label,
+                                  detail: $tr(
+                                      p.kind === "pin"
+                                          ? "editor.placePin"
+                                          : "editor.placeRegion",
+                                  ),
+                                  type: p.kind,
+                                  apply: applyLink,
+                              })),
+                              filter: true,
+                          }
+                        : null,
+                );
+            }
 
             // If no option matches the query, show a "Create" fallback instead
             const hasMatches =
@@ -552,6 +615,12 @@
      */
     function wikilinkResolves(target: string, isImage: boolean): boolean {
         if (!target) return false;
+        // `[[map:Name]]` resolves against maps, not pages.
+        const prefix = target.slice(0, MAP_LINK_PREFIX.length);
+        if (!isImage && prefix.toLowerCase() === MAP_LINK_PREFIX) {
+            const name = target.slice(MAP_LINK_PREFIX.length).trim();
+            return !!name && get(mapPathLookup).has(name.toLowerCase());
+        }
         const known = isImage ? get(allImageFiles) : get(allFileTitles);
         return known.some(
             (label) => label.toLowerCase() === target.toLowerCase(),

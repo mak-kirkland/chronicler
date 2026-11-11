@@ -122,8 +122,15 @@ fn rename_refs(index: &Indexer, path: &Path) -> Option<RenameRefs> {
         .filter(|(_, asset)| matches!(asset, VaultAsset::Canvas))
         .map(|(path, _)| path.clone())
         .collect();
+    // Pages and timelines that link to a map with `[[map:Name]]`.
+    let map_backlinks = index
+        .map_link_backlinks
+        .get(path)
+        .cloned()
+        .unwrap_or_default();
     Some(RenameRefs {
         backlinks,
+        map_backlinks,
         canvases,
         vault_root: index.root_path.clone()?,
     })
@@ -451,14 +458,13 @@ impl World {
                             let Some(refs) = refs else { continue };
                             // Renamed out of the vault (an editor backup, the
                             // trash): references must not follow it there.
-                            if !is_tracked_path(to, &refs.vault_root)
-                                || (refs.backlinks.is_empty() && refs.canvases.is_empty())
-                            {
+                            if !is_tracked_path(to, &refs.vault_root) || refs.is_empty() {
                                 continue;
                             }
                             info!(
-                                "External rename detected; checking {} backlinks and {} canvases...",
+                                "External rename detected; checking {} backlinks, {} map links and {} canvases...",
                                 refs.backlinks.len(),
+                                refs.map_backlinks.len(),
                                 refs.canvases.len()
                             );
                             if let Err(e) = writer.update_backlinks_for_rename(from, to, &refs) {
@@ -849,5 +855,26 @@ mod tests {
         assert!(!payload.pages_changed);
         assert!(!payload.structure_changed);
         assert!(!payload.media_changed);
+    }
+
+    #[test]
+    fn rename_map_updates_linking_page() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::write(root.join("Old.cmap"), r#"{"title":"Old"}"#).unwrap();
+        std::fs::write(root.join("Page.md"), "See [[map:Old#Gate]].").unwrap();
+        let mut index = Indexer::new(root);
+        index.scan_vault(root).unwrap();
+        let map = std::fs::canonicalize(root.join("Old.cmap")).unwrap();
+        let page = std::fs::canonicalize(root.join("Page.md")).unwrap();
+
+        let refs = rename_refs(&index, &map).unwrap();
+        assert!(refs.map_backlinks.contains(&page));
+
+        Writer::new().rename_path(&map, "New", &refs).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&page).unwrap(),
+            "See [[map:New#Gate]]."
+        );
     }
 }

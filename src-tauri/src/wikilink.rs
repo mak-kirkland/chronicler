@@ -40,38 +40,71 @@ fn offset_to_line_col(content: &str, byte_offset: usize) -> LinkPosition {
     LinkPosition { line, column }
 }
 
-/// Extracts wikilinks from markdown content.
-pub fn extract_wikilinks(content: &str) -> Vec<Link> {
-    WIKILINK_RE
-        .captures_iter(content)
-        .filter_map(|cap| {
-            let target = cap
-                .get(1)
-                .unwrap()
-                .as_str()
-                .replace("\\", "")
-                .trim()
-                .to_string();
+/// The prefix that turns a wikilink into a map link: `[[map:Name#Place|alias]]`.
+pub const MAP_LINK_PREFIX: &str = "map:";
 
+/// Whether a wikilink target is a map link (`map:…`, any case), including an
+/// empty one like `[[map:]]`. Such targets are never page links.
+pub fn is_map_link_target(target: &str) -> bool {
+    target
+        .trim_start()
+        .get(..MAP_LINK_PREFIX.len())
+        .is_some_and(|p| p.eq_ignore_ascii_case(MAP_LINK_PREFIX))
+}
+
+/// The map name of a `map:Name` target, trimmed. `None` for a page target
+/// and for a map link with no name.
+pub fn map_link_name(target: &str) -> Option<&str> {
+    if !is_map_link_target(target) {
+        return None;
+    }
+    let name = target.trim_start()[MAP_LINK_PREFIX.len()..].trim();
+    (!name.is_empty()).then_some(name)
+}
+
+/// Every wikilink in `content`, paired with its raw (untrimmed, unescaped)
+/// target.
+fn captured_links(content: &str) -> impl Iterator<Item = (&str, Link)> + '_ {
+    WIKILINK_RE.captures_iter(content).map(move |cap| {
+        let raw = cap.get(1).unwrap().as_str();
+        // The match for the whole pattern `[[...]]` is at index 0.
+        let offset = cap.get(0).unwrap().start();
+        let link = Link {
+            target: raw.replace("\\", "").trim().to_string(),
+            section: cap.get(2).map(|m| m.as_str().trim().to_string()),
+            alias: cap.get(3).map(|m| m.as_str().trim().to_string()),
+            position: Some(offset_to_line_col(content, offset)),
+        };
+        (raw, link)
+    })
+}
+
+/// Extracts page wikilinks from markdown content. Map links (`[[map:…]]`) are
+/// left out; see `extract_map_links`.
+pub fn extract_wikilinks(content: &str) -> Vec<Link> {
+    captured_links(content)
+        .filter_map(|(raw, link)| {
             // Target-less links (e.g. `[[#Heading]]`) point at a section within the
             // current page, so they reference no other page and must not be indexed
             // as cross-page links (which would create spurious backlinks).
-            if target.is_empty() {
+            if link.target.is_empty() || is_map_link_target(raw) {
                 return None;
             }
+            Some(link)
+        })
+        .collect()
+}
 
-            // The match for the whole pattern `[[...]]` is at index 0.
-            let full_match = cap.get(0).unwrap();
-            let offset = full_match.start();
-            let position = Some(offset_to_line_col(content, offset));
-            let section = cap.get(2).map(|m| m.as_str().trim().to_string());
-            let alias = cap.get(3).map(|m| m.as_str().trim().to_string());
-            Some(Link {
-                target,
-                section,
-                alias,
-                position,
-            })
+/// Extracts map links (`[[map:Name#Place|alias]]`) from content. Each `Link`'s
+/// `target` is the map name without the prefix, and its `section` is the
+/// place. A link with no map name (`[[map:]]`) is skipped.
+pub fn extract_map_links(content: &str) -> Vec<Link> {
+    captured_links(content)
+        .filter_map(|(_, mut link)| {
+            // From the unescaped target, so a table's `\|` leaves no
+            // backslash on the name.
+            link.target = map_link_name(&link.target)?.to_string();
+            Some(link)
         })
         .collect()
 }
@@ -205,5 +238,55 @@ This file tests various link formats.
                 })
             }
         );
+    }
+
+    #[test]
+    fn test_map_link_helpers() {
+        assert_eq!(map_link_name("map:Eldoria"), Some("Eldoria"));
+        assert_eq!(map_link_name(" Map: Eldoria "), Some("Eldoria"));
+        assert_eq!(map_link_name("map:"), None);
+        assert_eq!(map_link_name("Eldoria"), None);
+        assert!(is_map_link_target("MAP:x"));
+        assert!(!is_map_link_target("Mapping"));
+    }
+
+    #[test]
+    fn test_extract_map_links_variants() {
+        let content = "[[map:Eldoria]] [[map:Eldoria#Castle Black|the keep]] \
+                       [[ Map: eldoria # castle black ]] [[map:]]";
+        let links = extract_map_links(content);
+
+        assert_eq!(links.len(), 3);
+        assert_eq!(links[0].target, "Eldoria");
+        assert_eq!(links[0].section, None);
+        assert_eq!(links[1].target, "Eldoria");
+        assert_eq!(links[1].section.as_deref(), Some("Castle Black"));
+        assert_eq!(links[1].alias.as_deref(), Some("the keep"));
+        assert_eq!(links[2].target, "eldoria");
+        assert_eq!(links[2].section.as_deref(), Some("castle black"));
+        assert_eq!(
+            links[1].position,
+            Some(LinkPosition {
+                line: 1,
+                column: 17
+            })
+        );
+    }
+
+    #[test]
+    fn test_map_link_with_escaped_pipe_in_a_table() {
+        // In a table the alias pipe is written `\|` (see HELP.md); the
+        // backslash must not end up in the map name.
+        let links = extract_map_links("| [[map:Eldoria\\|the realm]] |");
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].target, "Eldoria");
+        assert_eq!(links[0].alias.as_deref(), Some("the realm"));
+    }
+
+    #[test]
+    fn test_page_links_skip_map_links() {
+        let links = extract_wikilinks("[[Eldoria]] and [[map:Eldoria]] and [[map:]]");
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].target, "Eldoria");
     }
 }

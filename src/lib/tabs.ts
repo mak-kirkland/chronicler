@@ -17,7 +17,8 @@ export type ViewState =
     | { type: "tag"; tagName: string }
     | { type: "file"; data: PageHeader | null; sectionId?: string | null }
     | { type: "image"; data: PageHeader | null }
-    | { type: "map"; data: PageHeader | null }
+    /** `place`: the pin or region a `[[map:Name#Place]]` link opened it at. */
+    | { type: "map"; data: PageHeader | null; place?: string | null }
     | { type: "canvas"; data: PageHeader | null }
     | { type: "timeline"; data: PageHeader | null }
     | { type: "report"; name: string };
@@ -77,6 +78,27 @@ export function currentViewOf(tab: Tab): ViewState {
 
 export function sameView(a: ViewState, b: ViewState): boolean {
     return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * In split view, the id of the tab the *other* (unfocused) pane is showing,
+ * if that tab is showing the map at `path`. A map link clicked in one pane
+ * flies that map instead of opening the map over the page.
+ */
+export function paneShowingMap(state: TabsState, path: string): string | null {
+    if (!isSplit(state)) return null;
+    const otherId = state.panes[state.focused === 0 ? 1 : 0];
+    const tab = state.tabs.find((t) => t.id === otherId);
+    if (!tab) return null;
+    const view = currentViewOf(tab);
+    // Same normalisation as `normalizePath` (utils.ts), inlined so this
+    // module keeps no runtime imports.
+    const norm = (p: string) => p.replace(/\\/g, "/");
+    return view.type === "map" &&
+        view.data &&
+        norm(view.data.path) === norm(path)
+        ? otherId
+        : null;
 }
 
 function replaceTab(state: TabsState, id: string, next: Tab): TabsState {

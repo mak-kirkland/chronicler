@@ -10,6 +10,10 @@ import {
     regionStyleState,
     pinDropPoint,
     movePinTo,
+    findPlace,
+    placeLabels,
+    regionBounds,
+    pinFocusZoom,
 } from "./mapUtils";
 
 function rect(x0: number, y0: number, x1: number, y1: number): MapPoint[] {
@@ -366,5 +370,154 @@ describe("movePinTo", () => {
         expect(movePinTo(cfg, "a", 10.3, 9.8)).toBe(cfg);
         // Deleted elsewhere while it was being dragged.
         expect(movePinTo(cfg, "gone", 5, 5)).toBe(cfg);
+    });
+});
+
+describe("findPlace", () => {
+    const castleRegion: MapPolygon = {
+        id: "r-castle",
+        type: "polygon",
+        label: "Castle",
+        points: rect(0, 0, 10, 10),
+    };
+    const cfg: MapConfig = {
+        version: "1",
+        title: "t",
+        width: 100,
+        height: 100,
+        layers: [
+            {
+                id: "L1",
+                name: "Hidden",
+                image: "",
+                opacity: 1,
+                zIndex: 0,
+                visible: false,
+            },
+            {
+                id: "L2",
+                name: "Shown",
+                image: "",
+                opacity: 1,
+                zIndex: 1,
+                visible: true,
+            },
+        ],
+        pins: [
+            { id: "gate1", x: 1, y: 1, label: "Gate" },
+            { id: "castle", x: 5, y: 5, label: "Castle" },
+            { id: "gate2", x: 2, y: 2, label: "Gate" },
+            { id: "secret", x: 3, y: 3, label: "Secret", layerId: "L1" },
+            { id: "lost", x: 4, y: 4, label: "Lost", layerId: "gone" },
+            {
+                id: "inn",
+                x: 6,
+                y: 6,
+                label: 'The Fox & "Hound"',
+                layerId: "L2",
+            },
+        ],
+        shapes: [
+            castleRegion,
+            { ...castleRegion, id: "r-moor", label: "Moor" },
+        ],
+    };
+
+    it("prefers a pin over a region with the same label", () => {
+        const m = findPlace(cfg, "Castle");
+        expect(m?.kind).toBe("pin");
+        expect(m?.kind === "pin" && m.pin.id).toBe("castle");
+    });
+
+    it("ignores case and surrounding spaces", () => {
+        expect(findPlace(cfg, "  castle  ")?.kind).toBe("pin");
+    });
+
+    it("takes the first of two same-labelled pins", () => {
+        const m = findPlace(cfg, "Gate");
+        expect(m?.kind === "pin" && m.pin.id).toBe("gate1");
+    });
+
+    it("finds regions and reports a hidden layer to reveal", () => {
+        const moor = findPlace(cfg, "Moor");
+        expect(moor?.kind === "region" && moor.region.id).toBe("r-moor");
+        expect(moor?.hiddenLayerId).toBeNull();
+        expect(findPlace(cfg, "Secret")?.hiddenLayerId).toBe("L1");
+        expect(findPlace(cfg, 'The Fox & "Hound"')?.hiddenLayerId).toBeNull();
+    });
+
+    it("skips objects on a layer that no longer exists, and unknown places", () => {
+        expect(findPlace(cfg, "Lost")).toBeNull();
+        expect(findPlace(cfg, "Nowhere")).toBeNull();
+    });
+
+    it("never offers a label a link can't spell", () => {
+        // `#`, `|`, `[` and `]` end or break a `[[map:Name#Place]]` link.
+        const odd = {
+            ...cfg,
+            pins: [
+                { id: "r3", x: 0, y: 0, label: "Room #3" },
+                { id: "ab", x: 0, y: 0, label: "A|B" },
+                { id: "br", x: 0, y: 0, label: "[Ruins]" },
+                { id: "ok", x: 0, y: 0, label: "Room 4" },
+            ],
+            shapes: [],
+        };
+        expect(placeLabels(odd)).toEqual([{ label: "Room 4", kind: "pin" }]);
+    });
+
+    it("lists each label once, pins first, without blanks or lost objects", () => {
+        const labels = placeLabels({
+            ...cfg,
+            pins: [
+                ...cfg.pins,
+                { id: "blank", x: 0, y: 0, label: "  " },
+                { id: "x", x: 0, y: 0 },
+            ],
+        });
+        expect(labels).toEqual([
+            { label: "Gate", kind: "pin" },
+            { label: "Castle", kind: "pin" },
+            { label: "Secret", kind: "pin" },
+            { label: 'The Fox & "Hound"', kind: "pin" },
+            { label: "Moor", kind: "region" },
+        ]);
+    });
+});
+
+describe("pinFocusZoom", () => {
+    it("uses the native level on a big map, where it's already a close-up", () => {
+        expect(pinFocusZoom(5, 3.2, 6)).toBe(5);
+    });
+
+    it("zooms past the native level on a small map that fits at a higher zoom", () => {
+        // 1000×800 image: native level 1, but the whole map fits at ~1.14.
+        expect(pinFocusZoom(1, 1.9, 2)).toBe(1.9);
+    });
+
+    it("never passes the map's max zoom", () => {
+        expect(pinFocusZoom(1, 2.6, 2)).toBe(2);
+    });
+});
+
+describe("regionBounds", () => {
+    it("covers every piece of a polygon", () => {
+        expect(regionBounds(islands)).toEqual({
+            minX: 0,
+            minY: 0,
+            maxX: 90,
+            maxY: 90,
+        });
+    });
+
+    it("covers a circle", () => {
+        expect(
+            regionBounds({ id: "c", type: "circle", x: 10, y: 20, radius: 5 }),
+        ).toEqual({
+            minX: 5,
+            minY: 15,
+            maxX: 15,
+            maxY: 25,
+        });
     });
 });

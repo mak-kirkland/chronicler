@@ -139,6 +139,11 @@ export interface BrokenLink {
     target: string;
     /** A list of all pages that contain a link to this target. */
     sources: PageHeader[];
+    /**
+     * True for a `[[map:Name]]` link to a missing map; `target` then reads
+     * `map:Name`. A missing map can't be created from the report.
+     */
+    isMap: boolean;
 }
 
 /**

@@ -28,15 +28,28 @@
             <ul class="broken-links-list">
                 {#each $brokenLinks as link (link.target)}
                     <li class="broken-link-item">
-                        <button
-                            class="target-button"
-                            onclick={() => handleFixLink(link.target)}
-                            title={$t("reports.createPage", {
-                                name: link.target,
-                            })}
-                        >
-                            {link.target}
-                        </button>
+                        {#if link.isMap}
+                            <!-- A map needs an image to be made, so there's
+                                 nothing to create from here. -->
+                            <span
+                                class="target-text"
+                                title={$t("reports.mapNotFound", {
+                                    name: link.target.slice("map:".length),
+                                })}
+                            >
+                                {link.target}
+                            </span>
+                        {:else}
+                            <button
+                                class="target-button"
+                                onclick={() => handleFixLink(link.target)}
+                                title={$t("reports.createPage", {
+                                    name: link.target,
+                                })}
+                            >
+                                {link.target}
+                            </button>
+                        {/if}
                         <ul class="source-list">
                             {#each link.sources as source (source.path)}
                                 <li>
@@ -95,11 +108,16 @@
     .broken-link-item:last-child {
         border-bottom: none;
     }
-    .target-button {
+    .target-button,
+    .target-text {
         font-weight: bold;
         font-size: 1.2rem;
         margin-bottom: 0.5rem;
         color: var(--color-text-link-broken);
+    }
+    .target-text {
+        display: inline-block;
+        cursor: default;
     }
     .target-button:hover {
         text-decoration: underline;

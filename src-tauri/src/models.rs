@@ -134,6 +134,10 @@ pub struct Page {
     /// A vector of all outgoing links from this page to other pages (e.g., "[[Another Page]]").
     /// Using a Vec allows for duplicate links, which can be used to determine link "strength".
     pub links: Vec<Link>,
+    /// Outgoing links to maps (`[[map:Name#Place]]`). Each link's `target` is
+    /// the map name and its `section` the place on it.
+    #[serde(default)]
+    pub map_links: Vec<Link>,
     /// A list of images embedded in this page (e.g., `![[img.png]]`, `![alt](img.png)`).
     /// Stores the raw target string (filename or path).
     pub images: Vec<String>,
@@ -307,6 +311,10 @@ pub struct BrokenLink {
     pub target: String,
     /// A list of all pages that contain a link to this target.
     pub sources: Vec<PageHeader>,
+    /// True for a `[[map:Name]]` link to a missing map; `target` then reads
+    /// `map:Name`. A missing map can't be created from the report.
+    #[serde(default, rename = "isMap")]
+    pub is_map: bool,
 }
 
 /// Represents a broken image report, aggregating all pages that embed a non-existent image.

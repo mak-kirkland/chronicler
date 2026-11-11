@@ -2,6 +2,7 @@
     import type { RenderedPage } from "$lib/bindings";
     import Infobox from "$lib/components/infobox/Infobox.svelte";
     import LinkPreview from "$lib/components/ui/LinkPreview.svelte"; // Import the new component
+    import MapPreview from "$lib/components/map/MapPreview.svelte";
     import { areFooterTagsVisible } from "$lib/settingsStore";
     import {
         tablesort,
@@ -86,9 +87,21 @@
     // --- Link Preview Logic ---
     let hoveredLinkEl = $state<HTMLElement | null>(null);
     let hoveredLinkPath = $state<string | null>(null);
+    // Map links (`[[map:Name]]`) preview the map instead of a page.
+    let hoveredMapLinkEl = $state<HTMLElement | null>(null);
+    let hoveredMapLinkPath = $state<string | null>(null);
 
     function handleMouseOver(event: MouseEvent) {
         const target = event.target as HTMLElement;
+
+        // Map links also carry `internal-link`, so they're checked first.
+        if (target.tagName === "A" && target.classList.contains("map-link")) {
+            if (!target.classList.contains("broken")) {
+                hoveredMapLinkEl = target;
+                hoveredMapLinkPath = target.getAttribute("data-map-path");
+            }
+            return;
+        }
 
         // We check for 'internal-link' class which identifies wikilinks.
         if (
@@ -113,6 +126,8 @@
         ) {
             hoveredLinkEl = null;
             hoveredLinkPath = null;
+            hoveredMapLinkEl = null;
+            hoveredMapLinkPath = null;
         }
     }
 </script>
@@ -121,6 +136,7 @@
   The LinkPreview component manages its own visibility based on the props we pass it.
 -->
 <LinkPreview anchorEl={hoveredLinkEl} targetPath={hoveredLinkPath} />
+<MapPreview anchorEl={hoveredMapLinkEl} targetPath={hoveredMapLinkPath} />
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex, a11y_mouse_events_have_key_events -->
 <div

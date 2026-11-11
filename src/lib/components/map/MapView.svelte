@@ -64,7 +64,13 @@
         DRAWING_COLOR,
         DEFAULT_PIN_ICON,
         pinDropPoint,
+        findPlace,
+        regionBounds,
+        pinFocusZoom,
+        type PlaceMatch,
     } from "$lib/mapUtils";
+    import { mapFocusRequest } from "$lib/mapFocus";
+    import { get } from "svelte/store";
     import {
         imagePathLookup,
         pagePathLookup,
@@ -102,11 +108,17 @@
         data,
         isActive = true,
         isFocused = true,
+        place = null,
+        tabId = "",
     } = $props<{
         data: PageHeader;
         isActive?: boolean;
         /** This pane owns the keyboard (see +page.svelte `resolve`). */
         isFocused?: boolean;
+        /** A pin or region label to land on (`[[map:Name#Place]]`). */
+        place?: string | null;
+        /** This view's tab, for fly-to requests from the other pane. */
+        tabId?: string;
     }>();
 
     // -------------------------------------------------------------------------
@@ -527,6 +539,8 @@
     onDestroy(() => {
         destroyed = true;
         unlistenTileProgress?.();
+        if (placeNoticeTimer) clearTimeout(placeNoticeTimer);
+        if (placeFlashTimer) clearTimeout(placeFlashTimer);
         destroyMap();
     });
 
@@ -1013,6 +1027,13 @@
 
             // Signal styling effects that layers are rebuilt
             layerRevision += 1;
+
+            // A map link's place, asked for before the map was ready.
+            if (pendingPlace) {
+                const target = pendingPlace;
+                pendingPlace = null;
+                untrack(() => focusPlace(target, false));
+            }
         } catch (e: any) {
             log.error("Map Error", e, "MapView");
             error = `Map Error: ${e.message}`;
@@ -1145,6 +1166,11 @@
 
         // Set the initial view to the calculated fit zoom level
         map.setView([h / 2, w / 2], fitZoom, { animate: false });
+        // Kept for map links: a link with no place returns here, and one to
+        // a pin zooms at least to the native level, where pins stop
+        // clustering (see pinFocusZoom).
+        openingView = { center: L.latLng(h / 2, w / 2), zoom: fitZoom };
+        nativeZoom = tileMaxZoom;
 
         // Set this fitZoom as the absolute minimum zoom level allowed
         // This prevents the user from zooming out further than the image boundaries
@@ -1635,6 +1661,113 @@
             // While drawing, clicks are handled by separate listener
             if (!isDrawing) contextMenu = null;
         });
+    }
+
+    // =========================================================================
+    // LANDING ON A LINKED PLACE  (`[[map:Name#Place]]`)
+    // =========================================================================
+
+    /** How long a linked place stays highlighted after landing on it. */
+    const PLACE_FLASH_MS = 1600;
+    /** How long the "no such place" note stays up. */
+    const PLACE_NOTICE_MS = 4000;
+
+    // The place the link that opened this map named; applied (once) as soon
+    // as the map is ready.
+    let pendingPlace: string | null = untrack(() => place);
+    // The view the map opens at, and the tile pyramid's native zoom level.
+    // Both are set by initializeMap.
+    let openingView: { center: L.LatLng; zoom: number } | null = null;
+    let nativeZoom = 0;
+    let placeNotice = $state<string | null>(null);
+    let placeNoticeTimer: ReturnType<typeof setTimeout> | null = null;
+    let placeFlashTimer: ReturnType<typeof setTimeout> | null = null;
+    // A request already in the store when this view mounted was for an
+    // earlier visit, so only newer ones count.
+    let lastFocusSeq = get(mapFocusRequest)?.seq ?? 0;
+
+    // A map link clicked in the other pane of a split view, while this pane
+    // shows the map it links to (see `openMapLink` in actions.ts).
+    $effect(() => {
+        const req = $mapFocusRequest;
+        if (!req || req.tabId !== tabId || req.seq <= lastFocusSeq) return;
+        lastFocusSeq = req.seq;
+        untrack(() => focusPlace(req.place, true));
+    });
+
+    /**
+     * Shows the pin or region labelled `target`: centred at a close zoom for
+     * a pin, fitted to the view for a region, then briefly highlighted. Its
+     * layer is switched on (and saved) if it was hidden. A null `target`
+     * returns to the opening view; an unknown one leaves the view alone and
+     * says so.
+     */
+    function focusPlace(target: string | null, animate: boolean) {
+        if (!map || !mapConfig) {
+            if (target) pendingPlace = target;
+            return;
+        }
+        if (target === null) {
+            if (openingView) {
+                map.setView(openingView.center, openingView.zoom, { animate });
+            }
+            return;
+        }
+        const match = findPlace(mapConfig, target);
+        if (!match) {
+            showPlaceNotice($t("map.placeNotFound", { name: target }));
+            return;
+        }
+        if (match.hiddenLayerId) {
+            void updateLayer(match.hiddenLayerId, { visible: true });
+        }
+        if (match.kind === "pin") {
+            const { x, y } = match.pin;
+            // A box a third of the map's size around the pin: zooming to fit
+            // it is a close-up even on a small map.
+            const w = mapConfig.width / 6;
+            const h = mapConfig.height / 6;
+            const closeUp = map.getBoundsZoom([
+                [y - h, x - w],
+                [y + h, x + w],
+            ]);
+            const zoom = pinFocusZoom(nativeZoom, closeUp, map.getMaxZoom());
+            map.setView([y, x], zoom, { animate });
+        } else {
+            // Custom Y-down CRS: lat == image Y, lng == image X.
+            const b = regionBounds(match.region);
+            map.fitBounds(
+                [
+                    [b.minY, b.minX],
+                    [b.maxY, b.maxX],
+                ],
+                { padding: [48, 48], animate },
+            );
+        }
+        flashPlace(match);
+    }
+
+    /** Highlights a place for PLACE_FLASH_MS, as hovering it in the console does. */
+    function flashPlace(match: PlaceMatch) {
+        if (placeFlashTimer) clearTimeout(placeFlashTimer);
+        const id = match.kind === "pin" ? match.pin.id : match.region.id;
+        if (match.kind === "pin") highlightedPinId = id;
+        else highlightedRegionId = id;
+        placeFlashTimer = setTimeout(() => {
+            placeFlashTimer = null;
+            // Leave it alone if the console took the highlight over since.
+            if (highlightedPinId === id) highlightedPinId = null;
+            if (highlightedRegionId === id) highlightedRegionId = null;
+        }, PLACE_FLASH_MS);
+    }
+
+    function showPlaceNotice(text: string) {
+        placeNotice = text;
+        if (placeNoticeTimer) clearTimeout(placeNoticeTimer);
+        placeNoticeTimer = setTimeout(() => {
+            placeNotice = null;
+            placeNoticeTimer = null;
+        }, PLACE_NOTICE_MS);
     }
 
     // =========================================================================
@@ -2385,6 +2518,11 @@
             {:else if mergeTargetId}
                 <div class="map-drawing-hint tooltip-floating">
                     {$t("map.mergeHint", { name: regionName(mergeTargetId) })}
+                </div>
+            {:else if placeNotice}
+                <!-- A map link named a place this map doesn't have. -->
+                <div class="map-drawing-hint tooltip-floating" role="status">
+                    {placeNotice}
                 </div>
             {/if}
 

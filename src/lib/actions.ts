@@ -26,6 +26,8 @@ import { get } from "svelte/store";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { log } from "./logger";
 import { translate } from "./i18n";
+import { paneShowingMap } from "./tabs";
+import { requestMapFocus } from "./mapFocus";
 
 /** Classifies a path into the view type used to display it. */
 function kindOf(path: string): PathViewKind {
@@ -145,7 +147,31 @@ export function handleContentClick(event: Event) {
         const openInNewTab =
             !!mouse && (mouse.button === 1 || mouse.ctrlKey || mouse.metaKey);
 
-        // A) Handle internal wikilinks
+        // A) Map links `[[map:Name#Place]]`. These carry `internal-link` for
+        // styling, so they're handled first: a missing map must never fall
+        // through to the create-page flow below.
+        if (link.classList.contains("map-link")) {
+            event.preventDefault();
+            if (link.classList.contains("broken")) {
+                alert(
+                    translate("actions.linkedMapNotFound", {
+                        name: link.getAttribute("data-map-target") ?? "",
+                    }),
+                );
+                return;
+            }
+            const mapPath = link.getAttribute("data-map-path");
+            if (mapPath) {
+                openMapLink(
+                    mapPath,
+                    link.getAttribute("data-place"),
+                    openInNewTab,
+                );
+            }
+            return;
+        }
+
+        // B) Handle internal wikilinks
         if (link.classList.contains("internal-link")) {
             // Same-page anchor links should scroll natively. This covers both
             // `[[This Page#Heading]]` (resolved to the current path) and target-less
@@ -186,14 +212,14 @@ export function handleContentClick(event: Event) {
             return;
         }
 
-        // B) Handle external links
+        // C) Handle external links
         if (href && (href.startsWith("http:") || href.startsWith("https:"))) {
             event.preventDefault(); // Prevent default for this case
             openUrl(href);
             return;
         }
 
-        // C) Handle and neutralize any other non-TOC links to prevent 404s
+        // D) Handle and neutralize any other non-TOC links to prevent 404s
         // We check if the href starts with '#' to allow TOC and same-page links to pass through.
         if (href && !href.startsWith("#")) {
             event.preventDefault(); // Prevent default for this case
@@ -240,8 +266,33 @@ export function navigateToImage(image: PageHeader, newTab = false) {
  * @param page The header of the map to navigate to, containing its path and title.
  * @param newTab If true, opens in a new tab instead of the current one.
  */
-export function navigateToMap(page: PageHeader, newTab = false) {
-    navigate({ type: "map", data: page }, newTab);
+export function navigateToMap(
+    page: PageHeader,
+    newTab = false,
+    place: string | null = null,
+) {
+    navigate({ type: "map", data: page, place }, newTab);
+}
+
+/**
+ * Follows a `[[map:Name#Place]]` link to the map at `path`, landing on
+ * `place` (a pin or region label) when given. In split view, if the other
+ * pane already shows that map, it flies there and the page stays put;
+ * otherwise the map opens like any link target (in a new tab if asked).
+ */
+export function openMapLink(
+    path: string,
+    place: string | null,
+    newTab: boolean,
+): void {
+    if (!newTab) {
+        const otherTabId = paneShowingMap(get(tabs), path);
+        if (otherTabId) {
+            requestMapFocus(otherTabId, place);
+            return;
+        }
+    }
+    navigateToMap({ path, title: fileStemString(path) }, newTab, place);
 }
 
 /**

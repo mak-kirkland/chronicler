@@ -3,7 +3,13 @@
         applyWikilinkCompletion,
         wikilinkQueryAt,
     } from "$lib/wikilinkAutocomplete";
-    import { allFileTitles } from "$lib/worldStore";
+    import {
+        applyMapNameCompletion,
+        mapLinkQuery,
+    } from "$lib/mapLinkAutocomplete";
+    import { allFileTitles, allMaps, mapPathLookup } from "$lib/worldStore";
+    import { loadMapConfig } from "$lib/mapStore";
+    import { placeLabels } from "$lib/mapUtils";
 
     let {
         value = $bindable(),
@@ -19,14 +25,46 @@
     let token = $state<{ query: string } | null>(null);
     let selectedIndex = $state(0);
 
+    // `[[map:Name#Place]]` being typed: suggest maps, then that map's places.
+    const mapQuery = $derived(token ? mapLinkQuery(token.query) : null);
+    const placeMapPath = $derived(
+        mapQuery?.kind === "place"
+            ? ($mapPathLookup.get(mapQuery.map.toLowerCase()) ?? null)
+            : null,
+    );
+    // Place labels per map path, loaded the first time a link asks for them.
+    let placeCache = $state<Record<string, string[]>>({});
+    $effect(() => {
+        const path = placeMapPath;
+        if (!path || path in placeCache) return;
+        loadMapConfig(path).then((config) => {
+            placeCache = {
+                ...placeCache,
+                [path]: config ? placeLabels(config).map((p) => p.label) : [],
+            };
+        });
+    });
+
     const suggestions = $derived.by<string[]>(() => {
         if (!token) return [];
-        const q = token.query.toLowerCase();
+        let pool: string[] = $allFileTitles;
+        let typed = token.query;
+        if (mapQuery?.kind === "map") {
+            pool = $allMaps.map((m) => m.title);
+            typed = mapQuery.name;
+        } else if (mapQuery?.kind === "place") {
+            pool = placeMapPath ? (placeCache[placeMapPath] ?? []) : [];
+            typed = mapQuery.place;
+        } else if (mapQuery?.kind === "alias") {
+            // Typing a map link's alias: nothing to suggest.
+            return [];
+        }
+        const q = typed.toLowerCase();
         // Same-named notes in different folders share a title, and links
         // resolve case-insensitively: list each name once (it also keys
         // the #each below, which throws on duplicate keys).
         const seen = new Set<string>();
-        return $allFileTitles
+        return pool
             .filter((t: string) => {
                 const key = t.toLowerCase();
                 if (!key.includes(q) || seen.has(key)) return false;
@@ -53,12 +91,26 @@
             token = null;
             return;
         }
-        const r = applyWikilinkCompletion(
-            value,
-            textareaEl.selectionStart,
-            live.start,
-            title,
-        );
+        // A map name leaves the link open for a `#place`; a place or a page
+        // name closes it.
+        const q = mapLinkQuery(live.query);
+        const caretNow = textareaEl.selectionStart;
+        const r =
+            q?.kind === "map"
+                ? applyMapNameCompletion(
+                      value,
+                      caretNow,
+                      live.start + q.nameStart,
+                      title,
+                  )
+                : applyWikilinkCompletion(
+                      value,
+                      caretNow,
+                      q?.kind === "place"
+                          ? live.start + q.placeStart
+                          : live.start,
+                      title,
+                  );
         value = r.text;
         token = null;
         const el = textareaEl;

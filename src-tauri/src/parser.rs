@@ -4,7 +4,7 @@
 
 use crate::error::{ChroniclerError, Result};
 use crate::models::{Link, Page};
-use crate::wikilink::extract_wikilinks;
+use crate::wikilink::{extract_map_links, extract_wikilinks};
 use regex::Regex;
 use std::collections::HashSet;
 use std::path::Path;
@@ -32,6 +32,7 @@ pub fn parse_file(path: &Path) -> Result<Page> {
 
     // Extract links
     let mut links = extract_wikilinks(&content);
+    let map_links = extract_map_links(&content);
 
     // Extract images and clean up links
     let images = extract_images_and_clean_links(&content, &frontmatter, &mut links);
@@ -49,6 +50,7 @@ pub fn parse_file(path: &Path) -> Result<Page> {
         title,
         tags,
         links,
+        map_links,
         images,
         inserts,
         backlinks: HashSet::new(),
@@ -413,6 +415,21 @@ It just has a [[Simple Link]].
         assert!(page.frontmatter.is_null());
 
         Ok(())
+    }
+
+    #[test]
+    fn test_parse_file_separates_map_links() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("links.md");
+        fs::write(&file_path, "[[A]] [[map:B#C]]").unwrap();
+
+        let page = parse_file(&file_path).unwrap();
+
+        assert_eq!(page.links.len(), 1);
+        assert_eq!(page.links[0].target, "A");
+        assert_eq!(page.map_links.len(), 1);
+        assert_eq!(page.map_links[0].target, "B");
+        assert_eq!(page.map_links[0].section.as_deref(), Some("C"));
     }
 
     #[test]
