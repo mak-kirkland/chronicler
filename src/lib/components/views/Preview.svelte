@@ -118,6 +118,16 @@
         }
     }
 
+    // In split view a map link flies the other pane's map and this page stays
+    // put, with the pointer still on the link: drop its preview so it doesn't
+    // sit over the page.
+    function handleClick(event: MouseEvent) {
+        if ((event.target as HTMLElement).closest?.("a.map-link")) {
+            hoveredMapLinkEl = null;
+            hoveredMapLinkPath = null;
+        }
+    }
+
     function handleMouseOut(event: MouseEvent) {
         const target = event.target as HTMLElement;
         if (
@@ -138,7 +148,7 @@
 <LinkPreview anchorEl={hoveredLinkEl} targetPath={hoveredLinkPath} />
 <MapPreview anchorEl={hoveredMapLinkEl} targetPath={hoveredMapLinkPath} />
 
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex, a11y_mouse_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex, a11y_mouse_events_have_key_events, a11y_click_events_have_key_events -->
 <div
     class="preview-container chronicler-content chronicler-note mode-{mode}"
     class:narrow={isNarrow}
@@ -147,6 +157,7 @@
     tabindex="0"
     onmouseover={handleMouseOver}
     onmouseout={handleMouseOut}
+    onclick={handleClick}
     use:tablesort={renderedData}
     use:hydrateCarousels={renderedData}
     use:enhanceGalleries={renderedData}

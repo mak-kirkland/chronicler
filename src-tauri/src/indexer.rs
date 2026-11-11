@@ -739,11 +739,13 @@ impl Indexer {
         self.map_link_backlinks = new_map_link_backlinks;
     }
 
-    /// Resolves a wikilink to an absolute file path using the resolver map.
+    /// Resolves a `[[map:Name]]` link (target already stripped of the prefix)
+    /// to the map's absolute path.
     pub fn resolve_map_link(&self, link: &Link) -> Option<PathBuf> {
         self.map_resolver.get(&link.target.to_lowercase()).cloned()
     }
 
+    /// Resolves a wikilink to an absolute file path using the resolver map.
     pub fn resolve_link(&self, link: &Link) -> Option<PathBuf> {
         self.link_resolver.get(&link.target.to_lowercase()).cloned()
     }

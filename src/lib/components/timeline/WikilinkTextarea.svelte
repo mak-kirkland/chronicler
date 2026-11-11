@@ -10,6 +10,7 @@
     import { allFileTitles, allMaps, mapPathLookup } from "$lib/worldStore";
     import { loadMapConfig } from "$lib/mapStore";
     import { placeLabels } from "$lib/mapUtils";
+    import { t } from "$lib/i18n";
 
     let {
         value = $bindable(),
@@ -32,25 +33,30 @@
             ? ($mapPathLookup.get(mapQuery.map.toLowerCase()) ?? null)
             : null,
     );
-    // Place labels per map path, loaded the first time a link asks for them.
-    let placeCache = $state<Record<string, string[]>>({});
+    /** A suggestion; places say whether they're a pin or a region. */
+    type Suggestion = { label: string; kind?: "pin" | "region" };
+
+    // Places per map path, loaded the first time a link asks for them.
+    let placeCache = $state<Record<string, Suggestion[]>>({});
     $effect(() => {
         const path = placeMapPath;
         if (!path || path in placeCache) return;
         loadMapConfig(path).then((config) => {
             placeCache = {
                 ...placeCache,
-                [path]: config ? placeLabels(config).map((p) => p.label) : [],
+                [path]: config ? placeLabels(config) : [],
             };
         });
     });
 
-    const suggestions = $derived.by<string[]>(() => {
+    const suggestions = $derived.by<Suggestion[]>(() => {
         if (!token) return [];
-        let pool: string[] = $allFileTitles;
+        let pool: Suggestion[] = $allFileTitles.map((label: string) => ({
+            label,
+        }));
         let typed = token.query;
         if (mapQuery?.kind === "map") {
-            pool = $allMaps.map((m) => m.title);
+            pool = $allMaps.map((m) => ({ label: m.title }));
             typed = mapQuery.name;
         } else if (mapQuery?.kind === "place") {
             pool = placeMapPath ? (placeCache[placeMapPath] ?? []) : [];
@@ -65,8 +71,8 @@
         // the #each below, which throws on duplicate keys).
         const seen = new Set<string>();
         return pool
-            .filter((t: string) => {
-                const key = t.toLowerCase();
+            .filter(({ label }) => {
+                const key = label.toLowerCase();
                 if (!key.includes(q) || seen.has(key)) return false;
                 seen.add(key);
                 return true;
@@ -133,7 +139,7 @@
                 (selectedIndex - 1 + suggestions.length) % suggestions.length;
         } else if (e.key === "Enter" || e.key === "Tab") {
             e.preventDefault();
-            apply(suggestions[selectedIndex]);
+            apply(suggestions[selectedIndex].label);
         } else if (e.key === "Escape") {
             // Close only the dropdown, not the surrounding modal.
             e.stopPropagation();
@@ -155,7 +161,7 @@
     ></textarea>
     {#if token && suggestions.length > 0}
         <ul class="suggestions" role="listbox">
-            {#each suggestions as title, i (title)}
+            {#each suggestions as { label, kind }, i (label)}
                 <li>
                     <button
                         type="button"
@@ -164,10 +170,19 @@
                         class:selected={i === selectedIndex}
                         onpointerdown={(e) => {
                             e.preventDefault(); // keep textarea focus
-                            apply(title);
+                            apply(label);
                         }}
                     >
-                        {title}
+                        {label}
+                        {#if kind}
+                            <span class="kind">
+                                {$t(
+                                    kind === "pin"
+                                        ? "editor.placePin"
+                                        : "editor.placeRegion",
+                                )}
+                            </span>
+                        {/if}
                     </button>
                 </li>
             {/each}
@@ -220,6 +235,12 @@
         color: var(--color-text-primary);
         font-size: 0.85rem;
         cursor: pointer;
+    }
+    .suggestions .kind {
+        float: right;
+        margin-left: 0.5rem;
+        color: var(--color-text-secondary);
+        font-size: 0.75rem;
     }
     .suggestions button:hover,
     .suggestions button.selected {

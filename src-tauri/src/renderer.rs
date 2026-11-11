@@ -130,6 +130,14 @@ fn wikilink_display_text<'a>(
     }
 }
 
+/// A wikilink's optional `#section` or `|alias` capture, trimmed. A blank one
+/// (`[[map:Eldoria# ]]`) counts as absent rather than as empty link text.
+fn optional_part<'a>(caps: &Captures<'a>, group: usize) -> Option<&'a str> {
+    caps.get(group)
+        .map(|m| m.as_str().trim())
+        .filter(|part| !part.is_empty())
+}
+
 /// Converts a `Path` or `PathBuf` into a web-standard string with forward slashes.
 /// This ensures consistency in all path data sent to the frontend.
 fn path_to_web_str(path: &Path) -> String {
@@ -710,8 +718,8 @@ impl Renderer {
         let final_html = WIKILINK_RE
             .replace_all(&with_inserts, |caps: &Captures| {
                 let target = caps.get(1).map_or("", |m| m.as_str()).trim();
-                let section = caps.get(2).map(|m| m.as_str().trim());
-                let alias = caps.get(3).map(|m| m.as_str().trim());
+                let section = optional_part(caps, 2);
+                let alias = optional_part(caps, 3);
 
                 // A target-less link points at a section within the *current* page.
                 // Render it as a same-page anchor with no data-path; the frontend then
@@ -796,8 +804,8 @@ impl Renderer {
         WIKILINK_RE
             .replace_all(text, |caps: &Captures| {
                 let target = caps.get(1).map(|m| m.as_str().trim()).unwrap_or("");
-                let section = caps.get(2).map(|m| m.as_str().trim());
-                let alias = caps.get(3).map(|m| m.as_str().trim());
+                let section = optional_part(caps, 2);
+                let alias = optional_part(caps, 3);
                 wikilink_display_text(target, section, alias).to_string()
             })
             .to_string()
@@ -1254,6 +1262,24 @@ mod tests {
             "<a href=\"#\" class=\"internal-link map-link broken\" data-map-target=\"Nowhere\">Nowhere</a>"
         );
         assert_eq!(render_inline(&renderer, "[[map:]]"), "[[map:]]");
+    }
+
+    #[test]
+    fn test_render_link_with_blank_place_or_alias_keeps_its_name() {
+        let (renderer, page, map) = setup_map_renderer();
+        let map = path_to_web_str(&map);
+        let whole_map = format!(
+            "<a href=\"#\" class=\"internal-link map-link\" data-map-path=\"{map}\">Eldoria</a>"
+        );
+        assert_eq!(render_inline(&renderer, "[[map:Eldoria# ]]"), whole_map);
+        assert_eq!(render_inline(&renderer, "[[map:Eldoria| ]]"), whole_map);
+        assert_eq!(
+            render_inline(&renderer, "[[Eldoria| ]]"),
+            format!(
+                "<a href=\"#\" class=\"internal-link\" data-path=\"{}\">Eldoria</a>",
+                path_to_web_str(&page)
+            )
+        );
     }
 
     #[test]

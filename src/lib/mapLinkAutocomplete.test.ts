@@ -23,6 +23,28 @@ describe("mapLinkQuery", () => {
         expect(mapLinkQuery("Eldoria")).toBeNull();
     });
 
+    it("allows spaces before the prefix, the name and the place, as links do", () => {
+        expect(mapLinkQuery(" map:Eld")).toEqual({
+            kind: "map",
+            name: "Eld",
+            nameStart: 5,
+        });
+        // The part to complete starts at its first letter, so an editor
+        // filtering on the text from there matches "Eld", not " Eld".
+        expect(mapLinkQuery("map:  Eld")).toEqual({
+            kind: "map",
+            name: "Eld",
+            nameStart: 6,
+        });
+        expect(mapLinkQuery("map:Eldoria# Cas")).toEqual({
+            kind: "place",
+            map: "Eldoria",
+            place: "Cas",
+            placeStart: 13,
+        });
+        expect(mapLinkQuery("  map:Eldoria|x")).toEqual({ kind: "alias" });
+    });
+
     it("recognises a map link whose alias is being typed, so nothing is offered", () => {
         expect(mapLinkQuery("map:Eldoria|x")).toEqual({ kind: "alias" });
         expect(mapLinkQuery("map:Eldoria#Castle|the")).toEqual({
@@ -32,12 +54,37 @@ describe("mapLinkQuery", () => {
 });
 
 describe("applyMapNameCompletion", () => {
-    it("fills in the name and leaves the link open", () => {
+    it("closes an unclosed link, with the caret still after the name", () => {
         expect(
             applyMapNameCompletion("see [[map:Eld", 13, 10, "Eldoria"),
         ).toEqual({
-            text: "see [[map:Eldoria",
+            text: "see [[map:Eldoria]]",
             caret: 17,
+        });
+    });
+
+    it("leaves the text after an unclosed link alone", () => {
+        expect(
+            applyMapNameCompletion("[[map:Eld and on", 9, 6, "Eldoria"),
+        ).toEqual({
+            text: "[[map:Eldoria]] and on",
+            caret: 13,
+        });
+        // The ]] belongs to the next link, not this one.
+        expect(
+            applyMapNameCompletion("[[map:Eld and [[Other]]", 9, 6, "Eldoria"),
+        ).toEqual({
+            text: "[[map:Eldoria]] and [[Other]]",
+            caret: 13,
+        });
+    });
+
+    it("doesn't add brackets to a link that's already closed", () => {
+        expect(
+            applyMapNameCompletion("[[map:Eld]] on", 9, 6, "Eldoria"),
+        ).toEqual({
+            text: "[[map:Eldoria]] on",
+            caret: 13,
         });
     });
 
