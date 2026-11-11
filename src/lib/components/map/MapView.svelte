@@ -50,6 +50,7 @@
     import {
         getShapesAtPoint,
         mapModeKeyAction,
+        regionStyleState,
         buildLayerVisibilityLookup,
         isLayerIdVisible,
         setsEqual,
@@ -735,26 +736,18 @@
         void layerRevision;
 
         if (mapConfig) {
-            // Merge pick mode shows every region so the user can see what
-            // there is to pick.
-            const currentMode: "hidden" | "visible" =
-                isConsoleOpen || mergeTargetId ? "visible" : "hidden";
-
-            // Compute which IDs are currently targeted (highlighted/hovered).
-            // While merging that's the target and the picks, not the hover.
-            // While drawing a hole, it's the region being cut (so its
-            // outline and existing holes are visible to draw against).
-            const currentTargeted = new Set<string>();
-            if (mergeTargetId) {
-                currentTargeted.add(mergeTargetId);
-                for (const id of mergePickIds) currentTargeted.add(id);
-            } else if (drawMode === "hole" && holeTargetId) {
-                currentTargeted.add(holeTargetId);
-            } else {
-                if (highlightedRegionId)
-                    currentTargeted.add(highlightedRegionId);
-                for (const id of hoveredRegionIds) currentTargeted.add(id);
-            }
+            // Base style (hidden / visible) and the highlighted set — see
+            // regionStyleState for when regions are shown.
+            const { mode: currentMode, targeted: currentTargeted } =
+                regionStyleState({
+                    isConsoleOpen,
+                    drawMode,
+                    holeTargetId,
+                    mergeTargetId,
+                    mergePickIds,
+                    highlightedRegionId,
+                    hoveredRegionIds,
+                });
 
             // Determine which shapes need restyling:
             // 1. Shapes that were targeted but no longer are

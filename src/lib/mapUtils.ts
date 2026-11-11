@@ -682,3 +682,45 @@ export function mapModeKeyAction(
     }
     return null;
 }
+
+// --- REGION STYLE STATE ---
+
+/**
+ * Which base style regions get, and which ones are highlighted, for
+ * MapView's current state.
+ *
+ * - Regions are normally invisible (but hoverable). They're all shown
+ *   ("visible") while the console is open, while drawing a region or a hole
+ *   (so you can draw against the existing ones), and while picking regions
+ *   to merge.
+ * - Highlighted: while merging, the target and picks; while drawing a hole,
+ *   the region being cut; while drawing a new region, none (hover is paused,
+ *   so the hover set would be stale); otherwise hover + console hover.
+ */
+export function regionStyleState(state: {
+    isConsoleOpen: boolean;
+    drawMode: "polygon" | "hole" | null;
+    holeTargetId: string | null;
+    mergeTargetId: string | null;
+    mergePickIds: Set<string>;
+    highlightedRegionId: string | null;
+    hoveredRegionIds: Set<string>;
+}): { mode: "hidden" | "visible"; targeted: Set<string> } {
+    const drawing = state.drawMode !== null;
+    const mode =
+        state.isConsoleOpen || drawing || state.mergeTargetId
+            ? "visible"
+            : "hidden";
+
+    const targeted = new Set<string>();
+    if (state.mergeTargetId) {
+        targeted.add(state.mergeTargetId);
+        for (const id of state.mergePickIds) targeted.add(id);
+    } else if (state.drawMode === "hole") {
+        if (state.holeTargetId) targeted.add(state.holeTargetId);
+    } else if (!drawing) {
+        if (state.highlightedRegionId) targeted.add(state.highlightedRegionId);
+        for (const id of state.hoveredRegionIds) targeted.add(id);
+    }
+    return { mode, targeted };
+}

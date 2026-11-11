@@ -7,6 +7,7 @@ import {
     resizeMapData,
     mapModeKeyAction,
     isPointInPolygon,
+    regionStyleState,
 } from "./mapUtils";
 
 function rect(x0: number, y0: number, x1: number, y1: number): MapPoint[] {
@@ -245,5 +246,70 @@ describe("resizeMapData keeps holes inside their outline", () => {
         for (const pt of out.holes![0]) {
             expect(isPointInPolygon(pt, out.points)).toBe(true);
         }
+    });
+});
+
+describe("regionStyleState", () => {
+    const idle = {
+        isConsoleOpen: false,
+        drawMode: null,
+        holeTargetId: null,
+        mergeTargetId: null,
+        mergePickIds: new Set<string>(),
+        highlightedRegionId: null,
+        hoveredRegionIds: new Set<string>(),
+    };
+    const ids = (s: Set<string>) => [...s].sort();
+
+    it("keeps regions hidden, hover-highlighted, when just viewing", () => {
+        const r = regionStyleState({
+            ...idle,
+            hoveredRegionIds: new Set(["a"]),
+        });
+        expect(r.mode).toBe("hidden");
+        expect(ids(r.targeted)).toEqual(["a"]);
+    });
+
+    it("shows every region while drawing a new region, highlighting none", () => {
+        const r = regionStyleState({
+            ...idle,
+            drawMode: "polygon",
+            hoveredRegionIds: new Set(["stale-hover"]),
+        });
+        expect(r.mode).toBe("visible");
+        expect(ids(r.targeted)).toEqual([]);
+    });
+
+    it("shows every region while drawing a hole, highlighting the one being cut", () => {
+        const r = regionStyleState({
+            ...idle,
+            drawMode: "hole",
+            holeTargetId: "italy",
+            hoveredRegionIds: new Set(["stale-hover"]),
+        });
+        expect(r.mode).toBe("visible");
+        expect(ids(r.targeted)).toEqual(["italy"]);
+    });
+
+    it("shows every region while merging, highlighting target and picks", () => {
+        const r = regionStyleState({
+            ...idle,
+            mergeTargetId: "A",
+            mergePickIds: new Set(["B"]),
+            hoveredRegionIds: new Set(["stale-hover"]),
+        });
+        expect(r.mode).toBe("visible");
+        expect(ids(r.targeted)).toEqual(["A", "B"]);
+    });
+
+    it("shows every region with the console open, highlighting hover and console", () => {
+        const r = regionStyleState({
+            ...idle,
+            isConsoleOpen: true,
+            highlightedRegionId: "c",
+            hoveredRegionIds: new Set(["a"]),
+        });
+        expect(r.mode).toBe("visible");
+        expect(ids(r.targeted)).toEqual(["a", "c"]);
     });
 });
