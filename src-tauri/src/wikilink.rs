@@ -3,7 +3,7 @@
 //! Extracts wikilinks from text, creating Link structs
 
 use crate::models::{Link, LinkPosition};
-use regex::Regex;
+use regex::{Captures, Regex};
 use std::sync::LazyLock;
 
 /// Shared wikilink regex pattern.
@@ -62,56 +62,60 @@ pub fn map_link_name(target: &str) -> Option<&str> {
     (!name.is_empty()).then_some(name)
 }
 
-/// Every wikilink in `content`, paired with its raw (untrimmed, unescaped)
-/// target.
-fn captured_links(content: &str) -> impl Iterator<Item = (&str, Link)> + '_ {
-    WIKILINK_RE.captures_iter(content).map(move |cap| {
-        let raw = cap.get(1).unwrap().as_str();
-        // The match for the whole pattern `[[...]]` is at index 0.
-        let offset = cap.get(0).unwrap().start();
-        let link = Link {
-            target: raw.replace("\\", "").trim().to_string(),
-            section: cap.get(2).map(|m| m.as_str().trim().to_string()),
-            alias: cap.get(3).map(|m| m.as_str().trim().to_string()),
-            position: Some(offset_to_line_col(content, offset)),
-        };
-        (raw, link)
-    })
+/// A wikilink's optional `#section` or `|alias` capture, trimmed. A blank one
+/// (`[[map:Eldoria# ]]`) counts as absent rather than as an empty part.
+pub fn optional_part<'a>(caps: &Captures<'a>, group: usize) -> Option<&'a str> {
+    caps.get(group)
+        .map(|m| m.as_str().trim())
+        .filter(|part| !part.is_empty())
 }
 
-/// Extracts page wikilinks from markdown content. Map links (`[[map:…]]`) are
-/// left out; see `extract_map_links`.
-pub fn extract_wikilinks(content: &str) -> Vec<Link> {
-    captured_links(content)
-        .filter_map(|(raw, link)| {
-            // Target-less links (e.g. `[[#Heading]]`) point at a section within the
-            // current page, so they reference no other page and must not be indexed
-            // as cross-page links (which would create spurious backlinks).
-            if link.target.is_empty() || is_map_link_target(raw) {
-                return None;
+/// Extracts the wikilinks in `content` in one pass, as (page links, map
+/// links). A map link's `target` is the map name without the prefix, and its
+/// `section` is the place.
+///
+/// Neither list has target-less links (e.g. `[[#Heading]]`), which point at a
+/// section within the current page and so must not be indexed as cross-page
+/// links (which would create spurious backlinks), nor map links with no map
+/// name (`[[map:]]`).
+pub fn extract_links(content: &str) -> (Vec<Link>, Vec<Link>) {
+    let (mut pages, mut maps) = (Vec::new(), Vec::new());
+    for cap in WIKILINK_RE.captures_iter(content) {
+        // Unescaped first, so a table's `\|` leaves no backslash on the name.
+        let unescaped = cap[1].replace('\\', "");
+        let target = unescaped.trim();
+        let (list, target) = if is_map_link_target(target) {
+            match map_link_name(target) {
+                Some(name) => (&mut maps, name),
+                None => continue,
             }
-            Some(link)
-        })
-        .collect()
-}
-
-/// Extracts map links (`[[map:Name#Place|alias]]`) from content. Each `Link`'s
-/// `target` is the map name without the prefix, and its `section` is the
-/// place. A link with no map name (`[[map:]]`) is skipped.
-pub fn extract_map_links(content: &str) -> Vec<Link> {
-    captured_links(content)
-        .filter_map(|(_, mut link)| {
-            // From the unescaped target, so a table's `\|` leaves no
-            // backslash on the name.
-            link.target = map_link_name(&link.target)?.to_string();
-            Some(link)
-        })
-        .collect()
+        } else if target.is_empty() {
+            continue;
+        } else {
+            (&mut pages, target)
+        };
+        list.push(Link {
+            target: target.to_string(),
+            section: optional_part(&cap, 2).map(str::to_string),
+            alias: optional_part(&cap, 3).map(str::to_string),
+            // The match for the whole pattern `[[...]]` is at index 0.
+            position: Some(offset_to_line_col(content, cap.get(0).unwrap().start())),
+        });
+    }
+    (pages, maps)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*; // Import everything from the parent module
+
+    fn extract_wikilinks(content: &str) -> Vec<Link> {
+        extract_links(content).0
+    }
+
+    fn extract_map_links(content: &str) -> Vec<Link> {
+        extract_links(content).1
+    }
 
     #[test]
     fn test_same_page_section_link_is_not_indexed() {

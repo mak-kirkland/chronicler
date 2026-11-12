@@ -89,7 +89,9 @@
     let hoveredLinkPath = $state<string | null>(null);
     // Map links (`[[map:Name]]`) preview the map instead of a page.
     let hoveredMapLinkEl = $state<HTMLElement | null>(null);
-    let hoveredMapLinkPath = $state<string | null>(null);
+    const hoveredMapLinkPath = $derived(
+        hoveredMapLinkEl?.getAttribute("data-map-path") ?? null,
+    );
 
     function handleMouseOver(event: MouseEvent) {
         const target = event.target as HTMLElement;
@@ -98,7 +100,6 @@
         if (target.tagName === "A" && target.classList.contains("map-link")) {
             if (!target.classList.contains("broken")) {
                 hoveredMapLinkEl = target;
-                hoveredMapLinkPath = target.getAttribute("data-map-path");
             }
             return;
         }
@@ -118,16 +119,6 @@
         }
     }
 
-    // In split view a map link flies the other pane's map and this page stays
-    // put, with the pointer still on the link: drop its preview so it doesn't
-    // sit over the page.
-    function handleClick(event: MouseEvent) {
-        if ((event.target as HTMLElement).closest?.("a.map-link")) {
-            hoveredMapLinkEl = null;
-            hoveredMapLinkPath = null;
-        }
-    }
-
     function handleMouseOut(event: MouseEvent) {
         const target = event.target as HTMLElement;
         if (
@@ -137,7 +128,6 @@
             hoveredLinkEl = null;
             hoveredLinkPath = null;
             hoveredMapLinkEl = null;
-            hoveredMapLinkPath = null;
         }
     }
 </script>
@@ -148,7 +138,7 @@
 <LinkPreview anchorEl={hoveredLinkEl} targetPath={hoveredLinkPath} />
 <MapPreview anchorEl={hoveredMapLinkEl} targetPath={hoveredMapLinkPath} />
 
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex, a11y_mouse_events_have_key_events, a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_no_noninteractive_tabindex, a11y_mouse_events_have_key_events -->
 <div
     class="preview-container chronicler-content chronicler-note mode-{mode}"
     class:narrow={isNarrow}
@@ -157,7 +147,6 @@
     tabindex="0"
     onmouseover={handleMouseOver}
     onmouseout={handleMouseOut}
-    onclick={handleClick}
     use:tablesort={renderedData}
     use:hydrateCarousels={renderedData}
     use:enhanceGalleries={renderedData}

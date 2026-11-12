@@ -4,7 +4,7 @@
 
 use crate::error::{ChroniclerError, Result};
 use crate::models::{Link, Page};
-use crate::wikilink::{extract_map_links, extract_wikilinks};
+use crate::wikilink::extract_links;
 use regex::Regex;
 use std::collections::HashSet;
 use std::path::Path;
@@ -31,8 +31,7 @@ pub fn parse_file(path: &Path) -> Result<Page> {
     let title = extract_title(&frontmatter, path);
 
     // Extract links
-    let mut links = extract_wikilinks(&content);
-    let map_links = extract_map_links(&content);
+    let (mut links, map_links) = extract_links(&content);
 
     // Extract images and clean up links
     let images = extract_images_and_clean_links(&content, &frontmatter, &mut links);

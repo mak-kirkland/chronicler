@@ -3,7 +3,7 @@
     import { navigateToPage, promptAndCreateItem } from "$lib/actions";
     import ViewHeader from "$lib/components/views/ViewHeader.svelte";
     import { t } from "$lib/i18n";
-    import { MAP_LINK_PREFIX } from "$lib/mapLinkAutocomplete";
+    import { mapLinkName } from "$lib/mapLinkAutocomplete";
 
     /**
      * Handles the click event on a broken link target.
@@ -35,9 +35,8 @@
                             <span
                                 class="target-text"
                                 title={$t("reports.mapNotFound", {
-                                    name: link.target.slice(
-                                        MAP_LINK_PREFIX.length,
-                                    ),
+                                    name:
+                                        mapLinkName(link.target) ?? link.target,
                                 })}
                             >
                                 {link.target}

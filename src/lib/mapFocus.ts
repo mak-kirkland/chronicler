@@ -14,16 +14,15 @@ export interface MapFocusRequest {
     tabId: string;
     /** The pin or region label to land on, or null for the opening view. */
     place: string | null;
-    /** Increases with every request, so the same place can be asked twice. */
-    seq: number;
 }
 
+/**
+ * The latest request. Each one is a new object, so the same place asked
+ * for twice still notifies.
+ */
 export const mapFocusRequest = writable<MapFocusRequest | null>(null);
-
-let seq = 0;
 
 /** Asks the map shown in tab `tabId` to fly to `place`. */
 export function requestMapFocus(tabId: string, place: string | null): void {
-    seq += 1;
-    mapFocusRequest.set({ tabId, place, seq });
+    mapFocusRequest.set({ tabId, place });
 }

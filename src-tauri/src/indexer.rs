@@ -15,6 +15,7 @@ use crate::{
         file_stem_string, is_canvas_file, is_external_file, is_hidden_path, is_image_file,
         is_map_file, is_markdown_file, is_timeline_file,
     },
+    wikilink::MAP_LINK_PREFIX,
 };
 use natord::compare_ignore_case as nat_compare;
 use path_clean::PathClean;
@@ -693,7 +694,8 @@ impl Indexer {
                                 }
                             }
                             if let Some(desc) = &event.description {
-                                for link in crate::wikilink::extract_map_links(desc) {
+                                let (page_links, map_links) = crate::wikilink::extract_links(desc);
+                                for link in map_links {
                                     if let Some(map_path) =
                                         new_map_resolver.get(&link.target.to_lowercase())
                                     {
@@ -703,7 +705,7 @@ impl Indexer {
                                             .insert(path.clone());
                                     }
                                 }
-                                for link in crate::wikilink::extract_wikilinks(desc) {
+                                for link in page_links {
                                     if let Some(target_path) =
                                         new_link_resolver.get(&link.target.to_lowercase())
                                     {
@@ -739,10 +741,9 @@ impl Indexer {
         self.map_link_backlinks = new_map_link_backlinks;
     }
 
-    /// Resolves a `[[map:Name]]` link (target already stripped of the prefix)
-    /// to the map's absolute path.
-    pub fn resolve_map_link(&self, link: &Link) -> Option<PathBuf> {
-        self.map_resolver.get(&link.target.to_lowercase()).cloned()
+    /// Resolves the name in a `[[map:Name]]` link to the map's absolute path.
+    pub fn resolve_map_link(&self, name: &str) -> Option<&PathBuf> {
+        self.map_resolver.get(&name.to_lowercase())
     }
 
     /// Resolves a wikilink to an absolute file path using the resolver map.
@@ -940,9 +941,9 @@ impl Indexer {
                 // Only a missing map is broken: places on a map aren't checked,
                 // as headings in a page aren't.
                 for link in &page.map_links {
-                    if self.resolve_map_link(link).is_none() {
+                    if self.resolve_map_link(&link.target).is_none() {
                         broken_links_map
-                            .entry((format!("map:{}", link.target), true))
+                            .entry((format!("{MAP_LINK_PREFIX}{}", link.target), true))
                             .or_default()
                             .insert(source_header());
                     }

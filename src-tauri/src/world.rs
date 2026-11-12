@@ -110,9 +110,12 @@ fn rename_refs(index: &Indexer, path: &Path) -> Option<RenameRefs> {
             _ => None,
         })
         .unwrap_or_default();
-    // Timelines that reference the page must be rewritten too.
-    if let Some(timelines) = index.timeline_backlinks.get(path) {
-        backlinks.extend(timelines.iter().cloned());
+    // Timelines that reference the page must be rewritten too, and for a map,
+    // the pages and timelines that link to it with `[[map:Name]]`.
+    for linkers in [&index.timeline_backlinks, &index.map_link_backlinks] {
+        if let Some(paths) = linkers.get(path) {
+            backlinks.extend(paths.iter().cloned());
+        }
     }
     // Canvases point at files by vault-relative path rather than by link, so
     // they aren't in the backlink graph: every one is checked.
@@ -122,15 +125,8 @@ fn rename_refs(index: &Indexer, path: &Path) -> Option<RenameRefs> {
         .filter(|(_, asset)| matches!(asset, VaultAsset::Canvas))
         .map(|(path, _)| path.clone())
         .collect();
-    // Pages and timelines that link to a map with `[[map:Name]]`.
-    let map_backlinks = index
-        .map_link_backlinks
-        .get(path)
-        .cloned()
-        .unwrap_or_default();
     Some(RenameRefs {
         backlinks,
-        map_backlinks,
         canvases,
         vault_root: index.root_path.clone()?,
     })
@@ -462,9 +458,8 @@ impl World {
                                 continue;
                             }
                             info!(
-                                "External rename detected; checking {} backlinks, {} map links and {} canvases...",
+                                "External rename detected; checking {} backlinks and {} canvases...",
                                 refs.backlinks.len(),
-                                refs.map_backlinks.len(),
                                 refs.canvases.len()
                             );
                             if let Err(e) = writer.update_backlinks_for_rename(from, to, &refs) {
@@ -869,7 +864,7 @@ mod tests {
         let page = std::fs::canonicalize(root.join("Page.md")).unwrap();
 
         let refs = rename_refs(&index, &map).unwrap();
-        assert!(refs.map_backlinks.contains(&page));
+        assert!(refs.backlinks.contains(&page));
 
         Writer::new().rename_path(&map, "New", &refs).unwrap();
         assert_eq!(

@@ -6,7 +6,6 @@ import {
     shapeFingerprint,
     resizeMapData,
     mapModeKeyAction,
-    isPointInPolygon,
     regionStyleState,
     pinDropPoint,
     movePinTo,
@@ -15,6 +14,7 @@ import {
     regionBounds,
     pinFocusZoom,
 } from "./mapUtils";
+import { isPointInRing } from "./mapGeometry";
 
 function rect(x0: number, y0: number, x1: number, y1: number): MapPoint[] {
     return [
@@ -236,7 +236,7 @@ describe("resizeMapData keeps holes inside their outline", () => {
             { x: 95, y: 32 },
             { x: 100, y: 29 },
         ];
-        for (const pt of hole) expect(isPointInPolygon(pt, outline)).toBe(true);
+        for (const pt of hole) expect(isPointInRing(pt, outline)).toBe(true);
         const cfg: MapConfig = {
             version: "1",
             title: "t",
@@ -250,7 +250,7 @@ describe("resizeMapData keeps holes inside their outline", () => {
         };
         const out = resizeMapData(cfg, 1.45, 290, 290).shapes[0] as MapPolygon;
         for (const pt of out.holes![0]) {
-            expect(isPointInPolygon(pt, out.points)).toBe(true);
+            expect(isPointInRing(pt, out.points)).toBe(true);
         }
     });
 });
@@ -258,8 +258,7 @@ describe("resizeMapData keeps holes inside their outline", () => {
 describe("regionStyleState", () => {
     const idle = {
         isConsoleOpen: false,
-        drawMode: null,
-        holeTargetId: null,
+        drawing: null,
         mergeTargetId: null,
         mergePickIds: new Set<string>(),
         highlightedRegionId: null,
@@ -279,7 +278,7 @@ describe("regionStyleState", () => {
     it("shows every region while drawing a new region, highlighting none", () => {
         const r = regionStyleState({
             ...idle,
-            drawMode: "polygon",
+            drawing: { mode: "polygon" as const },
             hoveredRegionIds: new Set(["stale-hover"]),
         });
         expect(r.mode).toBe("visible");
@@ -289,8 +288,7 @@ describe("regionStyleState", () => {
     it("shows every region while drawing a hole, highlighting the one being cut", () => {
         const r = regionStyleState({
             ...idle,
-            drawMode: "hole",
-            holeTargetId: "italy",
+            drawing: { mode: "hole" as const, targetId: "italy" },
             hoveredRegionIds: new Set(["stale-hover"]),
         });
         expect(r.mode).toBe("visible");

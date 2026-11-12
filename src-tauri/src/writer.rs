@@ -33,10 +33,9 @@ struct BacklinkUpdate {
 
 /// Files other than the renamed one that a rename or move may have to rewrite.
 pub struct RenameRefs {
-    /// Pages and timelines that link to a renamed page by name.
+    /// Pages and timelines that link to the renamed file by name: with
+    /// `[[Name]]` for a page, `[[map:Name]]` for a map.
     pub backlinks: HashSet<PathBuf>,
-    /// Pages and timelines that link to a renamed map with `[[map:Name]]`.
-    pub map_backlinks: HashSet<PathBuf>,
     /// Every canvas in the vault. They point at files by vault-relative path
     /// rather than by link, so any of them may reference the renamed file, or
     /// something inside a renamed folder.
@@ -49,7 +48,7 @@ impl RenameRefs {
     /// True when no file could refer to the renamed one, so a rename needs
     /// no rewrites at all.
     pub fn is_empty(&self) -> bool {
-        self.backlinks.is_empty() && self.map_backlinks.is_empty() && self.canvases.is_empty()
+        self.backlinks.is_empty() && self.canvases.is_empty()
     }
 }
 
@@ -144,48 +143,43 @@ pub fn atomic_write(path: &Path, content: impl AsRef<[u8]>) -> Result<()> {
     Ok(())
 }
 
-/// Replaces all instances of a given wikilink within a string.
-///
-/// This function is a core part of the rename transaction. It processes the
-/// content of a file, finds all wikilinks pointing to `old_stem`, and replaces
-/// them with `new_stem`, preserving any sections or aliases.
+/// Rewrites the target of each wikilink for which `new_target` (given the
+/// raw target as written) returns one, keeping its `#section` and `|alias`
+/// as written.
 ///
 /// # Returns
 /// - `Some(String)` if the content was changed.
 /// - `None` if no links needed to be updated.
-fn replace_wikilink_in_content(content: &str, old_stem: &str, new_stem: &str) -> Option<String> {
-    let old_stem_lower = old_stem.to_lowercase();
-
-    // Use `replace_all` to build a new string with updated wikilinks.
+fn rewrite_wikilink_targets(
+    content: &str,
+    new_target: impl Fn(&str) -> Option<String>,
+) -> Option<String> {
     let new_content = WIKILINK_RE.replace_all(content, |caps: &Captures| {
-        let target = caps.get(1).map_or("", |m| m.as_str());
-        // Perform a case-insensitive comparison on the link target.
-        if target.to_lowercase() == old_stem_lower {
-            // Re-insert # if the section capture is present (the capture group excludes the separator).
-            let section = caps
-                .get(2)
-                .map_or(String::new(), |m| format!("#{}", m.as_str()));
-
-            // Check if an alias exists.
-            if let Some(alias_match) = caps.get(3) {
-                // An alias is present, so include it with the pipe.
-                format!("[[{new_stem}{section}|{}]]", alias_match.as_str())
-            } else {
-                // No alias was present, so don't add a pipe.
-                format!("[[{new_stem}{section}]]")
+        let raw = caps.get(1).map_or("", |m| m.as_str());
+        match new_target(raw) {
+            Some(target) => {
+                // The capture groups exclude the `#` and `|` separators.
+                let section = caps
+                    .get(2)
+                    .map_or(String::new(), |m| format!("#{}", m.as_str()));
+                let alias = caps
+                    .get(3)
+                    .map_or(String::new(), |m| format!("|{}", m.as_str()));
+                format!("[[{target}{section}{alias}]]")
             }
-        } else {
-            // If the link doesn't match, return the original text of the match.
-            caps.get(0).unwrap().as_str().to_string()
+            None => caps[0].to_string(),
         }
     });
+    (new_content != content).then(|| new_content.into_owned())
+}
 
-    // Only return the new content if it has actually changed.
-    if new_content != content {
-        Some(new_content.into_owned())
-    } else {
-        None
-    }
+/// Points `[[Old…]]` links (case-insensitive) at a renamed page. This is a
+/// core part of the rename transaction. Returns None when nothing changed.
+fn replace_wikilink_in_content(content: &str, old_stem: &str, new_stem: &str) -> Option<String> {
+    let old_lower = old_stem.to_lowercase();
+    rewrite_wikilink_targets(content, |raw| {
+        (raw.to_lowercase() == old_lower).then(|| new_stem.to_string())
+    })
 }
 
 /// Regex for matching `{{insert: Page Name | attrs}}` syntax, capturing the page name.
@@ -279,23 +273,11 @@ fn rewrite_timeline_links(
 /// Returns None when nothing changed.
 fn replace_map_link_in_content(content: &str, old_stem: &str, new_stem: &str) -> Option<String> {
     let old_lower = old_stem.to_lowercase();
-    let new_content = WIKILINK_RE.replace_all(content, |caps: &Captures| {
-        let raw = caps.get(1).map_or("", |m| m.as_str());
-        match map_link_name(raw) {
-            Some(name) if name.to_lowercase() == old_lower => {
-                let prefix = &raw.trim_start()[..MAP_LINK_PREFIX.len()];
-                let section = caps
-                    .get(2)
-                    .map_or(String::new(), |m| format!("#{}", m.as_str()));
-                let alias = caps
-                    .get(3)
-                    .map_or(String::new(), |m| format!("|{}", m.as_str()));
-                format!("[[{prefix}{new_stem}{section}{alias}]]")
-            }
-            _ => caps.get(0).unwrap().as_str().to_string(),
-        }
-    });
-    (new_content != content).then(|| new_content.into_owned())
+    rewrite_wikilink_targets(content, |raw| {
+        let name = map_link_name(raw)?;
+        let prefix = &raw.trim_start()[..MAP_LINK_PREFIX.len()];
+        (name.to_lowercase() == old_lower).then(|| format!("{prefix}{new_stem}"))
+    })
 }
 
 /// How a renamed file is reached by name from text: `[[Page]]` for a page,
@@ -798,22 +780,13 @@ tags: [add, your, tags]
     ) -> Result<()> {
         // --- 1. Prepare Phase: Read files and calculate changes in memory ---
         let mut updates = Vec::new();
-        // Links go by page name, so only a page rename affects them.
-        if is_markdown_file(old_path) {
+        // Links go by name, so only pages and maps are linked to.
+        if let Some(kind) = RefKind::of(old_path) {
             updates.extend(prepare_link_updates(
                 old_path,
                 new_path,
                 &refs.backlinks,
-                RefKind::Page,
-            ));
-        }
-        // `[[map:Name]]` links go by the map's name.
-        if is_map_file(old_path) {
-            updates.extend(prepare_link_updates(
-                old_path,
-                new_path,
-                &refs.map_backlinks,
-                RefKind::Map,
+                kind,
             ));
         }
         updates.extend(prepare_canvas_updates(
@@ -879,7 +852,6 @@ mod tests {
     fn link_refs(backlinks: HashSet<PathBuf>) -> RenameRefs {
         RenameRefs {
             backlinks,
-            map_backlinks: HashSet::new(),
             canvases: Vec::new(),
             vault_root: PathBuf::new(),
         }
@@ -889,7 +861,6 @@ mod tests {
     fn canvas_refs(canvas: &Path, root: &Path) -> RenameRefs {
         RenameRefs {
             backlinks: HashSet::new(),
-            map_backlinks: HashSet::new(),
             canvases: vec![canvas.to_path_buf()],
             vault_root: root.to_path_buf(),
         }
@@ -1366,8 +1337,7 @@ mod tests {
 
     fn map_link_refs(page: &Path, timeline: &Path, canvas: &Path, root: &Path) -> RenameRefs {
         RenameRefs {
-            backlinks: HashSet::new(),
-            map_backlinks: HashSet::from([page.to_path_buf(), timeline.to_path_buf()]),
+            backlinks: HashSet::from([page.to_path_buf(), timeline.to_path_buf()]),
             canvases: vec![canvas.to_path_buf()],
             vault_root: root.to_path_buf(),
         }
@@ -1390,20 +1360,6 @@ mod tests {
         assert_eq!(tl["events"][0]["description"], "[[map:New]]");
         let nodes = canvas_nodes(&fs::read_to_string(&canvas).unwrap());
         assert_eq!(nodes[0]["text"], "[[map:New]] [[Old]]");
-    }
-
-    #[test]
-    fn refs_with_only_map_links_are_not_empty() {
-        // An external rename of a map in a vault with no canvases must still
-        // rewrite the pages that link to it.
-        let refs = RenameRefs {
-            backlinks: HashSet::new(),
-            map_backlinks: HashSet::from([PathBuf::from("/v/Page.md")]),
-            canvases: Vec::new(),
-            vault_root: PathBuf::from("/v"),
-        };
-        assert!(!refs.is_empty());
-        assert!(link_refs(HashSet::new()).is_empty());
     }
 
     #[test]

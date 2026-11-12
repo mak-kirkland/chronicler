@@ -15,7 +15,12 @@ import type {
 } from "./mapModels";
 import type { Bounds } from "./mapGeometry";
 import type L from "leaflet";
-import { isPointInRegion, piecesBounds, regionPieces } from "./mapGeometry";
+import {
+    isPointInRegion,
+    isPointInRing,
+    piecesBounds,
+    regionPieces,
+} from "./mapGeometry";
 
 // --- THEME CONSTANTS ---
 
@@ -527,28 +532,6 @@ export function resizeMapData(
 }
 
 /**
- * Standard Ray-casting algorithm to check if a point is inside a polygon.
- */
-export function isPointInPolygon(
-    pt: { x: number; y: number },
-    polygon: { x: number; y: number }[],
-): boolean {
-    let inside = false;
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i].x,
-            yi = polygon[i].y;
-        const xj = polygon[j].x,
-            yj = polygon[j].y;
-
-        const intersect =
-            yi > pt.y !== yj > pt.y &&
-            pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi) + xi;
-        if (intersect) inside = !inside;
-    }
-    return inside;
-}
-
-/**
  * True when the point is inside a polygon region: inside one of its pieces
  * and not inside that piece's holes. Plain one-outline regions (the common
  * case, and the hot path on every mousemove) skip the pieces machinery.
@@ -557,7 +540,7 @@ export function isPointInPolygonRegion(
     pt: MapPoint,
     shape: MapPolygon,
 ): boolean {
-    if (!shape.holes && !shape.parts) return isPointInPolygon(pt, shape.points);
+    if (!shape.holes && !shape.parts) return isPointInRing(pt, shape.points);
     return isPointInRegion(pt, shape);
 }
 
@@ -572,6 +555,13 @@ export function isPointInCircle(
     const dy = pt.y - circle.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     return dist <= circle.radius;
+}
+
+/** True when the point is inside the region, circle or polygon. */
+function isPointInShape(pt: MapPoint, shape: MapRegion): boolean {
+    return shape.type === "circle"
+        ? isPointInCircle(pt, shape)
+        : isPointInPolygonRegion(pt, shape);
 }
 
 /**
@@ -592,53 +582,11 @@ export function getShapesAtPoint(
     return shapes.filter((shape) => {
         // Filter by layer visibility if layers are provided
         if (layers && !isLayerVisible(shape.layerId, layers)) return false;
-
-        if (shape.type === "circle") {
-            return isPointInCircle({ x: mapX, y: mapY }, shape);
-        } else if (shape.type === "polygon") {
-            return isPointInPolygonRegion({ x: mapX, y: mapY }, shape);
-        }
-        return false;
+        return isPointInShape({ x: mapX, y: mapY }, shape);
     });
 }
 
 // --- SPATIAL INDEX ---
-
-/**
- * Axis-aligned bounding box for fast broad-phase hit testing.
- */
-interface AABB {
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-}
-
-/**
- * Computes the AABB for a map region.
- */
-function computeAABB(shape: MapRegion): AABB {
-    if (shape.type === "circle") {
-        return {
-            minX: shape.x - shape.radius,
-            minY: shape.y - shape.radius,
-            maxX: shape.x + shape.radius,
-            maxY: shape.y + shape.radius,
-        };
-    } else if (shape.parts) {
-        // Holes sit inside their outlines, so only outlines matter here.
-        return piecesBounds(regionPieces(shape));
-    } else {
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        for (const p of shape.points) {
-            if (p.x < minX) minX = p.x;
-            if (p.y < minY) minY = p.y;
-            if (p.x > maxX) maxX = p.x;
-            if (p.y > maxY) maxY = p.y;
-        }
-        return { minX, minY, maxX, maxY };
-    }
-}
 
 /**
  * Lightweight spatial index using a uniform grid for O(1) broad-phase lookups.
@@ -647,7 +595,7 @@ function computeAABB(shape: MapRegion): AABB {
 export class ShapeSpatialIndex {
     private cellSize: number;
     private grid = new Map<string, MapRegion[]>();
-    private aabbMap = new Map<string, AABB>();
+    private aabbMap = new Map<string, Bounds>();
     private shapes: MapRegion[] = [];
 
     constructor(shapes: MapRegion[], mapWidth: number, mapHeight: number) {
@@ -664,7 +612,7 @@ export class ShapeSpatialIndex {
 
     private build(): void {
         for (const shape of this.shapes) {
-            const aabb = computeAABB(shape);
+            const aabb = regionBounds(shape);
             this.aabbMap.set(shape.id, aabb);
 
             const minCX = Math.floor(aabb.minX / this.cellSize);
@@ -761,11 +709,8 @@ export class ShapeSpatialIndex {
             if (mapX < aabb.minX || mapX > aabb.maxX || mapY < aabb.minY || mapY > aabb.maxY) continue;
 
             // Exact geometry check
-            if (shape.type === "circle") {
-                if (isPointInCircle({ x: mapX, y: mapY }, shape)) results.push(shape);
-            } else if (shape.type === "polygon") {
-                if (isPointInPolygonRegion({ x: mapX, y: mapY }, shape)) results.push(shape);
-            }
+            if (isPointInShape({ x: mapX, y: mapY }, shape))
+                results.push(shape);
         }
         return results;
     }
@@ -835,6 +780,14 @@ export function mapModeKeyAction(
 // --- REGION STYLE STATE ---
 
 /**
+ * What is being drawn: a new region, or a hole to cut out of region
+ * `targetId` (which never becomes a region itself).
+ */
+export type DrawState =
+    | { mode: "polygon" }
+    | { mode: "hole"; targetId: string };
+
+/**
  * Which base style regions get, and which ones are highlighted, for
  * MapView's current state.
  *
@@ -848,14 +801,13 @@ export function mapModeKeyAction(
  */
 export function regionStyleState(state: {
     isConsoleOpen: boolean;
-    drawMode: "polygon" | "hole" | null;
-    holeTargetId: string | null;
+    drawing: DrawState | null;
     mergeTargetId: string | null;
     mergePickIds: Set<string>;
     highlightedRegionId: string | null;
     hoveredRegionIds: Set<string>;
 }): { mode: "hidden" | "visible"; targeted: Set<string> } {
-    const drawing = state.drawMode !== null;
+    const drawing = state.drawing !== null;
     const mode =
         state.isConsoleOpen || drawing || state.mergeTargetId
             ? "visible"
@@ -865,8 +817,8 @@ export function regionStyleState(state: {
     if (state.mergeTargetId) {
         targeted.add(state.mergeTargetId);
         for (const id of state.mergePickIds) targeted.add(id);
-    } else if (state.drawMode === "hole") {
-        if (state.holeTargetId) targeted.add(state.holeTargetId);
+    } else if (state.drawing?.mode === "hole") {
+        targeted.add(state.drawing.targetId);
     } else if (!drawing) {
         if (state.highlightedRegionId) targeted.add(state.highlightedRegionId);
         for (const id of state.hoveredRegionIds) targeted.add(id);

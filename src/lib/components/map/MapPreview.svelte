@@ -9,6 +9,7 @@
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { imagePathLookup } from "$lib/worldStore";
     import { currentView } from "$lib/viewStores";
+    import { mapFocusRequest } from "$lib/mapFocus";
     import { get } from "svelte/store";
     import HoverPreview from "$lib/components/ui/HoverPreview.svelte";
     import { log } from "$lib/logger";
@@ -38,6 +39,9 @@
     $effect(() => {
         // Track the current view so we react to navigation changes.
         void $currentView;
+        // A map link in split view flies the other pane's map instead,
+        // leaving this page (and the pointer on the link) where it is.
+        void $mapFocusRequest;
         // Whenever the view changes, force hide the preview.
         isVisible = false;
     });

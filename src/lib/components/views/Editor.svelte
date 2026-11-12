@@ -30,7 +30,12 @@
     } from "$lib/worldStore";
     import { loadMapConfig } from "$lib/mapStore";
     import { placeLabels } from "$lib/mapUtils";
-    import { MAP_LINK_PREFIX, mapLinkQuery } from "$lib/mapLinkAutocomplete";
+    import {
+        isMapLinkTarget,
+        mapLinkName,
+        mapLinkQuery,
+        placeKindKey,
+    } from "$lib/mapLinkAutocomplete";
     import {
         toggleBold,
         toggleItalic,
@@ -160,40 +165,37 @@
                 context.state.sliceDoc(linkMatch.from - 1, linkMatch.from) ===
                 "!";
 
-            const optionsSource = isImageLink
-                ? get(allImageFiles)
-                : get(allFileTitles);
-
             const rawQuery = linkMatch.text.slice(2); // Remove '[['
-            const query = rawQuery.toLowerCase();
 
-            // Custom apply function shared by all link completions
-            const applyLink = (
-                view: EditorView,
-                completion: Completion,
-                from: number,
-                to: number,
-            ) => {
-                view.dispatch({
-                    changes: {
-                        from,
-                        to,
-                        insert: `${completion.label}`,
-                    },
-                    selection: {
-                        anchor: from + completion.label.length + 2,
-                    },
-                });
-            };
+            // Puts the chosen label in and moves the caret `past` characters
+            // beyond it: 2 to step over the `]]` closeBrackets added.
+            const applyLabel =
+                (past: number) =>
+                (
+                    view: EditorView,
+                    completion: Completion,
+                    from: number,
+                    to: number,
+                ) => {
+                    view.dispatch({
+                        changes: { from, to, insert: completion.label },
+                        selection: {
+                            anchor: from + completion.label.length + past,
+                        },
+                    });
+                };
+            const applyLink = applyLabel(2);
 
             // `[[map:Name#Place]]`: suggest maps, then that map's places.
             // Never the "Create" fallback — a map can't be made from here.
+            // Both lists stay valid (re-filtered, not re-queried) until a
+            // `#`, `|` or `]` is typed.
             const mapQuery = isImageLink ? null : mapLinkQuery(rawQuery);
             // Typing a map link's alias: nothing to suggest.
             if (mapQuery?.kind === "alias") return null;
             if (mapQuery?.kind === "map") {
                 const seen = new Set<string>();
-                const titles = get(allMaps)
+                const titles = $allMaps
                     .map((m) => m.title)
                     .filter((title) => {
                         const key = title.toLowerCase();
@@ -201,48 +203,47 @@
                         seen.add(key);
                         return true;
                     });
+                // The caret stays after the name, inside the link, so a
+                // `#place` can follow.
+                const applyMapName = applyLabel(0);
                 return {
                     from: linkMatch.from + 2 + mapQuery.nameStart,
                     options: titles.map((title) => ({
                         label: title,
                         type: "map",
-                        // The caret stays after the name, inside the link,
-                        // so a `#place` can follow.
-                        apply: (view, completion, from, to) => {
-                            view.dispatch({
-                                changes: { from, to, insert: completion.label },
-                                selection: {
-                                    anchor: from + completion.label.length,
-                                },
-                            });
-                        },
+                        apply: applyMapName,
                     })),
                     filter: true,
+                    validFor: /^[^#|\]]*$/,
                 };
             }
             if (mapQuery?.kind === "place") {
-                const path = get(mapPathLookup).get(mapQuery.map.toLowerCase());
+                const path = $mapPathLookup.get(mapQuery.map.toLowerCase());
                 if (!path) return null;
                 const from = linkMatch.from + 2 + mapQuery.placeStart;
+                const kindLabel = {
+                    pin: $tr(placeKindKey("pin")),
+                    region: $tr(placeKindKey("region")),
+                };
                 return loadMapConfig(path).then((config) =>
                     config
                         ? {
                               from,
                               options: placeLabels(config).map((p) => ({
                                   label: p.label,
-                                  detail: $tr(
-                                      p.kind === "pin"
-                                          ? "editor.placePin"
-                                          : "editor.placeRegion",
-                                  ),
+                                  detail: kindLabel[p.kind],
                                   type: p.kind,
                                   apply: applyLink,
                               })),
                               filter: true,
+                              validFor: /^[^#|\]]*$/,
                           }
                         : null,
                 );
             }
+
+            const optionsSource = isImageLink ? $allImageFiles : $allFileTitles;
+            const query = rawQuery.toLowerCase();
 
             // If no option matches the query, show a "Create" fallback instead
             const hasMatches =
@@ -616,12 +617,11 @@
     function wikilinkResolves(target: string, isImage: boolean): boolean {
         if (!target) return false;
         // `[[map:Name]]` resolves against maps, not pages.
-        const prefix = target.slice(0, MAP_LINK_PREFIX.length);
-        if (!isImage && prefix.toLowerCase() === MAP_LINK_PREFIX) {
-            const name = target.slice(MAP_LINK_PREFIX.length).trim();
-            return !!name && get(mapPathLookup).has(name.toLowerCase());
+        if (!isImage && isMapLinkTarget(target)) {
+            const name = mapLinkName(target);
+            return !!name && $mapPathLookup.has(name.toLowerCase());
         }
-        const known = isImage ? get(allImageFiles) : get(allFileTitles);
+        const known = isImage ? $allImageFiles : $allFileTitles;
         return known.some(
             (label) => label.toLowerCase() === target.toLowerCase(),
         );

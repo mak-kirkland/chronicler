@@ -6,9 +6,10 @@
     import {
         applyMapNameCompletion,
         mapLinkQuery,
+        placeKindKey,
     } from "$lib/mapLinkAutocomplete";
     import { allFileTitles, allMaps, mapPathLookup } from "$lib/worldStore";
-    import { loadMapConfig } from "$lib/mapStore";
+    import { getMapConfig, loadMapConfig, loadedMaps } from "$lib/mapStore";
     import { placeLabels } from "$lib/mapUtils";
     import { t } from "$lib/i18n";
 
@@ -36,48 +37,59 @@
     /** A suggestion; places say whether they're a pin or a region. */
     type Suggestion = { label: string; kind?: "pin" | "region" };
 
-    // Places per map path, loaded the first time a link asks for them.
-    let placeCache = $state<Record<string, Suggestion[]>>({});
+    // The linked map's places, from the shared map cache (re-read whenever
+    // it changes), loading the map the first time a link asks for it.
+    const places = $derived.by<Suggestion[]>(() => {
+        void $loadedMaps;
+        const config = placeMapPath ? getMapConfig(placeMapPath) : null;
+        return config ? placeLabels(config) : [];
+    });
     $effect(() => {
-        const path = placeMapPath;
-        if (!path || path in placeCache) return;
-        loadMapConfig(path).then((config) => {
-            placeCache = {
-                ...placeCache,
-                [path]: config ? placeLabels(config) : [],
-            };
-        });
+        if (placeMapPath && !getMapConfig(placeMapPath)) {
+            loadMapConfig(placeMapPath);
+        }
     });
 
-    const suggestions = $derived.by<Suggestion[]>(() => {
-        if (!token) return [];
-        let pool: Suggestion[] = $allFileTitles.map((label: string) => ({
-            label,
-        }));
-        let typed = token.query;
-        if (mapQuery?.kind === "map") {
-            pool = $allMaps.map((m) => ({ label: m.title }));
-            typed = mapQuery.name;
-        } else if (mapQuery?.kind === "place") {
-            pool = placeMapPath ? (placeCache[placeMapPath] ?? []) : [];
-            typed = mapQuery.place;
-        } else if (mapQuery?.kind === "alias") {
-            // Typing a map link's alias: nothing to suggest.
-            return [];
-        }
+    /**
+     * Up to 8 items whose label contains `typed`, ignoring case. Same-named
+     * notes in different folders share a title, and links resolve
+     * case-insensitively: each name is listed once (it also keys the #each
+     * below, which throws on duplicate keys).
+     */
+    function matching<T>(
+        pool: T[],
+        typed: string,
+        label: (item: T) => string,
+    ): T[] {
         const q = typed.toLowerCase();
-        // Same-named notes in different folders share a title, and links
-        // resolve case-insensitively: list each name once (it also keys
-        // the #each below, which throws on duplicate keys).
         const seen = new Set<string>();
         return pool
-            .filter(({ label }) => {
-                const key = label.toLowerCase();
+            .filter((item) => {
+                const key = label(item).toLowerCase();
                 if (!key.includes(q) || seen.has(key)) return false;
                 seen.add(key);
                 return true;
             })
             .slice(0, 8);
+    }
+
+    const suggestions = $derived.by<Suggestion[]>(() => {
+        if (!token) return [];
+        switch (mapQuery?.kind) {
+            case "map":
+                return matching($allMaps, mapQuery.name, (m) => m.title).map(
+                    (m) => ({ label: m.title }),
+                );
+            case "place":
+                return matching(places, mapQuery.place, (p) => p.label);
+            case "alias":
+                // Typing a map link's alias: nothing to suggest.
+                return [];
+            default:
+                return matching($allFileTitles, token.query, (t) => t).map(
+                    (label) => ({ label }),
+                );
+        }
     });
 
     function refreshToken() {
@@ -176,11 +188,7 @@
                         {label}
                         {#if kind}
                             <span class="kind">
-                                {$t(
-                                    kind === "pin"
-                                        ? "editor.placePin"
-                                        : "editor.placeRegion",
-                                )}
+                                {$t(placeKindKey(kind))}
                             </span>
                         {/if}
                     </button>

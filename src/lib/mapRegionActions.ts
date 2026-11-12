@@ -37,47 +37,46 @@ export async function runRegionOp(
     regionId: string,
     op: (config: MapConfig) => RegionOpResult,
 ): Promise<void> {
-    // Assigned inside the update callback; the `as` keeps TS from narrowing
-    // them to their initial values across the await.
-    let refusedReason = null as RefusalReason | null;
-    let geometryFailed = false as boolean;
-    let regionName = "";
+    // Set inside the update callback, which hands back `config` itself
+    // (so nothing is written) when the operation fails or is refused. The
+    // `as` keeps TS from narrowing it to null across the await.
+    let problem = null as
+        | { kind: "geometryFailed"; error: unknown }
+        | { kind: RefusalReason; regionName: string }
+        | null;
     try {
         await updateMapConfig(mapPath, (config) => {
-            let result: RegionOpResult;
             try {
-                result = op(config);
-            } catch (e) {
-                geometryFailed = true;
-                throw e;
+                const result = op(config);
+                if (result.ok) return result.config;
+                problem = {
+                    kind: result.reason,
+                    regionName:
+                        config.shapes.find((s) => s.id === regionId)?.label ||
+                        translate("map.unnamed"),
+                };
+            } catch (error) {
+                problem = { kind: "geometryFailed", error };
             }
-            if (result.ok) return result.config;
-            refusedReason = result.reason;
-            regionName =
-                config.shapes.find((s) => s.id === regionId)?.label ||
-                translate("map.unnamed");
             return config;
         });
     } catch (e) {
-        log.error(
-            geometryFailed
-                ? "Region shape operation failed"
-                : "Saving a region shape change failed",
-            e,
-            "mapRegionActions",
-        );
-        alert(
-            translate(
-                geometryFailed
-                    ? "map.regionShapeFailed"
-                    : "map.regionSaveFailed",
-            ),
-        );
+        log.error("Saving a region shape change failed", e, "mapRegionActions");
+        alert(translate("map.regionSaveFailed"));
         return;
     }
-    if (refusedReason === "wouldRemoveAll") {
-        alert(translate("map.cutWouldRemoveRegion", { name: regionName }));
-    } else if (refusedReason === "notFound") {
+    if (problem?.kind === "geometryFailed") {
+        log.error(
+            "Region shape operation failed",
+            problem.error,
+            "mapRegionActions",
+        );
+        alert(translate("map.regionShapeFailed"));
+    } else if (problem?.kind === "wouldRemoveAll") {
+        alert(
+            translate("map.cutWouldRemoveRegion", { name: problem.regionName }),
+        );
+    } else if (problem?.kind === "notFound") {
         // Deleted or changed elsewhere (another pane, an external edit)
         // between choosing the action and running it.
         alert(translate("map.regionGone"));

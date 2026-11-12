@@ -4,8 +4,38 @@
  * Pure functions.
  */
 
+import { closingBracketsAhead } from "./wikilinkAutocomplete";
+
 /** The prefix that turns a wikilink into a map link. */
 export const MAP_LINK_PREFIX = "map:";
+
+/**
+ * Whether a link target is a map link (`map:…`, any case, spaces allowed
+ * before it), including a nameless one. Mirrors the backend's
+ * `is_map_link_target`.
+ */
+export function isMapLinkTarget(target: string): boolean {
+    const start = leadingSpace(target);
+    return (
+        target.slice(start, start + MAP_LINK_PREFIX.length).toLowerCase() ===
+        MAP_LINK_PREFIX
+    );
+}
+
+/**
+ * The map name in a `map:Name` link target, trimmed; null for a page link
+ * or a map link with no name. Mirrors the backend's `map_link_name`.
+ */
+export function mapLinkName(target: string): string | null {
+    if (!isMapLinkTarget(target)) return null;
+    const name = target.trimStart().slice(MAP_LINK_PREFIX.length).trim();
+    return name || null;
+}
+
+/** The i18n key that tags a place suggestion as a pin or a region. */
+export function placeKindKey(kind: "pin" | "region"): string {
+    return kind === "pin" ? "editor.placePin" : "editor.placeRegion";
+}
 
 /**
  * What a map link being typed is asking for: a map name, a place on it, or
@@ -28,9 +58,8 @@ function leadingSpace(s: string): number {
  * link.
  */
 export function mapLinkQuery(inner: string): MapLinkQuery | null {
+    if (!isMapLinkTarget(inner)) return null;
     const restStart = leadingSpace(inner) + MAP_LINK_PREFIX.length;
-    const prefix = inner.slice(restStart - MAP_LINK_PREFIX.length, restStart);
-    if (prefix.toLowerCase() !== MAP_LINK_PREFIX) return null;
     if (inner.includes("|")) return { kind: "alias" };
     const rest = inner.slice(restStart);
     const hash = rest.indexOf("#");
@@ -64,8 +93,7 @@ export function applyMapNameCompletion(
     name: string,
 ): { text: string; caret: number } {
     const after = text.slice(caret);
-    // Closed when a `]]` comes before the next `[[` or line break.
-    const closed = /^[^\n]*?\]\]/.test(after.split("[[")[0]);
+    const closed = closingBracketsAhead(after) !== -1;
     const tail = closed ? (after.match(/^[^#|\]\n]*/)?.[0].length ?? 0) : 0;
     return {
         text:

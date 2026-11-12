@@ -637,7 +637,6 @@
     "map.closeConsole": "Close Console",
     "map.manageMap": "Manage Map",
     "map.polygonHint": "Click map to add points. Double-click to finish.",
-    "map.drawModeActive": "Draw mode active",
     "map.decodingImage": "Decoding image…",
     "map.generatingTiles": "Generating tiles…",
     "map.zoomLevels": "{current}/{total} zoom levels",

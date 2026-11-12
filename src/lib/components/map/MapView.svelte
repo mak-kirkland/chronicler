@@ -52,6 +52,7 @@
         getShapesAtPoint,
         mapModeKeyAction,
         regionStyleState,
+        type DrawState,
         buildLayerVisibilityLookup,
         isLayerIdVisible,
         setsEqual,
@@ -301,11 +302,8 @@
 
     // --- Drawing State ---
 
-    let isDrawing = $state(false);
-    // "polygon" draws a new region; "hole" draws a shape that is cut out of
-    // `holeTargetId` and never becomes a region itself.
-    let drawMode = $state<"polygon" | "hole" | null>(null);
-    let holeTargetId = $state<string | null>(null);
+    let drawing = $state<DrawState | null>(null);
+    const isDrawing = $derived(drawing !== null);
 
     // --- Merge Pick Mode State ---
     // While `mergeTargetId` is set, clicking a region toggles it in
@@ -691,19 +689,16 @@
     }
 
     /**
-     * Where a region's tooltip/preview anchors. Polygons use the centre of
-     * their largest piece so a multi-piece region (an archipelago) doesn't
-     * anchor in the empty space between its pieces (cached per shape, as it
-     * is read on hover); circles use their mounted layer's bounds as before.
+     * Where a region's tooltip/preview anchors: the centre of its largest
+     * piece, so a multi-piece region (an archipelago) doesn't anchor in the
+     * empty space between its pieces (cached per shape, as it is read on
+     * hover). Circles are never drawn (see `syncShapes`), so have none.
      */
     function regionAnchor(shape: MapRegion): L.LatLng | null {
-        if (shape.type === "polygon") {
-            const c = largestPieceCenter(shape);
-            // Custom Y-down CRS: lat == image Y.
-            return L.latLng(c.y, c.x);
-        }
-        const layer = shapeIdToLayer.get(shape.id);
-        return (layer as any)?.getBounds?.()?.getCenter?.() ?? null;
+        if (shape.type !== "polygon") return null;
+        const c = largestPieceCenter(shape);
+        // Custom Y-down CRS: lat == image Y.
+        return L.latLng(c.y, c.x);
     }
 
     /**
@@ -781,8 +776,7 @@
             const { mode: currentMode, targeted: currentTargeted } =
                 regionStyleState({
                     isConsoleOpen,
-                    drawMode,
-                    holeTargetId,
+                    drawing,
                     mergeTargetId,
                     mergePickIds,
                     highlightedRegionId,
@@ -803,18 +797,13 @@
                     if (currentTargeted.has(s.id)) {
                         layer.setStyle(REGION_STYLES.highlighted);
                         layer.bringToFront();
-                    } else if (currentMode === "visible") {
-                        layer.setStyle(REGION_STYLES.visible);
                     } else {
-                        layer.setStyle(REGION_STYLES.hidden);
+                        layer.setStyle(REGION_STYLES[currentMode]);
                     }
                 });
             } else {
                 // Mode unchanged — only update shapes entering/leaving targeted state
-                const baseStyle =
-                    currentMode === "visible"
-                        ? REGION_STYLES.visible
-                        : REGION_STYLES.hidden;
+                const baseStyle = REGION_STYLES[currentMode];
 
                 // Shapes leaving targeted state
                 for (const id of prevStyledRegionIds) {
@@ -1255,32 +1244,17 @@
             const mapX = e.latlng.lng;
             const mapY = toMapY(e.latlng.lat, mapHeight); // Convert Leaflet LatLng to Map Coords (Y-flip)
             // Find all shapes under cursor using spatial index (fast) or fallback
-            const shapesAtCursor = spatialIndex
-                ? spatialIndex.query(
-                      mapX,
-                      mapY,
-                      layerVisibilityLookup ?? mapConfig.layers,
-                  )
-                : getShapesAtPoint(
-                      mapX,
-                      mapY,
-                      mapConfig.shapes,
-                      mapConfig.layers,
-                  );
+            const shapesAtCursor = shapesAt(mapX, mapY);
 
             // Create edit actions for each shape found
             const editActions = shapesAtCursor.map((shape) => ({
-                label: $t("map.editRegionNamed", {
-                    name: shape.label || $t("map.unnamed"),
-                }),
+                label: $t("map.editRegionNamed", { name: labelOf(shape) }),
                 handler: () => handleEditRegion(shape),
             }));
 
             // Create delete actions for each shape found
             const deleteActions = shapesAtCursor.map((shape) => ({
-                label: $t("map.deleteRegionNamed", {
-                    name: shape.label || $t("map.unnamed"),
-                }),
+                label: $t("map.deleteRegionNamed", { name: labelOf(shape) }),
                 handler: () => handleDeleteShape(shape.id),
             }));
 
@@ -1308,10 +1282,29 @@
         });
     }
 
+    /**
+     * The regions on visible layers at map point (`mapX`, `mapY`): from the
+     * spatial index when it's built, else by scanning every region.
+     */
+    function shapesAt(mapX: number, mapY: number): MapRegion[] {
+        if (!mapConfig) return [];
+        return spatialIndex
+            ? spatialIndex.query(
+                  mapX,
+                  mapY,
+                  layerVisibilityLookup ?? mapConfig.layers,
+              )
+            : getShapesAtPoint(mapX, mapY, mapConfig.shapes, mapConfig.layers);
+    }
+
     /** A region's label for menus and hints, falling back to "Unnamed". */
+    function labelOf(region: MapRegion | null | undefined): string {
+        return region?.label || $t("map.unnamed");
+    }
+
+    /** `labelOf` the region with this id. */
     function regionName(id: string | null): string {
-        const s = id ? mapConfig?.shapes.find((x) => x.id === id) : null;
-        return s?.label || $t("map.unnamed");
+        return labelOf(id ? mapConfig?.shapes.find((x) => x.id === id) : null);
     }
 
     /**
@@ -1326,16 +1319,14 @@
     ): ContextMenuItem[] {
         if (!mapConfig) return [];
         const at = { x: mapX, y: mapY };
-        const name = (s: MapRegion) => s.label || $t("map.unnamed");
         const polygons = under.filter(
             (s): s is MapPolygon => s.type === "polygon",
         );
 
         // Regions whose hole the cursor is in aren't "under" it, so look
         // them up separately: broad-phase by bounds, visible layers only.
-        const lookup =
-            layerVisibilityLookup ??
-            buildLayerVisibilityLookup(mapConfig.layers);
+        // Non-null whenever mapConfig is.
+        const lookup = layerVisibilityLookup!;
         const nearby = (
             spatialIndex
                 ? spatialIndex.queryBounds(mapX, mapY, mapX, mapY)
@@ -1350,42 +1341,30 @@
 
         return [
             ...polygons.map((s) => ({
-                label: $t("map.cutHoleIn", { name: name(s) }),
-                handler: () => {
-                    contextMenu = null;
-                    startDrawing("hole", s.id);
-                },
+                label: $t("map.cutHoleIn", { name: labelOf(s) }),
+                handler: () => startDrawing({ mode: "hole", targetId: s.id }),
             })),
             ...cutOutPairs(under).map(({ target, cutter }) => ({
                 label: $t("map.cutRegionOutOf", {
-                    cutter: name(cutter),
-                    name: name(target),
+                    cutter: labelOf(cutter),
+                    name: labelOf(target),
                 }),
-                handler: () => {
-                    contextMenu = null;
-                    cutRegionOutOf(data.path, target.id, cutter.id);
-                },
+                handler: () => cutRegionOutOf(data.path, target.id, cutter.id),
             })),
             ...holey.map((s) => ({
-                label: $t("map.fillHoleIn", { name: name(s) }),
-                handler: () => {
-                    contextMenu = null;
-                    fillRegionHole(data.path, s.id, at);
-                },
+                label: $t("map.fillHoleIn", { name: labelOf(s) }),
+                handler: () => fillRegionHole(data.path, s.id, at),
             })),
             ...polygons
                 .filter((s) => !!s.parts?.length)
                 .map((s) => ({
-                    label: $t("map.splitRegionApart", { name: name(s) }),
-                    handler: () => {
-                        contextMenu = null;
-                        splitRegionApart(data.path, s.id);
-                    },
+                    label: $t("map.splitRegionApart", { name: labelOf(s) }),
+                    handler: () => splitRegionApart(data.path, s.id),
                 })),
             ...polygons
                 .filter((s) => hasMergePartner(visibleShapes, s.id))
                 .map((s) => ({
-                    label: $t("map.mergeRegionWith", { name: name(s) }),
+                    label: $t("map.mergeRegionWith", { name: labelOf(s) }),
                     handler: () => startMerge(s.id),
                 })),
         ];
@@ -1429,18 +1408,7 @@
             const mapX = e.latlng.lng;
             const mapY = toMapY(e.latlng.lat, mapHeight);
             // Use spatial index for fast lookup, fall back to linear scan
-            const shapes = spatialIndex
-                ? spatialIndex.query(
-                      mapX,
-                      mapY,
-                      layerVisibilityLookup ?? mapConfig.layers,
-                  )
-                : getShapesAtPoint(
-                      mapX,
-                      mapY,
-                      mapConfig.shapes,
-                      mapConfig.layers,
-                  );
+            const shapes = shapesAt(mapX, mapY);
 
             // 2. SYNC HOVER HIGHLIGHT STATE
             // Only update state if the set of IDs has actually changed.
@@ -1502,20 +1470,10 @@
                 // once instead of picking and un-picking.
                 if (mergeTargetId) {
                     if (e.originalEvent.detail > 1) return;
-                    const pickX = e.latlng.lng;
-                    const pickY = toMapY(e.latlng.lat, mapHeight);
-                    const under = spatialIndex
-                        ? spatialIndex.query(
-                              pickX,
-                              pickY,
-                              layerVisibilityLookup ?? mapConfig.layers,
-                          )
-                        : getShapesAtPoint(
-                              pickX,
-                              pickY,
-                              mapConfig.shapes,
-                              mapConfig.layers,
-                          );
+                    const under = shapesAt(
+                        e.latlng.lng,
+                        toMapY(e.latlng.lat, mapHeight),
+                    );
                     const pick = pickMergeCandidate(under, mergeTargetId);
                     if (pick) toggleMergePick(pick.id);
                     return;
@@ -1560,18 +1518,7 @@
                 const mapY = toMapY(e.latlng.lat, mapHeight);
 
                 // Find shapes with navigation targets using spatial index
-                const allShapes = spatialIndex
-                    ? spatialIndex.query(
-                          mapX,
-                          mapY,
-                          layerVisibilityLookup ?? mapConfig.layers,
-                      )
-                    : getShapesAtPoint(
-                          mapX,
-                          mapY,
-                          mapConfig.shapes,
-                          mapConfig.layers,
-                      );
+                const allShapes = shapesAt(mapX, mapY);
                 const shapes = allShapes.filter(
                     (s) => s.targetPage || s.targetMap,
                 );
@@ -1623,7 +1570,7 @@
             }
 
             // --- Drawing mode click ---
-            if (drawMode === "polygon" || drawMode === "hole") {
+            if (isDrawing) {
                 tempPoints.push(e.latlng);
 
                 if (!tempLayer) {
@@ -1645,7 +1592,7 @@
     function attachDrawingHandler() {
         // Finisher for polygon (double click)
         map!.on("dblclick", (_e: L.LeafletMouseEvent) => {
-            if (isDrawing && (drawMode === "polygon" || drawMode === "hole")) {
+            if (isDrawing) {
                 finishDrawing();
             }
         });
@@ -1684,14 +1631,14 @@
     let placeFlashTimer: ReturnType<typeof setTimeout> | null = null;
     // A request already in the store when this view mounted was for an
     // earlier visit, so only newer ones count.
-    let lastFocusSeq = get(mapFocusRequest)?.seq ?? 0;
+    let handledFocusRequest = get(mapFocusRequest);
 
     // A map link clicked in the other pane of a split view, while this pane
     // shows the map it links to (see `openMapLink` in actions.ts).
     $effect(() => {
         const req = $mapFocusRequest;
-        if (!req || req.tabId !== tabId || req.seq <= lastFocusSeq) return;
-        lastFocusSeq = req.seq;
+        if (!req || req === handledFocusRequest || req.tabId !== tabId) return;
+        handledFocusRequest = req;
         untrack(() => focusPlace(req.place, true));
     });
 
@@ -1849,6 +1796,14 @@
     /** The press became a drag: the hover UI belongs to the pin's old spot. */
     function beginPinDrag() {
         isDraggingPin = true;
+        suspendHover();
+    }
+
+    /**
+     * Closes the menu and drops hover highlights, tooltips and previews, for
+     * a mode (merge picking, pin dragging) that pauses hovering.
+     */
+    function suspendHover() {
         contextMenu = null;
         hoveredPinId = null;
         pinLayer?.setHover(null);
@@ -2112,10 +2067,9 @@
      * regions would stay invisible.
      */
     function appliedRegionStyle(id: string): L.PathOptions {
-        if (prevStyledRegionIds.has(id)) return REGION_STYLES.highlighted;
-        return prevRegionStyleMode === "visible"
-            ? REGION_STYLES.visible
-            : REGION_STYLES.hidden;
+        return prevStyledRegionIds.has(id)
+            ? REGION_STYLES.highlighted
+            : REGION_STYLES[prevRegionStyleMode];
     }
 
     function syncShapes(config: MapConfig) {
@@ -2238,12 +2192,8 @@
 
     // --- Drawing Handlers ---
 
-    function startDrawing(mode: "polygon"): void;
-    function startDrawing(mode: "hole", targetId: string): void;
-    function startDrawing(mode: "polygon" | "hole", targetId?: string) {
-        isDrawing = true;
-        drawMode = mode;
-        holeTargetId = mode === "hole" ? (targetId ?? null) : null;
+    function startDrawing(what: DrawState) {
+        drawing = what;
         // Automatically close the console to provide full view of the map for drawing
         isConsoleOpen = false;
 
@@ -2256,9 +2206,7 @@
 
     /** Resets all drawing state. Used by both cancel and finish. */
     function cancelDrawing() {
-        isDrawing = false;
-        drawMode = null;
-        holeTargetId = null;
+        drawing = null;
         if (drawLayerGroup) drawLayerGroup.clearLayers();
         if (map) map.doubleClickZoom.enable();
     }
@@ -2297,12 +2245,9 @@
     // =========================================================================
 
     function startMerge(targetId: string) {
-        contextMenu = null;
+        suspendHover();
         isConsoleOpen = false;
         highlightedRegionId = null;
-        hoveredRegionIds = new Set();
-        removeMultiTooltip();
-        clearAllPreviews();
         mergePickIds = new Set();
         mergeTargetId = targetId;
         // Clicks are picks while merging, so a double-click mustn't zoom.
@@ -2351,16 +2296,15 @@
             x: Math.round(p.lng),
             y: Math.round(toMapY(p.lat, h)),
         }));
-        const mode = drawMode;
-        const holeTarget = holeTargetId;
+        const finished = drawing;
 
         cancelDrawing();
 
-        if (points.length < 3) return;
-        if (mode === "polygon") {
+        if (!finished || points.length < 3) return;
+        if (finished.mode === "polygon") {
             addRegion(data.path, mapConfig, { type: "polygon", points });
-        } else if (mode === "hole" && holeTarget) {
-            cutHoleInRegion(data.path, holeTarget, points);
+        } else {
+            cutHoleInRegion(data.path, finished.targetId, points);
         }
     }
 
@@ -2507,12 +2451,12 @@
 
             {#if isDrawing}
                 <div class="map-drawing-hint tooltip-floating">
-                    {#if drawMode === "polygon"}
-                        {$t("map.polygonHint")}
-                    {:else if drawMode === "hole"}
-                        {$t("map.holeHint", { name: regionName(holeTargetId) })}
+                    {#if drawing?.mode === "hole"}
+                        {$t("map.holeHint", {
+                            name: regionName(drawing.targetId),
+                        })}
                     {:else}
-                        {$t("map.drawModeActive")}
+                        {$t("map.polygonHint")}
                     {/if}
                 </div>
             {:else if mergeTargetId}
@@ -2601,7 +2545,8 @@
                                     { isSeparator: true as const },
                                     {
                                         label: $t("map.drawPolygonRegion"),
-                                        handler: () => startDrawing("polygon"),
+                                        handler: () =>
+                                            startDrawing({ mode: "polygon" }),
                                     },
                                 ]),
                       ]

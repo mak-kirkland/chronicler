@@ -1,5 +1,25 @@
 import { describe, it, expect } from "vitest";
-import { applyMapNameCompletion, mapLinkQuery } from "./mapLinkAutocomplete";
+import {
+    applyMapNameCompletion,
+    isMapLinkTarget,
+    mapLinkName,
+    mapLinkQuery,
+} from "./mapLinkAutocomplete";
+
+describe("mapLinkName", () => {
+    it("reads the map name the way the backend does", () => {
+        expect(mapLinkName("map:Eldoria")).toBe("Eldoria");
+        expect(mapLinkName(" Map: Eldoria ")).toBe("Eldoria");
+        expect(mapLinkName("Eldoria")).toBeNull();
+        expect(mapLinkName("map: ")).toBeNull();
+    });
+
+    it("still counts a nameless map link as a map link", () => {
+        expect(isMapLinkTarget("map:")).toBe(true);
+        expect(isMapLinkTarget(" MAP:x")).toBe(true);
+        expect(isMapLinkTarget("mapx")).toBe(false);
+    });
+});
 
 describe("mapLinkQuery", () => {
     it("reads a map name being typed", () => {

@@ -122,8 +122,8 @@ export function largestPiece(pieces: RegionPiece[]): RegionPiece {
 
 // --- Point tests ---
 
-/** Even-odd ray cast. Private copy so this module has no Leaflet-bound imports. */
-function inRing(pt: MapPoint, ring: MapPoint[]): boolean {
+/** Whether `pt` is inside the closed `ring` (even-odd ray cast). */
+export function isPointInRing(pt: MapPoint, ring: MapPoint[]): boolean {
     let inside = false;
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
         const xi = ring[i].x,
@@ -142,7 +142,10 @@ function inRing(pt: MapPoint, ring: MapPoint[]): boolean {
 
 /** True when `pt` is inside the piece's outline and not inside its holes. */
 function inPiece(pt: MapPoint, piece: RegionPiece): boolean {
-    return inRing(pt, piece.points) && !piece.holes.some((h) => inRing(pt, h));
+    return (
+        isPointInRing(pt, piece.points) &&
+        !piece.holes.some((h) => isPointInRing(pt, h))
+    );
 }
 
 /** True when `pt` is inside some piece (and not inside that piece's holes). */
@@ -156,8 +159,8 @@ export function holeIndexAt(
     pieces: RegionPiece[],
 ): { piece: number; hole: number } | null {
     for (let i = 0; i < pieces.length; i++) {
-        if (!inRing(pt, pieces[i].points)) continue;
-        const h = pieces[i].holes.findIndex((ring) => inRing(pt, ring));
+        if (!isPointInRing(pt, pieces[i].points)) continue;
+        const h = pieces[i].holes.findIndex((ring) => isPointInRing(pt, ring));
         if (h !== -1) return { piece: i, hole: h };
     }
     return null;

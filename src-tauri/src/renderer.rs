@@ -12,7 +12,7 @@ use crate::error::ChroniclerError;
 use crate::models::{Backlink, FullPageData, MapLink, TocEntry, VaultAsset};
 use crate::sanitizer;
 use crate::utils::file_stem_string;
-use crate::wikilink::{is_map_link_target, map_link_name, WIKILINK_RE};
+use crate::wikilink::{is_map_link_target, map_link_name, optional_part, WIKILINK_RE};
 use crate::{error::Result, indexer::Indexer, models::RenderedPage, parser};
 use base64::{engine::general_purpose, Engine as _};
 use html_escape::decode_html_entities;
@@ -128,14 +128,6 @@ fn wikilink_display_text<'a>(
         Some(name) => section.unwrap_or(name),
         None => target,
     }
-}
-
-/// A wikilink's optional `#section` or `|alias` capture, trimmed. A blank one
-/// (`[[map:Eldoria# ]]`) counts as absent rather than as empty link text.
-fn optional_part<'a>(caps: &Captures<'a>, group: usize) -> Option<&'a str> {
-    caps.get(group)
-        .map(|m| m.as_str().trim())
-        .filter(|part| !part.is_empty())
 }
 
 /// Converts a `Path` or `PathBuf` into a web-standard string with forward slashes.
@@ -743,8 +735,8 @@ impl Renderer {
                     let Some(name) = map_link_name(target) else {
                         return caps.get(0).unwrap().as_str().to_string();
                     };
-                    let text = wikilink_display_text(target, section, alias);
-                    return match indexer.map_resolver.get(&name.to_lowercase()) {
+                    let text = alias.or(section).unwrap_or(name);
+                    return match indexer.resolve_map_link(name) {
                         Some(path) => {
                             let place = section
                                 .map(|p| {
@@ -769,7 +761,7 @@ impl Renderer {
                     };
                 }
 
-                let alias = wikilink_display_text(target, section, alias);
+                let alias = alias.unwrap_or(target);
                 let normalized_target = target.to_lowercase();
 
                 let href = if let Some(sec) = section {

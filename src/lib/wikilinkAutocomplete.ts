@@ -23,6 +23,22 @@ export function wikilinkQueryAt(
     return { start: open + 2, query: between };
 }
 
+/**
+ * Where the `]]` closing the link being typed sits in `after` (the text
+ * after the caret), or -1 if the link isn't closed: a `[[` or line break
+ * coming first means a later `]]` belongs elsewhere.
+ */
+export function closingBracketsAhead(after: string): number {
+    const close = after.indexOf("]]");
+    const open = after.indexOf("[[");
+    const newline = after.indexOf("\n");
+    const closes =
+        close !== -1 &&
+        (open === -1 || close < open) &&
+        (newline === -1 || close < newline);
+    return closes ? close : -1;
+}
+
 export function applyWikilinkCompletion(
     text: string,
     caret: number,
@@ -32,16 +48,9 @@ export function applyWikilinkCompletion(
     const after = text.slice(caret);
     // The in-progress token may extend past the caret (the user may have
     // repositioned mid-query). Consume that tail through its closing ]]
-    // when — and only when — the next delimiter after the caret is a
-    // closer; a [[ or newline first means the ]] belongs elsewhere.
-    const close = after.indexOf("]]");
-    const open = after.indexOf("[[");
-    const newline = after.indexOf("\n");
-    const closes =
-        close !== -1 &&
-        (open === -1 || close < open) &&
-        (newline === -1 || close < newline);
-    const rest = closes ? after.slice(close + 2) : after;
+    // when the link is closed.
+    const close = closingBracketsAhead(after);
+    const rest = close === -1 ? after : after.slice(close + 2);
     return {
         text: text.slice(0, start) + title + "]]" + rest,
         caret: start + title.length + 2,
