@@ -2,6 +2,20 @@
 
 ---
 
+## [v0.64.0-alpha] - 2026-11-13
+
+### ✨ Added
+
+- **UI**: Overhauled the app chrome with a quieter, more focused layout. The sidebar now shows the open vault's name in a chip with a vault-switcher dropdown, a combined "New Page" split button for all creation actions, and a footer with page and folder counts. The separate Backlinks and Table of Contents panels have been merged into a single context rail alongside Tags, accessible from the page bar. The vault selector has been redesigned as a two-column layout. Frontmatter is now shown as a bordered card in the editor with a shortcut into the infobox form.
+- **UI**: Polished the reading surface throughout. Headings now follow a proper visual hierarchy. The infobox renders as a clean flat card with flush images, muted field labels, and a tag footer. The page bar promotes Edit as the primary action in read mode and gains undo/redo and a compact mode control in edit and split modes. The split editor shows labelled panes, coloured wikilinks, and flags unresolved links before you close the editor.
+
+### 🐞 Fixed
+
+- **Localisation**: Fixed a large number of Dutch translation keys that had been silently broken by an earlier find-and-replace, causing some labels to fall back to English. Also fixed two strings rendering raw placeholders (`{version}` and `{naam}`) instead of their values.
+- **Modals**: Fixed a bug where opening a modal from within another modal (e.g. creating a new calendar from the New Timeline screen) would destroy the first modal's state. Navigating back now returns you to exactly what you had typed, and selected values such as a newly created calendar are correctly preserved.
+
+---
+
 ## [v0.63.0-alpha] - 2026-11-03
 
 ### ✨ Added
