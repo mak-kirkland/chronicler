@@ -21,7 +21,7 @@ import type {
     ImportedImage,
     Snippet,
 } from "./bindings";
-import type { MapConfig, TileSetInfo } from "./mapModels";
+import type { TileSetInfo } from "./mapModels";
 
 /**
  * Thin wrapper around Tauri's `invoke` that funnels every backend call
@@ -269,20 +269,18 @@ export const getImageThumbnail = (path: string) =>
     invoke<string>("get_image_thumbnail", { path });
 
 /**
- * Reads and parses a `.cmap` file from within the vault.
+ * Reads a `.cmap` file's raw JSON text, which the map store parses. Like
+ * getCanvasJson, the text lets the store tell its own writes coming back
+ * through the watcher from real external edits.
  *
- * The backend returns the raw JSON string and we `JSON.parse` it here.
- * Routing the parsed object through Tauri's IPC would force two extra
- * full passes (re-serialize on the way out, re-parse on the way in)
- * which is significant for large maps (tens of MB).
+ * Routing a parsed object through Tauri's IPC instead would force two extra
+ * full passes (re-serialize on the way out, re-parse on the way in), which
+ * is significant for large maps (tens of MB).
  *
  * @param path The absolute path to the map config file.
- * @returns A promise that resolves to the parsed map configuration.
  */
-export const getMapConfig = async (path: string): Promise<MapConfig> => {
-    const json = await invoke<string>("get_map_config", { path });
-    return JSON.parse(json) as MapConfig;
-};
+export const getMapJson = (path: string): Promise<string> =>
+    invoke<string>("get_map_config", { path });
 
 /**
  * Reads a `.canvas` file's raw JSON text (parsed by parseCanvasData). The

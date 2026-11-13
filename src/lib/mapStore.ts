@@ -12,7 +12,7 @@
 
 import { writable, get } from "svelte/store";
 import {
-    getMapConfig as getMapConfigFromDisk,
+    getMapJson,
     writePageContent,
     ensureLayerTiles,
     lookupLayerTileInfo,
@@ -39,6 +39,11 @@ const mapCache = new LRUCache<string, CachedMap>(MAX_CACHED_MAPS);
 // Reactive store — updated whenever the LRU cache changes so subscribers re-render.
 export const loadedMaps = writable<Map<string, CachedMap>>(new Map());
 
+/** path → the file's text as we last read or wrote it. A watcher event for a
+ *  map that still holds this text is our own write coming back (or a touch
+ *  that changed nothing), so it doesn't reload. */
+const diskText = new Map<string, string>();
+
 /**
  * Syncs the LRU cache contents into the Svelte store for reactivity.
  */
@@ -46,6 +51,10 @@ function syncStoreFromCache(): void {
     const snapshot = new Map<string, CachedMap>();
     for (const [k, v] of mapCache.entries()) {
         snapshot.set(k, v);
+    }
+    // Forget the text of maps the LRU has evicted.
+    for (const p of diskText.keys()) {
+        if (!snapshot.has(p)) diskText.delete(p);
     }
     loadedMaps.set(snapshot);
 }
@@ -69,22 +78,61 @@ export async function loadMapConfig(
         const cached = mapCache.get(normalizedPath);
         if (cached) return cached.config;
     }
+    return readFromDisk(normalizedPath);
+}
 
+/**
+ * Reads, parses and caches the map. Returns null if that fails (logged) or,
+ * with `onlyIfChanged`, if the file still holds the text we last read or
+ * wrote.
+ */
+async function readFromDisk(
+    normalizedPath: string,
+    onlyIfChanged = false,
+): Promise<MapConfig | null> {
     try {
-        const config = await getMapConfigFromDisk(normalizedPath);
-
-        mapCache.set(normalizedPath, {
-            path: normalizedPath,
-            config,
-            loadedAt: Date.now(),
-        });
-        syncStoreFromCache();
-
+        const text = await getMapJson(normalizedPath);
+        if (onlyIfChanged && text === diskText.get(normalizedPath)) {
+            return null;
+        }
+        const config = JSON.parse(text) as MapConfig;
+        registerMap(normalizedPath, config);
+        diskText.set(normalizedPath, text);
         return config;
     } catch (e) {
         log.error(`Failed to load map at ${normalizedPath}`, e, "mapStore");
         return null;
     }
+}
+
+/**
+ * Called from worldStore when the watcher reports changed maps — such as a
+ * rename rewriting the pins and regions that open the renamed page or map.
+ * Reloads any that are open whose text on disk differs from what we last
+ * read or wrote, so an open map shows the change and its next save doesn't
+ * write the old text back. Works like the timeline and canvas stores'
+ * `handleExternalChanges` (documentStore.ts): the reload joins the per-path
+ * write queue, behind any save in flight.
+ */
+export function handleExternalChanges(paths: string[]): Promise<void> {
+    const reloads: Promise<unknown>[] = [];
+    for (const p of paths) {
+        const normalizedPath = normalizePath(p);
+        if (!mapCache.get(normalizedPath)) continue; // not open
+        const previousTask =
+            fileWriteQueues.get(normalizedPath) || Promise.resolve();
+        const reloadTask: Promise<void> = previousTask
+            .catch(() => {})
+            .then(() => void readFromDisk(normalizedPath, true))
+            .finally(() => {
+                if (fileWriteQueues.get(normalizedPath) === reloadTask) {
+                    fileWriteQueues.delete(normalizedPath);
+                }
+            });
+        fileWriteQueues.set(normalizedPath, reloadTask);
+        reloads.push(reloadTask);
+    }
+    return Promise.all(reloads).then(() => {});
 }
 
 /**
@@ -171,11 +219,10 @@ export async function updateMapConfig(
             registerMap(normalizedPath, newConfig);
 
             // 4. Write to disk — rollback on failure
+            const text = JSON.stringify(newConfig, null, 2);
             try {
-                await writePageContent(
-                    normalizedPath,
-                    JSON.stringify(newConfig, null, 2),
-                );
+                await writePageContent(normalizedPath, text);
+                diskText.set(normalizedPath, text);
             } catch (e) {
                 log.error(
                     `Write failed for ${normalizedPath}, rolling back.`,

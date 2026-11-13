@@ -20,11 +20,13 @@ pub struct Snippet {
 }
 
 /// Partial representation of a Map Pin for indexing purposes.
-/// We only need the target page to build relationships.
+/// We only need the page and map it opens to build relationships.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MapPin {
     #[serde(rename = "targetPage")]
     pub target_page: Option<String>,
+    #[serde(rename = "targetMap")]
+    pub target_map: Option<String>,
     // We can ignore x, y, icon, etc. for the backend index to save memory.
 }
 
@@ -33,6 +35,8 @@ pub struct MapPin {
 pub struct MapRegion {
     #[serde(rename = "targetPage")]
     pub target_page: Option<String>,
+    #[serde(rename = "targetMap")]
+    pub target_map: Option<String>,
 }
 
 /// Partial representation of the Map Configuration file.

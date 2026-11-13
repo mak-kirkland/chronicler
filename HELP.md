@@ -43,7 +43,7 @@ Here is a simple footnote[^1]. With some additional text after it.
 Use `[[Page Name]]` to link to other pages in your vault.
 
 -   Create an alias with `[[Page Name|link text]]`.
--   When you rename a page, all links to it are automatically updated.
+-   When you rename a page, all links to it are automatically updated, including map pins and regions that open it.
 
 #### 🗺️ Linking to Maps
 
@@ -54,7 +54,7 @@ Put `map:` in front of a map's name to link to the map instead of a page: `[[map
 -   Type `[[map:` to pick a map from a list, then `#` to pick one of its pins or regions.
 -   If the place is on a hidden layer, that layer is switched on. If the map has no pin or region by that name, the whole map opens instead.
 -   In split view, if the other side is showing that map, clicking the link moves the map to the place and leaves your page where it is.
--   Renaming a map updates all links to it. Renaming a pin or region doesn't, so update those links by hand.
+-   Renaming a map updates all links to it, including pins and regions on other maps that open it. Renaming a pin or region doesn't, so update those links by hand.
 
 ---
 

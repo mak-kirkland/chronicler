@@ -69,8 +69,10 @@ pub struct Indexer {
     /// page and a map can share a name.
     pub map_resolver: HashMap<String, PathBuf>,
 
-    /// Maps a map path to the pages and timelines whose text links to it with
-    /// `[[map:…]]`. Used to rewrite those links when the map is renamed.
+    /// Maps a map path to the files that reach it by name: pages and
+    /// timelines whose text links to it with `[[map:…]]`, and other maps
+    /// whose pins or regions open it. Used to rewrite them when the map is
+    /// renamed.
     pub map_link_backlinks: HashMap<PathBuf, HashSet<PathBuf>>,
 }
 
@@ -649,34 +651,30 @@ impl Indexer {
                     }
                 }
                 VaultAsset::Map(config) => {
-                    // Index map pins linking to pages
-                    if let Some(pins) = &config.pins {
-                        for pin in pins {
-                            if let Some(target) = &pin.target_page {
-                                if let Some(target_path) =
-                                    new_link_resolver.get(&target.to_lowercase())
-                                {
-                                    new_map_backlinks
-                                        .entry(target_path.clone())
-                                        .or_default()
-                                        .insert(path.clone());
-                                }
-                            }
+                    // Pins and regions open a page, another map, or both.
+                    let pins = config.pins.iter().flatten();
+                    let shapes = config.shapes.iter().flatten();
+                    let targets = pins
+                        .map(|p| (&p.target_page, &p.target_map))
+                        .chain(shapes.map(|s| (&s.target_page, &s.target_map)));
+                    for (page, map) in targets {
+                        if let Some(target_path) = page
+                            .as_ref()
+                            .and_then(|t| new_link_resolver.get(&t.to_lowercase()))
+                        {
+                            new_map_backlinks
+                                .entry(target_path.clone())
+                                .or_default()
+                                .insert(path.clone());
                         }
-                    }
-                    // Index map regions linking to pages
-                    if let Some(shapes) = &config.shapes {
-                        for shape in shapes {
-                            if let Some(target) = &shape.target_page {
-                                if let Some(target_path) =
-                                    new_link_resolver.get(&target.to_lowercase())
-                                {
-                                    new_map_backlinks
-                                        .entry(target_path.clone())
-                                        .or_default()
-                                        .insert(path.clone());
-                                }
-                            }
+                        if let Some(target_path) = map
+                            .as_ref()
+                            .and_then(|t| new_map_resolver.get(&t.to_lowercase()))
+                        {
+                            new_map_link_backlinks
+                                .entry(target_path.clone())
+                                .or_default()
+                                .insert(path.clone());
                         }
                     }
                 }

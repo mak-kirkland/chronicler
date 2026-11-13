@@ -33,8 +33,9 @@ struct BacklinkUpdate {
 
 /// Files other than the renamed one that a rename or move may have to rewrite.
 pub struct RenameRefs {
-    /// Pages and timelines that link to the renamed file by name: with
-    /// `[[Name]]` for a page, `[[map:Name]]` for a map.
+    /// Files that reach the renamed file by name: pages and timelines with
+    /// `[[Name]]` for a page or `[[map:Name]]` for a map, and maps whose
+    /// pins or regions open it (`targetPage` / `targetMap`).
     pub backlinks: HashSet<PathBuf>,
     /// Every canvas in the vault. They point at files by vault-relative path
     /// rather than by link, so any of them may reference the renamed file, or
@@ -156,6 +157,13 @@ fn rewrite_wikilink_targets(
 ) -> Option<String> {
     let new_content = WIKILINK_RE.replace_all(content, |caps: &Captures| {
         let raw = caps.get(1).map_or("", |m| m.as_str());
+        // In a table the alias pipe is escaped (`[[Old\|alias]]`), which
+        // leaves the backslash on the target. Match the name without it, as
+        // the index does (`extract_links`), and keep the escape.
+        let (raw, escape) = match raw.strip_suffix('\\') {
+            Some(name) => (name, "\\"),
+            None => (raw, ""),
+        };
         match new_target(raw) {
             Some(target) => {
                 // The capture groups exclude the `#` and `|` separators.
@@ -165,7 +173,7 @@ fn rewrite_wikilink_targets(
                 let alias = caps
                     .get(3)
                     .map_or(String::new(), |m| format!("|{}", m.as_str()));
-                format!("[[{target}{section}{alias}]]")
+                format!("[[{target}{escape}{section}{alias}]]")
             }
             None => caps[0].to_string(),
         }
@@ -258,6 +266,46 @@ fn rewrite_timeline_links(
                     event["description"] = serde_json::Value::String(new_desc);
                     changed = true;
                 }
+            }
+        }
+    }
+    if changed {
+        serde_json::to_string_pretty(&value).ok()
+    } else {
+        None
+    }
+}
+
+/// Points a map's pins and regions at a renamed page (`targetPage`) or map
+/// (`targetMap`). Value-based, like `rewrite_timeline_links`, so unknown
+/// fields round-trip untouched. Returns None when nothing changed or the
+/// JSON is malformed.
+fn rewrite_map_targets(
+    content: &str,
+    old_stem: &str,
+    new_stem: &str,
+    kind: RefKind,
+) -> Option<String> {
+    let mut value: serde_json::Value = serde_json::from_str(content).ok()?;
+    let field = match kind {
+        RefKind::Page => "targetPage",
+        RefKind::Map => "targetMap",
+    };
+    let old_lower = old_stem.to_lowercase();
+    let mut changed = false;
+
+    for list in ["pins", "shapes"] {
+        let Some(items) = value.get_mut(list).and_then(|l| l.as_array_mut()) else {
+            continue;
+        };
+        for item in items {
+            let opens_old = item
+                .get(field)
+                .and_then(|t| t.as_str())
+                .is_some_and(|t| t.to_lowercase() == old_lower);
+            if opens_old {
+                item[field] = serde_json::Value::String(new_stem.to_string());
+                changed = true;
             }
         }
     }
@@ -411,7 +459,7 @@ fn prepare_update(
 }
 
 /// Link rewrites for a renamed page or map (`kind`): text rewrites in markdown
-/// backlinks, value-based rewrites in timeline backlinks.
+/// backlinks, value-based rewrites in timeline and map backlinks.
 fn prepare_link_updates(
     old_path: &Path,
     new_path: &Path,
@@ -424,9 +472,12 @@ fn prepare_link_updates(
         .iter()
         .filter_map(|path| {
             prepare_update(path.clone(), |content| {
-                // Timeline backlinks are JSON files: rewrite them value-based.
+                // Timeline and map backlinks are JSON files: rewrite them
+                // value-based.
                 if is_timeline_file(path) {
                     rewrite_timeline_links(content, &old_stem, &new_stem, kind)
+                } else if is_map_file(path) {
+                    rewrite_map_targets(content, &old_stem, &new_stem, kind)
                 } else {
                     rewrite_text_refs(content, &old_stem, &new_stem, kind)
                 }
@@ -1309,6 +1360,90 @@ mod tests {
             rewrite_page_refs("[[Old]] [[map:Old]]", "Old", "New").as_deref(),
             Some("[[New]] [[map:Old]]")
         );
+    }
+
+    #[test]
+    fn rename_rewrites_links_whose_alias_pipe_is_escaped_for_a_table() {
+        assert_eq!(
+            replace_map_link_in_content("| [[map:Old\\|the realm]] |", "Old", "New").as_deref(),
+            Some("| [[map:New\\|the realm]] |")
+        );
+        assert_eq!(
+            replace_wikilink_in_content("| [[Old\\|the page]] |", "Old", "New").as_deref(),
+            Some("| [[New\\|the page]] |")
+        );
+        // With a place or section, the escape ends that part instead.
+        assert_eq!(
+            replace_map_link_in_content("| [[map:Old#Gate\\|g]] |", "Old", "New").as_deref(),
+            Some("| [[map:New#Gate\\|g]] |")
+        );
+    }
+
+    /// A map whose pin and region open the page `Old` and the map `Old`,
+    /// plus one of each that opens something else.
+    const LINKING_MAP: &str = r#"{
+  "title": "World",
+  "futureField": {"keep": "me"},
+  "pins": [
+    {"id": "p1", "x": 1, "y": 2, "targetPage": "old", "targetMap": "Old"},
+    {"id": "p2", "x": 3, "y": 4, "targetPage": "Other", "targetMap": "Other"}
+  ],
+  "shapes": [
+    {"id": "s1", "type": "polygon", "targetPage": "Old", "targetMap": "OLD"},
+    {"id": "s2", "type": "polygon"}
+  ]
+}"#;
+
+    #[test]
+    fn rewrite_map_targets_follows_a_renamed_page_or_map() {
+        let value = |s: String| serde_json::from_str::<serde_json::Value>(&s).unwrap();
+
+        let page = value(rewrite_map_targets(LINKING_MAP, "Old", "New", RefKind::Page).unwrap());
+        assert_eq!(page["pins"][0]["targetPage"], "New");
+        assert_eq!(page["shapes"][0]["targetPage"], "New");
+        // A page rename leaves map targets alone, and the reverse.
+        assert_eq!(page["pins"][0]["targetMap"], "Old");
+        assert_eq!(page["pins"][1]["targetPage"], "Other");
+        assert_eq!(page["futureField"]["keep"], "me");
+
+        let map = value(rewrite_map_targets(LINKING_MAP, "Old", "New", RefKind::Map).unwrap());
+        assert_eq!(map["pins"][0]["targetMap"], "New");
+        assert_eq!(map["shapes"][0]["targetMap"], "New");
+        assert_eq!(map["pins"][0]["targetPage"], "old");
+        assert_eq!(map["pins"][1]["targetMap"], "Other");
+        assert!(map["shapes"][1].get("targetMap").is_none());
+    }
+
+    #[test]
+    fn rewrite_map_targets_returns_none_when_nothing_matches_or_malformed() {
+        assert!(rewrite_map_targets(LINKING_MAP, "Nope", "New", RefKind::Map).is_none());
+        assert!(rewrite_map_targets("{ nope", "Old", "New", RefKind::Map).is_none());
+        assert!(rewrite_map_targets(r#"{"title":"T"}"#, "Old", "New", RefKind::Page).is_none());
+    }
+
+    #[test]
+    fn rename_rewrites_the_maps_that_open_the_renamed_file() {
+        let dir = tempdir().unwrap();
+        let root = dir.path();
+        let world = root.join("World.cmap");
+        fs::write(&world, LINKING_MAP).unwrap();
+        let map = root.join("Old.cmap");
+        fs::write(&map, r#"{"title":"Old"}"#).unwrap();
+        let page = root.join("Old.md");
+        fs::write(&page, "# Old").unwrap();
+        let refs = || link_refs(HashSet::from([world.clone()]));
+
+        Writer::new().rename_path(&map, "Kingdom", &refs()).unwrap();
+        Writer::new()
+            .rename_path(&page, "Capital", &refs())
+            .unwrap();
+
+        let v: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&world).unwrap()).unwrap();
+        assert_eq!(v["pins"][0]["targetMap"], "Kingdom");
+        assert_eq!(v["shapes"][0]["targetMap"], "Kingdom");
+        assert_eq!(v["pins"][0]["targetPage"], "Capital");
+        assert_eq!(v["shapes"][0]["targetPage"], "Capital");
     }
 
     /// A vault where a page, a timeline and a canvas text card all link to

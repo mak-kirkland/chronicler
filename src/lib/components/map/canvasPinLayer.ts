@@ -201,7 +201,8 @@ export class CanvasPinLayer extends L.Layer {
     /**
      * Toggle map-console mode. When open, invisible pins are painted as
      * translucent ghosts so they can be found and edited; when closed they are
-     * not painted at all (but stay hit-testable — see `drawPin`).
+     * not painted at all, unless highlighted (but stay hit-testable — see
+     * `drawPin`).
      */
     setConsoleOpen(open: boolean): void {
         if (this.consoleOpen === open) return;
@@ -482,9 +483,16 @@ export class CanvasPinLayer extends L.Layer {
     private drawPin(pin: CanvasPin, cx: number, cy: number): void {
         // Invisible pins are interactive hotspots: render() still registers
         // their hit entry, so they stay clickable/hoverable, but they are only
-        // *painted* while the console is open. In normal viewing mode they must
-        // be completely invisible, not merely faint.
-        if (pin.invisible && !this.consoleOpen) return;
+        // *painted* while the console is open, or while highlighted (a map
+        // link landing on one flashes it, to show where it is). In normal
+        // viewing mode they must be completely invisible, not merely faint.
+        if (
+            pin.invisible &&
+            !this.consoleOpen &&
+            pin.id !== this.highlightedId
+        ) {
+            return;
+        }
 
         const ctx = this.ctx!;
         const isHighlighted =
@@ -500,8 +508,9 @@ export class CanvasPinLayer extends L.Layer {
         const bodyCY = cy - r * 2; // body center; total height ≈ 3r
 
         ctx.save();
-        // Reached only when the console is open (drawPin returns early
-        // otherwise), so paint the invisible pin as a translucent ghost.
+        // Reached only when the console is open or it's highlighted (drawPin
+        // returns early otherwise), so paint the invisible pin as a
+        // translucent ghost.
         if (pin.invisible) ctx.globalAlpha = 0.45;
 
         // Build the teardrop as one continuous path: top arc rounds back

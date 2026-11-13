@@ -205,7 +205,7 @@ export interface IndexUpdatePayload {
     pages_changed: boolean;
     /** An image file was added, renamed, or removed (not just content-modified). */
     media_changed: boolean;
-    /** Timeline/canvas files created, modified, or renamed in this batch. */
+    /** Timeline, canvas and map files created, modified, or renamed in this batch. */
     changed_files: string[];
 }
 

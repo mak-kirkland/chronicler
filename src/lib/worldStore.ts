@@ -27,12 +27,14 @@ import {
     isImage,
     isTimelineFile,
     isCanvasFile,
+    isMapFile,
     debounce,
 } from "./utils";
 import { WORLD_UPDATE_DEBOUNCE_MS } from "./config";
 import { log } from "./logger";
 import { handleExternalChanges as handleTimelineChanges } from "$lib/timelineStore";
 import { handleExternalChanges as handleCanvasChanges } from "$lib/canvasStore";
+import { handleExternalChanges as handleMapChanges } from "$lib/mapStore";
 import type {
     FileNode,
     TagMap,
@@ -207,6 +209,7 @@ function createWorldStore() {
                     const changed = event.payload.changed_files ?? [];
                     handleTimelineChanges(changed.filter(isTimelineFile));
                     handleCanvasChanges(changed.filter(isCanvasFile));
+                    void handleMapChanges(changed.filter(isMapFile));
 
                     console.log(
                         `Index update received (structure=${event.payload.structure_changed}, pages=${event.payload.pages_changed}, media=${event.payload.media_changed}), scheduling refresh...`,

@@ -93,8 +93,8 @@ pub struct IndexUpdatePayload {
     /// content modifications don't count - the filename key is unchanged).
     /// Gates `getAllBrokenImages`.
     pub media_changed: bool,
-    /// Timeline/canvas files created, modified, or renamed in this batch —
-    /// consumed by the frontend stores for live refresh of open views.
+    /// Timeline, canvas and map files created, modified, or renamed in this
+    /// batch — consumed by the frontend stores for live refresh of open views.
     #[serde(serialize_with = "serialize_pathbufs_as_web_strs")]
     pub changed_files: Vec<PathBuf>,
 }
@@ -110,9 +110,14 @@ fn rename_refs(index: &Indexer, path: &Path) -> Option<RenameRefs> {
             _ => None,
         })
         .unwrap_or_default();
-    // Timelines that reference the page must be rewritten too, and for a map,
-    // the pages and timelines that link to it with `[[map:Name]]`.
-    for linkers in [&index.timeline_backlinks, &index.map_link_backlinks] {
+    // Timelines that reference the page must be rewritten too, and maps
+    // whose pins or regions open it. For a map: the pages and timelines that
+    // link to it with `[[map:Name]]`, and maps whose pins or regions open it.
+    for linkers in [
+        &index.timeline_backlinks,
+        &index.map_backlinks,
+        &index.map_link_backlinks,
+    ] {
         if let Some(paths) = linkers.get(path) {
             backlinks.extend(paths.iter().cloned());
         }
@@ -158,7 +163,9 @@ fn compute_update_payload(events: &[FileEvent]) -> IndexUpdatePayload {
         // timeline's own viewport save would otherwise trigger a vault-wide
         // refresh after every pan. They're tracked here instead, so the
         // frontend stores live-refresh exactly the open files that changed.
-        if (is_timeline_file(path) || is_canvas_file(path))
+        // Maps are too (a rename rewrites the pins and regions that open
+        // the renamed file).
+        if (is_timeline_file(path) || is_canvas_file(path) || is_map_file(path))
             && !payload.changed_files.iter().any(|p| p == path)
         {
             payload.changed_files.push(path.to_path_buf());
@@ -871,5 +878,41 @@ mod tests {
             std::fs::read_to_string(&page).unwrap(),
             "See [[map:New#Gate]]."
         );
+    }
+
+    #[test]
+    fn rename_refs_include_maps_whose_pins_or_regions_open_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::write(root.join("Old.cmap"), r#"{"title":"Old"}"#).unwrap();
+        std::fs::write(root.join("Capital.md"), "# Capital").unwrap();
+        std::fs::write(
+            root.join("World.cmap"),
+            r#"{"title":"World","pins":[{"id":"p","targetMap":"old"}]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("Region.cmap"),
+            r#"{"title":"Region","shapes":[{"id":"s","targetPage":"Capital"}]}"#,
+        )
+        .unwrap();
+        let mut index = Indexer::new(root);
+        index.scan_vault(root).unwrap();
+        let canon = |name: &str| std::fs::canonicalize(root.join(name)).unwrap();
+
+        let map_refs = rename_refs(&index, &canon("Old.cmap")).unwrap();
+        assert!(map_refs.backlinks.contains(&canon("World.cmap")));
+        assert!(!map_refs.backlinks.contains(&canon("Region.cmap")));
+
+        let page_refs = rename_refs(&index, &canon("Capital.md")).unwrap();
+        assert!(page_refs.backlinks.contains(&canon("Region.cmap")));
+        assert!(!page_refs.backlinks.contains(&canon("World.cmap")));
+    }
+
+    #[test]
+    fn map_edit_refreshes_that_map() {
+        let path = PathBuf::from("/v/world.cmap");
+        let payload = compute_update_payload(&[FileEvent::Modified(path.clone())]);
+        assert_eq!(payload.changed_files, vec![path]);
     }
 }

@@ -12,6 +12,7 @@
     import {
         loadedMaps,
         loadMapConfig,
+        getMapConfig,
         updateMapConfig,
         getLayerTileInfo,
         lookupTileInfo,
@@ -462,11 +463,14 @@
 
     // Single effect: load from disk on path change, then stay in sync via store.
     $effect(() => {
-        if (!data.path) return;
+        const path = data.path;
+        if (!path) return;
 
         // Kick off initial load (populates the store cache)
-        loadMapConfig(data.path)
+        loadMapConfig(path)
             .then((config) => {
+                // A map left before it loaded mustn't be drawn as this one.
+                if (path !== data.path) return;
                 if (config) {
                     mapConfig = config;
                 } else {
@@ -989,6 +993,7 @@
             map = null;
             resetMapLayers();
             prevConfig = null;
+            drawnConfig = null;
         }
     }
 
@@ -1017,12 +1022,8 @@
             // Signal styling effects that layers are rebuilt
             layerRevision += 1;
 
-            // A map link's place, asked for before the map was ready.
-            if (pendingPlace) {
-                const target = pendingPlace;
-                pendingPlace = null;
-                untrack(() => focusPlace(target, false));
-            }
+            drawnConfig = config;
+            applyPendingPlace();
         } catch (e: any) {
             log.error("Map Error", e, "MapView");
             error = `Map Error: ${e.message}`;
@@ -1619,9 +1620,16 @@
     /** How long the "no such place" note stays up. */
     const PLACE_NOTICE_MS = 4000;
 
-    // The place the link that opened this map named; applied (once) as soon
-    // as the map is ready.
-    let pendingPlace: string | null = untrack(() => place);
+    // The map and place of the history entry on show. Back, Forward or a
+    // link can move this same view to another entry (see the effect below).
+    let shownEntry = untrack(() => ({ path: data.path, place }));
+    // A place asked for before its map was drawn, applied (once) as soon as
+    // it is. It names its map, so it can never land on another one.
+    let pendingPlace: { path: string; place: string } | null = shownEntry.place
+        ? { path: shownEntry.path, place: shownEntry.place }
+        : null;
+    // The config the map on screen was last drawn from (set by updateMap).
+    let drawnConfig: MapConfig | null = null;
     // The view the map opens at, and the tile pyramid's native zoom level.
     // Both are set by initializeMap.
     let openingView: { center: L.LatLng; zoom: number } | null = null;
@@ -1632,6 +1640,36 @@
     // A request already in the store when this view mounted was for an
     // earlier visit, so only newer ones count.
     let handledFocusRequest = get(mapFocusRequest);
+
+    // This view stays mounted when its tab moves to another map entry, so
+    // land on each new entry's place: on another map once it's drawn (a map
+    // with no place opens whole), on this one by flying there (no place:
+    // back to the opening view).
+    $effect(() => {
+        const entry = { path: data.path, place };
+        untrack(() => {
+            const prev = shownEntry;
+            if (entry.path === prev.path && entry.place === prev.place) return;
+            shownEntry = entry;
+            pendingPlace = null;
+            if (entry.path === prev.path) {
+                focusPlace(entry.place, true);
+            } else if (entry.place) {
+                pendingPlace = { path: entry.path, place: entry.place };
+                applyPendingPlace();
+            }
+        });
+    });
+
+    /** Lands on the pending place, once its map is the one drawn. */
+    function applyPendingPlace() {
+        const pending = pendingPlace;
+        if (!pending || pending.path !== data.path || !map) return;
+        // Right after a switch the old map's config may still be drawn.
+        if (!drawnConfig || drawnConfig !== getMapConfig(pending.path)) return;
+        pendingPlace = null;
+        untrack(() => focusPlace(pending.place, false));
+    }
 
     // A map link clicked in the other pane of a split view, while this pane
     // shows the map it links to (see `openMapLink` in actions.ts).
@@ -1651,7 +1689,7 @@
      */
     function focusPlace(target: string | null, animate: boolean) {
         if (!map || !mapConfig) {
-            if (target) pendingPlace = target;
+            pendingPlace = target ? { path: data.path, place: target } : null;
             return;
         }
         if (target === null) {

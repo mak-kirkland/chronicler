@@ -92,6 +92,12 @@
         }
     });
 
+    // The list can shrink under the selection without the caret moving (a
+    // pin removed elsewhere, a file deleted), so the selection stays on it.
+    const activeIndex = $derived(
+        Math.min(selectedIndex, suggestions.length - 1),
+    );
+
     function refreshToken() {
         if (!textareaEl) return;
         token = wikilinkQueryAt(value, textareaEl.selectionStart);
@@ -144,14 +150,14 @@
         if (!token || suggestions.length === 0) return;
         if (e.key === "ArrowDown") {
             e.preventDefault();
-            selectedIndex = (selectedIndex + 1) % suggestions.length;
+            selectedIndex = (activeIndex + 1) % suggestions.length;
         } else if (e.key === "ArrowUp") {
             e.preventDefault();
             selectedIndex =
-                (selectedIndex - 1 + suggestions.length) % suggestions.length;
+                (activeIndex - 1 + suggestions.length) % suggestions.length;
         } else if (e.key === "Enter" || e.key === "Tab") {
             e.preventDefault();
-            apply(suggestions[selectedIndex].label);
+            apply(suggestions[activeIndex].label);
         } else if (e.key === "Escape") {
             // Close only the dropdown, not the surrounding modal.
             e.stopPropagation();
@@ -178,8 +184,8 @@
                     <button
                         type="button"
                         role="option"
-                        aria-selected={i === selectedIndex}
-                        class:selected={i === selectedIndex}
+                        aria-selected={i === activeIndex}
+                        class:selected={i === activeIndex}
                         onpointerdown={(e) => {
                             e.preventDefault(); // keep textarea focus
                             apply(label);
