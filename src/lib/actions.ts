@@ -26,7 +26,7 @@ import { get } from "svelte/store";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { log } from "./logger";
 import { translate } from "./i18n";
-import { paneShowingMap } from "./tabs";
+import { paneShowingMap, type MapPlace } from "./tabs";
 import { requestMapFocus } from "./mapFocus";
 
 /** Classifies a path into the view type used to display it. */
@@ -162,8 +162,8 @@ export function handleContentClick(event: Event) {
             }
             const mapPath = link.getAttribute("data-map-path");
             if (mapPath) {
-                openMapLink(
-                    mapPath,
+                openMapAt(
+                    { path: mapPath, title: fileStemString(mapPath) },
                     link.getAttribute("data-place"),
                     openInNewTab,
                 );
@@ -265,34 +265,35 @@ export function navigateToImage(image: PageHeader, newTab = false) {
  * Navigates the main view to display a specific map.
  * @param page The header of the map to navigate to, containing its path and title.
  * @param newTab If true, opens in a new tab instead of the current one.
+ * @param place Where on the map to land (see MapPlace); null opens it whole.
  */
 export function navigateToMap(
     page: PageHeader,
     newTab = false,
-    place: string | null = null,
+    place: MapPlace | null = null,
 ) {
     navigate({ type: "map", data: page, place }, newTab);
 }
 
 /**
- * Follows a `[[map:Name#Place]]` link to the map at `path`, landing on
- * `place` (a pin or region label) when given. In split view, if the other
- * pane already shows that map, it flies there and the page stays put;
- * otherwise the map opens like any link target (in a new tab if asked).
+ * Opens `map` at `place`, for a `[[map:Name#Place]]` link or a page's "View
+ * on Map". In split view, if the other pane already shows that map, it flies
+ * there and the page stays put; otherwise the map opens like any link target
+ * (in a new tab if asked).
  */
-export function openMapLink(
-    path: string,
-    place: string | null,
+export function openMapAt(
+    map: PageHeader,
+    place: MapPlace | null,
     newTab: boolean,
 ): void {
     if (!newTab) {
-        const otherTabId = paneShowingMap(get(tabs), path);
+        const otherTabId = paneShowingMap(get(tabs), map.path);
         if (otherTabId) {
             requestMapFocus(otherTabId, place);
             return;
         }
     }
-    navigateToMap({ path, title: fileStemString(path) }, newTab, place);
+    navigateToMap(map, newTab, place);
 }
 
 /**

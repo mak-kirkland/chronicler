@@ -21,9 +21,9 @@
     } from "$lib/commands";
     import {
         handleContentClick,
-        navigateToMap,
         navigateToPage,
         navigateToTag,
+        openMapAt,
     } from "$lib/actions";
     import type {
         PageHeader,
@@ -403,13 +403,15 @@
     // div's bind:this, so the click event itself isn't needed.
     function handleMapClick() {
         if (associatedMaps.length === 1) {
-            navigateToMap({
-                title: associatedMaps[0].title,
-                path: associatedMaps[0].path,
-            });
+            showOnMap(associatedMaps[0]);
         } else if (associatedMaps.length > 1) {
             isMapMenuOpen = !isMapMenuOpen;
         }
+    }
+
+    /** Opens `map` on the pins and regions that open this page, like a map link. */
+    function showOnMap(map: MapLink) {
+        openMapAt(map, { page: file.path }, false);
     }
 </script>
 
@@ -481,7 +483,7 @@
                                 label: m.title,
                                 title: m.path,
                                 icon: "map" as const,
-                                handler: () => navigateToMap(m),
+                                handler: () => showOnMap(m),
                             }))}
                             onClose={() => (isMapMenuOpen = false)}
                         />

@@ -206,7 +206,7 @@ export function isLayerIdVisible(
 /**
  * Checks if two sets contain the same elements.
  */
-export function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
+export function setsEqual<T>(a: ReadonlySet<T>, b: ReadonlySet<T>): boolean {
     if (a.size !== b.size) return false;
     for (const v of a) {
         if (!b.has(v)) return false;
@@ -311,47 +311,61 @@ export async function checkLayerImage(
 
 // --- LINKED PLACES ---
 
-/** The pin or region a `[[map:Name#Place]]` link lands on. */
+/**
+ * A pin or region a map lands on: the one a `[[map:Name#Place]]` link
+ * names, or one of those that open a page ("View on Map" on that page).
+ */
 export type PlaceMatch =
     | { kind: "pin"; pin: MapPin; hiddenLayerId: string | null }
     | { kind: "region"; region: MapRegion; hiddenLayerId: string | null };
 
+/** The pin or region a match is. */
+function placeItem(match: PlaceMatch): MapPin | MapRegion {
+    return match.kind === "pin" ? match.pin : match.region;
+}
+
 /**
- * Everything a link can land on, pins first, each in file order: labelled
- * objects on no layer or on a layer that exists. `hiddenLayerId` names the
- * layer to switch on to see it. An object on a deleted layer is never drawn,
- * so it can't be linked to.
+ * Everything a map can land on, pins first, each in file order: objects on
+ * no layer or on a layer that exists. `hiddenLayerId` names the layer to
+ * switch on to see it. An object on a deleted layer is never drawn, so
+ * nothing lands on it.
  */
+function drawnPlaces(config: MapConfig): PlaceMatch[] {
+    const layers = new Map(config.layers.map((l) => [l.id, l]));
+    // undefined: on a deleted layer.
+    const hiddenLayer = (layerId?: string): string | null | undefined => {
+        if (!layerId) return null;
+        const layer = layers.get(layerId);
+        if (!layer) return undefined;
+        return layer.visible ? null : layer.id;
+    };
+    const out: PlaceMatch[] = [];
+    for (const pin of config.pins) {
+        const hiddenLayerId = hiddenLayer(pin.layerId);
+        if (hiddenLayerId !== undefined) {
+            out.push({ kind: "pin", pin, hiddenLayerId });
+        }
+    }
+    for (const region of config.shapes) {
+        const hiddenLayerId = hiddenLayer(region.layerId);
+        if (hiddenLayerId !== undefined) {
+            out.push({ kind: "region", region, hiddenLayerId });
+        }
+    }
+    return out;
+}
+
+/** Everything a link can land on: the drawn places with a label it can spell. */
 function linkablePlaces(
     config: MapConfig,
 ): { label: string; match: PlaceMatch }[] {
-    const layers = new Map(config.layers.map((l) => [l.id, l]));
     const out: { label: string; match: PlaceMatch }[] = [];
-    const add = (
-        item: { label?: string; layerId?: string },
-        match: (hiddenLayerId: string | null) => PlaceMatch,
-    ) => {
-        const label = item.label?.trim();
+    for (const match of drawnPlaces(config)) {
+        const label = placeItem(match).label?.trim();
         // `#`, `|`, `[` and `]` end or break the link, so a label holding
         // one can't be written as `[[map:Name#Label]]`.
-        if (!label || /[#|[\]]/.test(label)) return;
-        let hidden: string | null = null;
-        if (item.layerId) {
-            const layer = layers.get(item.layerId);
-            if (!layer) return;
-            if (!layer.visible) hidden = layer.id;
-        }
-        out.push({ label, match: match(hidden) });
-    };
-    for (const pin of config.pins) {
-        add(pin, (hiddenLayerId) => ({ kind: "pin", pin, hiddenLayerId }));
-    }
-    for (const region of config.shapes) {
-        add(region, (hiddenLayerId) => ({
-            kind: "region",
-            region,
-            hiddenLayerId,
-        }));
+        if (!label || /[#|[\]]/.test(label)) continue;
+        out.push({ label, match });
     }
     return out;
 }
@@ -367,6 +381,39 @@ export function findPlace(config: MapConfig, place: string): PlaceMatch | null {
         (p) => p.label.toLowerCase() === want,
     );
     return hit?.match ?? null;
+}
+
+/**
+ * The drawn pins and regions that open a page, pins first, each in file
+ * order, labelled or not: those whose `targetPage` `opensPage` resolves to
+ * it. "View on Map" on that page lands on them all.
+ */
+export function pagePlaces(
+    config: MapConfig,
+    opensPage: (targetPage: string) => boolean,
+): PlaceMatch[] {
+    return drawnPlaces(config).filter((match) => {
+        const target = placeItem(match).targetPage;
+        return !!target && opensPage(target);
+    });
+}
+
+/**
+ * The extent of `places` in image pixels: their pins' points and every
+ * piece of their regions. `places` must not be empty.
+ */
+export function placesBounds(places: PlaceMatch[]): Bounds {
+    const all = places.map((m): Bounds => {
+        if (m.kind === "region") return regionBounds(m.region);
+        const { x, y } = m.pin;
+        return { minX: x, minY: y, maxX: x, maxY: y };
+    });
+    return {
+        minX: Math.min(...all.map((b) => b.minX)),
+        minY: Math.min(...all.map((b) => b.minY)),
+        maxX: Math.max(...all.map((b) => b.maxX)),
+        maxY: Math.max(...all.map((b) => b.maxY)),
+    };
 }
 
 /**
@@ -797,7 +844,8 @@ export type DrawState =
  *   to merge.
  * - Highlighted: while merging, the target and picks; while drawing a hole,
  *   the region being cut; while drawing a new region, none (hover is paused,
- *   so the hover set would be stale); otherwise hover + console hover.
+ *   so the hover set would be stale); otherwise hover + console hover + the
+ *   regions a link or "View on Map" just landed on (`flashedRegionIds`).
  */
 export function regionStyleState(state: {
     isConsoleOpen: boolean;
@@ -806,6 +854,7 @@ export function regionStyleState(state: {
     mergePickIds: Set<string>;
     highlightedRegionId: string | null;
     hoveredRegionIds: Set<string>;
+    flashedRegionIds: ReadonlySet<string>;
 }): { mode: "hidden" | "visible"; targeted: Set<string> } {
     const drawing = state.drawing !== null;
     const mode =
@@ -822,6 +871,7 @@ export function regionStyleState(state: {
     } else if (!drawing) {
         if (state.highlightedRegionId) targeted.add(state.highlightedRegionId);
         for (const id of state.hoveredRegionIds) targeted.add(id);
+        for (const id of state.flashedRegionIds) targeted.add(id);
     }
     return { mode, targeted };
 }

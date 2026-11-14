@@ -67,10 +67,12 @@
         DEFAULT_PIN_ICON,
         pinDropPoint,
         findPlace,
-        regionBounds,
+        pagePlaces,
+        placesBounds,
         pinFocusZoom,
         type PlaceMatch,
     } from "$lib/mapUtils";
+    import type { MapPlace } from "$lib/tabs";
     import { mapFocusRequest } from "$lib/mapFocus";
     import { get } from "svelte/store";
     import {
@@ -78,7 +80,7 @@
         pagePathLookup,
         mapPathLookup,
     } from "$lib/worldStore";
-    import { throttle } from "$lib/utils";
+    import { normalizePath, throttle } from "$lib/utils";
     import { observeSize } from "$lib/domActions";
     import type {
         MapConfig,
@@ -117,8 +119,8 @@
         isActive?: boolean;
         /** This pane owns the keyboard (see +page.svelte `resolve`). */
         isFocused?: boolean;
-        /** A pin or region label to land on (`[[map:Name#Place]]`). */
-        place?: string | null;
+        /** Where to land: a link's pin or region, or a page's (see MapPlace). */
+        place?: MapPlace | null;
         /** This view's tab, for fly-to requests from the other pane. */
         tabId?: string;
     }>();
@@ -344,6 +346,14 @@
     let isConsoleOpen = $state(false);
     let highlightedPinId = $state<string | null>(null);
     let highlightedRegionId = $state<string | null>(null); // From Console Hover
+    // The pins and regions a link or "View on Map" just landed on, briefly
+    // highlighted (see flashPlaces).
+    let flashedPinIds = $state.raw<ReadonlySet<string>>(new Set());
+    let flashedRegionIds = $state.raw<ReadonlySet<string>>(new Set());
+    // A lone flashed pin or region also gets what console hover would give
+    // it: its row lit in the console and, for a region, its label tooltip.
+    let soleFlashedRegionId = $derived(soleId(flashedRegionIds));
+    let soleFlashedPinId = $derived(soleId(flashedPinIds));
     // Map Hover State
     // We use a Set to track multiple overlapping regions if necessary
     let hoveredRegionIds = $state(new Set<string>());
@@ -450,12 +460,16 @@
 
     // --- Derived Console State ---
 
-    // Merged set of active region IDs for the console, combining map hover and console hover.
-    let activeRegionIds = $derived(
-        highlightedRegionId
-            ? new Set([...hoveredRegionIds, highlightedRegionId])
-            : hoveredRegionIds,
-    );
+    // Merged set of active region IDs for the console, combining map hover,
+    // console hover and a landing's flash.
+    let activeRegionIds = $derived.by(() => {
+        if (!highlightedRegionId && flashedRegionIds.size === 0) {
+            return hoveredRegionIds;
+        }
+        const ids = new Set([...hoveredRegionIds, ...flashedRegionIds]);
+        if (highlightedRegionId) ids.add(highlightedRegionId);
+        return ids;
+    });
 
     // =========================================================================
     // DATA LOADING
@@ -752,11 +766,13 @@
     // =========================================================================
 
     // Drive the canvas pin layer's highlight state from the console-hover
-    // selection. The layer redraws itself when this changes; we don't need
-    // a separate "reset previous" pass.
+    // selection and a landing's flash. The layer redraws itself when this
+    // changes; we don't need a separate "reset previous" pass.
     $effect(() => {
         void layerRevision;
-        pinLayer?.setHighlight(highlightedPinId);
+        const ids = new Set(flashedPinIds);
+        if (highlightedPinId) ids.add(highlightedPinId);
+        pinLayer?.setHighlight(ids);
     });
 
     // Keep the canvas pin layer's console mode in sync. Invisible pins are
@@ -785,6 +801,7 @@
                     mergePickIds,
                     highlightedRegionId,
                     hoveredRegionIds,
+                    flashedRegionIds,
                 });
 
             // Determine which shapes need restyling:
@@ -832,13 +849,12 @@
             prevRegionStyleMode = currentMode;
         }
 
-        // Handle explicit console hover tooltip
+        // Handle explicit console hover tooltip (or a lone flashed region's)
         // We use multiTooltip manually here because we removed bindTooltip from regions to avoid duplication
-        if (highlightedRegionId) {
-            const layer = shapeIdToLayer.get(highlightedRegionId);
-            const s = mapConfig?.shapes.find(
-                (s) => s.id === highlightedRegionId,
-            );
+        const tipRegionId = highlightedRegionId ?? soleFlashedRegionId;
+        if (tipRegionId) {
+            const layer = shapeIdToLayer.get(tipRegionId);
+            const s = mapConfig?.shapes.find((s) => s.id === tipRegionId);
             const center = layer && s ? regionAnchor(s) : null;
             if (s && center) {
                 const tooltip = getOrCreateMultiTooltip();
@@ -866,7 +882,7 @@
             // But this effect runs when isConsoleOpen changes.
             // The styling effect above manages the tooltip for highlightedRegionId.
             // This block is mostly for cleaning up "stuck" previews when modes change.
-            if (multiTooltip && !highlightedRegionId) {
+            if (multiTooltip && !highlightedRegionId && !soleFlashedRegionId) {
                 removeMultiTooltip();
             }
 
@@ -1612,7 +1628,7 @@
     }
 
     // =========================================================================
-    // LANDING ON A LINKED PLACE  (`[[map:Name#Place]]`)
+    // LANDING ON A PLACE  (`[[map:Name#Place]]`, "View on Map")
     // =========================================================================
 
     /** How long a linked place stays highlighted after landing on it. */
@@ -1625,9 +1641,10 @@
     let shownEntry = untrack(() => ({ path: data.path, place }));
     // A place asked for before its map was drawn, applied (once) as soon as
     // it is. It names its map, so it can never land on another one.
-    let pendingPlace: { path: string; place: string } | null = shownEntry.place
-        ? { path: shownEntry.path, place: shownEntry.place }
-        : null;
+    let pendingPlace: { path: string; place: MapPlace } | null =
+        shownEntry.place
+            ? { path: shownEntry.path, place: shownEntry.place }
+            : null;
     // The config the map on screen was last drawn from (set by updateMap).
     let drawnConfig: MapConfig | null = null;
     // The view the map opens at, and the tile pyramid's native zoom level.
@@ -1671,8 +1688,8 @@
         untrack(() => focusPlace(pending.place, false));
     }
 
-    // A map link clicked in the other pane of a split view, while this pane
-    // shows the map it links to (see `openMapLink` in actions.ts).
+    // A map link or "View on Map" clicked in the other pane of a split view,
+    // while this pane shows that map (see `openMapAt` in actions.ts).
     $effect(() => {
         const req = $mapFocusRequest;
         if (!req || req === handledFocusRequest || req.tabId !== tabId) return;
@@ -1681,13 +1698,12 @@
     });
 
     /**
-     * Shows the pin or region labelled `target`: centred at a close zoom for
-     * a pin, fitted to the view for a region, then briefly highlighted. Its
-     * layer is switched on (and saved) if it was hidden. A null `target`
-     * returns to the opening view; an unknown one leaves the view alone and
-     * says so.
+     * Lands on `target`: the pin or region with that label, or the pins and
+     * regions that open that page (see `landOn`). A null `target` returns to
+     * the opening view. An unknown label leaves the view alone and says so; a
+     * page nothing on the map opens any more leaves it alone quietly.
      */
-    function focusPlace(target: string | null, animate: boolean) {
+    function focusPlace(target: MapPlace | null, animate: boolean) {
         if (!map || !mapConfig) {
             pendingPlace = target ? { path: data.path, place: target } : null;
             return;
@@ -1698,52 +1714,95 @@
             }
             return;
         }
-        const match = findPlace(mapConfig, target);
-        if (!match) {
-            showPlaceNotice($t("map.placeNotFound", { name: target }));
+        if (typeof target === "string") {
+            const match = findPlace(mapConfig, target);
+            if (match) landOn([match], animate);
+            else showPlaceNotice($t("map.placeNotFound", { name: target }));
             return;
         }
-        if (match.hiddenLayerId) {
-            void updateLayer(match.hiddenLayerId, { visible: true });
+        const places = pagePlaces(mapConfig, opensPageAt(target.page));
+        if (places.length > 0) landOn(places, animate);
+    }
+
+    /**
+     * Whether a pin's or region's `targetPage` opens the page at `pagePath`:
+     * resolved the way clicking it does (`navigateToPageByTitle`).
+     */
+    function opensPageAt(pagePath: string): (targetPage: string) => boolean {
+        const pages = get(pagePathLookup);
+        const want = normalizePath(pagePath);
+        return (targetPage) => {
+            const path = pages.get(targetPage.toLowerCase());
+            return path !== undefined && normalizePath(path) === want;
+        };
+    }
+
+    /**
+     * Shows `places`: a lone pin centred at a close zoom, anything else fitted
+     * to the view (no closer than a lone pin, when there are pins), then
+     * briefly highlighted. Hidden layers they're on are switched on (and
+     * saved).
+     */
+    function landOn(places: PlaceMatch[], animate: boolean) {
+        if (!map || !mapConfig) return;
+        for (const layerId of new Set(places.map((p) => p.hiddenLayerId))) {
+            if (layerId) void updateLayer(layerId, { visible: true });
         }
-        if (match.kind === "pin") {
-            const { x, y } = match.pin;
-            // A box a third of the map's size around the pin: zooming to fit
-            // it is a close-up even on a small map.
-            const w = mapConfig.width / 6;
-            const h = mapConfig.height / 6;
-            const closeUp = map.getBoundsZoom([
-                [y - h, x - w],
-                [y + h, x + w],
-            ]);
-            const zoom = pinFocusZoom(nativeZoom, closeUp, map.getMaxZoom());
-            map.setView([y, x], zoom, { animate });
+        const only = places.length === 1 ? places[0] : null;
+        if (only?.kind === "pin") {
+            const zoom = pinCloseUpZoom(map, mapConfig);
+            map.setView([only.pin.y, only.pin.x], zoom, { animate });
         } else {
             // Custom Y-down CRS: lat == image Y, lng == image X.
-            const b = regionBounds(match.region);
+            const b = placesBounds(places);
+            const hasPin = places.some((p) => p.kind === "pin");
             map.fitBounds(
                 [
                     [b.minY, b.minX],
                     [b.maxY, b.maxX],
                 ],
-                { padding: [48, 48], animate },
+                {
+                    padding: [48, 48],
+                    maxZoom: hasPin
+                        ? pinCloseUpZoom(map, mapConfig)
+                        : undefined,
+                    animate,
+                },
             );
         }
-        flashPlace(match);
+        flashPlaces(places);
     }
 
-    /** Highlights a place for PLACE_FLASH_MS, as hovering it in the console does. */
-    function flashPlace(match: PlaceMatch) {
+    /** The zoom a lone pin is landed on at (see pinFocusZoom). */
+    function pinCloseUpZoom(m: L.Map, config: MapConfig): number {
+        // A box a third of the map's size: zooming to fit it is a close-up
+        // even on a small map.
+        const closeUp = m.getBoundsZoom([
+            [0, 0],
+            [config.height / 3, config.width / 3],
+        ]);
+        return pinFocusZoom(nativeZoom, closeUp, m.getMaxZoom());
+    }
+
+    /** Highlights `places` for PLACE_FLASH_MS, as hovering them in the console does. */
+    function flashPlaces(places: PlaceMatch[]) {
         if (placeFlashTimer) clearTimeout(placeFlashTimer);
-        const id = match.kind === "pin" ? match.pin.id : match.region.id;
-        if (match.kind === "pin") highlightedPinId = id;
-        else highlightedRegionId = id;
+        flashedPinIds = new Set(
+            places.flatMap((p) => (p.kind === "pin" ? [p.pin.id] : [])),
+        );
+        flashedRegionIds = new Set(
+            places.flatMap((p) => (p.kind === "region" ? [p.region.id] : [])),
+        );
         placeFlashTimer = setTimeout(() => {
             placeFlashTimer = null;
-            // Leave it alone if the console took the highlight over since.
-            if (highlightedPinId === id) highlightedPinId = null;
-            if (highlightedRegionId === id) highlightedRegionId = null;
+            flashedPinIds = new Set();
+            flashedRegionIds = new Set();
         }, PLACE_FLASH_MS);
+    }
+
+    /** The one id in `ids`, or null when there are none or several. */
+    function soleId(ids: ReadonlySet<string>): string | null {
+        return ids.size === 1 ? [...ids][0] : null;
     }
 
     function showPlaceNotice(text: string) {
@@ -2524,7 +2583,9 @@
                     onClose={() => (isConsoleOpen = false)}
                     onHoverPin={(id) => (highlightedPinId = id)}
                     onHoverRegion={(id) => (highlightedRegionId = id)}
-                    activePinId={hoveredPinId || highlightedPinId}
+                    activePinId={hoveredPinId ||
+                        highlightedPinId ||
+                        soleFlashedPinId}
                     {activeRegionIds}
                 />
             {/if}

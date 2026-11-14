@@ -27,6 +27,7 @@
  */
 
 import L from "leaflet";
+import { setsEqual } from "$lib/mapUtils";
 
 const DEFAULT_STROKE = "#000000";
 const HIGHLIGHT_STROKE = "#facc15";
@@ -89,7 +90,7 @@ export class CanvasPinLayer extends L.Layer {
     private originLayerPoint: L.Point = L.point(0, 0);
 
     private pins: CanvasPin[] = [];
-    private highlightedId: string | null = null;
+    private highlightedIds: ReadonlySet<string> = new Set();
     private hoveredId: string | null = null;
     /**
      * Whether the map console is open. Invisible pins are interactive hotspots
@@ -184,10 +185,13 @@ export class CanvasPinLayer extends L.Layer {
         this.reset();
     }
 
-    /** Set the "highlighted" pin (typically driven by console hover). */
-    setHighlight(id: string | null): void {
-        if (this.highlightedId === id) return;
-        this.highlightedId = id;
+    /**
+     * Set the "highlighted" pins (console hover, and the pins a map link or
+     * "View on Map" just landed on).
+     */
+    setHighlight(ids: ReadonlySet<string>): void {
+        if (setsEqual(ids, this.highlightedIds)) return;
+        this.highlightedIds = ids;
         this.render();
     }
 
@@ -484,19 +488,20 @@ export class CanvasPinLayer extends L.Layer {
         // Invisible pins are interactive hotspots: render() still registers
         // their hit entry, so they stay clickable/hoverable, but they are only
         // *painted* while the console is open, or while highlighted (a map
-        // link landing on one flashes it, to show where it is). In normal
-        // viewing mode they must be completely invisible, not merely faint.
+        // link or "View on Map" landing on one flashes it, to show where it
+        // is). In normal viewing mode they must be completely invisible, not
+        // merely faint.
         if (
             pin.invisible &&
             !this.consoleOpen &&
-            pin.id !== this.highlightedId
+            !this.highlightedIds.has(pin.id)
         ) {
             return;
         }
 
         const ctx = this.ctx!;
         const isHighlighted =
-            pin.id === this.highlightedId ||
+            this.highlightedIds.has(pin.id) ||
             pin.id === this.hoveredId ||
             pin.id === this.lifted?.id;
 

@@ -10,6 +10,8 @@ import {
     pinDropPoint,
     movePinTo,
     findPlace,
+    pagePlaces,
+    placesBounds,
     placeLabels,
     regionBounds,
     pinFocusZoom,
@@ -263,6 +265,7 @@ describe("regionStyleState", () => {
         mergePickIds: new Set<string>(),
         highlightedRegionId: null,
         hoveredRegionIds: new Set<string>(),
+        flashedRegionIds: new Set<string>(),
     };
     const ids = (s: Set<string>) => [...s].sort();
 
@@ -315,6 +318,24 @@ describe("regionStyleState", () => {
         });
         expect(r.mode).toBe("visible");
         expect(ids(r.targeted)).toEqual(["a", "c"]);
+    });
+
+    it("highlights the regions a landing flashes, but not while drawing", () => {
+        const flashing = {
+            ...idle,
+            flashedRegionIds: new Set(["walls", "fields"]),
+            hoveredRegionIds: new Set(["a"]),
+        };
+        expect(ids(regionStyleState(flashing).targeted)).toEqual([
+            "a",
+            "fields",
+            "walls",
+        ]);
+        const drawing = regionStyleState({
+            ...flashing,
+            drawing: { mode: "polygon" as const },
+        });
+        expect(ids(drawing.targeted)).toEqual([]);
     });
 });
 
@@ -480,6 +501,100 @@ describe("findPlace", () => {
             { label: 'The Fox & "Hound"', kind: "pin" },
             { label: "Moor", kind: "region" },
         ]);
+    });
+});
+
+describe("pagePlaces", () => {
+    const hiddenLayer = {
+        id: "L1",
+        name: "Hidden",
+        image: "",
+        opacity: 1,
+        zIndex: 0,
+        visible: false,
+    };
+    const cfg: MapConfig = {
+        version: "1",
+        title: "t",
+        width: 100,
+        height: 100,
+        layers: [hiddenLayer],
+        shapes: [
+            {
+                id: "r-walls",
+                type: "circle",
+                x: 12,
+                y: 12,
+                radius: 5,
+                targetPage: "Rome",
+            },
+            {
+                id: "r-map",
+                type: "polygon",
+                points: rect(0, 0, 9, 9),
+                targetMap: "Rome",
+            },
+        ],
+        pins: [
+            // Unlabelled: it shows the page's name, and still counts.
+            { id: "p-city", x: 10, y: 10, targetPage: "Rome" },
+            // Its label doesn't matter, only what it opens.
+            {
+                id: "p-athens",
+                x: 50,
+                y: 50,
+                label: "Rome",
+                targetPage: "Athens",
+            },
+            { id: "p-hidden", x: 20, y: 20, targetPage: "rome", layerId: "L1" },
+            { id: "p-lost", x: 30, y: 30, targetPage: "Rome", layerId: "gone" },
+        ],
+    };
+    const opensRome = (targetPage: string) =>
+        targetPage.toLowerCase() === "rome";
+    const summary = (cfg: MapConfig, opens: (t: string) => boolean) =>
+        pagePlaces(cfg, opens).map((m) => [
+            m.kind,
+            m.kind === "pin" ? m.pin.id : m.region.id,
+            m.hiddenLayerId,
+        ]);
+
+    it("finds every drawn pin and region that opens the page, pins first", () => {
+        expect(summary(cfg, opensRome)).toEqual([
+            ["pin", "p-city", null],
+            ["pin", "p-hidden", "L1"],
+            ["region", "r-walls", null],
+        ]);
+    });
+
+    it("finds nothing when no pin or region opens it", () => {
+        expect(summary(cfg, () => false)).toEqual([]);
+    });
+});
+
+describe("placesBounds", () => {
+    const pin = (id: string, x: number, y: number) => ({
+        kind: "pin" as const,
+        pin: { id, x, y },
+        hiddenLayerId: null,
+    });
+
+    it("is the point itself for a lone pin", () => {
+        expect(placesBounds([pin("a", 7, 9)])).toEqual({
+            minX: 7,
+            minY: 9,
+            maxX: 7,
+            maxY: 9,
+        });
+    });
+
+    it("spans every pin and every piece of every region", () => {
+        expect(
+            placesBounds([
+                pin("a", 40, -5),
+                { kind: "region", region: islands, hiddenLayerId: null },
+            ]),
+        ).toEqual({ minX: 0, minY: -5, maxX: 90, maxY: 90 });
     });
 });
 

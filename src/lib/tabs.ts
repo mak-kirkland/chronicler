@@ -11,14 +11,21 @@
  */
 import type { PageHeader } from "./bindings";
 
+/**
+ * Where a map opens: on the pin or region labelled with this string (a
+ * `[[map:Name#Place]]` link), or on every pin and region that opens the page
+ * at `page` ("View on Map" on that page).
+ */
+export type MapPlace = string | { page: string };
+
 /** Every possible main-view state. A tab's history is a list of these. */
 export type ViewState =
     | { type: "welcome" }
     | { type: "tag"; tagName: string }
     | { type: "file"; data: PageHeader | null; sectionId?: string | null }
     | { type: "image"; data: PageHeader | null }
-    /** `place`: the pin or region a `[[map:Name#Place]]` link opened it at. */
-    | { type: "map"; data: PageHeader | null; place?: string | null }
+    /** `place`: where a map link or "View on Map" opened it (see MapPlace). */
+    | { type: "map"; data: PageHeader | null; place?: MapPlace | null }
     | { type: "canvas"; data: PageHeader | null }
     | { type: "timeline"; data: PageHeader | null }
     | { type: "report"; name: string };
@@ -316,15 +323,23 @@ export function applyRename(
     // valid (cf. applyDelete, which only inspects each tab's current view).
     const tabs = state.tabs.map((tab) => ({
         ...tab,
-        history: tab.history.map(
-            (v): ViewState =>
-                isPathView(v) && v.data?.path === oldPath
-                    ? {
-                          type: kindOf(newPath),
-                          data: { path: newPath, title: newTitle },
-                      }
-                    : v,
-        ),
+        history: tab.history.map((v): ViewState => {
+            if (isPathView(v) && v.data?.path === oldPath) {
+                return {
+                    type: kindOf(newPath),
+                    data: { path: newPath, title: newTitle },
+                };
+            }
+            // A map opened by a page's "View on Map" follows that page.
+            if (
+                v.type === "map" &&
+                typeof v.place === "object" &&
+                v.place?.page === oldPath
+            ) {
+                return { ...v, place: { page: newPath } };
+            }
+            return v;
+        }),
     }));
     return { ...state, tabs };
 }

@@ -166,6 +166,25 @@ describe("applyRename / applyDelete", () => {
         });
     });
 
+    it("keeps a map opened by a page's View on Map on that page when it's renamed", () => {
+        const W = { path: "/v/World.cmap", title: "World" };
+        let s = T.createInitialState("a");
+        s = T.openInCurrent(s, file("/v/Rome.md", "Rome"));
+        s = T.openInCurrent(s, {
+            type: "map",
+            data: W,
+            place: { page: "/v/Rome.md" },
+        });
+        s = T.openInCurrent(s, { type: "map", data: W, place: "Castle" });
+        s = T.applyRename(s, "/v/Rome.md", "/v/Roma.md", "Roma", () => "file");
+        expect(s.tabs[0].history).toEqual([
+            T.WELCOME,
+            file("/v/Roma.md", "Roma"),
+            { type: "map", data: W, place: { page: "/v/Roma.md" } },
+            { type: "map", data: W, place: "Castle" },
+        ]);
+    });
+
     it("closes tabs whose current view points at a deleted path", () => {
         let s = T.createInitialState("a");
         s = T.openInNew(s, file("/p1.md"), "b"); // active b
