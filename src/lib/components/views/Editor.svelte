@@ -469,6 +469,14 @@
             ".cm-activeLineGutter": {
                 backgroundColor: "var(--tint-accent-line)",
             },
+            // CodeMirror draws the selection *behind* the text, so a line
+            // background paints over it, and in dark modes the tint is opaque.
+            // While text is selected the selection itself says where you are,
+            // so the band steps aside rather than hiding it.
+            "&.cm-has-selection .cm-activeLine, &.cm-has-selection .cm-activeLineGutter":
+                {
+                    backgroundColor: "transparent",
+                },
             // Agreeing with the preview: a link that will render blue is blue
             // here, and one that will render as a broken link says so now
             // rather than after you close the editor.
@@ -663,6 +671,15 @@
 
         // Colours [[wikilinks]], and flags the ones that don't resolve.
         wikilinkHighlight(wikilinkResolves),
+
+        // Lets the theme drop the active-line band while text is selected.
+        EditorView.editorAttributes.compute(
+            ["selection"],
+            (state): Record<string, string> =>
+                state.selection.ranges.some((r) => !r.empty)
+                    ? { class: "cm-has-selection" }
+                    : {},
+        ),
 
         // Keeps the pane header's "Ln 14" honest.
         EditorView.updateListener.of((update) => {
