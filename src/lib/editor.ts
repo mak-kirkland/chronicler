@@ -265,6 +265,31 @@ class FrontmatterHeaderWidget extends WidgetType {
     }
 }
 
+/**
+ * The gap between the card and the body text.
+ *
+ * A widget rather than a bottom margin on the last line: CodeMirror measures
+ * line heights from their border boxes, so a margin is invisible to its height
+ * map and every line-number below the card sat that far above its line.
+ */
+class FrontmatterGapWidget extends WidgetType {
+    eq(other: WidgetType): boolean {
+        return other instanceof FrontmatterGapWidget;
+    }
+
+    toDOM(): HTMLElement {
+        const gap = document.createElement("div");
+        gap.className = "cm-fm-gap";
+        return gap;
+    }
+}
+
+const frontmatterGap = Decoration.widget({
+    widget: new FrontmatterGapWidget(),
+    block: true,
+    side: 1,
+});
+
 function buildFrontmatterDecorations(
     state: EditorState,
     header: FrontmatterHeaderWidget,
@@ -288,11 +313,13 @@ function buildFrontmatterDecorations(
         const line = state.doc.line(i);
         decorations.push(
             Decoration.line({
-                // The last line closes the box: bottom border, radius, and the
-                // gap between the card and the body text.
+                // The last line closes the box: bottom border and radius.
                 class: i === lastLine ? "cm-fm-line cm-fm-last" : "cm-fm-line",
             }).range(line.from),
         );
+        if (i === lastLine) {
+            decorations.push(frontmatterGap.range(line.to));
+        }
 
         // Wikilinks are as meaningful in a frontmatter value as in the body,
         // and YAML highlighting alone renders them as ordinary string text.
@@ -334,9 +361,11 @@ const frontmatterTheme = EditorView.baseTheme({
     },
     ".cm-fm-last": {
         paddingBottom: "11px",
-        marginBottom: "20px",
         borderBottom: "1px solid var(--color-border-primary)",
         borderRadius: "0 0 5px 5px",
+    },
+    ".cm-fm-gap": {
+        height: "20px",
     },
     ".cm-fm-wikilink": {
         color: "var(--color-text-link)",
