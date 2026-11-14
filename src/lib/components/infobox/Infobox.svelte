@@ -241,14 +241,11 @@
                         </dt>
                         <dd class:numeric={isNumericValue(value)}>
                             {#if Array.isArray(value)}
-                                <!-- Inline rather than a bullet list: three
-                                     bullets in a 20rem card cost four lines to
-                                     say what one line says. -->
-                                {#each value as item, j (`${item}-${j}`)}
-                                    {#if j > 0}<span class="list-sep"
-                                            >,
-                                        </span>{/if}{@html item}
-                                {/each}
+                                <ul>
+                                    {#each value as item, j (`${item}-${j}`)}
+                                        <li>{@html item}</li>
+                                    {/each}
+                                </ul>
                             {:else}
                                 {@html value}
                             {/if}
@@ -454,7 +451,15 @@
         font-variant-numeric: tabular-nums;
     }
 
-    .list-sep {
+    dd ul {
+        margin: 0;
+        padding-left: 1.1rem;
+        /* FloatingMenu (.dropdown-menu) resets list-style globally, and the
+           link preview renders this card inside one. */
+        list-style: disc;
+    }
+
+    dd li::marker {
         color: var(--color-text-secondary);
     }
 
