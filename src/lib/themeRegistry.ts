@@ -71,6 +71,23 @@ export const AVAILABLE_FONTS = [
 ] as const;
 
 /**
+ * Returns the dropdown's own `value` for a saved font-family string whose
+ * first family is one of AVAILABLE_FONTS, else the string unchanged.
+ *
+ * The font pickers match their value exactly, so a saved value that names the
+ * right family with a different fallback shows as "Select…". Vaults first
+ * opened before the heading default was corrected saved `"Cinzel", cursive`
+ * against the list's `"Cinzel", serif`; this is what heals them on load.
+ */
+export function canonicalFont(value: string): string {
+    const family = value
+        .split(",")[0]
+        .trim()
+        .replace(/^["']|["']$/g, "");
+    return AVAILABLE_FONTS.find((f) => f.name === family)?.value ?? value;
+}
+
+/**
  * Defines the default fonts for each built-in theme.
  */
 export const BUILT_IN_THEME_FONTS: Record<
