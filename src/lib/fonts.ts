@@ -8,7 +8,12 @@
  */
 
 import { get } from "svelte/store";
-import { headingFont, bodyFont, userFonts } from "$lib/settingsStore";
+import {
+    headingFont,
+    bodyFont,
+    editorFont,
+    userFonts,
+} from "$lib/settingsStore";
 import { getUserFonts } from "$lib/commands";
 import { log } from "$lib/logger";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -173,12 +178,14 @@ export async function loadActiveFonts() {
         const allUserFonts = await getAllUserFonts();
         if (allUserFonts.length === 0) return; // No user fonts to load
 
-        const activeHeadingFont = get(headingFont).replace(/["']/g, "");
-        const activeBodyFont = get(bodyFont).replace(/["']/g, "");
+        const activeFontNames = new Set(
+            [headingFont, bodyFont, editorFont].map((store) =>
+                get(store).replace(/["']/g, ""),
+            ),
+        );
 
-        const activeFonts = allUserFonts.filter(
-            (font) =>
-                font.name === activeHeadingFont || font.name === activeBodyFont,
+        const activeFonts = allUserFonts.filter((font) =>
+            activeFontNames.has(font.name),
         );
 
         if (activeFonts.length > 0) {
