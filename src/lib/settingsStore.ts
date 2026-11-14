@@ -24,6 +24,7 @@ import { languagePreference, SYSTEM_LOCALE } from "$lib/i18n";
 import {
     BUILT_IN_THEME_FONTS,
     BUILT_IN_THEME_MODES,
+    canonicalFont,
     type ThemePalette,
 } from "./themeRegistry";
 
@@ -149,7 +150,7 @@ const defaultAtmosphere: AtmosphereSettings = {
 
 export const atmosphere = writable<AtmosphereSettings>(defaultAtmosphere);
 
-export const headingFont = writable<string>(`"Cinzel", cursive`);
+export const headingFont = writable<string>(`"Cinzel", serif`);
 export const bodyFont = writable<string>(`"Junicode", serif`);
 /**
  * The face the markdown source pane is set in. Separate from the body font
@@ -386,9 +387,16 @@ export async function initializeVaultSettings(vaultPath: string) {
         // Ensure new fields are present if missing from file
         atmosphere.set({ ...defaultAtmosphere, ...loadedAtmosphere });
 
-        headingFont.set(settings.headingFont ?? `"Uncial Antiqua", cursive`);
-        bodyFont.set(settings.bodyFont ?? `"IM Fell English", serif`);
-        editorFont.set(settings.editorFont ?? DEFAULT_EDITOR_FONT);
+        // canonicalFont so a picker can find the saved font in its list.
+        headingFont.set(
+            canonicalFont(settings.headingFont ?? `"Uncial Antiqua", cursive`),
+        );
+        bodyFont.set(
+            canonicalFont(settings.bodyFont ?? `"IM Fell English", serif`),
+        );
+        editorFont.set(
+            canonicalFont(settings.editorFont ?? DEFAULT_EDITOR_FONT),
+        );
         fontSize.set(settings.fontSize ?? 100);
         sidebarWidth.set(settings.sidebarWidth ?? SIDEBAR_INITIAL_WIDTH);
         isSidebarVisible.set(settings.isSidebarVisible ?? true); // Fallback to true
