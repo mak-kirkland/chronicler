@@ -182,7 +182,7 @@ Chronicler stores global settings, themes and fonts in a dedicated folder on you
 
 - **Themes**: Switch between built-in color schemes or create your own with the Theme Editor.
 - **Typography**: Under **Settings → Appearance → Typography**, pick the heading, body and editor fonts and the font size for the current vault. The **Editor Font** sets the markdown source pane; it defaults to IBM Plex Mono, and changing themes leaves it alone.
-- **Custom Fonts**: Add your own `.woff2`, `.ttf`, or `.otf` font files to the `fonts` subfolder within the **Application Settings Directory** (see above). After a restart, they will be available in the theme editor.hemes
+- **Custom Fonts**: Add your own `.woff2`, `.ttf`, or `.otf` font files to the `fonts` subfolder within the **Application Settings Directory** (see above). After a restart, they will be available in the theme editor.
 
 ---
 
