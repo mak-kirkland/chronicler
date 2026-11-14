@@ -194,14 +194,8 @@
                 <!-- This loop iterates over the final, processed list of render items. -->
                 {#each renderItems as renderItem, i (`${renderItem.type}-${i}`)}
                     {#if renderItem.type === "header"}
-                        <!-- An eyebrow and a rule that fills the rest of the
-                             width: it labels the group without drawing another
-                             full-width line across the card. -->
-                        <div class="section-head">
-                            <span class="eyebrow">{@html renderItem.text}</span>
-                            <span class="section-rule" aria-hidden="true"
-                            ></span>
-                        </div>
+                        <!-- Injected headers span the full width of the grid. -->
+                        <h4 class="layout-header">{@html renderItem.text}</h4>
                     {:else if renderItem.type === "separator"}
                         <!-- Sections now do most of this job, but an explicit
                              `separator` layout rule is the user asking for a
@@ -236,9 +230,7 @@
                     {:else if renderItem.type === "default"}
                         <!-- Default items render as a standard key-value pair. -->
                         {@const [key, value] = renderItem.item}
-                        <dt class="eyebrow">
-                            {@html capitalizeFirstLetter(key)}
-                        </dt>
+                        <dt>{@html capitalizeFirstLetter(key)}</dt>
                         <dd class:numeric={isNumericValue(value)}>
                             {#if Array.isArray(value)}
                                 <ul>
@@ -397,46 +389,22 @@
         border-bottom: 1px solid var(--hairline-soft);
     }
 
-    .section-head {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 6px;
-    }
-
-    .section-head .eyebrow {
-        flex-shrink: 0;
-    }
-
-    .section-rule {
-        flex: 1;
-        height: 1px;
-        background: var(--hairline-soft);
-    }
-
-    /* Sections after the first need air above them. */
-    dl .section-head {
-        grid-column: 1 / -1;
-        margin: 14px 0 6px;
-    }
-
-    dl .section-head:first-child {
-        margin-top: 0;
-    }
-
     dl {
         display: grid;
-        grid-template-columns: 7rem 1fr;
+        /* Sized by the longest key: bold body-text keys outgrow a fixed
+           column, and a key breaking mid-word is worse than a wider one. */
+        grid-template-columns: auto 1fr;
+        column-gap: var(--space-md);
         align-items: baseline;
         margin: 0;
     }
 
-    /* The single biggest change in the card: labels are eyebrows, not bold
-       dark text competing with the values they introduce. */
     dt {
+        font-weight: bold;
+        color: var(--color-text-secondary);
         padding: 6px 0;
         min-width: 0;
-        overflow-wrap: anywhere;
+        overflow-wrap: break-word;
     }
 
     dd {
@@ -499,6 +467,23 @@
     }
 
     /* --- User-defined Layout Styles --- */
+    .layout-header {
+        /* Headers span all columns of the parent DL grid. */
+        grid-column: 1 / -1;
+        font-family: var(--font-family-heading);
+        font-size: 0.95rem;
+        /* Explicit: preview.css sets the article's headings to 400, and the
+           card renders inside the article. */
+        font-weight: bold;
+        margin: var(--space-sm) 0 var(--space-xs);
+        padding-bottom: var(--space-xs);
+        border-bottom: 1px solid var(--color-border-primary);
+    }
+
+    .layout-header:first-child {
+        margin-top: 0;
+    }
+
     .layout-separator {
         grid-column: 1 / -1;
         border: none;
