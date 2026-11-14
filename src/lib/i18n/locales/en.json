@@ -16,6 +16,7 @@
     "settings.atmosphere.customize": "Customize Atmosphere",
     "settings.fonts.heading": "Heading Font",
     "settings.fonts.body": "Body Font",
+    "settings.fonts.editor": "Editor Font",
     "settings.fonts.add": "Add Font…",
     "settings.fonts.adding": "Adding…",
     "settings.fonts.addDescription": "Pick a `.ttf`, `.otf`, or `.woff2` file to add it to the dropdowns above.",

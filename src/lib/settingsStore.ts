@@ -80,6 +80,7 @@ interface VaultSettings {
     atmosphere: AtmosphereSettings;
     headingFont: string;
     bodyFont: string;
+    editorFont: string;
     fontSize: number;
     sidebarWidth: number;
     isSidebarVisible: boolean;
@@ -150,6 +151,13 @@ export const atmosphere = writable<AtmosphereSettings>(defaultAtmosphere);
 
 export const headingFont = writable<string>(`"Cinzel", cursive`);
 export const bodyFont = writable<string>(`"Junicode", serif`);
+/**
+ * The face the markdown source pane is set in. Separate from the body font
+ * because the editor is where alignment and fence characters matter, so it
+ * defaults to monospace, and themes don't touch it.
+ */
+export const DEFAULT_EDITOR_FONT = `"IBM Plex Mono", monospace`;
+export const editorFont = writable<string>(DEFAULT_EDITOR_FONT);
 export const fontSize = writable<number>(100);
 export const sidebarWidth = writable<number>(SIDEBAR_INITIAL_WIDTH);
 export const isSidebarVisible = writable<boolean>(true); // Default to visible
@@ -265,6 +273,7 @@ async function saveVaultSettings() {
         atmosphere: get(atmosphere),
         headingFont: get(headingFont),
         bodyFont: get(bodyFont),
+        editorFont: get(editorFont),
         fontSize: get(fontSize),
         sidebarWidth: get(sidebarWidth),
         isSidebarVisible: get(isSidebarVisible),
@@ -379,6 +388,7 @@ export async function initializeVaultSettings(vaultPath: string) {
 
         headingFont.set(settings.headingFont ?? `"Uncial Antiqua", cursive`);
         bodyFont.set(settings.bodyFont ?? `"IM Fell English", serif`);
+        editorFont.set(settings.editorFont ?? DEFAULT_EDITOR_FONT);
         fontSize.set(settings.fontSize ?? 100);
         sidebarWidth.set(settings.sidebarWidth ?? SIDEBAR_INITIAL_WIDTH);
         isSidebarVisible.set(settings.isSidebarVisible ?? true); // Fallback to true
@@ -406,6 +416,7 @@ export async function initializeVaultSettings(vaultPath: string) {
         atmosphere.subscribe(debouncedVaultSave),
         headingFont.subscribe(debouncedVaultSave),
         bodyFont.subscribe(debouncedVaultSave),
+        editorFont.subscribe(debouncedVaultSave),
         fontSize.subscribe(debouncedVaultSave),
         sidebarWidth.subscribe(debouncedVaultSave),
         isSidebarVisible.subscribe(debouncedVaultSave),
@@ -433,8 +444,8 @@ export function destroyVaultSettings() {
     vaultUnsubscribers = [];
 
     // Do NOT reset the theme or fonts here. By leaving the activeTheme,
-    // headingFont and bodyFont stores untouched, the appearance will
-    // persist on the vault selector screen.
+    // headingFont, bodyFont and editorFont stores untouched, the appearance
+    // will persist on the vault selector screen.
 
     fontSize.set(100);
     sidebarWidth.set(SIDEBAR_INITIAL_WIDTH);

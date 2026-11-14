@@ -19,6 +19,7 @@
         isSidebarVisible,
         headingFont,
         bodyFont,
+        editorFont,
         atmosphere,
         atmosphereMode,
     } from "$lib/settingsStore";
@@ -137,6 +138,7 @@
             style.fontSize = `${$fontSize}%`;
             style.setProperty("--font-family-heading", $headingFont);
             style.setProperty("--font-family-body", $bodyFont);
+            style.setProperty("--font-family-editor", $editorFont);
 
             // --- B. Apply Theme Colors ---
             if (customTheme) {

@@ -11,6 +11,7 @@
         type ThemeName,
         headingFont,
         bodyFont,
+        editorFont,
         userFonts,
         imageImportLocation,
         imageImportDir,
@@ -524,6 +525,19 @@
                                 bind:value={$bodyFont}
                             />
                         </div>
+                        <div class="form-group">
+                            <!-- svelte-ignore a11y_label_has_associated_control -->
+                            <label class="eyebrow"
+                                >{$t("settings.fonts.editor")}</label
+                            >
+                            <Select
+                                options={allAvailableFonts.map((f) => ({
+                                    value: f.value,
+                                    label: f.name,
+                                }))}
+                                bind:value={$editorFont}
+                            />
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -586,6 +600,11 @@
                             >
                                 {$t("settings.typography.previewLink")}
                             </a>
+                        </p>
+                        <!-- The source pane's face, shown as the markdown it
+                             would actually hold. -->
+                        <p class="preview-source">
+                            ## {$t("settings.typography.previewHeading")}
                         </p>
                     </div>
                 </section>
@@ -935,6 +954,14 @@
         margin: 0;
         line-height: 1.6;
     }
+    .preview-source {
+        font-family: var(--font-family-editor, var(--font-mono));
+        font-size: 0.82rem;
+        color: var(--color-text-secondary);
+        margin: 4px 0 0;
+        padding-top: 8px;
+        border-top: 1px solid var(--hairline-soft);
+    }
     /* The sentence under a pane title introduces the settings below it; at
        primary colour and 0.95rem it carried the same weight as the settings
        themselves. */
@@ -1075,7 +1102,7 @@
     }
     .font-selectors-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 1rem;
     }
 </style>

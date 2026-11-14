@@ -376,11 +376,14 @@
                 backgroundColor: "transparent",
                 color: "var(--color-text-primary)",
             },
-            // Monospace, because this pane is the source rather than the page:
-            // it is where alignment, indentation and fence characters matter,
-            // and setting it in the body face invited it to be read as prose.
+            // Monospace by default, because this pane is the source rather
+            // than the page: it is where alignment, indentation and fence
+            // characters matter, and setting it in the body face invited it
+            // to be read as prose. The face is the user's to change (Settings
+            // → Typography → Editor Font); the fallback covers the instant
+            // before the layout has written the variable.
             ".cm-content": {
-                fontFamily: "var(--font-mono)",
+                fontFamily: "var(--font-family-editor, var(--font-mono))",
                 fontSize: "0.82rem",
                 lineHeight: "1.85",
                 paddingBottom: "50vh",
