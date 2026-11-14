@@ -2,6 +2,21 @@
 
 ---
 
+## [v0.64.1-alpha] - 2026-11-14
+
+### ✨ Added
+
+- **Settings**: Added an Editor Font picker to the Typography section.
+
+### 🐞 Fixed
+
+- **UI**: Fixed several visual regressions introduced by the v0.64.0 redesign: infobox section headers are bold headings again, field labels are back to bold body text with the key column sizing itself to the longest key, and list values display as bullet points rather than a comma-separated inline string.
+- **Editor**: Fixed selected text being hidden in the editor.
+- **Editor**: Fixed line numbers sitting 20px above their actual lines when a frontmatter card is present. The gap below the card is now measured correctly by CodeMirror.
+- **Settings**: Fixed the Heading Font picker showing "Select…" instead of "Cinzel" on a fresh vault.
+
+---
+
 ## [v0.64.0-alpha] - 2026-11-13
 
 ### ✨ Added
