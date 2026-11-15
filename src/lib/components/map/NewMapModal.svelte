@@ -20,7 +20,10 @@
     import type { MapConfig } from "$lib/mapModels";
     import { t } from "$lib/i18n";
 
-    let { onClose } = $props<{ onClose: () => void }>();
+    let { onClose, parentDir } = $props<{
+        onClose: () => void;
+        parentDir?: string;
+    }>();
 
     let name = $state("");
     let selectedImage = $state("");
@@ -60,11 +63,12 @@
 
     async function handleSubmit(event?: Event) {
         if (event) event.preventDefault();
+        const dir = parentDir ?? $vaultPath;
 
         if (
             !name ||
             !selectedImage ||
-            !$vaultPath ||
+            !dir ||
             mapWidth === 0 ||
             mapHeight === 0
         ) {
@@ -74,7 +78,7 @@
         isCreating = true;
         try {
             const filename = `${name.trim()}.cmap`;
-            const filePath = await join($vaultPath, filename);
+            const filePath = await join(dir, filename);
             const normalizedPath = normalizePath(filePath);
 
             const defaultMap: MapConfig = {

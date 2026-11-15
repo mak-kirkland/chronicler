@@ -147,9 +147,7 @@ export function getContextMenuActions(
                 handler: () => {
                     openModal({
                         component: NewMapModal,
-                        props: {
-                            onClose: closeModal,
-                        },
+                        props: { parentDir: node.path, onClose: closeModal },
                     });
                 },
             });
