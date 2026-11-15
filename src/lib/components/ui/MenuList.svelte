@@ -68,7 +68,6 @@
     });
 
     let listEl = $state<HTMLElement | null>(null);
-    let itemEls: HTMLElement[] = [];
 
     // The list takes focus so it receives keys. Menus portal to <body>, so
     // there's nothing above them to compete for the keyboard.
@@ -76,9 +75,16 @@
         if (isOpen) listEl?.focus();
     });
 
+    // Handler first, then close: callers' handlers read the state their
+    // onClose clears (the map's right-click point, the timeline event's id),
+    // so closing first hands them null. `finally` keeps a throwing handler
+    // from leaving the menu open.
     function run(item: MenuAction) {
-        onClose();
-        item.handler();
+        try {
+            item.handler();
+        } finally {
+            onClose();
+        }
     }
 
     /**
@@ -103,8 +109,12 @@
             isOpen,
             nav,
             // Options aren't 1:1 with children here — separators and headings
-            // sit among them — so resolve the element by option index.
-            getItemEl: (i: number) => itemEls[i],
+            // sit among them — but they are 1:1 with the buttons. Looked up
+            // rather than `bind:this`-ed: unbinding runs in a microtask after
+            // the menu is gone and re-reads `index`, which re-runs the
+            // caller's `items` against state its onClose already nulled.
+            getItemEl: (i: number) =>
+                listEl?.querySelectorAll<HTMLElement>(":scope > button")[i],
             onSelect: (item: MenuAction) => run(item),
             onClose,
             // Row 0 is highlighted on open, so Tab must not commit it.
@@ -139,7 +149,6 @@
                         aria-checked={item.checked}
                         class:highlighted={index === nav.index}
                         title={item.title}
-                        bind:this={itemEls[index]}
                         onclick={() => run(item)}
                         onmousemove={() => (nav.index = index)}
                     >
