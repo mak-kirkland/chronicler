@@ -2,6 +2,16 @@
 
 ---
 
+## [v0.64.2-alpha] - 2026-11-15
+
+### 🐞 Fixed
+
+- **Maps**: Fixed "New Map" in a folder's right-click menu always creating the map in the vault root instead of that folder.
+- **Maps**: Fixed right-click actions on the map (Add Pin, Edit/Delete Pin) silently doing nothing after the v0.64.0 menu overhaul.
+- **Timelines**: Fixed right-click actions on timeline events and lanes throwing an error after the v0.64.0 menu overhaul.
+
+---
+
 ## [v0.64.1-alpha] - 2026-11-14
 
 ### ✨ Added
