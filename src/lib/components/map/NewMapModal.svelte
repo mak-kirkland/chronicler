@@ -4,6 +4,7 @@
         allImageFiles,
         imagePathLookup,
         world,
+        files,
     } from "$lib/worldStore";
     import { writePageContent } from "$lib/commands";
     import { navigateToMap } from "$lib/actions";
@@ -11,7 +12,7 @@
     import { join } from "@tauri-apps/api/path";
     import { convertFileSrc } from "@tauri-apps/api/core";
     import { autofocus } from "$lib/domActions";
-    import { normalizePath } from "$lib/utils";
+    import { normalizePath, findNodeByPath } from "$lib/utils";
     import { detectImageDimensions } from "$lib/mapUtils";
     import Button from "$lib/components/ui/Button.svelte";
     import SearchableSelect from "$lib/components/ui/SearchableSelect.svelte";
@@ -80,6 +81,12 @@
             const filename = `${name.trim()}.cmap`;
             const filePath = await join(dir, filename);
             const normalizedPath = normalizePath(filePath);
+            // writePageContent overwrites, so guard against clobbering an
+            // existing map — pins, regions and all — with an empty one.
+            if (findNodeByPath($files, normalizedPath)) {
+                alert($t("map.alreadyExists", { name: name.trim() }));
+                return;
+            }
 
             const defaultMap: MapConfig = {
                 version: "1.0",

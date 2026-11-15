@@ -591,6 +591,7 @@
     "map.create": "Create Map",
     "map.creating": "Creating...",
     "map.createFailed": "Failed to create map.",
+    "map.alreadyExists": "A map named \"{name}\" already exists here.",
     "map.editPin": "Edit Pin",
     "map.addPin": "Add Pin",
     "map.editRegion": "Edit Region",
