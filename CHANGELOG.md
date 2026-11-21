@@ -2,6 +2,17 @@
 
 ---
 
+## [v0.64.3-alpha] - 2026-11-21
+
+### 🐞 Fixed
+
+- **Split View**: Fixed the pane close buttons overlapping the action buttons in each pane's header, making them unclickable.
+- **Split View**: Fixed keyboard shortcuts being handled by both panes simultaneously when two canvases or timelines were open side by side. Only the focused pane now responds to keypresses.
+- **Infobox**: Fixed very long field keys squeezing the value column too narrow. The key column now has a maximum width.
+- **Preview**: Fixed the infobox briefly un-floating and re-floating when switching back to a background tab.
+
+---
+
 ## [v0.64.2-alpha] - 2026-11-15
 
 ### 🐞 Fixed
