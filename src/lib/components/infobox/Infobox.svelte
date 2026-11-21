@@ -391,9 +391,13 @@
 
     dl {
         display: grid;
-        /* Sized by the longest key: bold body-text keys outgrow a fixed
-           column, and a key breaking mid-word is worse than a wider one. */
-        grid-template-columns: auto 1fr;
+        /* Sized by the longest key, but never past 40% of the card: values
+           take priority. A bare `auto` let one long key ("Place of birth and
+           early upbringing") claim its full one-line width and squeeze every
+           value into a sliver; capped, long keys wrap between words instead.
+           Short keys like "Notable members" sit well under the cap, so they
+           still never wrap. */
+        grid-template-columns: fit-content(40%) 1fr;
         column-gap: var(--space-md);
         align-items: baseline;
         margin: 0;
