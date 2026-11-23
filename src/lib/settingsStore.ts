@@ -185,9 +185,9 @@ export const promptForImageName = writable<boolean>(false);
 /** Which hero image the welcome page shows. */
 export type WelcomeBanner = "default" | "scifi";
 /**
- * `default`: the classic `banner.png` (and, for licensed non-Linux users, the
- * video background). `scifi`: forces the static `scifi-banner.png`, replacing
- * the video too.
+ * `default` (shown as "Fantasy"): `banner.png`, animated as `background.webm`.
+ * `scifi`: `scifi-banner.png`, animated as `scifi-animated.webm`. The video
+ * only plays for licensed non-Linux users; everyone else gets the still.
  */
 export const welcomeBanner = writable<WelcomeBanner>("default");
 

@@ -5,15 +5,25 @@
     import { log } from "$lib/logger";
     import { t } from "$lib/i18n";
 
-    let videoReady = $state(false);
-    let videoError = $state(false);
+    // Each banner has its own animated background. Ready/failed are tracked
+    // per source so switching banners fades the new video in from scratch,
+    // and one clip failing doesn't stop the other from being tried.
+    const videoSrc = $derived(
+        $welcomeBanner === "scifi"
+            ? "/scifi-animated.webm"
+            : "/background.webm",
+    );
+    let readySrc = $state<string | null>(null);
+    let failedSrc = $state<string | null>(null);
+    const videoReady = $derived(readySrc === videoSrc);
+    const videoError = $derived(failedSrc === videoSrc);
 
     function handleVideoError() {
         log.warn(
-            "Video background failed to load, falling back to static image.",
+            `Video background ${videoSrc} failed to load, falling back to static image.`,
             "WelcomeView",
         );
-        videoError = true;
+        failedSrc = videoSrc;
     }
 
     // Runtime check
@@ -40,9 +50,9 @@
                1. User is licensed
                2. AND User is NOT on Linux (to prevent crashes)
             -->
-            {#if $licenseStore.status === "licensed" && !videoError && !isLinux && $welcomeBanner !== "scifi"}
+            {#if $licenseStore.status === "licensed" && !videoError && !isLinux}
                 <video
-                    src="/background.webm"
+                    src={videoSrc}
                     width="100%"
                     height="100%"
                     autoplay
@@ -50,13 +60,13 @@
                     loop
                     playsinline
                     class:ready={videoReady}
-                    onloadedmetadata={() => (videoReady = true)}
+                    onloadedmetadata={() => (readySrc = videoSrc)}
                     onerror={handleVideoError}
                 >
                 </video>
             {:else}
                 <!-- Fallback for Unlicensed OR Linux users, or when the
-                     Sci-Fi banner is selected. -->
+                     selected banner's video fails to load. -->
                 <img src={bannerSrc} alt="Chronicler Banner" />
                 <div class="hero-overlay">
                     <h1 class="welcome-title">Chronicler</h1>
